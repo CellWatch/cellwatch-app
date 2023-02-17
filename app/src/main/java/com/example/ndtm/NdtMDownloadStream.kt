@@ -18,6 +18,7 @@ class NdtMDownloadStream(
     private val TAG = NdtMDownloadStream::class.simpleName
     private val updateChan = Channel<NdtMDownloadStreamUpdate>()
     private var webSocket: WebSocket? = null
+    private var complete = false
 
     val updates: ReceiveChannel<NdtMDownloadStreamUpdate> = updateChan
     var latestUpdate: NdtMDownloadStreamUpdate? = null
@@ -28,16 +29,19 @@ class NdtMDownloadStream(
         thread {
             try {
                 runBlocking { run() }
-                updateChan.close()
+                onComplete()
             } catch (e: Exception) {
                 Log.e(TAG, "unexpected error running stream $num", e)
                 webSocket?.close(WS_CODE_GOING_AWAY, null)
-                updateChan.close(e)
+                onComplete(e)
             }
         }
     }
 
     fun cancel(error: Boolean) {
+        if (complete) return
+        onComplete()
+
         Log.d(TAG, "stream $num cancelled ${if (error) "with" else "without"} error")
         webSocket?.close(if (error) WS_CODE_GOING_AWAY else WS_CODE_NORMAL_CLOSURE, null)
     }
@@ -65,9 +69,14 @@ class NdtMDownloadStream(
             Log.d(TAG, "download stream $num failed", t)
 
             if (t is NdtMUnexpectedCloseException) {
-                updateChan.close(t)
+                onComplete(t)
             }
         }
+    }
+
+    private fun onComplete(t: Throwable? = null) {
+        complete = true
+        updateChan.close(t)
     }
 }
 

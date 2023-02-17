@@ -37,6 +37,7 @@ class NdtMDownloadTest(
 
                     async {
                         stream.updates.consumeEach { progressChan.trySend(getLatestTestMetrics()) }
+                        for (s in streams) s.cancel(false)
                     }
                 }
             }
