@@ -10,13 +10,14 @@ import okhttp3.OkHttpClient
 import java.util.*
 import kotlin.concurrent.schedule
 
-class NdtMDownloadTest(
+class NdtMTestComponent(
     private val client: OkHttpClient,
     private val url: String,
+    direction: NdtMTestDirection,
     numStreams: Int,
 ) {
-    private val TAG = NdtMDownloadTest::class.simpleName
-    private val streams = Array(numStreams) { NdtMDownloadStream(it, client, url) }
+    private val TAG = NdtMTestComponent::class.simpleName
+    private val streams = Array(numStreams) { NdtMStream(it, client, url, direction) }
     private var startUsec: Long = 0
     private var warmupUsec: Long? = null
     private var endUsec: Long? = null
@@ -106,7 +107,7 @@ class NdtMDownloadTest(
 
         val end = when (type) {
             AggregateMetricType.CURRENT -> SystemClock.elapsedRealtimeNanos() / 1000
-            AggregateMetricType.WARMUP -> warmupUsec
+            AggregateMetricType.WARMUP -> warmupUsec ?: startUsec
             AggregateMetricType.ACTIVE -> endUsec
         } ?: throw Throwable("missing end usec value for aggregate metrics $type")
 
@@ -135,3 +136,5 @@ data class NdtMTestResult(
     val activeMetrics: NdtMTestMetrics,
     val measurements: Collection<Collection<NdtMMeasurement>>,
 )
+
+enum class NdtMTestDirection{ UPLOAD, DOWNLOAD }

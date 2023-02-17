@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
             thread {
                 try {
                     val client = OkHttpClient.Builder().build()
-                    val test = NdtMDownloadTest(client, "ws://10.0.2.2:8080/msak/ndtm/download?mid=3a36e36c-870c-412a-aaab-729748e71ec1", 3)
+                    val test = NdtMTestComponent(client, "ws://10.0.2.2:8080/msak/ndtm/upload?mid=3a36e36c-870c-412a-aaab-729748e71ec1", NdtMTestDirection.UPLOAD, 3)
                     runBlocking {
                         launch {
                             test.progress.consumeEach {

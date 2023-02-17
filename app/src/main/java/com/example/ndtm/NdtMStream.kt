@@ -10,16 +10,20 @@ import okhttp3.Request
 import okhttp3.WebSocket
 import kotlin.concurrent.thread
 
-class NdtMDownloadStream(
-    private val num: Int,
+class NdtMStream(
+    num: Int,
     private val client: OkHttpClient,
     private val url: String,
+    direction: NdtMTestDirection,
 ) {
-    private val TAG = NdtMDownloadStream::class.simpleName
+    private val TAG = "${NdtMStream::class.simpleName} $num"
     private var webSocket: WebSocket? = null
     private var complete = false
     private val measurementChan = Channel<NdtMMeasurement>()
-    private val listener = NdtMReceiver(measurementChan)
+    private val listener = when (direction) {
+        NdtMTestDirection.UPLOAD -> NdtMSender(num, measurementChan)
+        NdtMTestDirection.DOWNLOAD -> NdtMReceiver(num, measurementChan)
+    }
     private val _updateChan = Channel<NdtMMeasurement>()
     val updateChan: ReceiveChannel<NdtMMeasurement> = _updateChan
     var success = true
@@ -50,7 +54,7 @@ class NdtMDownloadStream(
                 runBlocking { run() }
                 onComplete()
             } catch (e: Exception) {
-                Log.e(TAG, "unexpected error running stream $num", e)
+                Log.e(TAG, "unexpected error running stream", e)
                 webSocket?.close(WS_CODE_GOING_AWAY, null)
                 onComplete(e)
             }
@@ -61,12 +65,12 @@ class NdtMDownloadStream(
         if (complete) return
         onComplete()
 
-        Log.d(TAG, "stream $num cancelled ${if (error) "with" else "without"} error")
+        Log.d(TAG, "stream cancelled ${if (error) "with" else "without"} error")
         webSocket?.close(if (error) WS_CODE_GOING_AWAY else WS_CODE_NORMAL_CLOSURE, null)
     }
 
     fun endWarmup() {
-        endWarmupMeasurement = listener.getMeasurement()
+        endWarmupMeasurement = listener.latestMeasurement
     }
 
     private suspend fun run() {
@@ -81,7 +85,7 @@ class NdtMDownloadStream(
             measurementChan.consumeEach { onMeasurementReceived(it) }
             addMeasurement()
         } catch (t: Throwable) {
-            Log.d(TAG, "download stream $num failed", t)
+            Log.d(TAG, "stream failed", t)
             success = false
             addMeasurement()
 
@@ -92,16 +96,12 @@ class NdtMDownloadStream(
     }
 
     private fun onMeasurementReceived(measurement: NdtMMeasurement) {
-        Log.v(TAG, "got measurement from stream $num")
+        Log.v(TAG, "got measurement from stream")
         if (measurement.Origin != "receiver") {
             return
         }
 
-        if (!readyToEndWarmup && isReadyToEndWarmup(measurement)) {
-            Log.d(TAG, "stream $num ready to end warmup")
-            readyToEndWarmup = true
-        }
-
+        checkReadyToEndWarmup(measurement)
         addMeasurement(measurement)
     }
 
@@ -111,16 +111,21 @@ class NdtMDownloadStream(
     }
 
     private fun addMeasurement(measurement: NdtMMeasurement? = null) {
-        val m = measurement ?: listener.getMeasurement()
+        val m = measurement ?: listener.latestMeasurement ?: return
         measurements.add(m)
         _updateChan.trySend(m)
     }
 
-    private fun isReadyToEndWarmup(curMeasurement: NdtMMeasurement): Boolean {
-        val lastBPS = measurementToMetrics(latestMeasurement)?.bytesPerSec ?: return false
-        val curBPS = measurementToMetrics(curMeasurement)?.bytesPerSec ?: return false
-        if (lastBPS == 0.0 || curBPS == 0.0) return false
+    private fun checkReadyToEndWarmup(curMeasurement: NdtMMeasurement) {
+        if (readyToEndWarmup) return
 
-        return curBPS <= lastBPS
+        val lastBPS = measurementToMetrics(latestMeasurement)?.bytesPerSec ?: return
+        val curBPS = measurementToMetrics(curMeasurement)?.bytesPerSec ?: return
+        if (lastBPS == 0.0 || curBPS == 0.0) return
+
+        readyToEndWarmup = curBPS <= lastBPS
+        if (readyToEndWarmup) {
+            Log.d(TAG, "stream ready to end warmup: $lastBPS, $curBPS")
+        }
     }
 }
