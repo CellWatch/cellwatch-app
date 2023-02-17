@@ -19,9 +19,10 @@ class NdtMReceiver(
     private val measurementChan: Channel<NdtMMeasurement>,
 ): WebSocketListener() {
     private val TAG = NdtMReceiver::class.simpleName
-    private var startUsec: Long = 0
     private var lastMeasurementUsec: Long = 0
     private val measurementMutex = Mutex(false)
+    private var startUsec: Long = 0
+    private var endUsec: Long? = null
     private var numBytes = AtomicLong(0)
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -71,6 +72,8 @@ class NdtMReceiver(
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
         super.onClosed(webSocket, code, reason)
         Log.d(TAG, "websocket closed: $code $reason")
+        endUsec = SystemClock.elapsedRealtimeNanos() / 1000
+
         if (code == WS_CODE_NORMAL_CLOSURE || code == WS_CODE_GOING_AWAY) {
             measurementChan.close()
         } else {
@@ -81,13 +84,20 @@ class NdtMReceiver(
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
         super.onFailure(webSocket, t, response)
         Log.d(TAG, "websocket failure: $response", t)
+        endUsec = SystemClock.elapsedRealtimeNanos() / 1000
         measurementChan.close(t)
     }
 
-    suspend fun sendMeasurement(webSocket: WebSocket) {
+    fun getMeasurement(): NdtMMeasurement {
+        val bytes = numBytes.get()
+        val usec = endUsec ?: SystemClock.elapsedRealtimeNanos() / 1000
+        return NdtMMeasurement("receiver", AppInfo(bytes, usec - startUsec))
+    }
+
+    private suspend fun sendMeasurement(webSocket: WebSocket) {
         measurementMutex.withLock {
             val bytes = numBytes.get()
-            val usec = SystemClock.elapsedRealtimeNanos() / 1000
+            val usec = endUsec ?: SystemClock.elapsedRealtimeNanos() / 1000
             if (usec - lastMeasurementUsec < NDTM_MEASUREMENT_INTERVAL_MILLIS * 1000) {
                 return
             }

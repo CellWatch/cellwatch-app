@@ -18,3 +18,21 @@ data class ConnectionInfo(
     val UUID: String,
     val CC: String,
 )
+
+data class NdtMTestMetrics(
+    val bytesPerSec: Double,
+    val bytes: Long,
+    val usecs: Long,
+)
+
+fun measurementToMetrics(measurement: NdtMMeasurement?): NdtMTestMetrics? {
+    if (measurement == null) return null
+    val bytes = measurement.AppInfo?.NumBytes ?: 0L
+    val usecs = measurement.AppInfo?.ElapsedTime ?: 0L
+    val bytesPerSec = calcBytesPerSec(bytes, usecs)
+    return NdtMTestMetrics(bytesPerSec, bytes, usecs)
+}
+
+fun calcBytesPerSec(bytes: Long, usecs: Long): Double {
+    return if (usecs == 0L) 0.0 else bytes / usecs * 1e6
+}
