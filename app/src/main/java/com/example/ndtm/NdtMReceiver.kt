@@ -53,7 +53,11 @@ class NdtMReceiver(
             val measurement = NdtMMeasurement(origin, AppInfo(bytes, usec - startUsec))
             Log.d(TAG, "sending measurement: $measurement")
             if (webSocket.send(Gson().toJson(measurement))) {
-                measurementChan.send(measurement)
+                try {
+                    measurementChan.send(measurement)
+                } catch (t: Throwable) {
+                    Log.w(TAG, "unable to send measurement on chan", t)
+                }
             } else {
                 Log.d(TAG, "unable to send measurement")
             }

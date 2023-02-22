@@ -33,15 +33,19 @@ open class NdtMListener(
         super.onMessage(webSocket, text)
         Log.v(TAG, "got text message: $text")
 
-        runBlocking {
-            // parse the message and pass it on
-            try {
-                val measurement = Gson().fromJson(text, NdtMMeasurement::class.java)
-                latestMeasurement = measurement
-                measurementChan.send(measurement)
-            } catch (e: JsonSyntaxException) {
-                Log.w(TAG, "text message deserialization failed", e)
-            }
+        val measurement = try {
+            Gson().fromJson(text, NdtMMeasurement::class.java)
+        } catch (e: JsonSyntaxException) {
+            Log.w(TAG, "text message deserialization failed", e)
+            return
+        }
+
+        latestMeasurement = measurement
+
+        try {
+            runBlocking { measurementChan.send(measurement) }
+        } catch (t: Throwable) {
+            Log.w(TAG, "sending measurement on chan failed", t)
         }
     }
 

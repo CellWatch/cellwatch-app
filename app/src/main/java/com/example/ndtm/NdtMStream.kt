@@ -8,6 +8,9 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.concurrent.schedule
 import kotlin.concurrent.thread
 
 class NdtMStream(
@@ -67,6 +70,8 @@ class NdtMStream(
 
         Log.d(TAG, "stream cancelled ${if (error) "with" else "without"} error")
         webSocket?.close(if (error) WS_CODE_GOING_AWAY else WS_CODE_NORMAL_CLOSURE, null)
+        measurementChan.close()
+        Timer().schedule(5000L) { webSocket?.cancel() }
     }
 
     fun endWarmup() {
