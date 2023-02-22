@@ -44,7 +44,10 @@ class MainActivity : AppCompatActivity() {
             thread {
                 try {
                     val client = OkHttpClient.Builder().build()
-                    val test = NdtMTestComponent(client, "ws://10.0.2.2:8080/msak/ndtm/upload?mid=3a36e36c-870c-412a-aaab-729748e71ec1", NdtMTestDirection.UPLOAD, 3)
+                    val server = selectServer(client, "https://locate.mlab-sandbox.measurementlab.net/v2/nearest/")
+                    Log.d(TAG, "best server: $server")
+                    val measurementId = UUID.randomUUID().toString()
+                    val test = NdtMTestComponent(client, server, measurementId, NdtMTestDirection.UPLOAD, 3)
                     runBlocking {
                         launch {
                             test.progress.consumeEach {

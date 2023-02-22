@@ -12,11 +12,13 @@ import kotlin.concurrent.schedule
 
 class NdtMTestComponent(
     private val client: OkHttpClient,
-    private val url: String,
+    server: NdtMLocateServer,
+    measurementId: String,
     direction: NdtMTestDirection,
     numStreams: Int,
 ) {
     private val TAG = NdtMTestComponent::class.simpleName
+    private val url = getUrl(server, direction, measurementId)
     private val streams = Array(numStreams) { NdtMStream(it, client, url, direction) }
     private var startUsec: Long = 0
     private var warmupUsec: Long? = null
