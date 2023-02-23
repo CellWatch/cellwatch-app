@@ -71,7 +71,7 @@ class NdtMTestComponent(
         return NdtMTestResult(
             streams.all { it.success },
             getAggregateMetrics(AggregateMetricType.WARMUP),
-            getAggregateMetrics(AggregateMetricType.ACTIVE),
+            if (warmupUsec != null) getAggregateMetrics(AggregateMetricType.ACTIVE) else null,
             streams.map { it.measurements },
         )
     }
@@ -134,8 +134,8 @@ class NdtMTestComponent(
 
 data class NdtMTestResult(
     val success: Boolean,
-    val warmupMetrics: NdtMTestMetrics,
-    val activeMetrics: NdtMTestMetrics,
+    val warmupMetrics: NdtMTestMetrics?,
+    val activeMetrics: NdtMTestMetrics?,
     val measurements: Collection<Collection<NdtMMeasurement>>,
 )
 
