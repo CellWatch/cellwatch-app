@@ -10,7 +10,6 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
-import java.util.concurrent.atomic.AtomicLong
 
 open class NdtMListener(
     streamNum: Int,
@@ -20,7 +19,6 @@ open class NdtMListener(
     protected val TAG = "${this::class.simpleName} $streamNum"
     protected var startUsec: Long = 0
     protected var endUsec: Long? = null
-    protected var numBytes = AtomicLong(0)
     open var latestMeasurement: NdtMMeasurement? = null
         protected set
 
