@@ -6,6 +6,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.serialization.Serializable
 import okhttp3.OkHttpClient
 import java.util.*
 import kotlin.concurrent.schedule
@@ -132,6 +133,7 @@ class NdtMTestComponent(
     private enum class AggregateMetricType { CURRENT, WARMUP, ACTIVE }
 }
 
+@Serializable
 data class NdtMTestResult(
     val success: Boolean,
     val warmupMetrics: NdtMTestMetrics?,

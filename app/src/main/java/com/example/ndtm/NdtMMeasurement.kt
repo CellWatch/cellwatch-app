@@ -1,5 +1,8 @@
 package com.example.ndtm
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class NdtMMeasurement(
     val Origin: String?,
     val AppInfo: AppInfo?,
@@ -7,11 +10,13 @@ data class NdtMMeasurement(
     // TODO: add BBRInfo and TCPInfo
 )
 
+@Serializable
 data class AppInfo(
     val NumBytes: Long,
     val ElapsedTime : Long,
 )
 
+@Serializable
 data class ConnectionInfo(
     val Client: String,
     val Server: String,
@@ -19,6 +24,7 @@ data class ConnectionInfo(
     val CC: String,
 )
 
+@Serializable
 data class NdtMTestMetrics(
     val bytesPerSec: Double,
     val bytes: Long,
