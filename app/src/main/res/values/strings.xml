@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ndt-m test app</string>
+    <string name="app_name">ndt8 test app</string>
     <string name="measure">Measure</string>
     <string name="measuring">Measuring</string>
     <string name="hello_first_fragment">Hello first fragment</string>

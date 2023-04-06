@@ -1,4 +1,4 @@
-package com.example.ndtm
+package com.example.ndt8
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.example.ndtm", appContext.packageName)
+        assertEquals("com.example.ndt8", appContext.packageName)
     }
 }

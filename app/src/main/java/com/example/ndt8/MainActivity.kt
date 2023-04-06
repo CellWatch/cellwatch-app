@@ -1,4 +1,4 @@
-package com.example.ndtm
+package com.example.ndt8
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
@@ -6,7 +6,7 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
-import com.example.ndtm.databinding.ActivityMainBinding
+import com.example.ndt8.databinding.ActivityMainBinding
 import java.util.*
 
 class MainActivity : AppCompatActivity() {

@@ -1,4 +1,4 @@
-package com.example.ndtm
+package com.example.ndt8
 
 import android.os.SystemClock
 import android.util.Log
@@ -10,31 +10,30 @@ import okhttp3.OkHttpClient
 import java.util.*
 import kotlin.concurrent.schedule
 
-class NdtMTestComponent(
+class Ndt8TestComponent(
     private val client: OkHttpClient,
-    server: NdtMLocateServer,
-    measurementId: String,
-    direction: NdtMTestDirection,
-    numStreams: Int,
+    server: Ndt8LocateServer,
+    measurementId: String?,
+    direction: Ndt8TestDirection,
 ) {
-    private val TAG = NdtMTestComponent::class.simpleName
+    private val TAG = Ndt8TestComponent::class.simpleName
     private val url = getUrl(server, direction, measurementId)
-    private val streams = Array(numStreams) { NdtMStream(it, client, url, direction) }
+    private val streams = Array(NDT8_STREAMS) { Ndt8Stream(it, client, url, direction) }
     private var startUsec: Long = 0
     private var warmupUsec: Long? = null
     private var endUsec: Long? = null
     private val maxWarmupDurationTimer = Timer()
-    private val progressChan = Channel<NdtMTestMetrics>()
-    val progress: ReceiveChannel<NdtMTestMetrics> = progressChan
+    private val progressChan = Channel<Ndt8TestMetrics>()
+    val progress: ReceiveChannel<Ndt8TestMetrics> = progressChan
 
-    suspend fun run(): NdtMTestResult {
+    suspend fun run(): Ndt8TestResult {
         val maxDurationTimer = Timer()
-        maxDurationTimer.schedule(NDTM_MAX_MILLIS) {
+        maxDurationTimer.schedule(NDT8_MAX_MILLIS) {
             Log.d(TAG, "max test duration reached")
             for (stream in streams) stream.cancel(false)
         }
 
-        maxWarmupDurationTimer.schedule(NDTM_MAX_WARMUP_MILLIS) {
+        maxWarmupDurationTimer.schedule(NDT8_MAX_WARMUP_MILLIS) {
             Log.d(TAG, "max warmup duration reached")
             endWarmup()
         }
@@ -50,6 +49,8 @@ class NdtMTestComponent(
                         stream.updateChan.consumeEach { onUpdateReceived() }
                         for (s in streams) s.cancel(false)
                     }
+
+                    delay(NDT8_STREAM_DELAY)
                 }
             }
 
@@ -68,16 +69,30 @@ class NdtMTestComponent(
             progressChan.close()
         }
 
-        return NdtMTestResult(
-            streams.all { it.success },
-            getAggregateMetrics(AggregateMetricType.WARMUP),
-            if (warmupUsec != null) getAggregateMetrics(AggregateMetricType.ACTIVE) else null,
-            streams.map { it.measurements },
+        val warmupMetrics = aggregateMetrics((warmupUsec ?: startUsec) - startUsec) { stream ->
+            stream.result?.warmupMetrics
+        }
+
+        val activeMetrics = if (warmupUsec != null) {
+            val end = endUsec ?: throw Throwable("missing end time")
+            aggregateMetrics(end - warmupUsec!!) { stream ->
+                stream.result?.activeMetrics
+            }
+        } else null
+
+        return Ndt8TestResult(
+            streams.all { it.result?.success ?: false },
+            warmupMetrics,
+            activeMetrics,
+            streams.map { it.result },
         )
     }
 
     private fun onUpdateReceived() {
-        val currentMetrics = getAggregateMetrics(AggregateMetricType.CURRENT)
+        val currentUsec = SystemClock.elapsedRealtimeNanos() / 1000
+        val currentMetrics = aggregateMetrics(currentUsec - startUsec) { stream ->
+            stream.currentMetrics
+        }
         progressChan.trySend(currentMetrics)
 
         if (warmupUsec == null && streams.all { it.readyToEndWarmup }) {
@@ -101,42 +116,27 @@ class NdtMTestComponent(
         for (s in streams) s.endWarmup()
     }
 
-    private fun getAggregateMetrics(type: AggregateMetricType): NdtMTestMetrics {
-        val start = when (type) {
-            AggregateMetricType.CURRENT, AggregateMetricType.WARMUP -> startUsec
-            AggregateMetricType.ACTIVE -> warmupUsec
-        } ?: throw Throwable("missing start usec value for aggregate metrics $type")
-
-        val end = when (type) {
-            AggregateMetricType.CURRENT -> SystemClock.elapsedRealtimeNanos() / 1000
-            AggregateMetricType.WARMUP -> warmupUsec ?: startUsec
-            AggregateMetricType.ACTIVE -> endUsec
-        } ?: throw Throwable("missing end usec value for aggregate metrics $type")
-
+    private fun aggregateMetrics(
+        duration: Long,
+        getMetrics: (stream: Ndt8Stream) -> Ndt8TestMetrics?,
+    ): Ndt8TestMetrics {
         var bytes = 0L
         var bytesPerSec = 0.0
         for (stream in streams) {
-            val metrics = when(type) {
-                AggregateMetricType.CURRENT -> stream.currentMetrics
-                AggregateMetricType.WARMUP -> stream.warmupMetrics
-                AggregateMetricType.ACTIVE -> stream.activeMetrics
-            } ?: continue
-
+            val metrics = getMetrics(stream) ?: continue
             bytes += metrics.bytes
             bytesPerSec += metrics.bytesPerSec
         }
 
-        return NdtMTestMetrics(bytesPerSec, bytes, end - start)
+        return Ndt8TestMetrics(bytesPerSec, bytes, duration)
     }
-
-    private enum class AggregateMetricType { CURRENT, WARMUP, ACTIVE }
 }
 
-data class NdtMTestResult(
+data class Ndt8TestResult(
     val success: Boolean,
-    val warmupMetrics: NdtMTestMetrics?,
-    val activeMetrics: NdtMTestMetrics?,
-    val measurements: Collection<Collection<NdtMMeasurement>>,
+    val warmupMetrics: Ndt8TestMetrics?,
+    val activeMetrics: Ndt8TestMetrics?,
+    val streamResults: Collection<Ndt8StreamResult?>,
 )
 
-enum class NdtMTestDirection{ UPLOAD, DOWNLOAD }
+enum class Ndt8TestDirection{ UPLOAD, DOWNLOAD }

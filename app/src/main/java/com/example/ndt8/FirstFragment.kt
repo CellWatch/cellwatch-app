@@ -1,4 +1,4 @@
-package com.example.ndtm
+package com.example.ndt8
 
 import android.os.Bundle
 import android.os.Handler
@@ -9,7 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import com.example.ndtm.databinding.FragmentFirstBinding
+import com.example.ndt8.databinding.FragmentFirstBinding
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -66,35 +66,38 @@ class FirstFragment : Fragment() {
     }
 
     private fun runTestSequence() {
-        val measurementId = UUID.randomUUID().toString()
+        var measurementId: String? = null
         writeMessage("RUNNING TEST SEQUENCE with measurement id $measurementId")
 
         val client = OkHttpClient.Builder().build()
 
         writeMessage("selecting server")
-        val server = try {
-            selectServer(client, "https://locate.mlab-sandbox.measurementlab.net/v2/nearest/")
-        } catch (t: Throwable) {
-            Log.d(TAG, "failed to select server", t)
-            writeMessage("failed to select server: ${t.localizedMessage}")
-            return
-        }
-        writeMessage("selected server ${server.machine} in ${server.location}")
 
-        runTest(client, server, measurementId, NdtMTestDirection.DOWNLOAD)
-        runTest(client, server, measurementId, NdtMTestDirection.UPLOAD)
+        // use local server for testing
+//        measurementId = UUID.randomUUID().toString()
+//        val server = Ndt8LocateServer("10.0.2.2", null, mapOf(
+//            "ws:///ndt/v8/download" to "ws://10.0.2.2:8080/ndt/v8/download",
+//            "ws:///ndt/v8/upload" to "ws://10.0.2.2:8080/ndt/v8/upload",
+//        ))
+
+        // use real M-Lab server
+        val server = selectServer(client, "https://locate-dot-mlab-staging.appspot.com/v2/nearest/")
+
+        writeMessage("selected server ${server.machine} in ${server.location}")
+        runTest(client, server, measurementId, Ndt8TestDirection.DOWNLOAD)
+        runTest(client, server, measurementId, Ndt8TestDirection.UPLOAD)
     }
 
     private fun runTest(
         client: OkHttpClient,
-        server: NdtMLocateServer,
-        measurementId: String,
-        direction: NdtMTestDirection
+        server: Ndt8LocateServer,
+        measurementId: String?,
+        direction: Ndt8TestDirection
     ) {
-        val dir = if (direction == NdtMTestDirection.DOWNLOAD) "download" else "upload"
+        val dir = if (direction == Ndt8TestDirection.DOWNLOAD) "download" else "upload"
         writeMessage("running $dir test")
         val result = try {
-            val test = NdtMTestComponent(client, server, measurementId, direction, 3)
+            val test = Ndt8TestComponent(client, server, measurementId, direction)
             runBlocking {
                 launch {
                     test.progress.consumeEach {

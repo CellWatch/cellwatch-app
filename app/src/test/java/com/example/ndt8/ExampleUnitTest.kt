@@ -1,4 +1,4 @@
-package com.example.ndtm
+package com.example.ndt8
 
 import org.junit.Test
 

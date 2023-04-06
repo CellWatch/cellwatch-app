@@ -7,6 +7,6 @@
 
     <fragment
         android:id="@+id/FirstFragment"
-        android:name="com.example.ndtm.FirstFragment"
+        android:name="com.example.ndt8.FirstFragment"
         tools:layout="@layout/fragment_first"/>
 </navigation>

@@ -1,4 +1,4 @@
-package com.example.ndtm
+package com.example.ndt8
 
 import android.util.Log
 import kotlinx.coroutines.channels.Channel
@@ -13,43 +13,48 @@ import kotlin.collections.ArrayList
 import kotlin.concurrent.schedule
 import kotlin.concurrent.thread
 
-class NdtMStream(
+class Ndt8Stream(
     num: Int,
     private val client: OkHttpClient,
     private val url: String,
-    direction: NdtMTestDirection,
+    private val direction: Ndt8TestDirection,
 ) {
-    private val TAG = "${NdtMStream::class.simpleName} $num"
+    private val TAG = "${Ndt8Stream::class.simpleName} $num"
     private var webSocket: WebSocket? = null
     private var complete = false
-    private val measurementChan = Channel<NdtMMeasurement>()
+    private val measurementChan = Channel<Pair<Boolean, Ndt8Measurement>>()
     private val listener = when (direction) {
-        NdtMTestDirection.UPLOAD -> NdtMSender(num, measurementChan)
-        NdtMTestDirection.DOWNLOAD -> NdtMReceiver(num, measurementChan)
+        Ndt8TestDirection.UPLOAD -> Ndt8Sender(num, measurementChan)
+        Ndt8TestDirection.DOWNLOAD -> Ndt8Receiver(num, measurementChan)
     }
-    private val _updateChan = Channel<NdtMMeasurement>()
-    val updateChan: ReceiveChannel<NdtMMeasurement> = _updateChan
-    var success = true
-        private set
+    private val _updateChan = Channel<Ndt8Measurement>()
+    val updateChan: ReceiveChannel<Ndt8Measurement> = _updateChan
+    private var success = true
     var readyToEndWarmup = false
         private set
-    val measurements = ArrayList<NdtMMeasurement>()
-    private var endWarmupMeasurement: NdtMMeasurement? = null
+    private val measurements = ArrayList<Ndt8Measurement>()
+    private var endWarmupMeasurement: Ndt8Measurement? = null
     private val latestMeasurement
         get() = if (measurements.isEmpty()) null else measurements.last()
-    val warmupMetrics: NdtMTestMetrics?
-        get() = measurementToMetrics(endWarmupMeasurement)
-    val activeMetrics: NdtMTestMetrics?
+    val activeMetrics: Ndt8TestMetrics?
         get() {
-            val warmup = warmupMetrics
+            val warmup = measurementToMetrics(endWarmupMeasurement)
             val latest = measurementToMetrics(latestMeasurement)
             if (warmup == null || latest == null) return null
             val bytes = latest.bytes - warmup.bytes
             val usecs = latest.usecs - warmup.usecs
-            return NdtMTestMetrics(calcBytesPerSec(bytes, usecs), bytes, usecs)
+            return Ndt8TestMetrics(calcBytesPerSec(bytes, usecs), bytes, usecs)
         }
-    val currentMetrics: NdtMTestMetrics?
+    val currentMetrics: Ndt8TestMetrics?
         get() = activeMetrics ?: measurementToMetrics(latestMeasurement)
+    var result: Ndt8StreamResult? = null
+        private set
+
+    // WireMeasurement connection-related fields sent by the server
+    private var cc: String? = null
+    private var uuid: String? = null
+    private var localAddr: String? = null
+    private var remoteAddr: String? = null
 
     fun start() {
         thread {
@@ -81,28 +86,35 @@ class NdtMStream(
     private suspend fun run() {
         val request = Request.Builder()
             .url(url)
-            .header("Sec-WebSocket-Protocol", NDTM_WS_PROTO)
-            .header("User-Agent", NDTM_USER_AGENT)
+            .header("Sec-WebSocket-Protocol", NDT8_WS_PROTO)
+            .header("User-Agent", NDT8_USER_AGENT)
             .build()
         webSocket = client.newWebSocket(request, listener)
 
         try {
-            measurementChan.consumeEach { onMeasurementReceived(it) }
+            measurementChan.consumeEach { onMeasurementReceived(it.first, it.second) }
             addMeasurement()
         } catch (t: Throwable) {
             Log.d(TAG, "stream failed", t)
             success = false
             addMeasurement()
 
-            if (t is NdtMUnexpectedCloseException) {
+            if (t is Ndt8UnexpectedCloseException) {
                 onComplete(t)
             }
         }
     }
 
-    private fun onMeasurementReceived(measurement: NdtMMeasurement) {
+    private fun onMeasurementReceived(fromServer: Boolean, measurement: Ndt8Measurement) {
         Log.v(TAG, "got measurement from stream")
-        if (measurement.Origin != "receiver") {
+        if (fromServer) {
+            cc = measurement.CC ?: cc
+            uuid = measurement.UUID ?: uuid
+            localAddr = measurement.LocalAddr ?: localAddr
+            remoteAddr = measurement.RemoteAddr ?: remoteAddr
+        }
+
+        if ((direction == Ndt8TestDirection.DOWNLOAD) == fromServer) {
             return
         }
 
@@ -112,16 +124,26 @@ class NdtMStream(
 
     private fun onComplete(t: Throwable? = null) {
         complete = true
+        result = Ndt8StreamResult(
+            success,
+            cc,
+            uuid,
+            localAddr,
+            remoteAddr,
+            measurementToMetrics(endWarmupMeasurement),
+            activeMetrics,
+            measurements,
+        )
         _updateChan.close(t)
     }
 
-    private fun addMeasurement(measurement: NdtMMeasurement? = null) {
+    private fun addMeasurement(measurement: Ndt8Measurement? = null) {
         val m = measurement ?: listener.latestMeasurement ?: return
         measurements.add(m)
         _updateChan.trySend(m)
     }
 
-    private fun checkReadyToEndWarmup(curMeasurement: NdtMMeasurement) {
+    private fun checkReadyToEndWarmup(curMeasurement: Ndt8Measurement) {
         if (readyToEndWarmup) return
 
         val lastBPS = measurementToMetrics(latestMeasurement)?.bytesPerSec ?: return
@@ -134,3 +156,14 @@ class NdtMStream(
         }
     }
 }
+
+data class Ndt8StreamResult (
+    val success: Boolean,
+    val cc: String?,
+    val uuid: String?,
+    val localAddr: String?,
+    val remoteAddr: String?,
+    val warmupMetrics: Ndt8TestMetrics?,
+    val activeMetrics: Ndt8TestMetrics?,
+    val measurements: Collection<Ndt8Measurement>
+)
