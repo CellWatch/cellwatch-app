@@ -84,13 +84,20 @@ class FirstFragment : Fragment() {
         val client = OkHttpClient.Builder().build()
 
         writeMessage("selecting server")
-        val server = try {
-            selectServer(client, "https://locate.mlab-sandbox.measurementlab.net/v2/nearest/")
-        } catch (t: Throwable) {
-            Log.d(TAG, "failed to select server", t)
-            writeMessage("failed to select server: ${t.localizedMessage}")
-            return
-        }
+        // Sandbox server is down as of 4/2023
+//        val server = try {
+//            selectServer(client, "https://locate.mlab-sandbox.measurementlab.net/v2/nearest/")
+//        } catch (t: Throwable) {
+//            Log.d(TAG, "failed to select server", t)
+//            writeMessage("failed to select server: ${t.localizedMessage}")
+//            return
+//        }
+
+        val server = NdtMLocateServer("10.0.1.234", null, mapOf(
+            "ws:///msak/ndtm/download" to "ws://10.0.1.234:8080/msak/ndtm/download",
+            "ws:///msak/ndtm/upload" to "ws://10.0.1.234:8080/msak/ndtm/upload",
+        ))
+
         writeMessage("selected server ${server.machine} in ${server.location}")
 
         runTest(client, server, measurementId, NdtMTestDirection.DOWNLOAD)
@@ -160,13 +167,15 @@ class FirstFragment : Fragment() {
 
         val totalDuration = warmupDuration + activeDuration
 
-        var server = if (result.measurements.isNotEmpty())
-            result.measurements.first().first().ConnectionInfo?.Server else ""
+        var server = if (result.measurements.isNotEmpty() &&
+                result.measurements.first().isNotEmpty())
+            result.measurements.first().first().ConnectionInfo?.Server else "server"
 
         if (server == null) server = "none"
 
-        var client = if (result.measurements.isNotEmpty())
-            result.measurements.first().first().ConnectionInfo?.Client else ""
+        var client = if (result.measurements.isNotEmpty() &&
+            result.measurements.first().isNotEmpty())
+            result.measurements.first().first().ConnectionInfo?.Client else "client"
 
         if (client == null) client = "none"
 
