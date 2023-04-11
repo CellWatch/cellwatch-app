@@ -6,6 +6,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.serialization.Serializable
 import okhttp3.OkHttpClient
 import java.util.*
 import kotlin.concurrent.schedule
@@ -132,7 +133,12 @@ class Ndt8TestComponent(
     }
 }
 
+<<<<<<<< HEAD:app/src/main/java/com/example/ndt8/Ndt8TestCompontent.kt
 data class Ndt8TestResult(
+========
+@Serializable
+data class NdtMTestResult(
+>>>>>>>> store-results-to-supabase:app/src/main/java/com/example/ndt8/NdtMTestComponent.kt
     val success: Boolean,
     val warmupMetrics: Ndt8TestMetrics?,
     val activeMetrics: Ndt8TestMetrics?,
