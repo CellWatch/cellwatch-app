@@ -92,8 +92,7 @@ fun getUrl(
     val testUrl = "/ndt/v8/${if (direction == Ndt8TestDirection.DOWNLOAD) "download" else "upload" }"
     val baseUrl = server.urls["wss://$testUrl"] ?: server.urls["ws://$testUrl"] ?: throw Throwable("no base URL found in urls: $server.urls")
 
-    // TODO: figure out what units are expected for duration/delay
-    var options = "streams=$NDT8_STREAMS&duration=${NDT8_MAX_MILLIS/1000}&delay=${NDT8_STREAM_DELAY/1000}"
+    var options = "streams=$NDT8_STREAMS&duration=$NDT8_MAX_MILLIS&delay=$NDT8_STREAM_DELAY"
     if (measurementId != null) {
         options += "&mid=$measurementId"
     }
