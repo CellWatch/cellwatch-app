@@ -133,12 +133,8 @@ class Ndt8TestComponent(
     }
 }
 
-<<<<<<<< HEAD:app/src/main/java/com/example/ndt8/Ndt8TestCompontent.kt
-data class Ndt8TestResult(
-========
 @Serializable
-data class NdtMTestResult(
->>>>>>>> store-results-to-supabase:app/src/main/java/com/example/ndt8/NdtMTestComponent.kt
+data class Ndt8TestResult(
     val success: Boolean,
     val warmupMetrics: Ndt8TestMetrics?,
     val activeMetrics: Ndt8TestMetrics?,

@@ -1,5 +1,8 @@
 package com.example.ndt8
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Ndt8Measurement(
     val BytesSent: Long,
     val BytesReceived: Long,
@@ -13,6 +16,7 @@ data class Ndt8Measurement(
     val RemoteAddr: String? = null,
 )
 
+@Serializable
 data class Ndt8TestMetrics(
     val bytesPerSec: Double,
     val bytes: Long,

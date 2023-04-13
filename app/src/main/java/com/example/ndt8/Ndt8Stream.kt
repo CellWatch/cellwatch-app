@@ -5,6 +5,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
@@ -157,6 +158,7 @@ class Ndt8Stream(
     }
 }
 
+@Serializable
 data class Ndt8StreamResult (
     val success: Boolean,
     val cc: String?,

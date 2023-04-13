@@ -113,6 +113,25 @@ data class UploadDownloadData(
     val updatedOn: Instant,
 )
 
+@Serializable
+data class Location(
+    val id: String,
+    val timestamp: Instant,
+    val lat: Double?,
+    val lon: Double?,
+    val accuracy: Double?,
+    val speed: Double?,
+    @SerialName("speed_accuracy")
+    val speedAccuracy: Double?,
+    val heading: Double?,
+    @SerialName("measurement_id")
+    val measurementId: String? = null,
+    @SerialName("created_on")
+    val createdOn: Instant,
+    @SerialName("updated_on")
+    val updatedOn: Instant,
+)
+
 //fun NdtMMeasurementToMeasurement(ndtMeasurement: NdtMMeasurement): Measurement? {
 //    if (ndtMeasurement == null) return null
 //

@@ -1,5 +1,7 @@
 package com.example.ndt8
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -8,26 +10,31 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import com.example.ndt8.databinding.FragmentFirstBinding
-import com.example.ndtm.databinding.FragmentFirstBinding
+import com.example.ndtm.Location
+import com.example.ndtm.Measurement
+import com.example.ndtm.UploadDownloadData
 import com.google.gson.GsonBuilder
-import com.google.gson.JsonObject
+import com.jaredrummler.android.device.DeviceName
+import com.oseamiya.deviceinformation.DeviceInformation
+import com.oseamiya.deviceinformation.LocationInformation
+import github.nisrulz.easydeviceinfo.base.EasyAppMod
+import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
+import github.nisrulz.easydeviceinfo.base.EasyLocationMod
+import github.nisrulz.easydeviceinfo.base.EasyNetworkMod
+import github.nisrulz.easydeviceinfo.base.EasySimMod
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
 import okhttp3.OkHttpClient
-import org.json.JSONArray
-import java.util.*
 import kotlin.concurrent.thread
-
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -35,6 +42,18 @@ import kotlin.concurrent.thread
 class FirstFragment : Fragment() {
     private val TAG = this::class.simpleName
     private var _binding: FragmentFirstBinding? = null
+
+//    private val deviceMod: EasyDeviceMod = EasyDeviceMod(context)
+//    private val networkMod: EasyNetworkMod = EasyNetworkMod(context)
+//    private val simMod: EasySimMod = EasySimMod(context)
+//    private val locationMod: EasyLocationMod = EasyLocationMod(context)
+//    private val appMod = EasyAppMod(context)
+
+    private var deviceMod: EasyDeviceMod? = null
+    private var networkMod: EasyNetworkMod? = null
+    private var simMod: EasySimMod? = null
+    private var locationMod: EasyLocationMod? = null
+    private var appMod: EasyAppMod? = null
 
     // This property is only valid between onCreateView and
     // onDestroyView.
@@ -71,6 +90,12 @@ class FirstFragment : Fragment() {
                 toggleButton(true)
             }
         }
+
+        deviceMod = EasyDeviceMod(context)
+        networkMod = EasyNetworkMod(context)
+        simMod = EasySimMod(context)
+        locationMod = EasyLocationMod(context)
+        appMod = EasyAppMod(context)
     }
 
     override fun onDestroyView() {
@@ -78,9 +103,91 @@ class FirstFragment : Fragment() {
         _binding = null
     }
 
+
     private fun runTestSequence() {
         var measurementId: String? = null
         writeMessage("RUNNING TEST SEQUENCE with measurement id $measurementId")
+
+//        val deviceInformation = DeviceInformation(context)
+//
+//        writeMessage("Device Name = ${deviceInformation.deviceName}")
+//        writeMessage("Model Name = ${deviceInformation.modelName}")
+//        writeMessage("Manufacturer Name = ${deviceInformation.manafacturerName}")
+//        writeMessage("Brand Name = ${deviceInformation.brandName}")
+
+//        val locationInformation = LocationInformation(context)
+//
+//        writeMessage("Lat = ${locationInformation.currentLatitude}")
+//        writeMessage("Lon = ${locationInformation.currentLongitude}")
+
+//        val deviceMod = EasyDeviceMod(context);
+        writeMessage("-----------------")
+        writeMessage("Device Manufacturer = ${deviceMod?.manufacturer}")
+        writeMessage("Device Model = ${deviceMod?.model}")
+        writeMessage("Device = ${deviceMod?.device}")
+        writeMessage("OS Version = ${deviceMod?.osVersion}")
+        deviceMod?.let { writeMessage(it.board) }
+        deviceMod?.let { writeMessage(it.buildBrand) }
+        deviceMod?.let { writeMessage(it.buildHost) }
+        deviceMod?.let { writeMessage(it.buildID) }
+        deviceMod?.let { writeMessage(it.buildVersionCodename) }
+        deviceMod?.let { writeMessage(it.displayVersion) }
+        deviceMod?.let { writeMessage(it.fingerprint) }
+
+        writeMessage("-----------------")
+
+//        val appMod = EasyAppMod(context)
+        appMod?.let { writeMessage(it.appName) }
+        appMod?.let { writeMessage(it.appVersion) }
+        appMod?.let { writeMessage(it.appVersionCode) }
+        appMod?.let { writeMessage(it.activityName) }
+
+        writeMessage("-----------------")
+
+//        val networkMod = EasyNetworkMod(context)
+        writeMessage("network available = ${networkMod?.isNetworkAvailable.toString()}")
+        writeMessage("wifi state = ${networkMod?.isWifiEnabled}")
+
+        writeMessage("-----------------")
+
+//        val simMod = EasySimMod(context)
+        writeMessage("Carrier = ${simMod?.carrier}")
+        writeMessage("Country = ${simMod?.country}")
+
+        writeMessage("-----------------")
+
+//        val locationMod = EasyLocationMod(context)
+
+//        val locationPermission = ActivityCompat.checkSelfPermission(
+//            activity!!,
+//            Manifest.permission.ACCESS_FINE_LOCATION
+//        )
+//
+//        if (locationPermission == PackageManager.PERMISSION_GRANTED) {
+//            val latlon = locationMod.latLong
+//
+//            writeMessage("Lat/Lon = ${latlon[0]} / ${latlon[1]}")
+//        }
+
+//        writeMessage("-----------------")
+
+
+//        writeMessage("---Device Name: ${DeviceName.getDeviceName()}")
+
+//        DeviceName.with(context).request { info, _ ->
+////            val manufacturer = info.manufacturer // "Samsung"
+//            val name = info.marketName // "Galaxy S8+"
+//            val model = info.model // "SM-G955W"
+//            val codename = info.codename // "dream2qltecan"
+//            val deviceName = info.name // "Galaxy S8+"
+//            // FYI: We are on the UI thread.
+////            writeMessage(manufacturer)
+//            writeMessage(name)
+//            writeMessage(model)
+//            writeMessage(codename)
+//            writeMessage(deviceName)
+//        }
+//        return
 
         val client = OkHttpClient.Builder().build()
 
@@ -127,7 +234,7 @@ class FirstFragment : Fragment() {
             return
         }
 
-//        val result = NdtMTestResult(
+//        val result = Ndt8TestResult(
 //            success = true,
 //            activeMetrics = NdtMTestMetrics(bytes = 65535, usecs = 12345678, bytesPerSec = 304.0),
 //            measurements = emptyList(),
@@ -139,7 +246,7 @@ class FirstFragment : Fragment() {
         runBlocking { createMeasurement(result, direction) }
     }
 
-    suspend fun createMeasurement(result: NdtMTestResult, direction: NdtMTestDirection) {
+    suspend fun createMeasurement(result: Ndt8TestResult, direction: Ndt8TestDirection) {
         val gson = GsonBuilder().setPrettyPrinting().create()
 
 //        println("NtdMTestResult:")
@@ -153,8 +260,9 @@ class FirstFragment : Fragment() {
         ) {
             install(Postgrest)
         }
-        val dataTable = supabase.postgrest["upload_download_data"];
-        val measurementTable = supabase.postgrest["measurements"];
+        val dataTable = supabase.postgrest["upload_download_data"]
+        val measurementTable = supabase.postgrest["measurements"]
+        val locationTable = supabase.postgrest["locations"]
 
         val warmupDuration = if (result.warmupMetrics != null)
             result.warmupMetrics.usecs else 0
@@ -164,15 +272,20 @@ class FirstFragment : Fragment() {
 
         val totalDuration = warmupDuration + activeDuration
 
-        var server = if (result.measurements.isNotEmpty() &&
-                result.measurements.first().isNotEmpty())
-            result.measurements.first().first().ConnectionInfo?.Server else "server"
+//        var server = if (result.measurements.isNotEmpty() &&
+//                result.measurements.first().isNotEmpty())
+//            result.measurements.first().first().ConnectionInfo?.Server else "server"
+        var server = if (result.streamResults.isNotEmpty())
+            result.streamResults.first()?.remoteAddr else "server"
 
+        var client = if (result.streamResults.isNotEmpty())
+            result.streamResults.first()?.localAddr else "client"
+        
         if (server == null) server = "none"
 
-        var client = if (result.measurements.isNotEmpty() &&
-            result.measurements.first().isNotEmpty())
-            result.measurements.first().first().ConnectionInfo?.Client else "client"
+//        var client = if (result.measurements.isNotEmpty() &&
+//            result.measurements.first().isNotEmpty())
+//            result.measurements.first().first().ConnectionInfo?.Client else "client"
 
         if (client == null) client = "none"
 
@@ -195,12 +308,12 @@ class FirstFragment : Fragment() {
         println("Data: $insertedData")
 
         val jsonMeasurement = buildJsonObject {
-            put("device_manufacturer", "Google")
-            put("device_model", "Pixel 6a")
+            put("device_manufacturer", deviceMod?.manufacturer)
+            put("device_model", deviceMod?.model)
             put("device_os_name", "Android")
-            put("device_os_version", "13")
-            put("app_name", "ntdm")
-            put("provider", "AT&T")
+            put("device_os_version", deviceMod?.osVersion)
+            put("app_name", appMod?.appName)
+            put("provider", simMod?.carrier)
             put("type", direction.toString().lowercase())
             put("duration", totalDuration)
             put("success", result.success)
@@ -222,6 +335,31 @@ class FirstFragment : Fragment() {
 
         writeMessage("*** Inserted new Measurement record: $insertedMeasurement")
         println("*** Inserted new Measurement record: $insertedMeasurement")
+
+//        val locationMod = EasyLocationMod(context)
+
+        val locationPermission = ActivityCompat.checkSelfPermission(
+            activity!!,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
+
+        if (locationMod != null && locationPermission == PackageManager.PERMISSION_GRANTED) {
+            val latlon = locationMod!!.latLong
+
+            writeMessage("Lat/Lon = ${latlon[0]} / ${latlon[1]}")
+
+            val jsonLocation = buildJsonObject {
+                put("lat", latlon[0])
+                put("lon", latlon[1])
+                put("measurement_id", insertedMeasurement.id)
+            }
+
+            val insertedLocation = locationTable.insert(jsonLocation).decodeSingle<Location>()
+            writeMessage("*** Inserted new Location record: $insertedLocation")
+            println("*** Inserted new Location record: $insertedLocation")
+        }
+
+
     }
 
     fun toggleButton(enabled: Boolean) {
