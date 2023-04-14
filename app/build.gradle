@@ -58,4 +58,7 @@ dependencies {
     implementation "com.github.nisrulz:easydeviceinfo-base:2.4.1"
 
     implementation('com.jaredrummler:android-device-names:2.1.1')
+
+    implementation 'com.github.BirjuVachhani:locus-android:4.1.0'
+    implementation 'com.google.android.gms:play-services-location:19.0.1'
 }

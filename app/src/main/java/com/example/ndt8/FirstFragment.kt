@@ -12,6 +12,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
+import com.birjuvachhani.locus.Locus
 import com.example.ndt8.databinding.FragmentFirstBinding
 import com.example.ndtm.Location
 import com.example.ndtm.Measurement
@@ -108,19 +109,6 @@ class FirstFragment : Fragment() {
         var measurementId: String? = null
         writeMessage("RUNNING TEST SEQUENCE with measurement id $measurementId")
 
-//        val deviceInformation = DeviceInformation(context)
-//
-//        writeMessage("Device Name = ${deviceInformation.deviceName}")
-//        writeMessage("Model Name = ${deviceInformation.modelName}")
-//        writeMessage("Manufacturer Name = ${deviceInformation.manafacturerName}")
-//        writeMessage("Brand Name = ${deviceInformation.brandName}")
-
-//        val locationInformation = LocationInformation(context)
-//
-//        writeMessage("Lat = ${locationInformation.currentLatitude}")
-//        writeMessage("Lon = ${locationInformation.currentLongitude}")
-
-//        val deviceMod = EasyDeviceMod(context);
         writeMessage("-----------------")
         writeMessage("Device Manufacturer = ${deviceMod?.manufacturer}")
         writeMessage("Device Model = ${deviceMod?.model}")
@@ -144,61 +132,19 @@ class FirstFragment : Fragment() {
 
         writeMessage("-----------------")
 
-//        val networkMod = EasyNetworkMod(context)
         writeMessage("network available = ${networkMod?.isNetworkAvailable.toString()}")
         writeMessage("wifi state = ${networkMod?.isWifiEnabled}")
 
         writeMessage("-----------------")
 
-//        val simMod = EasySimMod(context)
         writeMessage("Carrier = ${simMod?.carrier}")
         writeMessage("Country = ${simMod?.country}")
 
         writeMessage("-----------------")
 
-//        val locationMod = EasyLocationMod(context)
-
-//        val locationPermission = ActivityCompat.checkSelfPermission(
-//            activity!!,
-//            Manifest.permission.ACCESS_FINE_LOCATION
-//        )
-//
-//        if (locationPermission == PackageManager.PERMISSION_GRANTED) {
-//            val latlon = locationMod.latLong
-//
-//            writeMessage("Lat/Lon = ${latlon[0]} / ${latlon[1]}")
-//        }
-
-//        writeMessage("-----------------")
-
-
-//        writeMessage("---Device Name: ${DeviceName.getDeviceName()}")
-
-//        DeviceName.with(context).request { info, _ ->
-////            val manufacturer = info.manufacturer // "Samsung"
-//            val name = info.marketName // "Galaxy S8+"
-//            val model = info.model // "SM-G955W"
-//            val codename = info.codename // "dream2qltecan"
-//            val deviceName = info.name // "Galaxy S8+"
-//            // FYI: We are on the UI thread.
-////            writeMessage(manufacturer)
-//            writeMessage(name)
-//            writeMessage(model)
-//            writeMessage(codename)
-//            writeMessage(deviceName)
-//        }
-//        return
-
         val client = OkHttpClient.Builder().build()
 
         writeMessage("selecting server")
-
-        // use local server for testing
-//        measurementId = UUID.randomUUID().toString()
-//        val server = Ndt8LocateServer("10.0.2.2", null, mapOf(
-//            "ws:///ndt/v8/download" to "ws://10.0.2.2:8080/ndt/v8/download",
-//            "ws:///ndt/v8/upload" to "ws://10.0.2.2:8080/ndt/v8/upload",
-//        ))
 
         // use real M-Lab server
         val server = selectServer(client, "https://locate-dot-mlab-staging.appspot.com/v2/nearest/")
@@ -234,12 +180,6 @@ class FirstFragment : Fragment() {
             return
         }
 
-//        val result = Ndt8TestResult(
-//            success = true,
-//            activeMetrics = NdtMTestMetrics(bytes = 65535, usecs = 12345678, bytesPerSec = 304.0),
-//            measurements = emptyList(),
-//            warmupMetrics = null
-//        )
         Log.i(TAG, "$dir test complete: $result")
         writeMessage("$dir test complete: ${if (result.success) "success" else "failure"}; warmup ${result.warmupMetrics}; active ${result.activeMetrics}")
 
@@ -247,10 +187,19 @@ class FirstFragment : Fragment() {
     }
 
     suspend fun createMeasurement(result: Ndt8TestResult, direction: Ndt8TestDirection) {
-        val gson = GsonBuilder().setPrettyPrinting().create()
+        var location: android.location.Location? = null
 
-//        println("NtdMTestResult:")
-//        println(gson.toJson(result))
+        Locus.getCurrentLocation(context!!) { result ->
+            result.location?.let { /* Received location update */
+                location = result.location
+                writeMessage("lat/lon: ${location?.latitude} / ${location?.longitude}")
+                writeMessage("accuracy: ${location?.accuracy}")
+                writeMessage("heading: ${location?.bearing}")
+            }
+            result.error?.let { /* Received error! */
+                writeMessage("Got a location services error!!!")
+            }
+        }
 
         writeMessage("*** Attempting to store Measurement to Supabase ***")
 
@@ -272,9 +221,6 @@ class FirstFragment : Fragment() {
 
         val totalDuration = warmupDuration + activeDuration
 
-//        var server = if (result.measurements.isNotEmpty() &&
-//                result.measurements.first().isNotEmpty())
-//            result.measurements.first().first().ConnectionInfo?.Server else "server"
         var server = if (result.streamResults.isNotEmpty())
             result.streamResults.first()?.remoteAddr else "server"
 
@@ -282,10 +228,6 @@ class FirstFragment : Fragment() {
             result.streamResults.first()?.localAddr else "client"
         
         if (server == null) server = "none"
-
-//        var client = if (result.measurements.isNotEmpty() &&
-//            result.measurements.first().isNotEmpty())
-//            result.measurements.first().first().ConnectionInfo?.Client else "client"
 
         if (client == null) client = "none"
 
@@ -328,38 +270,30 @@ class FirstFragment : Fragment() {
         writeMessage("Measurement = $jsonMeasurement")
         println(jsonMeasurement)
 
-//        writeMessage(gson.toJson(measurement))
-
         val insertedMeasurement = measurementTable.insert(jsonMeasurement).decodeSingle<Measurement>()
-//        val insertedMeasurement = table.insert(Json.encodeToString(measurement)).decodeSingle<Measurement>()
 
         writeMessage("*** Inserted new Measurement record: $insertedMeasurement")
         println("*** Inserted new Measurement record: $insertedMeasurement")
-
-//        val locationMod = EasyLocationMod(context)
 
         val locationPermission = ActivityCompat.checkSelfPermission(
             activity!!,
             Manifest.permission.ACCESS_FINE_LOCATION
         )
 
-        if (locationMod != null && locationPermission == PackageManager.PERMISSION_GRANTED) {
-            val latlon = locationMod!!.latLong
-
-            writeMessage("Lat/Lon = ${latlon[0]} / ${latlon[1]}")
-
+        location?.let {
             val jsonLocation = buildJsonObject {
-                put("lat", latlon[0])
-                put("lon", latlon[1])
+                put("lat", it.latitude)
+                put("lon", it.longitude)
+                put("accuracy", if (it.hasAccuracy()) it.accuracy else null)
+                put("speed", if (it.hasSpeed()) it.speed else null)
+//                put("speedAccuracy", if (it.hasSpeedAccuracy()) it.speedAccuracyMetersPerSecond else null)
+                put("heading", if (it.hasBearing()) it.bearing else null)
                 put("measurement_id", insertedMeasurement.id)
             }
-
             val insertedLocation = locationTable.insert(jsonLocation).decodeSingle<Location>()
             writeMessage("*** Inserted new Location record: $insertedLocation")
             println("*** Inserted new Location record: $insertedLocation")
         }
-
-
     }
 
     fun toggleButton(enabled: Boolean) {
