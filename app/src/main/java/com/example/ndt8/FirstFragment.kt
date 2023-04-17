@@ -1,7 +1,6 @@
 package com.example.ndt8
 
 import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -17,10 +16,8 @@ import com.example.ndt8.databinding.FragmentFirstBinding
 import com.example.ndtm.Location
 import com.example.ndtm.Measurement
 import com.example.ndtm.UploadDownloadData
-import com.google.gson.GsonBuilder
-import com.jaredrummler.android.device.DeviceName
-import com.oseamiya.deviceinformation.DeviceInformation
-import com.oseamiya.deviceinformation.LocationInformation
+import com.github.anastr.speedviewlib.SpeedView
+import com.github.anastr.speedviewlib.Speedometer
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
 import github.nisrulz.easydeviceinfo.base.EasyLocationMod
@@ -44,17 +41,12 @@ class FirstFragment : Fragment() {
     private val TAG = this::class.simpleName
     private var _binding: FragmentFirstBinding? = null
 
-//    private val deviceMod: EasyDeviceMod = EasyDeviceMod(context)
-//    private val networkMod: EasyNetworkMod = EasyNetworkMod(context)
-//    private val simMod: EasySimMod = EasySimMod(context)
-//    private val locationMod: EasyLocationMod = EasyLocationMod(context)
-//    private val appMod = EasyAppMod(context)
-
     private var deviceMod: EasyDeviceMod? = null
     private var networkMod: EasyNetworkMod? = null
     private var simMod: EasySimMod? = null
     private var locationMod: EasyLocationMod? = null
     private var appMod: EasyAppMod? = null
+    private lateinit var speedometer: SpeedView
 
     // This property is only valid between onCreateView and
     // onDestroyView.
@@ -64,7 +56,6 @@ class FirstFragment : Fragment() {
             inflater: LayoutInflater, container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View? {
-
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
         return binding.root
 
@@ -72,6 +63,11 @@ class FirstFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        speedometer = binding.speedView
+        speedometer.setMinMaxSpeed(0F, 100F)
+        speedometer.withTremble = false
+        speedometer.speedTo(45F)
 
         binding.textviewFirst.movementMethod = ScrollingMovementMethod()
 
@@ -169,6 +165,9 @@ class FirstFragment : Fragment() {
                     test.progress.consumeEach {
                         Log.d(TAG, "got progress $it")
                         writeMessage("progress: $it")
+
+                        writeMessage("***** speed = ${it.bytesPerSec / 1e6}")
+//                        speedometer.speedTo((it.bytesPerSec / 1e6).toFloat(), 0)
                     }
                 }
 

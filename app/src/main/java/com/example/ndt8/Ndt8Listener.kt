@@ -83,10 +83,12 @@ open class Ndt8Listener(
     open fun onOpen(webSocket: WebSocket) {}
 
     open fun onMeasurement(webSocket: WebSocket, measurement: Ndt8Measurement) {
-        try {
-            runBlocking { measurementChan.send(Pair(true, measurement)) }
-        } catch (t: Throwable) {
-            Log.w(TAG, "sending measurement on chan failed", t)
+        if (!measurementChan.isClosedForSend) {
+            try {
+                runBlocking { measurementChan.send(Pair(true, measurement)) }
+            } catch (t: Throwable) {
+                Log.w(TAG, "sending measurement on chan failed", t)
+            }
         }
     }
 
