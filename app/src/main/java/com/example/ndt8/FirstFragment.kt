@@ -17,12 +17,7 @@ import com.example.ndtm.Location
 import com.example.ndtm.Measurement
 import com.example.ndtm.UploadDownloadData
 import com.github.anastr.speedviewlib.SpeedView
-import com.github.anastr.speedviewlib.Speedometer
-import github.nisrulz.easydeviceinfo.base.EasyAppMod
-import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
-import github.nisrulz.easydeviceinfo.base.EasyLocationMod
-import github.nisrulz.easydeviceinfo.base.EasyNetworkMod
-import github.nisrulz.easydeviceinfo.base.EasySimMod
+import github.nisrulz.easydeviceinfo.base.*
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
@@ -33,6 +28,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
 import kotlin.concurrent.thread
+
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -67,7 +63,7 @@ class FirstFragment : Fragment() {
         speedometer = binding.speedView
         speedometer.setMinMaxSpeed(0F, 100F)
         speedometer.withTremble = false
-        speedometer.speedTo(45F)
+//        speedometer.speedTo(45F)
 
         binding.textviewFirst.movementMethod = ScrollingMovementMethod()
 
@@ -163,11 +159,11 @@ class FirstFragment : Fragment() {
             runBlocking {
                 launch {
                     test.progress.consumeEach {
-                        Log.d(TAG, "got progress $it")
-                        writeMessage("progress: $it")
+//                        Log.d(TAG, "got progress $it")
+//                        writeMessage("progress: $it")
 
-                        writeMessage("***** speed = ${it.bytesPerSec / 1e6}")
-//                        speedometer.speedTo((it.bytesPerSec / 1e6).toFloat(), 0)
+//                        writeMessage("***** speed = ${8 * it.bytesPerSec / 1e6}")
+                        updateSpeedometer(8 * it.bytesPerSec / 1e6)
                     }
                 }
 
@@ -177,6 +173,8 @@ class FirstFragment : Fragment() {
             Log.d(TAG, "$dir test failed", t)
             writeMessage("$dir test failed: ${t.localizedMessage}")
             return
+        } finally {
+            updateSpeedometer(0.0, 1500)
         }
 
         Log.i(TAG, "$dir test complete: $result")
@@ -305,6 +303,15 @@ class FirstFragment : Fragment() {
 
     fun writeMessage(m: String) {
         val handler = Handler(Looper.getMainLooper())
-        handler.post { binding.textviewFirst.append("\n> $m") }
+        handler.post {
+            binding.textviewFirst.append("\n> $m")
+        }
+    }
+
+    fun updateSpeedometer(bytesPerSec: Double, moveDuration: Long = 200) {
+        val handler = Handler(Looper.getMainLooper())
+        handler.post {
+            speedometer.speedTo(bytesPerSec.toFloat(), moveDuration)
+        }
     }
 }
