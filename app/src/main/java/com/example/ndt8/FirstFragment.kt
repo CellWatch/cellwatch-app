@@ -13,15 +13,17 @@ import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import com.birjuvachhani.locus.Locus
 import com.example.ndt8.databinding.FragmentFirstBinding
-import com.example.ndtm.Location
-import com.example.ndtm.Measurement
-import com.example.ndtm.UploadDownloadData
+import com.example.ndt8.data.entities.Location
+import com.example.ndt8.data.entities.Measurement
+import com.example.ndt8.data.entities.UploadDownloadData
+import com.example.ndt8.data.repository.DataStore
 import com.github.anastr.speedviewlib.SpeedView
 import github.nisrulz.easydeviceinfo.base.*
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.buildJsonObject
@@ -77,7 +79,7 @@ class FirstFragment : Fragment() {
                     Log.e(TAG, "unexpected error running test sequence", e)
                     writeMessage("unexpected error running test sequence: ${e.localizedMessage}")
                 } finally {
-                    writeMessage("*** Done with Upload/Download Test ***");
+                    writeMessage("*** Done with Upload/Download Test ***")
                 }
 
                 toggleButton(true)
@@ -98,7 +100,7 @@ class FirstFragment : Fragment() {
 
 
     private fun runTestSequence() {
-        var measurementId: String? = null
+        val measurementId: String? = null
         writeMessage("RUNNING TEST SEQUENCE with measurement id $measurementId")
 
         writeMessage("-----------------")
@@ -186,14 +188,14 @@ class FirstFragment : Fragment() {
     suspend fun createMeasurement(result: Ndt8TestResult, direction: Ndt8TestDirection) {
         var location: android.location.Location? = null
 
-        Locus.getCurrentLocation(context!!) { result ->
-            result.location?.let { /* Received location update */
-                location = result.location
+        Locus.getCurrentLocation(context!!) { locationResult ->
+            locationResult.location?.let { /* Received location update */
+                location = locationResult.location
                 writeMessage("lat/lon: ${location?.latitude} / ${location?.longitude}")
                 writeMessage("accuracy: ${location?.accuracy}")
                 writeMessage("heading: ${location?.bearing}")
             }
-            result.error?.let { /* Received error! */
+            locationResult.error?.let { /* Received error! */
                 writeMessage("Got a location services error!!!")
             }
         }
@@ -233,20 +235,14 @@ class FirstFragment : Fragment() {
 
         println("********** Servers: $serversString")
 
-        val jsonMeasurementData = buildJsonObject {
-            put("warmup_duration", result.warmupMetrics?.usecs)
-            put("warmup_bytes", result.warmupMetrics?.bytes)
-            put("duration", result.activeMetrics?.usecs)
-            put("bytes", result.activeMetrics?.bytes)
-            put("servers", serversString)
-        }
-        println("*********** jsonMeasurementData: $jsonMeasurementData")
+        val dataStore = DataStore(context!!)
 
-        val insertedData = dataTable.insert(jsonMeasurementData).decodeSingle<UploadDownloadData>()
-        writeMessage("Data: $insertedData")
-        println("Data: $insertedData")
+        var deviceId = runBlocking {
+            dataStore.getDeviceId.first()
+        }
 
         val jsonMeasurement = buildJsonObject {
+            put("device_id", deviceId)
             put("device_manufacturer", deviceMod?.manufacturer)
             put("device_model", deviceMod?.model)
             put("device_os_name", "Android")
@@ -261,7 +257,7 @@ class FirstFragment : Fragment() {
             put("network_connected", true)
             put("network_available", true)
             put("network_roaming", false)
-            put("data_id", insertedData.id)
+//            put("data_id", insertedData.id)
         }
 
         writeMessage("Measurement = $jsonMeasurement")
@@ -272,6 +268,20 @@ class FirstFragment : Fragment() {
         writeMessage("*** Inserted new Measurement record: $insertedMeasurement")
         println("*** Inserted new Measurement record: $insertedMeasurement")
 
+        val jsonMeasurementData = buildJsonObject {
+            put("measurement_id", insertedMeasurement.id)
+            put("warmup_duration", result.warmupMetrics?.usecs)
+            put("warmup_bytes", result.warmupMetrics?.bytes)
+            put("duration", result.activeMetrics?.usecs)
+            put("bytes", result.activeMetrics?.bytes)
+            put("servers", serversString)
+        }
+        println("*********** jsonMeasurementData: $jsonMeasurementData")
+
+        val insertedData = dataTable.insert(jsonMeasurementData).decodeSingle<UploadDownloadData>()
+        writeMessage("Data: $insertedData")
+        println("Data: $insertedData")
+
         val locationPermission = ActivityCompat.checkSelfPermission(
             activity!!,
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -279,6 +289,7 @@ class FirstFragment : Fragment() {
 
         location?.let {
             val jsonLocation = buildJsonObject {
+                put("measurement_id", insertedMeasurement.id)
                 put("lat", it.latitude)
                 put("lon", it.longitude)
                 put("accuracy", if (it.hasAccuracy()) it.accuracy else null)
