@@ -2,15 +2,28 @@ package com.example.ndt8.data.entities
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.util.UUID
 
 @Serializable
-@Entity
+@Entity(
+    foreignKeys = [
+        ForeignKey(entity = Measurement::class,
+            parentColumns = ["id"],
+            childColumns = ["measurement_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
 data class UploadDownloadData(
-    @PrimaryKey val id: String, // UUID
+    @PrimaryKey
+    var id: String = UUID.randomUUID().toString(),
+
+//    @PrimaryKey val id: String, // UUID
 
     @SerialName("measurement_id")
     @ColumnInfo(name = "measurement_id")

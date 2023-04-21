@@ -2,14 +2,27 @@ package com.example.ndt8.data.entities
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.PrimaryKey
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.util.UUID
 
 @Serializable
-@Entity
+@Entity(
+    foreignKeys = [
+        ForeignKey(entity = Measurement::class,
+            parentColumns = ["id"],
+            childColumns = ["measurement_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
 data class Location(
-    val id: String,
+    @PrimaryKey
+    var id: String = UUID.randomUUID().toString(),
+
     val timestamp: Instant,
     val lat: Double?,
     val lon: Double?,
@@ -23,7 +36,7 @@ data class Location(
     val heading: Double?,
 
     @SerialName("measurement_id")
-    @ColumnInfo(name = "measurement_id")
+    @ColumnInfo(name = "measurement_id", index = true)
     val measurementId: String? = null,
 
     @SerialName("created_on")

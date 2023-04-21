@@ -6,7 +6,7 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
-import com.example.ndt8.data.repository.DataStore
+import com.example.ndt8.data.repository.LocalDataStore
 import com.example.ndt8.databinding.ActivityMainBinding
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -19,7 +19,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val dataStore = DataStore(this)
+        val dataStore = LocalDataStore(this)
 
         // Create new deviceId on first run of app
         var deviceId = runBlocking {

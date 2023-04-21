@@ -8,12 +8,16 @@ import androidx.room.Relation
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.util.UUID
 
 @Serializable
 @Entity
 data class Measurement(
     @PrimaryKey
-    var id: String? = null,
+    var id: String = UUID.randomUUID().toString(),
+
+//    @SerialName("measurement_id")
+//    val measurementId: String = UUID.randomUUID().toString(),
 
     @SerialName("group_id")
     @ColumnInfo(name = "group_id")
@@ -104,7 +108,7 @@ data class MeasurementWithUploadDownloadData(
     @Embedded val measurement: Measurement,
     @Relation(
         parentColumn = "id",
-        entityColumn = "measurementId"
+        entityColumn = "measurement_id"
     )
     val uploadDownloadData: List<UploadDownloadData>
 )
@@ -113,7 +117,7 @@ data class MeasurementAndLatencyData(
     @Embedded val measurement: Measurement,
     @Relation(
         parentColumn = "id",
-        entityColumn = "measurementId"
+        entityColumn = "measurement_id"
     )
     val latencyData: LatencyData
 )
@@ -123,19 +127,19 @@ data class MeasurementWithAllData(
 
     @Relation(
         parentColumn = "id",
-        entityColumn = "measurementId"
+        entityColumn = "measurement_id"
     )
     val uploadDownloadData: List<UploadDownloadData>,
 
     @Relation(
         parentColumn = "id",
-        entityColumn = "measurementId"
+        entityColumn = "measurement_id"
     )
     val latencyData: LatencyData,
 
     @Relation(
         parentColumn = "id",
-        entityColumn = "measurementId"
+        entityColumn = "measurement_id"
     )
     val locations: List<Location>
 )

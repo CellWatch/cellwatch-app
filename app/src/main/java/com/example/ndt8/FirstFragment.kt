@@ -16,7 +16,7 @@ import com.example.ndt8.databinding.FragmentFirstBinding
 import com.example.ndt8.data.entities.Location
 import com.example.ndt8.data.entities.Measurement
 import com.example.ndt8.data.entities.UploadDownloadData
-import com.example.ndt8.data.repository.DataStore
+import com.example.ndt8.data.repository.LocalDataStore
 import com.github.anastr.speedviewlib.SpeedView
 import github.nisrulz.easydeviceinfo.base.*
 import io.github.jan.supabase.createSupabaseClient
@@ -29,6 +29,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
+import java.util.UUID
 import kotlin.concurrent.thread
 
 
@@ -235,13 +236,14 @@ class FirstFragment : Fragment() {
 
         println("********** Servers: $serversString")
 
-        val dataStore = DataStore(context!!)
+        val dataStore = LocalDataStore(context!!)
 
         var deviceId = runBlocking {
             dataStore.getDeviceId.first()
         }
 
         val jsonMeasurement = buildJsonObject {
+            put("id", UUID.randomUUID().toString())
             put("device_id", deviceId)
             put("device_manufacturer", deviceMod?.manufacturer)
             put("device_model", deviceMod?.model)
@@ -260,7 +262,7 @@ class FirstFragment : Fragment() {
 //            put("data_id", insertedData.id)
         }
 
-        writeMessage("Measurement = $jsonMeasurement")
+        writeMessage("********************* Measurement = $jsonMeasurement")
         println(jsonMeasurement)
 
         val insertedMeasurement = measurementTable.insert(jsonMeasurement).decodeSingle<Measurement>()
