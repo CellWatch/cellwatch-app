@@ -13,6 +13,9 @@ const val NDT8_STREAM_DELAY = 0L // delay between launching each stream
 const val NDT8_MAX_MILLIS = 10000L // must be at least 5 seconds more than max warmup
 const val NDT8_MAX_WARMUP_MILLIS = 4000L
 const val NDT8_USER_AGENT = "CellWatch/test"
+const val NDT8_CONNECT_TIMEOUT_MILLIS = 5000L
+const val NDT8_READ_TIMEOUT_MILLIS = 5000L
+const val NDT8_WRITE_TIMEOUT_MILLIS = 5000L
 
 // websocket status codes
 const val WS_CODE_NORMAL_CLOSURE = 1000
