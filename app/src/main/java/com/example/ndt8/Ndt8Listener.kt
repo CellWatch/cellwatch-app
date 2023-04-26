@@ -21,14 +21,19 @@ open class Ndt8Listener(
     protected var endUsec: Long? = null
     protected var bytesSent = AtomicLong(0)
     protected var bytesReceived = AtomicLong(0)
-    private var lastMeasurementUsec: Long = 0
     open var latestMeasurement: Ndt8Measurement? = null
         protected set
+
+    private val measurementTicker = MemorylessTicker(
+        NDT8_AVG_MEASUREMENT_INTERVAL_MILLIS,
+        NDT8_MAX_MEASUREMENT_INTERVAL_MILLIS,
+        NDT8_MIN_MEASUREMENT_INTERVAL_MILLIS,
+    )
 
     final override fun onOpen(webSocket: WebSocket, response: Response) {
         super.onOpen(webSocket, response)
         startUsec = SystemClock.elapsedRealtimeNanos() / 1000
-        lastMeasurementUsec = startUsec
+        measurementTicker.start { sendMeasurement(webSocket) }
         onOpen(webSocket)
     }
 
@@ -45,14 +50,12 @@ open class Ndt8Listener(
         }
 
         onMeasurement(webSocket, wireMeasurement)
-        sendMeasurement(webSocket)
     }
 
     final override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
         super.onMessage(webSocket, bytes)
         Log.v(TAG, "got binary message of size ${bytes.size}")
         bytesReceived.addAndGet(bytes.size.toLong())
-        sendMeasurement(webSocket)
     }
 
     final override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
@@ -71,6 +74,8 @@ open class Ndt8Listener(
         } else {
             measurementChan.close(Ndt8UnexpectedCloseException(code, reason))
         }
+
+        measurementTicker.stop()
     }
 
     final override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -78,6 +83,7 @@ open class Ndt8Listener(
         Log.d(TAG, "websocket failure: $response", t)
         endUsec = SystemClock.elapsedRealtimeNanos() / 1000
         measurementChan.close(t)
+        measurementTicker.stop()
     }
 
     open fun onOpen(webSocket: WebSocket) {}
@@ -108,11 +114,6 @@ open class Ndt8Listener(
 
     private fun sendMeasurement(webSocket: WebSocket) {
         val usec = endUsec ?: (SystemClock.elapsedRealtimeNanos() / 1000)
-        if (usec - lastMeasurementUsec < NDT8_MEASUREMENT_INTERVAL_MILLIS * 1000) {
-            return
-        }
-
-        lastMeasurementUsec = usec
         val measurement = Ndt8Measurement(
             bytesSent.get(),
             bytesReceived.get(),
