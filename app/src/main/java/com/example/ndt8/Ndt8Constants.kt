@@ -1,8 +1,7 @@
-package com.example.ndt8.domain.ndt8.util
+package com.example.ndt8
 
 // constants from the protocol itself
 const val NDT8_WS_PROTO = "net.measurementlab.ndt.v8"
-const val NDT8_MEASUREMENT_INTERVAL_MILLIS = 250L
 const val NDT8_AVG_MEASUREMENT_INTERVAL_MILLIS = 250L
 const val NDT8_MAX_MEASUREMENT_INTERVAL_MILLIS = 400L
 const val NDT8_MIN_MEASUREMENT_INTERVAL_MILLIS = 100L
