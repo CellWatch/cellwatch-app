@@ -1,4 +1,4 @@
-package com.example.ndt8
+package com.example.ndt8.domain.ndt8.util
 
 import java.security.InvalidParameterException
 import kotlin.concurrent.thread

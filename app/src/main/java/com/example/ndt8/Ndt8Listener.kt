@@ -1,9 +1,18 @@
-package com.example.ndt8
+package com.example.ndt8.domain.ndt8.services
 
 import android.os.SystemClock
 import android.util.Log
+import com.example.ndt8.domain.ndt8.util.Ndt8UnexpectedCloseException
+import com.example.ndt8.domain.ndt8.util.WS_CODE_GOING_AWAY
+import com.example.ndt8.domain.ndt8.util.WS_CODE_NORMAL_CLOSURE
+import com.example.ndt8.domain.ndt8.model.Ndt8Measurement
+import com.example.ndt8.domain.ndt8.util.MemorylessTicker
+import com.example.ndt8.domain.ndt8.util.NDT8_AVG_MEASUREMENT_INTERVAL_MILLIS
+import com.example.ndt8.domain.ndt8.util.NDT8_MAX_MEASUREMENT_INTERVAL_MILLIS
+import com.example.ndt8.domain.ndt8.util.NDT8_MIN_MEASUREMENT_INTERVAL_MILLIS
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import okhttp3.Response
@@ -21,6 +30,7 @@ open class Ndt8Listener(
     protected var endUsec: Long? = null
     protected var bytesSent = AtomicLong(0)
     protected var bytesReceived = AtomicLong(0)
+    //private var lastMeasurementUsec: Long = 0
     open var latestMeasurement: Ndt8Measurement? = null
         protected set
 
@@ -50,18 +60,21 @@ open class Ndt8Listener(
         }
 
         onMeasurement(webSocket, wireMeasurement)
+        //sendMeasurement(webSocket)
     }
 
     final override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
         super.onMessage(webSocket, bytes)
         Log.v(TAG, "got binary message of size ${bytes.size}")
         bytesReceived.addAndGet(bytes.size.toLong())
+        //sendMeasurement(webSocket)
     }
 
     final override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
         super.onClosing(webSocket, code, reason)
         Log.d(TAG, "websocket closing: $code $reason")
         webSocket.close(WS_CODE_NORMAL_CLOSURE, null)
+        measurementTicker.stop()
     }
 
     final override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
@@ -88,11 +101,14 @@ open class Ndt8Listener(
 
     open fun onOpen(webSocket: WebSocket) {}
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     open fun onMeasurement(webSocket: WebSocket, measurement: Ndt8Measurement) {
-        try {
-            runBlocking { measurementChan.send(Pair(true, measurement)) }
-        } catch (t: Throwable) {
-            Log.w(TAG, "sending measurement on chan failed", t)
+        if (!measurementChan.isClosedForSend) {
+            try {
+                runBlocking { measurementChan.send(Pair(true, measurement)) }
+            } catch (t: Throwable) {
+                Log.w(TAG, "sending measurement on chan failed", t)
+            }
         }
     }
 

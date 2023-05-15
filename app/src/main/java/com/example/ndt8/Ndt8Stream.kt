@@ -1,6 +1,19 @@
-package com.example.ndt8
+package com.example.ndt8.domain.ndt8.services
 
 import android.util.Log
+import com.example.ndt8.domain.ndt8.util.NDT8_USER_AGENT
+import com.example.ndt8.domain.ndt8.util.NDT8_WS_PROTO
+import com.example.ndt8.domain.ndt8.util.Ndt8UnexpectedCloseException
+import com.example.ndt8.domain.ndt8.util.WS_CODE_GOING_AWAY
+import com.example.ndt8.domain.ndt8.util.WS_CODE_NORMAL_CLOSURE
+import com.example.ndt8.domain.ndt8.model.Ndt8Measurement
+import com.example.ndt8.domain.ndt8.model.Ndt8TestDirection
+import com.example.ndt8.domain.ndt8.model.Ndt8TestMetrics
+import com.example.ndt8.domain.ndt8.mappers.measurementToMetrics
+import com.example.ndt8.domain.ndt8.usecases.calcBytesPerSec
+import com.example.ndt8.domain.ndt8.util.NDT8_CONNECT_TIMEOUT_MILLIS
+import com.example.ndt8.domain.ndt8.util.NDT8_READ_TIMEOUT_MILLIS
+import com.example.ndt8.domain.ndt8.util.NDT8_WRITE_TIMEOUT_MILLIS
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
