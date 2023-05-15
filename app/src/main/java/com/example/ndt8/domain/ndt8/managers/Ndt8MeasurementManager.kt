@@ -21,6 +21,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -31,14 +32,19 @@ object Ndt8MeasurementManager {
     private var _bytesPerSecState = MutableStateFlow(0.0)
     val bytesPerSecState: StateFlow<Double> = _bytesPerSecState //.asStateFlow()
 
-    private val measurementRepository = CellWatchApp.measurementRepository
+    private val measurementRepository = CellWatchApp.measurementRepository;
     private val TAG = this::class.simpleName
-    private var locationEntities: List<LocationEntity>? = null
+//    private var locationEntities: List<LocationEntity>? = null
 
     private var deviceMod: EasyDeviceMod? = null
     private var networkMod: EasyNetworkMod? = null
     private var simMod: EasySimMod? = null
     private var appMod: EasyAppMod? = null
+
+    fun updateBytesPerSec(newBytesPerSec: Double) {
+//        _bytesPerSecState.value = newBytesPerSec
+        _bytesPerSecState.update { newBytesPerSec }
+    }
 
     suspend fun runTestSequence() {
         val measurementId: String? = null
@@ -120,7 +126,7 @@ object Ndt8MeasurementManager {
                     test.progress.consumeEach() {
                         Log.d(TAG, "got progress $it")
 //                        writeMessage("progress: $it")
-
+                        updateBytesPerSec(it.bytesPerSec)
 //                        writeMessage("***** speed = ${8 * it.bytesPerSec / 1e6}")
                     }
                 }

@@ -1,6 +1,5 @@
 package com.example.ndt8.ui.measurement
 
-import android.Manifest
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -9,42 +8,19 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
-import com.birjuvachhani.locus.Locus
 import com.example.ndt8.CellWatchApp
 import com.example.ndt8.R
 import com.example.ndt8.databinding.FragmentFirstBinding
-import com.example.ndt8.data.local.model.LocationEntity
-import com.example.ndt8.data.local.model.MeasurementEntity
-import com.example.ndt8.data.local.model.UploadDownloadDataEntity
-import com.example.ndt8.data.datastore.LocalDataStore
 import com.example.ndt8.data.core.repositories.MeasurementRepository
-import com.example.ndt8.data.network.repositories.MeasurementNetworkRepository
-import com.example.ndt8.domain.ndt8.model.Ndt8LocateServer
-import com.example.ndt8.domain.ndt8.model.Ndt8TestDirection
-import com.example.ndt8.domain.ndt8.model.Ndt8TestResult
-import com.example.ndt8.domain.ndt8.managers.Ndt8LocateManager
 import com.example.ndt8.domain.ndt8.managers.Ndt8MeasurementManager
-import com.example.ndt8.domain.ndt8.services.Ndt8TestComponent
+import com.example.ndt8.ui.measurement.viewmodels.MeasurementViewModel
+import com.example.ndt8.ui.measurement.viewmodels.MeasurementViewModelFactory
 import com.github.anastr.speedviewlib.SpeedView
 import github.nisrulz.easydeviceinfo.base.*
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.postgrest.postgrest
-import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import okhttp3.OkHttpClient
-import java.util.UUID
-import kotlin.concurrent.thread
 
 
 /**
@@ -53,6 +29,10 @@ import kotlin.concurrent.thread
 class FirstFragment : Fragment() {
     private val TAG = this::class.simpleName
     private var _binding: FragmentFirstBinding? = null
+
+    private val measurementViewModel: MeasurementViewModel by activityViewModels() {
+        MeasurementViewModelFactory(CellWatchApp.measurementRepository)
+    }
 
     private var deviceMod: EasyDeviceMod? = null
     private var networkMod: EasyNetworkMod? = null
@@ -64,13 +44,13 @@ class FirstFragment : Fragment() {
     private var measurementRepository: MeasurementRepository? = null;
 //    private var measurementNetworkRepository: MeasurementNetworkRepository? = null
 
-    private var _bytesPerSecState = MutableStateFlow(0.0)
-    val bytesPerSecState: StateFlow<Double> = _bytesPerSecState //.asStateFlow()
+//    private var _bytesPerSecState = MutableStateFlow(0.0)
+//    val bytesPerSecState: StateFlow<Double> = _bytesPerSecState //.asStateFlow()
 
-    fun updateBytesPerSec(newBytesPerSec: Double) {
-//        _bytesPerSecState.value = newBytesPerSec
-        _bytesPerSecState.update { newBytesPerSec }
-    }
+//    fun updateBytesPerSec(newBytesPerSec: Double) {
+////        _bytesPerSecState.value = newBytesPerSec
+//        _bytesPerSecState.update { newBytesPerSec }
+//    }
 
 //    private var measurementNetworkDatasource: MeasurementNetworkDatasource? = null;
 
@@ -138,15 +118,13 @@ class FirstFragment : Fragment() {
 //        locationMod = EasyLocationMod(context)
         appMod = EasyAppMod(context)
 
-//        measurementRepository = (application )
-
-        measurementRepository = CellWatchApp.measurementRepository
+//        measurementRepository = CellWatchApp.measurementRepository
 //        measurementNetworkRepository = CellWatchApp.measurementNetworkRepository
 
 //        measurementNetworkDatasource = MeasurementNetworkDatasource.getInstance(context!!.applicationContext)
 
         viewLifecycleOwner.lifecycleScope.launch {
-            bytesPerSecState.collect { bytesPerSec ->
+            measurementViewModel.bytesPerSecState.collect { bytesPerSec ->
                 updateSpeedometer(8 * bytesPerSec / 1e6)
             }
         }

@@ -64,7 +64,6 @@ object NetworkMeasurementDatasource {
     suspend fun insertMeasurement(measurement: Measurement): Measurement? {
         var insertedMeasurement: Measurement? = null
 
-//        Log.d(TAG, "Attempting to insert measurement in Supabase table via ${measurementTable.postgrest.supabaseClient.supabaseUrl}")
         Log.d(TAG, "Attempting to insert measurement ${measurement.id}")
 
         try {
@@ -136,45 +135,6 @@ object NetworkMeasurementDatasource {
 
         return insertedMeasurements
     }
-
-//    @WorkerThread
-//    suspend fun insertMeasurementWithData(measurementWithData: MeasurementWithData): MeasurementEntity? {
-//        var insertedMeasurement: MeasurementEntity? = null
-//
-//        with(measurementWithData) {
-//            Log.d(TAG, "insertMeasurementWithData: Insert ${measurement.type}")
-//            try {
-//                when (measurement.type) {
-//                    "upload", "download" -> insertedMeasurement =
-//                        insertMeasurementWithLocationsAndData(
-//                            measurement,
-//                            locations,
-//                            uploadDownloadData
-//                        )
-//
-//                    "latency" -> insertedMeasurement = insertMeasurementWithLocationsAndLatency(
-//                        measurement,
-//                        locations,
-//                        latencyData
-//                    )
-//                }
-//            } catch (e: RestException) {
-//                Log.e(TAG, "RestException: ${e.message}")
-//                throw e
-//            } catch (e: HttpRequestTimeoutException) {
-//                Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
-//                throw e
-//            } catch (e: HttpRequestException) {
-//                Log.e(TAG, "HttpRequestException: ${e.message}")
-//                throw e
-//            } catch (e: Exception) {
-//                Log.e(TAG, "Exception: ${e.message}")
-//                throw e
-//            }
-//        }
-//
-//        return insertedMeasurement
-//    }
 
     @WorkerThread
     suspend fun insertLatencyData(latencyData: LatencyData): LatencyData? {

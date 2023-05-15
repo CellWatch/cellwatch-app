@@ -3,10 +3,15 @@ package com.example.ndt8.ui.measurement.viewmodels
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.CreationExtras
+import com.example.ndt8.CellWatchApp
 import com.example.ndt8.data.core.repositories.MeasurementRepository
 import com.example.ndt8.data.model.Measurement
+import com.example.ndt8.domain.ndt8.managers.Ndt8MeasurementManager
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class MeasurementViewModel(private val repository: MeasurementRepository) : ViewModel() {
@@ -15,6 +20,8 @@ class MeasurementViewModel(private val repository: MeasurementRepository) : View
     val allMeasurementsWithData: LiveData<List<Measurement>> =
         repository.allMeasurementsWithData.asLiveData()
 
+    var bytesPerSecState: StateFlow<Double> = Ndt8MeasurementManager.bytesPerSecState
+
     /**
      * Launching a new coroutine to insert the data in a non-blocking way
      */
@@ -22,26 +29,28 @@ class MeasurementViewModel(private val repository: MeasurementRepository) : View
         repository.insertMeasurement(measurement)
     }
 
-//    fun insertMeasurementWithData(measurementWithData: MeasurementWithData) = viewModelScope.launch {
-//        repository.insertMeasurementWithData(measurementWithData)
-//    }
-
     fun getMeasurementsWithData() = viewModelScope.launch {
         repository.getMeasurementsWithData()
     }
 
-//    fun insertMeasurementWithLocationsAndData(
-//        measurement: Measurement,
-//        locations: List<Location>,
-//        uploadDownloadData: UploadDownloadData?,
-//        latencyData: LatencyData?
-//    ) = viewModelScope.launch {
-//        repository.insertMeasurementWithLocationsAndData(
-//            measurement,
-//            locations,
-//            uploadDownloadData,
-//            latencyData
-//        )
+//    companion object {
+//        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+//            @Suppress("UNCHECKED_CAST")
+//            override fun <T : ViewModel> create(
+//                modelClass: Class<T>,
+//                extras: CreationExtras
+//            ): T {
+//                // Get the Application object from extras
+////                val application = checkNotNull(extras[APPLICATION_KEY])
+//                // Create a SavedStateHandle for this ViewModel from extras
+////                val savedStateHandle = extras.createSavedStateHandle()
+//
+//                return MeasurementViewModel(
+//                    CellWatchApp.measurementRepository
+////                    (application as CellWatchApp).measurementRepository
+//                ) as T
+//            }
+//        }
 //    }
 }
 

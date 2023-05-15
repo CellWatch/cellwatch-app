@@ -12,6 +12,15 @@ class CellWatchApp : Application() {
         instance = this
     }
 
+//    private val database by lazy { CellWatchDatabase.getInstance(applicationContext()) }
+
+//    val measurementRepository by lazy {
+//        MeasurementRepository(
+//            database.measurementDao(),
+//            NetworkMeasurementDatasource
+//        )
+//    }
+
     companion object {
         private var instance: CellWatchApp? = null
 
@@ -20,7 +29,7 @@ class CellWatchApp : Application() {
         }
         // Using by lazy so the database and the repository are only created when they're needed
         // rather than when the application starts
-        val database by lazy { CellWatchDatabase.getInstance(applicationContext()) }
+        private val database by lazy { CellWatchDatabase.getInstance(applicationContext()) }
         val measurementRepository by lazy {
             MeasurementRepository(
                 database.measurementDao(),

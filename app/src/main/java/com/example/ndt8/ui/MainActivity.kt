@@ -3,16 +3,20 @@ package com.example.ndt8.ui
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.example.ndt8.CellWatchApp
+//import com.example.ndt8.CellWatchApp
 import com.example.ndt8.R
 import com.example.ndt8.data.datastore.LocalDataStore
 import com.example.ndt8.databinding.ActivityMainBinding
 import com.example.ndt8.ui.measurement.viewmodels.MeasurementViewModel
 import com.example.ndt8.ui.measurement.viewmodels.MeasurementViewModelFactory
+//import com.example.ndt8.ui.measurement.viewmodels.MeasurementViewModelFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.util.UUID
@@ -21,10 +25,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
 
-    private val measurementViewModel: MeasurementViewModel by viewModels {
+    private val measurementViewModel: MeasurementViewModel by viewModels() {
         MeasurementViewModelFactory(CellWatchApp.measurementRepository)
-//        MeasurementViewModelFactory((application as CellWatchApp).measurementRepository)
     }
+//    private lateinit var measurementViewModel: MeasurementViewModel
+//    private lateinit var measurementViewModelFactory: MeasurementViewModelFactory
+
+//    private val measurementViewModel: MeasurementViewModel by viewModels<MeasurementViewModel> {
+//        MeasurementViewModel.Factory
+//    }
+//    private val measurementViewModel: MeasurementViewModel by viewModels {
+//        MeasurementViewModelFactory(CellWatchApp.measurementRepository)
+////        MeasurementViewModelFactory((application as CellWatchApp).measurementRepository)
+//    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +65,10 @@ class MainActivity : AppCompatActivity() {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
+
+//        measurementViewModelFactory = MeasurementViewModelFactory(CellWatchApp.measurementRepository)
+//        measurementViewModelFactory = MeasurementViewModelFactory((application as CellWatchApp).measurementRepository)
+//        measurementViewModel = ViewModelProvider(this, measurementViewModelFactory).get(MeasurementViewModel::class.java)
 
         // Add an observer on the LiveData returned by getMeasurementsFlow.
         // The onChanged() method fires when the observed data changes and the activity is
