@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -47,7 +48,8 @@ object Ndt8MeasurementManager {
     }
 
     suspend fun runTestSequence() {
-        val measurementId: String? = null
+        val useLocalServer = false
+        val measurementId: String? = if (useLocalServer) UUID.randomUUID().toString() else null
         writeMessage("RUNNING TEST SEQUENCE with measurement id $measurementId")
 
         writeMessage("-----------------")
@@ -87,8 +89,16 @@ object Ndt8MeasurementManager {
 
         writeMessage("selecting server")
 
-        // use real M-Lab server
-        val server = Ndt8LocateManager.selectServerAsync(client) //, "https://locate-dot-mlab-staging.appspot.com/v2/nearest/")
+        val server = if (useLocalServer) {
+            Ndt8LocateServer(
+                "10.0.2.2", null, mapOf(
+                    "ws:///ndt/v8/download" to "ws://10.0.2.2:8080/ndt/v8/download",
+                    "ws:///ndt/v8/upload" to "ws://10.0.2.2:8080/ndt/v8/upload",
+                )
+            )
+        } else {
+            Ndt8LocateManager.selectServerAsync(client)
+        }
 
         writeMessage("selected server ${server.machine} in ${server.location}")
         runTest(client, server, measurementId, Ndt8TestDirection.DOWNLOAD)

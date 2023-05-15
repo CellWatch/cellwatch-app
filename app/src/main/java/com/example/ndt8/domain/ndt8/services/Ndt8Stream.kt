@@ -11,6 +11,9 @@ import com.example.ndt8.domain.ndt8.model.Ndt8TestDirection
 import com.example.ndt8.domain.ndt8.model.Ndt8TestMetrics
 import com.example.ndt8.domain.ndt8.mappers.measurementToMetrics
 import com.example.ndt8.domain.ndt8.usecases.calcBytesPerSec
+import com.example.ndt8.domain.ndt8.util.NDT8_CONNECT_TIMEOUT_MILLIS
+import com.example.ndt8.domain.ndt8.util.NDT8_READ_TIMEOUT_MILLIS
+import com.example.ndt8.domain.ndt8.util.NDT8_WRITE_TIMEOUT_MILLIS
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
@@ -20,6 +23,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
 import java.util.*
+import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 import kotlin.concurrent.schedule
 import kotlin.concurrent.thread
@@ -95,12 +99,19 @@ class Ndt8Stream(
     }
 
     private suspend fun run() {
+        val requestClient = client.newBuilder()
+            .connectTimeout(NDT8_CONNECT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+            .readTimeout(NDT8_READ_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+            .writeTimeout(NDT8_WRITE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+            .build()
+
         val request = Request.Builder()
             .url(url)
             .header("Sec-WebSocket-Protocol", NDT8_WS_PROTO)
             .header("User-Agent", NDT8_USER_AGENT)
             .build()
-        webSocket = client.newWebSocket(request, listener)
+
+        webSocket = requestClient.newWebSocket(request, listener)
 
         try {
             measurementChan.consumeEach { onMeasurementReceived(it.first, it.second) }

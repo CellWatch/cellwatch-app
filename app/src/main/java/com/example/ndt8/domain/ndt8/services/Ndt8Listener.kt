@@ -2,11 +2,14 @@ package com.example.ndt8.domain.ndt8.services
 
 import android.os.SystemClock
 import android.util.Log
-import com.example.ndt8.domain.ndt8.util.NDT8_MEASUREMENT_INTERVAL_MILLIS
 import com.example.ndt8.domain.ndt8.util.Ndt8UnexpectedCloseException
 import com.example.ndt8.domain.ndt8.util.WS_CODE_GOING_AWAY
 import com.example.ndt8.domain.ndt8.util.WS_CODE_NORMAL_CLOSURE
 import com.example.ndt8.domain.ndt8.model.Ndt8Measurement
+import com.example.ndt8.domain.ndt8.util.MemorylessTicker
+import com.example.ndt8.domain.ndt8.util.NDT8_AVG_MEASUREMENT_INTERVAL_MILLIS
+import com.example.ndt8.domain.ndt8.util.NDT8_MAX_MEASUREMENT_INTERVAL_MILLIS
+import com.example.ndt8.domain.ndt8.util.NDT8_MIN_MEASUREMENT_INTERVAL_MILLIS
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,14 +30,20 @@ open class Ndt8Listener(
     protected var endUsec: Long? = null
     protected var bytesSent = AtomicLong(0)
     protected var bytesReceived = AtomicLong(0)
-    private var lastMeasurementUsec: Long = 0
+    //private var lastMeasurementUsec: Long = 0
     open var latestMeasurement: Ndt8Measurement? = null
         protected set
+
+    private val measurementTicker = MemorylessTicker(
+        NDT8_AVG_MEASUREMENT_INTERVAL_MILLIS,
+        NDT8_MAX_MEASUREMENT_INTERVAL_MILLIS,
+        NDT8_MIN_MEASUREMENT_INTERVAL_MILLIS,
+    )
 
     final override fun onOpen(webSocket: WebSocket, response: Response) {
         super.onOpen(webSocket, response)
         startUsec = SystemClock.elapsedRealtimeNanos() / 1000
-        lastMeasurementUsec = startUsec
+        measurementTicker.start { sendMeasurement(webSocket) }
         onOpen(webSocket)
     }
 
@@ -51,20 +60,21 @@ open class Ndt8Listener(
         }
 
         onMeasurement(webSocket, wireMeasurement)
-        sendMeasurement(webSocket)
+        //sendMeasurement(webSocket)
     }
 
     final override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
         super.onMessage(webSocket, bytes)
         Log.v(TAG, "got binary message of size ${bytes.size}")
         bytesReceived.addAndGet(bytes.size.toLong())
-        sendMeasurement(webSocket)
+        //sendMeasurement(webSocket)
     }
 
     final override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
         super.onClosing(webSocket, code, reason)
         Log.d(TAG, "websocket closing: $code $reason")
         webSocket.close(WS_CODE_NORMAL_CLOSURE, null)
+        measurementTicker.stop()
     }
 
     final override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
@@ -77,6 +87,8 @@ open class Ndt8Listener(
         } else {
             measurementChan.close(Ndt8UnexpectedCloseException(code, reason))
         }
+
+        measurementTicker.stop()
     }
 
     final override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -84,6 +96,7 @@ open class Ndt8Listener(
         Log.d(TAG, "websocket failure: $response", t)
         endUsec = SystemClock.elapsedRealtimeNanos() / 1000
         measurementChan.close(t)
+        measurementTicker.stop()
     }
 
     open fun onOpen(webSocket: WebSocket) {}
@@ -117,11 +130,6 @@ open class Ndt8Listener(
 
     private fun sendMeasurement(webSocket: WebSocket) {
         val usec = endUsec ?: (SystemClock.elapsedRealtimeNanos() / 1000)
-        if (usec - lastMeasurementUsec < NDT8_MEASUREMENT_INTERVAL_MILLIS * 1000) {
-            return
-        }
-
-        lastMeasurementUsec = usec
         val measurement = Ndt8Measurement(
             bytesSent.get(),
             bytesReceived.get(),
