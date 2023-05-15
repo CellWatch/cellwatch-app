@@ -33,25 +33,9 @@ class MeasurementViewModel(private val repository: MeasurementRepository) : View
         repository.getMeasurementsWithData()
     }
 
-//    companion object {
-//        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-//            @Suppress("UNCHECKED_CAST")
-//            override fun <T : ViewModel> create(
-//                modelClass: Class<T>,
-//                extras: CreationExtras
-//            ): T {
-//                // Get the Application object from extras
-////                val application = checkNotNull(extras[APPLICATION_KEY])
-//                // Create a SavedStateHandle for this ViewModel from extras
-////                val savedStateHandle = extras.createSavedStateHandle()
-//
-//                return MeasurementViewModel(
-//                    CellWatchApp.measurementRepository
-////                    (application as CellWatchApp).measurementRepository
-//                ) as T
-//            }
-//        }
-//    }
+    suspend fun runTestSequence() {
+        Ndt8MeasurementManager.runTestSequence()
+    }
 }
 
 class MeasurementViewModelFactory(private val repository: MeasurementRepository) : ViewModelProvider.Factory {

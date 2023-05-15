@@ -73,17 +73,17 @@ class MainActivity : AppCompatActivity() {
         // Add an observer on the LiveData returned by getMeasurementsFlow.
         // The onChanged() method fires when the observed data changes and the activity is
         // in the foreground.
-        measurementViewModel.allMeasurements.observe(this) { measurements ->
-            // Update the cached copy of the measurements in the adapter.
-            measurements.let {
-                // attempt to upload measurements
-            }
-        }
+//        measurementViewModel.allMeasurements.observe(this) { measurements ->
+//            // Update the cached copy of the measurements in the adapter.
+//            measurements.let {
+//                // attempt to upload measurements
+//            }
+//        }
     }
 
     override fun onResume() {
         super.onResume()
-
+//        measurementViewModel.
     }
 
     override fun onSupportNavigateUp(): Boolean {

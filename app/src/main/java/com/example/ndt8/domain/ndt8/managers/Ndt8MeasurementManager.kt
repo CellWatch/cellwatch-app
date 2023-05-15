@@ -138,6 +138,7 @@ object Ndt8MeasurementManager {
             writeMessage("$dir test failed: ${t.localizedMessage}")
             return
         } finally {
+            updateBytesPerSec(0.0)
             Log.d(TAG, "Done running test...")
             // get test end GPS location
             // get test start GPS location

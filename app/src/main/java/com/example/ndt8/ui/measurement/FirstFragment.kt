@@ -71,7 +71,7 @@ class FirstFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         speedometer = binding.speedView
-        speedometer.setMinMaxSpeed(0F, 100F)
+        speedometer.setMinMaxSpeed(0F, 500F)
         speedometer.withTremble = false
 //        speedometer.speedTo(45F)
 
@@ -82,7 +82,8 @@ class FirstFragment : Fragment() {
 
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
-                    Ndt8MeasurementManager.runTestSequence()
+//                    Ndt8MeasurementManager.runTestSequence()
+                    measurementViewModel.runTestSequence()
                 } catch (e: Exception) {
                     Log.e(TAG, "unexpected error running test sequence", e)
                     writeMessage("unexpected error running test sequence: ${e.localizedMessage}")
@@ -431,6 +432,9 @@ class FirstFragment : Fragment() {
 
     fun updateSpeedometer(bytesPerSec: Double, moveDuration: Long = 200) {
         val handler = Handler(Looper.getMainLooper())
+
+        Log.d(TAG, "bytesPerSec = ${bytesPerSec}")
+
         handler.post {
             speedometer.speedTo(bytesPerSec.toFloat(), moveDuration)
         }
