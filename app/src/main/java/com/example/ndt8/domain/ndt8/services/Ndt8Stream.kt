@@ -10,6 +10,7 @@ import com.example.ndt8.domain.ndt8.model.Ndt8Measurement
 import com.example.ndt8.domain.ndt8.model.Ndt8TestDirection
 import com.example.ndt8.domain.ndt8.model.Ndt8TestMetrics
 import com.example.ndt8.domain.ndt8.mappers.measurementToMetrics
+import com.example.ndt8.domain.ndt8.model.Ndt8StreamResult
 import com.example.ndt8.domain.ndt8.usecases.calcBytesPerSec
 import com.example.ndt8.domain.ndt8.util.NDT8_CONNECT_TIMEOUT_MILLIS
 import com.example.ndt8.domain.ndt8.util.NDT8_READ_TIMEOUT_MILLIS
@@ -178,15 +179,3 @@ class Ndt8Stream(
         }
     }
 }
-
-@Serializable
-data class Ndt8StreamResult (
-    val success: Boolean,
-    val cc: String?,
-    val uuid: String?,
-    val localAddr: String?,
-    val remoteAddr: String?,
-    val warmupMetrics: Ndt8TestMetrics?,
-    val activeMetrics: Ndt8TestMetrics?,
-    val measurements: Collection<Ndt8Measurement>
-)
