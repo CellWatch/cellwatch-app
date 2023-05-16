@@ -1,6 +1,5 @@
 package com.example.ndt8.domain.ndt8.model
 
-import com.example.ndt8.domain.ndt8.services.Ndt8StreamResult
 import kotlinx.serialization.Serializable
 
 @Serializable

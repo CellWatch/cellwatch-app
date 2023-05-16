@@ -1,6 +1,8 @@
 package com.example.ndt8.ui.measurement.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class MeasurementViewModel(private val repository: MeasurementRepository) : ViewModel() {
+    private val TAG = this::class.simpleName
     val allMeasurements: LiveData<List<Measurement>> = repository.allMeasurements.asLiveData()
 
     val allMeasurementsWithData: LiveData<List<Measurement>> =
@@ -22,6 +25,19 @@ class MeasurementViewModel(private val repository: MeasurementRepository) : View
 
     var bytesPerSecState: StateFlow<Double> = Ndt8MeasurementManager.bytesPerSecState
 
+    private var _maxBytesPerSec: MutableLiveData<Double> = MutableLiveData(0.0)
+    val maxBytesPerSec: LiveData<Double>
+        get() = _maxBytesPerSec
+
+    init {
+        viewModelScope.launch {
+            bytesPerSecState.collect { bytesPerSec ->
+//                updateSpeedometer(8 * bytesPerSec / 1e6)
+                Log.d(TAG, "maxBytesPerSec = ${maxBytesPerSec.value.toString()}")
+                _maxBytesPerSec.value = _maxBytesPerSec.value?.let { maxOf(it, bytesPerSec) }
+            }
+        }
+    }
     /**
      * Launching a new coroutine to insert the data in a non-blocking way
      */
