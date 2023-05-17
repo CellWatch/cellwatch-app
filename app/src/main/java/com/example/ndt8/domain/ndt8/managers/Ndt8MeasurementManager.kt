@@ -50,6 +50,8 @@ object Ndt8MeasurementManager {
     suspend fun runTestSequence() {
         val useLocalServer = false
         val measurementId: String? = if (useLocalServer) UUID.randomUUID().toString() else null
+        val groupId: String = UUID.randomUUID().toString()
+
         writeMessage("RUNNING TEST SEQUENCE with measurement id $measurementId")
 
         writeMessage("-----------------")
@@ -101,8 +103,9 @@ object Ndt8MeasurementManager {
         }
 
         writeMessage("selected server ${server.machine} in ${server.location}")
-        runTest(client, server, measurementId, Ndt8TestDirection.DOWNLOAD)
-        runTest(client, server, measurementId, Ndt8TestDirection.UPLOAD)
+        // TODO: run latency test
+        runTest(client, server, measurementId, groupId, Ndt8TestDirection.DOWNLOAD)
+        runTest(client, server, measurementId, groupId, Ndt8TestDirection.UPLOAD)
 
         // Try to upload measurements to Supabase
         measurementRepository.uploadMeasurements()
@@ -113,6 +116,7 @@ object Ndt8MeasurementManager {
         client: OkHttpClient,
         server: Ndt8LocateServer,
         measurementId: String?,
+        groupId: String,
         direction: Ndt8TestDirection
     ) {
         var location: Location?
@@ -162,11 +166,11 @@ object Ndt8MeasurementManager {
         Log.i(TAG, "$dir test locations = ${locations.map { it.id }.joinToString()}")
 //        writeMessage("$dir test complete: ${if (result.success) "success" else "failure"}; warmup ${result.warmupMetrics}; active ${result.activeMetrics}")
 
-        insertMeasurement(result, direction, locations)
+        insertMeasurement(groupId, result, direction, locations)
 //        runBlocking { createMeasurement(result, direction) }
     }
 
-    suspend fun insertMeasurement(result: Ndt8TestResult, direction: Ndt8TestDirection, locations: List<Location>?) {
+    suspend fun insertMeasurement(groupId: String, result: Ndt8TestResult, direction: Ndt8TestDirection, locations: List<Location>?) {
         val context = CellWatchApp.applicationContext()
         val dataStore = LocalDataStore(context)
         var deviceId = dataStore.getDeviceId.first()
@@ -205,6 +209,7 @@ object Ndt8MeasurementManager {
         )
 
         val measurement = Measurement(
+            groupId = groupId,
             deviceId = deviceId,
             deviceManufacturer = deviceMod?.manufacturer,
             deviceModel = deviceMod?.model,
