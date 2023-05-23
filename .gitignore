@@ -16,3 +16,4 @@ local.properties
 /.idea/.name
 /.idea
 .idea/misc.xml
+/cellwatch.properties

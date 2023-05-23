@@ -45,12 +45,15 @@ class NetworkMeasurementDatasourceTest {
     @Before
     fun createMeasurementNetworkDatasource() {
         val context: Context = ApplicationProvider.getApplicationContext()
+        val supabaseUrl = BuildConfig.SUPABASE_URL
+        val supabaseApiKey = BuildConfig.SUPABASE_API_KEY
 
         networkMeasurementDatasource = NetworkMeasurementDatasource
-        
+
         supabaseClient = createSupabaseClient(
-                supabaseUrl = "https://xepxxvpbexkyxrwtrgqv.supabase.co",
-                supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlcHh4dnBiZXhreXhyd3RyZ3F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2Nzc3NjgwOTgsImV4cCI6MTk5MzM0NDA5OH0.4yPsO_M4VPJu_wt4EVcOa3Y2_paj2I_1IRKujmIVjdA"
+                supabaseUrl = supabaseUrl, //"https://xepxxvpbexkyxrwtrgqv.supabase.co",
+                supabaseKey = supabaseApiKey //"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+//                        supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlcHh4dnBiZXhreXhyd3RyZ3F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2Nzc3NjgwOTgsImV4cCI6MTk5MzM0NDA5OH0.4yPsO_M4VPJu_wt4EVcOa3Y2_paj2I_1IRKujmIVjdA"
         ) {
             install(Postgrest)
         }

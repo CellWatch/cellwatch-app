@@ -5,6 +5,10 @@ plugins {
     id "org.jetbrains.kotlin.kapt"
 }
 
+def cellwatchPropertiesFile = rootProject.file("cellwatch.properties")
+def cellwatchProperties = new Properties()
+cellwatchProperties.load(new FileInputStream(cellwatchPropertiesFile))
+
 android {
     namespace 'com.example.ndt8'
     compileSdk 33
@@ -16,13 +20,26 @@ android {
         versionCode 1
         versionName "1.0"
 
+//        buildConfigField("String", "SUPABASE_URL", cellwatchProperties['SUPABASE_URL'])
+//        buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties['SUPABASE_API_KEY'])
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
+        debug {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            buildConfigField("String", "SUPABASE_URL", cellwatchProperties['SUPABASE_LOCAL_URL'])
+            buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties['SUPABASE_LOCAL_API_KEY'])
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            buildConfigField("String", "SUPABASE_URL", cellwatchProperties['SUPABASE_URL'])
+            buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties['SUPABASE_API_KEY'])
         }
     }
     compileOptions {

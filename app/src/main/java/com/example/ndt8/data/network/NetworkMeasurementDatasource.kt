@@ -2,6 +2,7 @@ package com.example.ndt8.data.network
 
 import android.util.Log
 import androidx.annotation.WorkerThread
+import com.example.ndt8.BuildConfig
 import com.example.ndt8.data.core.model.asNetworkModel
 import com.example.ndt8.data.local.model.LatencyDataEntity
 import com.example.ndt8.data.local.model.LocationEntity
@@ -44,9 +45,12 @@ object NetworkMeasurementDatasource {
 //            return instance!!
 //        }
 
-        private val supabaseClient = createSupabaseClient(
-            supabaseUrl = "https://xepxxvpbexkyxrwtrgqv.supabase.co",
-            supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlcHh4dnBiZXhreXhyd3RyZ3F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2Nzc3NjgwOTgsImV4cCI6MTk5MzM0NDA5OH0.4yPsO_M4VPJu_wt4EVcOa3Y2_paj2I_1IRKujmIVjdA"
+    private val supabaseUrl = BuildConfig.SUPABASE_URL
+    private val supabaseApiKey = BuildConfig.SUPABASE_API_KEY
+
+    private val supabaseClient = createSupabaseClient(
+            supabaseUrl = supabaseUrl, //"https://xepxxvpbexkyxrwtrgqv.supabase.co",
+            supabaseKey = supabaseApiKey
         ) {
             install(Postgrest)
         }
