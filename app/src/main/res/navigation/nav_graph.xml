@@ -7,6 +7,6 @@
 
     <fragment
         android:id="@+id/FirstFragment"
-        android:name="com.example.ndt8.ui.measurement.FirstFragment"
+        android:name="com.cellwatch.ui.measurement.FirstFragment"
         tools:layout="@layout/fragment_first"/>
 </navigation>

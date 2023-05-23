@@ -13,5 +13,5 @@ dependencyResolutionManagement {
         maven { url 'https://jitpack.io' } // for locus-android library
     }
 }
-rootProject.name = "ndt8"
+rootProject.name = "cellwatch"
 include ':app'
