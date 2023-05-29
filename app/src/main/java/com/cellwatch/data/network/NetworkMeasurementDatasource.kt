@@ -63,7 +63,7 @@ object NetworkMeasurementDatasource {
     suspend fun insertMeasurement(measurement: Measurement): Measurement? {
         var insertedMeasurement: Measurement? = null
 
-        Log.d(TAG, "Attempting to insert measurement ${measurement.id}")
+        Log.d(TAG, "Attempting to insert measurement ${measurement.id} to Supabase API at ${supabaseUrl}")
 
         try {
             insertedMeasurement =

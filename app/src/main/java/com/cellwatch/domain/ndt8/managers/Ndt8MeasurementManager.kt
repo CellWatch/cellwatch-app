@@ -35,10 +35,10 @@ object Ndt8MeasurementManager {
     private val TAG = this::class.simpleName
 //    private var locationEntities: List<LocationEntity>? = null
 
-    private var deviceMod: EasyDeviceMod? = null
-    private var networkMod: EasyNetworkMod? = null
-    private var simMod: EasySimMod? = null
-    private var appMod: EasyAppMod? = null
+    private var deviceMod: EasyDeviceMod? = EasyDeviceMod(CellWatchApp.applicationContext())
+    private var networkMod: EasyNetworkMod? = EasyNetworkMod(CellWatchApp.applicationContext())
+    private var simMod: EasySimMod? = EasySimMod(CellWatchApp.applicationContext())
+    private var appMod: EasyAppMod? = EasyAppMod(CellWatchApp.applicationContext())
 
     fun updateBytesPerSec(newBytesPerSec: Double) {
 //        _bytesPerSecState.value = newBytesPerSec
@@ -169,7 +169,7 @@ object Ndt8MeasurementManager {
     }
 
     suspend fun insertMeasurement(groupId: String, result: Ndt8TestResult, direction: Ndt8TestDirection, locations: List<Location>?) {
-        val context = com.cellwatch.CellWatchApp.applicationContext()
+        val context = CellWatchApp.applicationContext()
         val dataStore = LocalDataStore(context)
         var deviceId = dataStore.getDeviceId.first()
 //        var deviceId = runBlocking {
@@ -265,7 +265,7 @@ object Ndt8MeasurementManager {
     }
 
     suspend fun getLocation(): Location? = suspendCoroutine { continuation ->
-        val context = com.cellwatch.CellWatchApp.applicationContext()
+        val context = CellWatchApp.applicationContext()
         var location: Location? = null //android.location.Location? = null
 
         Locus.getCurrentLocation(context) { locationResult ->

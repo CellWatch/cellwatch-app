@@ -31,10 +31,10 @@ class FirstFragment : Fragment() {
         MeasurementViewModelFactory(com.cellwatch.CellWatchApp.measurementRepository)
     }
 
-    private var deviceMod: EasyDeviceMod? = null
-    private var networkMod: EasyNetworkMod? = null
-    private var simMod: EasySimMod? = null
-    private var appMod: EasyAppMod? = null
+//    private var deviceMod: EasyDeviceMod? = null
+//    private var networkMod: EasyNetworkMod? = null
+//    private var simMod: EasySimMod? = null
+//    private var appMod: EasyAppMod? = null
     private lateinit var speedometer: SpeedView
 
     // This property is only valid between onCreateView and
@@ -86,10 +86,10 @@ class FirstFragment : Fragment() {
             }
         }
 
-        deviceMod = EasyDeviceMod(context)
-        networkMod = EasyNetworkMod(context)
-        simMod = EasySimMod(context)
-        appMod = EasyAppMod(context)
+//        deviceMod = EasyDeviceMod(context)
+//        networkMod = EasyNetworkMod(context)
+//        simMod = EasySimMod(context)
+//        appMod = EasyAppMod(context)
 
         viewLifecycleOwner.lifecycleScope.launch {
             measurementViewModel.bytesPerSecState.collect { bytesPerSec ->
