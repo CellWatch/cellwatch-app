@@ -27,6 +27,7 @@ import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
+
 object Ndt8MeasurementManager {
     private var _bytesPerSecState = MutableStateFlow(0.0)
     val bytesPerSecState: StateFlow<Double> = _bytesPerSecState //.asStateFlow()
@@ -36,7 +37,7 @@ object Ndt8MeasurementManager {
 //    private var locationEntities: List<LocationEntity>? = null
 
     private var deviceMod: EasyDeviceMod? = EasyDeviceMod(CellWatchApp.applicationContext())
-    private var networkMod: EasyNetworkMod? = EasyNetworkMod(CellWatchApp.applicationContext())
+    private var networkMod: EasyNetworkMod = EasyNetworkMod(CellWatchApp.applicationContext())
     private var simMod: EasySimMod? = EasySimMod(CellWatchApp.applicationContext())
     private var appMod: EasyAppMod? = EasyAppMod(CellWatchApp.applicationContext())
 
@@ -75,9 +76,21 @@ object Ndt8MeasurementManager {
 
         writeMessage("-----------------")
 
-        writeMessage("network available = ${networkMod?.isNetworkAvailable.toString()}")
+        writeMessage("network available = ${networkMod.isNetworkAvailable.toString()}")
         writeMessage("wifi state = ${networkMod?.isWifiEnabled}")
-
+        
+//        @NetworkType val networkType: Int = networkMod.getNetworkType()
+//
+//        when (networkType) {
+//            NetworkType.CELLULAR_UNKNOWN -> writeMessage("Network Type : Unknown")
+//            NetworkType.CELLULAR_UNIDENTIFIED_GEN -> writeMessage("Network Type : Cellular Unidentified Generation")
+//            NetworkType.CELLULAR_2G -> writeMessage("Network Type : Cellular 2G")
+//            NetworkType.CELLULAR_3G -> writeMessage("Network Type : Cellular 3G")
+//            NetworkType.CELLULAR_4G -> writeMessage("Network Type : Cellular 4G")
+//            NetworkType.WIFI_WIFIMAX -> writeMessage("Network Type : WIFI/WIFIMAX")
+//            NetworkType.UNKNOWN -> writeMessage("Network Type : Unknown")
+//            else -> writeMessage("Network Type : Unknown")
+//        }
         writeMessage("-----------------")
 
         writeMessage("Carrier = ${simMod?.carrier}")
@@ -90,6 +103,7 @@ object Ndt8MeasurementManager {
         writeMessage("selecting server")
 
         val server = if (useLocalServer) {
+            writeMessage("Using local server")
             Ndt8LocateServer(
                 "10.0.2.2", null, mapOf(
                     "ws:///ndt/v8/download" to "ws://10.0.2.2:8080/ndt/v8/download",
@@ -97,6 +111,7 @@ object Ndt8MeasurementManager {
                 )
             )
         } else {
+            writeMessage("Using MLabs server")
             Ndt8LocateManager.selectServerAsync(client)
         }
 
@@ -220,7 +235,7 @@ object Ndt8MeasurementManager {
             scheduled = false,
             success = result.success,
             carrierAggregation = false,
-            networkAvailable = true,
+            networkAvailable = networkMod?.isNetworkAvailable,
             networkConnected = true,
             networkRoaming = false,
             uploadDownloadData = uploadDownloadData,

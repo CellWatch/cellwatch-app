@@ -18,6 +18,8 @@ import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import com.github.anastr.speedviewlib.Gauge
 import com.github.anastr.speedviewlib.SpeedView
 import github.nisrulz.easydeviceinfo.base.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.handleCoroutineException
 import kotlinx.coroutines.launch
 
 /**
@@ -82,6 +84,8 @@ class FirstFragment : Fragment() {
                     writeMessage("*** Done with Upload/Download Test ***")
                 }
 
+//                binding.maxSpeed.text = String.format("Max: 0.0 MB/Sec")
+
                 toggleButton(true)
             }
         }
@@ -92,9 +96,29 @@ class FirstFragment : Fragment() {
 //        appMod = EasyAppMod(context)
 
         viewLifecycleOwner.lifecycleScope.launch {
-            measurementViewModel.bytesPerSecState.collect { bytesPerSec ->
-                updateSpeedometer(8 * bytesPerSec / 1e6)
+            var bytesPerSec: Double = 0.0
+            var bytesPerSecList = mutableListOf<Double>()
+            var maxBytesPerSec: Double = 0.0
+
+            launch {
+                while(true) {
+                    val currentMaxBytesPerSec = bytesPerSecList.maxOrNull() ?: 0.0
+                    maxBytesPerSec =  if (maxBytesPerSec > currentMaxBytesPerSec) maxBytesPerSec else currentMaxBytesPerSec
+                    updateSpeedometerRange(8 * maxBytesPerSec / 1e6)
+//                    updateSpeedometer(8 * bytesPerSec / 1e6)
+                    delay(20)
+                }
             }
+
+            measurementViewModel.bytesPerSecState.collect {
+                bytesPerSec = it
+                bytesPerSecList.add(it)
+                updateSpeedometer(8 * bytesPerSec / 1e6)
+
+            }
+//            measurementViewModel.bytesPerSecState.collect { bytesPerSec ->
+//                updateSpeedometer(8 * bytesPerSec / 1e6)
+//            }
         }
         Log.d(TAG, "***** FirstFragment Created *****")
     }
@@ -127,6 +151,18 @@ class FirstFragment : Fragment() {
 
         handler.post {
             speedometer.speedTo(megabytesPerSec.toFloat(), moveDuration)
+        }
+    }
+
+    fun updateSpeedometerRange(maxMegabytesPerSec: Double) {
+        if (maxMegabytesPerSec == 0.0) return
+
+        val handler = Handler(Looper.getMainLooper())
+
+        Log.d(TAG, "maxMegabytesPerSec = ${maxMegabytesPerSec}")
+
+        handler.post {
+            speedometer.setMinMaxSpeed(0F, maxMegabytesPerSec.toFloat() * 1.2F)
         }
     }
 }
