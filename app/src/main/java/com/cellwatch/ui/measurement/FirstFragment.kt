@@ -56,7 +56,7 @@ class FirstFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         speedometer = binding.speedView
-        speedometer.setMinMaxSpeed(0F, 500F)
+        speedometer.setMinMaxSpeed(0F, 10F)
         speedometer.unit = " MB/Sec"
         speedometer.speedTextPosition = Gauge.Position.BOTTOM_CENTER
 //        speedometer.speedTextColor = Color.WHITE
@@ -102,9 +102,11 @@ class FirstFragment : Fragment() {
 
             launch {
                 while(true) {
-                    val currentMaxBytesPerSec = bytesPerSecList.maxOrNull() ?: 0.0
-                    maxBytesPerSec =  if (maxBytesPerSec > currentMaxBytesPerSec) maxBytesPerSec else currentMaxBytesPerSec
-                    updateSpeedometerRange(8 * maxBytesPerSec / 1e6)
+                    val avgBytesPerSec = if (bytesPerSecList.isEmpty()) 0.0 else bytesPerSecList.average()
+                    bytesPerSecList.clear()
+//                    val currentMaxBytesPerSec = bytesPerSecList.maxOrNull() ?: 0.0
+                    maxBytesPerSec =  if (maxBytesPerSec > avgBytesPerSec) maxBytesPerSec else avgBytesPerSec
+//                    updateSpeedometerRange(8 * maxBytesPerSec / 1e6)
 //                    updateSpeedometer(8 * bytesPerSec / 1e6)
                     delay(20)
                 }
@@ -144,7 +146,7 @@ class FirstFragment : Fragment() {
         }
     }
 
-    fun updateSpeedometer(megabytesPerSec: Double, moveDuration: Long = 200) {
+    fun updateSpeedometer(megabytesPerSec: Double, moveDuration: Long = 1000) {
         val handler = Handler(Looper.getMainLooper())
 
         Log.d(TAG, "megabytesPerSec = ${megabytesPerSec}")
