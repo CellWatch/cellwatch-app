@@ -4,6 +4,7 @@ import com.cellwatch.data.model.Location
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import java.util.UUID
 
 @Serializable
@@ -24,9 +25,11 @@ data class NetworkLocation(
     @SerialName("measurement_id")
     var measurementId: String? = null,
 
+    @Transient
     @SerialName("created_on")
     val createdOn: Instant? = null,
 
+    @Transient
     @SerialName("updated_on")
     val updatedOn: Instant? = null
 )

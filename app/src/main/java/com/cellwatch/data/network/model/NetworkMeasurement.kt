@@ -4,6 +4,7 @@ import com.cellwatch.data.model.Measurement
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import java.util.UUID
 
 /**
@@ -67,12 +68,29 @@ data class NetworkMeasurement(
     @SerialName("extra_data")
     val extraData: String? = null,
 
+    @Transient
     @SerialName("created_on")
     val createdOn: Instant? = null,
 
+    @Transient
     @SerialName("updated_on")
     val updatedOn: Instant? = null
 )
+
+//@Serializable
+//data class NetworkLocations(
+//    val locations: List<NetworkLocation>
+//)
+
+//@Serializable
+//data class NetworkMeasurementData(
+//    @SerialName("in_measurement")
+//    val measurement: NetworkMeasurement,
+//    @SerialName("in_measurement_data")
+//    val measurementData: NetworkUploadDownloadData,
+//    @SerialName("in_locations")
+//    val locations: List<NetworkLocation>
+//)
 
 fun NetworkMeasurement.asExternalModel() = Measurement(
     id,

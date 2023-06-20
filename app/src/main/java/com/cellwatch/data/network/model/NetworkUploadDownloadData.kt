@@ -4,6 +4,7 @@ import com.cellwatch.data.model.UploadDownloadData
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import java.util.UUID
 
 @Serializable
@@ -25,9 +26,11 @@ data class NetworkUploadDownloadData(
 
     val servers: List<String>? = null,
 
+    @Transient
     @SerialName("created_on")
     val createdOn: Instant? = null,
 
+    @Transient
     @SerialName("updated_on")
     val updatedOn: Instant? = null
 )

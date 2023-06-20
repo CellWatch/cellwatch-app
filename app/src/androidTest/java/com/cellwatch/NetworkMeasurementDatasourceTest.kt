@@ -11,6 +11,7 @@ import com.cellwatch.data.model.UploadDownloadData
 import com.cellwatch.data.model.asNetworkModel
 import com.cellwatch.data.network.NetworkMeasurementDatasource
 import com.cellwatch.data.network.model.NetworkMeasurement
+import com.cellwatch.data.network.model.NetworkMeasurementWithData
 import com.cellwatch.data.network.model.asExternalModel
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
@@ -19,6 +20,8 @@ import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.PostgrestBuilder
+import io.github.jan.supabase.postgrest.query.PostgrestResult
+import io.github.jan.supabase.postgrest.rpc
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
@@ -26,6 +29,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.UUID
+
 
 @RunWith(AndroidJUnit4::class)
 class NetworkMeasurementDatasourceTest {
@@ -92,14 +96,16 @@ class NetworkMeasurementDatasourceTest {
         )
 
         try {
+            var result: PostgrestResult
             insertedMeasurement =
                 runBlocking {
-                    measurementTable.insert(measurement.asNetworkModel())
-                        .decodeSingle<NetworkMeasurement>().asExternalModel()
+                    result = measurementTable.insert(measurement.asNetworkModel())
+
+                    result.decodeSingle<NetworkMeasurement>().asExternalModel()
                 }
             Log.d(
                 TAG,
-                "*** Inserted new Measurement record: $insertedMeasurement"
+                "*** Inserted new Measurement record: $result"
             )
         } catch (e: RestException) {
             Log.e(TAG, "RestException: ${e.message}")
@@ -116,7 +122,264 @@ class NetworkMeasurementDatasourceTest {
         }
     }
 
-        @Test
+//    @Test
+//    @Throws(Exception::class)
+//    fun TestLocations() {
+//        val downloadLocations = listOf<Location>(
+//            Location(
+//                timestamp = Clock.System.now(),
+//                lat = 33.87297,
+//                lon = -84.3413,
+//                accuracy = 20.883,
+//                speed = .323,
+//                heading = 234.98
+//            ),
+//            Location(
+//                timestamp = Clock.System.now(),
+//                lat = 33.87797,
+//                lon = -84.3111,
+//                accuracy = 20.3,
+//                speed = .123,
+//                heading = 234.23
+//            )
+//        )
+//
+//        val locs = downloadLocations.map { location -> location.asNetworkModel() }
+//        val networkLocations = NetworkLocations(locs)
+//
+//        var result: PostgrestResult
+//        try {
+////            insertedMeasurement =
+//            result =
+//                runBlocking {
+//                    supabaseClient.postgrest.rpc("test_func", networkLocations) //.decodeAs<NetworkMeasurement>().asExternalModel()
+//                }
+//            Log.d(
+//                TAG,
+//                "*** Result: ${result}"
+//            )
+////            Log.d(
+////                TAG,
+////                "*** Inserted new Measurement record: ${insertedMeasurement}"
+////            )
+//        } catch (e: RestException) {
+//            Log.e(TAG, "RestException: ${e.message}")
+//            throw e
+//        } catch (e: HttpRequestTimeoutException) {
+//            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+//            throw e
+//        } catch (e: HttpRequestException) {
+//            Log.e(TAG, "HttpRequestException: ${e.message}")
+//            throw e
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Exception: ${e.message}")
+//            throw e
+//        }
+//    }
+
+    @Test
+    @Throws(Exception::class)
+    fun InsertMeasurementAndDataTransaction() {
+        var insertedMeasurement: Measurement? = null
+        val deviceId = UUID.randomUUID().toString()
+        val groupId = UUID.randomUUID().toString()
+
+        val downloadLocations = listOf<Location>(
+            Location(
+                timestamp = Clock.System.now(),
+                lat = 33.87297,
+                lon = -84.3413,
+                accuracy = 20.883,
+                speed = .323,
+                heading = 234.98
+            ),
+            Location(
+                timestamp = Clock.System.now(),
+                lat = 33.87797,
+                lon = -84.3111,
+                accuracy = 20.3,
+                speed = .123,
+                heading = 234.23
+            )
+        )
+
+        val uploadLocations = listOf<Location>(
+            Location(
+                timestamp = Clock.System.now(),
+                lat = 33.297,
+                lon = -84.13,
+                accuracy = 20.45883,
+                speed = 0.1,
+                heading = 234.44
+            ),
+            Location(
+                timestamp = Clock.System.now(),
+                lat = 33.4797,
+                lon = -84.5111,
+                accuracy = 20.93,
+                speed = .23,
+                heading = 233.3
+            )
+        )
+
+        val latencyLocations = listOf<Location>(
+            Location(
+                timestamp = Clock.System.now(),
+                lat = 33.297,
+                lon = -84.13,
+                accuracy = 20.45883,
+                speed = 0.1,
+                heading = 234.44
+            ),
+            Location(
+                timestamp = Clock.System.now(),
+                lat = 33.4797,
+                lon = -84.5111,
+                accuracy = 20.93,
+                speed = .23,
+                heading = 233.3
+            )
+        )
+
+        val uploadData = UploadDownloadData(
+            warmupDuration = 10234,
+            warmupBytes = 134425,
+            duration = 9372444,
+            bytes = 83724,
+            servers = listOf("server1", "server2")
+        )
+
+        val downloadData = UploadDownloadData(
+            warmupDuration = 12344,
+            warmupBytes = 56325,
+            duration = 3756444,
+            bytes = 53724,
+            servers = listOf("server1", "server2")
+        )
+
+        val latencyData = LatencyData(
+            rtt = 12355,
+            jitter = 88372,
+            sent = 8124553,
+            received = 779927,
+            servers = listOf("server1", "server2")
+        )
+
+        val latencyMeasurement = Measurement(
+//            id = UUID.randomUUID().toString(),
+            groupId = groupId,
+            campaignId = UUID.randomUUID().toString(),
+            sessionId = UUID.randomUUID().toString(),
+            deviceId = deviceId,
+            deviceManufacturer = "Google",
+            deviceModel = "Pixel 5",
+            deviceOsName = "Android",
+            deviceOsVersion = "13",
+            appName = "CellWatch",
+            provider = "T-Mobile",
+            type = "latency", //direction.toString().lowercase(),
+            timestamp = Clock.System.now(),
+            duration = 7288314,
+            scheduled = false,
+            success = true,
+            carrierAggregation = false,
+            networkAvailable = true,
+            networkConnected = true,
+            networkRoaming = false,
+            extraData = "extraData",
+            latencyData = latencyData,
+            locations = latencyLocations
+        )
+
+        val downloadMeasurement = Measurement(
+//            id = UUID.randomUUID().toString(),
+            groupId = groupId,
+            campaignId = UUID.randomUUID().toString(),
+            sessionId = UUID.randomUUID().toString(),
+            deviceId = deviceId,
+            deviceManufacturer = "Google",
+            deviceModel = "Pixel 5",
+            deviceOsName = "Android",
+            deviceOsVersion = "13",
+            appName = "CellWatch",
+            provider = "T-Mobile",
+            type = "download", //direction.toString().lowercase(),
+            timestamp = Clock.System.now(),
+            duration = 7288314,
+            scheduled = false,
+            success = true,
+            carrierAggregation = false,
+            networkAvailable = true,
+            networkConnected = true,
+            networkRoaming = false,
+            extraData = "extraData"
+        )
+
+        val uploadMeasurement = Measurement(
+//            id = UUID.randomUUID().toString(),
+            groupId = groupId,
+            campaignId = UUID.randomUUID().toString(),
+            sessionId = UUID.randomUUID().toString(),
+            deviceId = deviceId,
+            deviceManufacturer = "Google",
+            deviceModel = "Pixel 5",
+            deviceOsName = "Android",
+            deviceOsVersion = "13",
+            appName = "CellWatch",
+            provider = "T-Mobile",
+            type = "upload", //direction.toString().lowercase(),
+            timestamp = Clock.System.now(),
+            duration = 8874314,
+            scheduled = false,
+            success = true,
+            carrierAggregation = false,
+            networkAvailable = true,
+            networkConnected = true,
+            networkRoaming = false,
+            extraData = "extraData",
+        )
+
+        val measurementData = NetworkMeasurementWithData(
+            uploadMeasurement.asNetworkModel(),
+            uploadData.asNetworkModel(),
+            uploadLocations.map { location -> location.asNetworkModel() }
+        )
+        Log.d(TAG, "measurementData = $measurementData")
+        var result: PostgrestResult
+        try {
+//            insertedMeasurement =
+            result =
+                runBlocking {
+                    supabaseClient.postgrest.rpc("insert_measurement", measurementData) //.decodeAs<NetworkMeasurement>().asExternalModel()
+                }
+            Log.d(
+                TAG,
+                "*** Result: ${result}"
+            )
+//            Log.d(
+//                TAG,
+//                "*** Inserted new Measurement record: ${insertedMeasurement}"
+//            )
+        } catch (e: RestException) {
+            Log.e(TAG, "RestException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestTimeoutException) {
+            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestException) {
+            Log.e(TAG, "HttpRequestException: ${e.message}")
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}")
+            throw e
+        }
+
+
+//        Log.d(TAG, "*** Inserted Measurement: $insertedMeasurement")
+//        Log.d(TAG, "*** Inserted Location: $insertedLocationEntity")
+    }
+
+    @Test
     @Throws(Exception::class)
     fun MeasurementNetworkDatasourceInsert() {
         val deviceId = UUID.randomUUID().toString()
