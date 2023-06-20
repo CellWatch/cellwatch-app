@@ -68,11 +68,11 @@ data class NetworkMeasurement(
     @SerialName("extra_data")
     val extraData: String? = null,
 
-    @Transient
+//    @Transient
     @SerialName("created_on")
     val createdOn: Instant? = null,
 
-    @Transient
+//    @Transient
     @SerialName("updated_on")
     val updatedOn: Instant? = null
 )

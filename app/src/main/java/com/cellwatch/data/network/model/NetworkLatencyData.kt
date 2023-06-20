@@ -24,11 +24,11 @@ data class NetworkLatencyData(
 
     val servers: List<String>? = null,
 
-    @Transient
+//    @Transient
     @SerialName("created_on")
     val createdOn: Instant? = null,
 
-    @Transient
+//    @Transient
     @SerialName("updated_on")
     val updatedOn: Instant? = null
 )

@@ -11,6 +11,7 @@ import com.cellwatch.data.model.asNetworkModel
 import com.cellwatch.data.network.model.NetworkLatencyData
 import com.cellwatch.data.network.model.NetworkLocation
 import com.cellwatch.data.network.model.NetworkMeasurement
+import com.cellwatch.data.network.model.NetworkMeasurementWithData
 import com.cellwatch.data.network.model.NetworkUploadDownloadData
 import com.cellwatch.data.network.model.asExternalModel
 import io.github.jan.supabase.createSupabaseClient
@@ -18,6 +19,7 @@ import io.github.jan.supabase.exceptions.HttpRequestException
 import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.rpc
 import io.ktor.client.plugins.HttpRequestTimeoutException
 
 //class NetworkMeasurementDatasource {
@@ -50,10 +52,11 @@ object NetworkMeasurementDatasource {
             install(Postgrest)
         }
 
-        val measurementTable = supabaseClient.postgrest["measurements"]
-        val locationTable = supabaseClient.postgrest["locations"]
-        val dataTable = supabaseClient.postgrest["upload_download_data"]
-        val latencyTable = supabaseClient.postgrest["latency_data"]
+    val measurementTable = supabaseClient.postgrest["measurements"]
+    val locationTable = supabaseClient.postgrest["locations"]
+    val dataTable = supabaseClient.postgrest["upload_download_data"]
+    val latencyTable = supabaseClient.postgrest["latency_data"]
+
 //    }
 
     /**
@@ -61,7 +64,7 @@ object NetworkMeasurementDatasource {
      */
     @WorkerThread
     suspend fun insertMeasurement(measurement: Measurement): Measurement? {
-        var insertedMeasurement: Measurement? = null
+        var insertedMeasurement: Measurement?
 
         Log.d(TAG, "Attempting to insert measurement ${measurement.id} to Supabase API at ${supabaseUrl}")
 
@@ -114,6 +117,49 @@ object NetworkMeasurementDatasource {
         return insertedMeasurement
     }
 
+    /**
+     * Insert a measurement record and any associated data and locations
+     */
+    @WorkerThread
+    suspend fun insertMeasurementTransaction(measurement: Measurement): Measurement? {
+        var insertedMeasurement: Measurement? = null
+
+        Log.d(TAG, "Attempting to insert measurement ${measurement.id} to Supabase API at ${supabaseUrl}")
+
+        val networkMeasurementData = NetworkMeasurementWithData(
+            measurement.asNetworkModel(),
+            measurement.uploadDownloadData?.asNetworkModel(),
+            measurement.locations?.map { location -> location.asNetworkModel() }
+        )
+
+        try {
+//            insertedMeasurement =
+//                measurementTable.insert(measurement.asNetworkModel()).decodeSingle<NetworkMeasurement>().asExternalModel()
+
+            insertedMeasurement =
+                supabaseClient.postgrest.rpc("insert_measurement", networkMeasurementData).decodeAs<NetworkMeasurement>().asExternalModel()
+
+            Log.d(
+                TAG,
+                "*** Inserted new Measurement record: $insertedMeasurement"
+            )
+        } catch (e: RestException) {
+            Log.e(TAG, "RestException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestTimeoutException) {
+            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestException) {
+            Log.e(TAG, "HttpRequestException: ${e.message}")
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}")
+            throw e
+        }
+
+        return insertedMeasurement
+    }
+
     @WorkerThread
     suspend fun insertMeasurements(measurements: List<Measurement>): List<Measurement>? {
         var insertedMeasurements: List<Measurement>? = null
@@ -123,7 +169,8 @@ object NetworkMeasurementDatasource {
 
             try {
                 insertedMeasurements = measurements.map { measurement ->
-                    insertMeasurement(measurement)!!
+                    insertMeasurementTransaction(measurement)!!
+//                    insertMeasurement(measurement)!!
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in uploadMeasurementsWithData: ${e.message}")

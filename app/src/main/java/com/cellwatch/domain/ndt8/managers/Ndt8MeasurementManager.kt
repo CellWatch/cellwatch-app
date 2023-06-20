@@ -1,5 +1,6 @@
 package com.cellwatch.domain.ndt8.managers
 
+import android.os.SystemClock
 import android.util.Log
 import com.birjuvachhani.locus.Locus
 import com.cellwatch.CellWatchApp
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import okhttp3.OkHttpClient
 import java.util.UUID
 import kotlin.coroutines.resume
@@ -231,6 +233,7 @@ object Ndt8MeasurementManager {
             appName = appMod?.appName,
             provider = simMod?.carrier,
             type = direction.toString().lowercase(),
+            timestamp = Clock.System.now(),
             duration = totalDuration,
             scheduled = false,
             success = result.success,
