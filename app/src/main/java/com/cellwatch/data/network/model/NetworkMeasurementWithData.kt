@@ -9,6 +9,8 @@ data class NetworkMeasurementWithData(
     val measurement: NetworkMeasurement,
     @SerialName("in_measurement_data")
     val measurementData: NetworkUploadDownloadData?,
+    @SerialName("in_latency_data")
+    val latencyData: NetworkLatencyData?,
     @SerialName("in_locations")
     val locations: List<NetworkLocation>?
 )

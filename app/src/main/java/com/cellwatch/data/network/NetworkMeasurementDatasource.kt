@@ -129,6 +129,7 @@ object NetworkMeasurementDatasource {
         val networkMeasurementData = NetworkMeasurementWithData(
             measurement.asNetworkModel(),
             measurement.uploadDownloadData?.asNetworkModel(),
+            measurement.latencyData?.asNetworkModel(),
             measurement.locations?.map { location -> location.asNetworkModel() }
         )
 
