@@ -177,7 +177,6 @@ object NetworkMeasurementDatasource {
                 Log.e(TAG, "Error in uploadMeasurementsWithData: ${e.message}")
                 throw e
             }
-
         }
 
         return insertedMeasurements
