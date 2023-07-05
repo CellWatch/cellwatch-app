@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.cellwatch.data.model.Cell
+import com.cellwatch.data.model.ChallengeData
 import com.cellwatch.data.model.LatencyData
 import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
@@ -13,6 +15,7 @@ import com.cellwatch.data.network.NetworkMeasurementDatasource
 import com.cellwatch.data.network.model.NetworkMeasurement
 import com.cellwatch.data.network.model.NetworkMeasurementWithData
 import com.cellwatch.data.network.model.asExternalModel
+import com.google.gson.GsonBuilder
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.exceptions.HttpRequestException
@@ -170,6 +173,135 @@ class NetworkMeasurementDatasourceTest {
             )
         )
 
+        val uploadCells = listOf<Cell>(
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 234,
+                physicalCellId = 4321,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -103,
+                rssi = -78,
+                rsrp = -102,
+                rsrq = -12,
+                sinr = 2,
+                csiRsrp = -101,
+                csiRsrq = -13,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+                ),
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 235,
+                physicalCellId = 4322,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -102,
+                rssi = -79,
+                rsrp = -101,
+                rsrq = -11,
+                sinr = 2,
+                csiRsrp = -100,
+                csiRsrq = -14,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            )
+        )
+
+        val downloadCells = listOf<Cell>(
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 234,
+                physicalCellId = 4321,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -103,
+                rssi = -78,
+                rsrp = -102,
+                rsrq = -12,
+                sinr = 2,
+                csiRsrp = -101,
+                csiRsrq = -13,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            ),
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 235,
+                physicalCellId = 4322,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -102,
+                rssi = -79,
+                rsrp = -101,
+                rsrq = -11,
+                sinr = 2,
+                csiRsrp = -100,
+                csiRsrq = -14,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            )
+        )
+
+        val latencyCells = listOf<Cell>(
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 234,
+                physicalCellId = 4321,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -103,
+                rssi = -78,
+                rsrp = -102,
+                rsrq = -12,
+                sinr = 2,
+                csiRsrp = -101,
+                csiRsrq = -13,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            ),
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 235,
+                physicalCellId = 4322,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -102,
+                rssi = -79,
+                rsrp = -101,
+                rsrq = -11,
+                sinr = 2,
+                csiRsrp = -100,
+                csiRsrq = -14,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            )
+        )
+
         val latencyLocations = listOf<Location>(
             Location(
                 timestamp = Clock.System.now(),
@@ -298,7 +430,8 @@ class NetworkMeasurementDatasourceTest {
             uploadData.asNetworkModel(),
             null,
 //            uploadLatencyData.asNetworkModel(),
-            uploadLocations.map { location -> location.asNetworkModel() }
+            uploadLocations.map { location -> location.asNetworkModel() },
+            uploadCells.map { cell -> cell.asNetworkModel() }
         )
 
         val downloadMeasurementData = NetworkMeasurementWithData(
@@ -306,13 +439,16 @@ class NetworkMeasurementDatasourceTest {
             downloadData.asNetworkModel(),
             null,
 //            downloadLatencyData.asNetworkModel(),
-            downloadLocations.map { location -> location.asNetworkModel() }
+            downloadLocations.map { location -> location.asNetworkModel() },
+            downloadCells.map { cell -> cell.asNetworkModel() }
         )
         val latencyMeasurementData = NetworkMeasurementWithData(
             latencyMeasurement.asNetworkModel(),
             null,
             latencyData.asNetworkModel(),
-            latencyLocations.map { location -> location.asNetworkModel() }
+            latencyLocations.map { location -> location.asNetworkModel() },
+            latencyCells.map { cell -> cell.asNetworkModel() }
+
         )
 
 //        Log.d(TAG, "measurementData = $measurementData")
@@ -578,5 +714,43 @@ class NetworkMeasurementDatasourceTest {
             throw e
         }
         Log.d(TAG,"*** Inserted new Download Measurement record: $insertedMeasurement")
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun GetMeasurements() {
+        var measurements: List<Measurement>?
+        val gson = GsonBuilder().setPrettyPrinting().create()
+
+        try {
+            measurements = runBlocking {
+                networkMeasurementDatasource.getMeasurements()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error inserting measurement record", e)
+            throw e
+        }
+
+        Log.d(TAG, "*** Got all Measurements: ${measurements?.count()}")
+
+        measurements?.forEach { measurement ->
+            val jsonString = gson.toJson(measurement.asNetworkModel())
+            Log.d(TAG, jsonString)
+        }
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun ChallangeDataInsert() {
+        val challengeData: ChallengeData = ChallengeData(
+            submissionCategory = "Consumer Challenge",
+            contactName = "George Burdell",
+            contactEmail = "gburdell@gatech.edu",
+            contactPhone = "404-555-2000"
+        )
+
+        val fccSubmission:
+
+
     }
 }

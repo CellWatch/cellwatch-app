@@ -35,7 +35,8 @@ data class Measurement(
     val updatedOn: Instant? = null,
     var uploadDownloadData: UploadDownloadData? = null,
     var latencyData: LatencyData? = null,
-    var locations: List<Location>? = null
+    var locations: List<Location>? = null,
+    var cells: List<Cell>? = null
 )
 
 fun Measurement.asEntity() = MeasurementEntity(

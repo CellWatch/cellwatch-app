@@ -3,11 +3,13 @@ package com.cellwatch.data.network
 import android.util.Log
 import androidx.annotation.WorkerThread
 import com.cellwatch.BuildConfig
+import com.cellwatch.data.model.Cell
 import com.cellwatch.data.model.LatencyData
 import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
 import com.cellwatch.data.model.UploadDownloadData
 import com.cellwatch.data.model.asNetworkModel
+import com.cellwatch.data.network.model.NetworkCell
 import com.cellwatch.data.network.model.NetworkLatencyData
 import com.cellwatch.data.network.model.NetworkLocation
 import com.cellwatch.data.network.model.NetworkMeasurement
@@ -56,6 +58,7 @@ object NetworkMeasurementDatasource {
     val locationTable = supabaseClient.postgrest["locations"]
     val dataTable = supabaseClient.postgrest["upload_download_data"]
     val latencyTable = supabaseClient.postgrest["latency_data"]
+    val cellTable = supabaseClient.postgrest["cells"]
 
 //    }
 
@@ -64,7 +67,7 @@ object NetworkMeasurementDatasource {
      */
     @WorkerThread
     suspend fun insertMeasurement(measurement: Measurement): Measurement? {
-        var insertedMeasurement: Measurement?
+        val insertedMeasurement: Measurement?
 
         Log.d(TAG, "Attempting to insert measurement ${measurement.id} to Supabase API at ${supabaseUrl}")
 
@@ -81,7 +84,6 @@ object NetworkMeasurementDatasource {
                 latencyData.measurementId = measurement.id
                 insertedMeasurement.latencyData = insertLatencyData(latencyData)
                 Log.d(TAG, "Uploaded LatencyData: ${insertedMeasurement.latencyData}")
-
             }
 
             measurement.uploadDownloadData?.let { uploadDownloadData ->
@@ -99,6 +101,17 @@ object NetworkMeasurementDatasource {
 //                    insertLocation(location)
                 }
                 insertedMeasurement.locations = insertLocations(locations)
+            }
+
+            Log.d(TAG, "measurement.cells = ${measurement.cells?.size.toString()}")
+            measurement.cells?.let { cells ->
+                // link cells to measurement
+                cells.forEach { cell ->
+                    Log.d(TAG, "Attempting to upload cell ${cell.id} for measurement ${measurement.id}")
+                    cell.measurementId = measurement.id
+//                    insertCell(cell)
+                }
+                insertedMeasurement.cells = insertCells(cells)
             }
         } catch (e: RestException) {
             Log.e(TAG, "RestException: ${e.message}")
@@ -130,7 +143,8 @@ object NetworkMeasurementDatasource {
             measurement.asNetworkModel(),
             measurement.uploadDownloadData?.asNetworkModel(),
             measurement.latencyData?.asNetworkModel(),
-            measurement.locations?.map { location -> location.asNetworkModel() }
+            measurement.locations?.map { location -> location.asNetworkModel() },
+            measurement.cells?.map { cell -> cell.asNetworkModel() }
         )
 
         try {
@@ -284,79 +298,80 @@ object NetworkMeasurementDatasource {
         return insertedLocations
     }
 
-//    @WorkerThread
-//    suspend fun insertMeasurementWithLocationsAndData(
-//        measurement: MeasurementEntity,
-//        locationEntities: List<LocationEntity>?,
-//        uploadDownloadDataEntity: UploadDownloadDataEntity?
-//    ): MeasurementEntity? {
-//        var insertedMeasurement: MeasurementEntity?
-//
-//        try {
-//            insertedMeasurement =
-//                measurementTable.insert(measurement.asNetworkModel()).decodeSingle<MeasurementEntity>()
-//
-//            locationEntities?.map {
-//                it.measurementId = insertedMeasurement.id
-//                locationTable.insert(it.asNetworkModel())
-//            }
-//
-//            uploadDownloadDataEntity?.let {
-//                it.measurementId = insertedMeasurement.id
-//                dataTable.insert(it.asNetworkModel())
-//            }
-//        } catch (e: RestException) {
-//            Log.e(TAG, "RestException: ${e.message}")
-//            throw e
-//        } catch (e: HttpRequestTimeoutException) {
-//            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
-//            throw e
-//        } catch (e: HttpRequestException) {
-//            Log.e(TAG, "HttpRequestException: ${e.message}")
-//            throw e
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Exception: ${e.message}")
-//            throw e
-//        }
-//
-//        return insertedMeasurement
-//    }
+    @WorkerThread
+    suspend fun insertCell(cell: Cell): Cell? {
+        var insertedCell: Cell? = null
 
-//    @WorkerThread
-//    suspend fun insertMeasurementWithLocationsAndLatency(
-//        measurement: MeasurementEntity,
-//        locationEntities: List<LocationEntity>?,
-//        latencyDataEntity: LatencyDataEntity?
-//    ): MeasurementEntity? {
-//        var insertedMeasurement: MeasurementEntity?
-//
-//        try {
-//            insertedMeasurement =
-//                measurementTable.insert(measurement.asNetworkModel()).decodeSingle<MeasurementEntity>()
-//
-//            locationEntities?.map {
-//                it.measurementId = insertedMeasurement.id
-//                locationTable.insert(it.asNetworkModel())
-//            }
-//
-//            latencyDataEntity?.let {
-//                it.measurementId = insertedMeasurement.id
-//                latencyTable.insert(it.asNetworkModel())
-//            }
-//        } catch (e: RestException) {
-//            Log.e(TAG, "RestException: ${e.message}")
-//            throw e
-//        } catch (e: HttpRequestTimeoutException) {
-//            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
-//            throw e
-//        } catch (e: HttpRequestException) {
-//            Log.e(TAG, "HttpRequestException: ${e.message}")
-//            throw e
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Exception: ${e.message}")
-//            throw e
-//        }
-//
-//        return insertedMeasurement
-//    }
+        Log.d(TAG, "insertCell ${cell.id}")
+        try {
+            insertedCell =
+                cellTable.insert(cell.asNetworkModel()).decodeSingle<NetworkCell>().asExternalModel()
+            Log.d(TAG, "*** Inserted new Cell record: $insertedCell")
+        } catch (e: RestException) {
+            Log.e(TAG, "RestException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestTimeoutException) {
+            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestException) {
+            Log.e(TAG, "HttpRequestException: ${e.message}")
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}")
+            throw e
+        }
+
+        return insertedCell
+    }
+
+    @WorkerThread
+    suspend fun insertCells(cells: List<Cell>): List<Cell>? {
+        var insertedCells: List<Cell>? = null
+
+        try {
+            insertedCells = cells.map { cell ->
+                insertCell(cell)!!
+            }
+        } catch (e: RestException) {
+            Log.e(TAG, "RestException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestTimeoutException) {
+            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestException) {
+            Log.e(TAG, "HttpRequestException: ${e.message}")
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}")
+            throw e
+        }
+
+        return insertedCells
+    }
+
+    @WorkerThread
+    suspend fun getMeasurements(): List<Measurement>? {
+        var measurements: List<Measurement>
+
+        try {
+            measurements = measurementTable.select().decodeList<NetworkMeasurement>().map {
+                networkMeasurement -> networkMeasurement.asExternalModel()
+            }
+        } catch (e: RestException) {
+            Log.e(TAG, "RestException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestTimeoutException) {
+            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestException) {
+            Log.e(TAG, "HttpRequestException: ${e.message}")
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}")
+            throw e
+        }
+
+        return measurements
+    }
+
 }
