@@ -3,6 +3,8 @@ package com.cellwatch.data.model
 import com.cellwatch.data.local.model.MeasurementEntity
 import com.cellwatch.data.local.model.MeasurementWithData
 import com.cellwatch.data.network.model.NetworkMeasurement
+import com.cellwatch.data.network.model.NetworkMeasurementWithData
+import com.cellwatch.data.network.model.NetworkUploadDownloadData
 import kotlinx.datetime.Instant
 import java.util.UUID
 
@@ -96,4 +98,12 @@ fun Measurement.asNetworkModel() = NetworkMeasurement(
     extraData,
     createdOn,
     updatedOn
+)
+
+fun Measurement.asNetworkModelWithData() = NetworkMeasurementWithData(
+    measurement = NetworkMeasurement(id, groupId, campaignId, sessionId, deviceId, deviceManufacturer, deviceModel, deviceOsName, deviceOsVersion, appName, provider, type, timestamp, duration, scheduled, success, carrierAggregation, networkConnected, networkAvailable, networkRoaming, extraData, createdOn, updatedOn),
+    measurementData = uploadDownloadData?.asNetworkModel(),
+    latencyData = latencyData?.asNetworkModel(),
+    locations = locations?.map { location -> location.asNetworkModel() },
+    cells = cells?.map { cell -> cell.asNetworkModel() }
 )

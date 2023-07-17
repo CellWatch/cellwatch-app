@@ -11,6 +11,9 @@ data class NetworkFccSubmission(
     @SerialName("group_id")
     val groupId: String? = null,
 
+    @SerialName("challenge_data_id")
+    val challengeDataId: String? = null,
+
     @SerialName("contact_name")
     val contactName: String? = null,
 
@@ -66,6 +69,7 @@ data class NetworkFccSubmission(
 fun NetworkFccSubmission.asExternalModel() = FccSubmission(
     id,
     groupId,
+    challengeDataId,
     contactName,
     contactEmail,
     contactPhone,

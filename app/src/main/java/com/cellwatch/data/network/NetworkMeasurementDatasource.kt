@@ -4,12 +4,15 @@ import android.util.Log
 import androidx.annotation.WorkerThread
 import com.cellwatch.BuildConfig
 import com.cellwatch.data.model.Cell
+import com.cellwatch.data.model.FccSubmission
 import com.cellwatch.data.model.LatencyData
 import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
 import com.cellwatch.data.model.UploadDownloadData
+import com.cellwatch.data.model.asEntity
 import com.cellwatch.data.model.asNetworkModel
 import com.cellwatch.data.network.model.NetworkCell
+import com.cellwatch.data.network.model.NetworkFccSubmission
 import com.cellwatch.data.network.model.NetworkLatencyData
 import com.cellwatch.data.network.model.NetworkLocation
 import com.cellwatch.data.network.model.NetworkMeasurement
@@ -21,28 +24,14 @@ import io.github.jan.supabase.exceptions.HttpRequestException
 import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.PostgrestResult
 import io.github.jan.supabase.postgrest.rpc
 import io.ktor.client.plugins.HttpRequestTimeoutException
 
 //class NetworkMeasurementDatasource {
 object NetworkMeasurementDatasource {
     private val TAG = this::class.simpleName
-
-//    companion object : SingletonHolder<MeasurementNetworkDatasource, Context>(::MeasurementNetworkDatasource) {
-//    companion object {
-//        @Volatile
-//        private var instance: NetworkMeasurementDatasource? = null
-//
-//        fun getInstance(): NetworkMeasurementDatasource {
-//            if (instance == null) {
-//                synchronized(this) {
-//                    if (instance == null) {
-//                        instance = NetworkMeasurementDatasource()
-//                    }
-//                }
-//            }
-//            return instance!!
-//        }
 
     private val supabaseUrl = BuildConfig.SUPABASE_URL
     private val supabaseApiKey = BuildConfig.SUPABASE_API_KEY
@@ -59,8 +48,38 @@ object NetworkMeasurementDatasource {
     val dataTable = supabaseClient.postgrest["upload_download_data"]
     val latencyTable = supabaseClient.postgrest["latency_data"]
     val cellTable = supabaseClient.postgrest["cells"]
+    val fccSubmissionTable = supabaseClient.postgrest["fcc_submissions"]
 
-//    }
+
+    @WorkerThread
+    suspend fun insertFccSubmission(fccSubmission: FccSubmission): FccSubmission? {
+        val insertedFccSubmission: FccSubmission?
+
+        Log.d(TAG, "Attempting to insert measurement ${fccSubmission.id} to Supabase API at $supabaseUrl")
+        try {
+            insertedFccSubmission =
+                fccSubmissionTable.insert(fccSubmission.asNetworkModel()).decodeSingle<NetworkFccSubmission>().asExternalModel()
+
+            Log.d(
+                TAG,
+                "*** Inserted new FccSubmission record: $insertedFccSubmission"
+            )
+        } catch (e: RestException) {
+            Log.e(TAG, "RestException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestTimeoutException) {
+            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestException) {
+            Log.e(TAG, "HttpRequestException: ${e.message}")
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}")
+            throw e
+        }
+
+        return insertedFccSubmission
+    }
 
     /**
      * Insert a measurement record and any associated data and locations
@@ -69,7 +88,7 @@ object NetworkMeasurementDatasource {
     suspend fun insertMeasurement(measurement: Measurement): Measurement? {
         val insertedMeasurement: Measurement?
 
-        Log.d(TAG, "Attempting to insert measurement ${measurement.id} to Supabase API at ${supabaseUrl}")
+        Log.d(TAG, "Attempting to insert measurement ${measurement.id} to Supabase API at $supabaseUrl")
 
         try {
             insertedMeasurement =
@@ -374,4 +393,41 @@ object NetworkMeasurementDatasource {
         return measurements
     }
 
+    @WorkerThread
+    suspend fun getMeasurementById(measurementId: String): Measurement? {
+        var networkMeasurementWithData: NetworkMeasurementWithData?
+        var measurement: Measurement?
+        var result: PostgrestResult
+
+        try {
+            result = measurementTable.select(
+                columns = Columns.raw("""*,upload_download_data(*),latency_data(*),locations(*),cells(*)""")
+            ) {
+                Measurement::id eq measurementId
+            }
+
+            Log.d(TAG, "PostgrestResult = ${result.body}")
+
+//            networkMeasurementWithData = measurementTable.select(
+//                columns = Columns.raw("""*,upload_download_data(*),latency_data(*),locations(*),cells(*)""")
+//            ) {
+//                Measurement::id eq measurementId
+//            }.decodeSingle<NetworkMeasurementWithData>()
+//            measurement = networkMeasurementWithData.asExternalModel()
+        } catch (e: RestException) {
+            Log.e(TAG, "RestException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestTimeoutException) {
+            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestException) {
+            Log.e(TAG, "HttpRequestException: ${e.message}")
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}")
+            throw e
+        }
+
+        return null;
+    }
 }

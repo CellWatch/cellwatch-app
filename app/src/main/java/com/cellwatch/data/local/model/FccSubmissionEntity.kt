@@ -11,6 +11,7 @@ data class FccSubmissionEntity(
     @PrimaryKey
     var id: String = UUID.randomUUID().toString(),
     val groupId: String? = null,
+    val challengeDataId: String? = null,
     val contactName: String? = null,
     val contactEmail: String? = null,
     val contactPhone: String? = null,
@@ -40,6 +41,7 @@ data class FccSubmissionEntity(
 fun FccSubmissionEntity.asExternalModel() = FccSubmission(
     id,
     groupId,
+    challengeDataId,
     contactName,
     contactEmail,
     contactPhone,

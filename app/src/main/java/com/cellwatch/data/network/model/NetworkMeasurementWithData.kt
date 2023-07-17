@@ -1,5 +1,6 @@
 package com.cellwatch.data.network.model
 
+import com.cellwatch.data.model.Measurement
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -15,4 +16,34 @@ data class NetworkMeasurementWithData(
     val locations: List<NetworkLocation>?,
     @SerialName("in_cells")
     val cells: List<NetworkCell>?
+)
+
+fun NetworkMeasurementWithData.asExternalModel() = Measurement(
+    measurement.id,
+    measurement.groupId,
+    measurement.campaignId,
+    measurement.sessionId,
+    measurement.deviceId,
+    measurement.deviceManufacturer,
+    measurement.deviceModel,
+    measurement.deviceOsName,
+    measurement.deviceOsVersion,
+    measurement.appName,
+    measurement.provider,
+    measurement.type,
+    measurement.timestamp,
+    measurement.duration,
+    measurement.scheduled,
+    measurement.success,
+    measurement.carrierAggregation,
+    measurement.networkConnected,
+    measurement.networkAvailable,
+    measurement.networkRoaming,
+    measurement.extraData,
+    measurement.createdOn,
+    measurement.updatedOn,
+    measurementData?.asExternalModel(),
+    latencyData?.asExternalModel(),
+    locations?.map { location -> location.asExternalModel() },
+    cells?.map { cell -> cell.asExternalModel() }
 )

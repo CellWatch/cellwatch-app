@@ -1,12 +1,14 @@
 package com.cellwatch.data.model
 
 import com.cellwatch.data.local.model.FccSubmissionEntity
+import com.cellwatch.data.network.model.NetworkFccSubmission
 import kotlinx.datetime.Instant
 import java.util.UUID
 
 data class FccSubmission(
     var id: String = UUID.randomUUID().toString(),
     val groupId: String? = null,
+    val challengeDataId: String? = null,
     val contactName: String? = null,
     val contactEmail: String? = null,
     val contactPhone: String? = null,
@@ -30,6 +32,30 @@ data class FccSubmission(
 fun FccSubmission.asEntity() = FccSubmissionEntity(
     id,
     groupId,
+    challengeDataId,
+    contactName,
+    contactEmail,
+    contactPhone,
+    deviceTimestamp,
+    serverTimestamp,
+    sourceIp,
+    sourcePort,
+    deviceImei,
+    deviceTac,
+    simCountryCode,
+    simNetworkCode,
+    netCountryCode,
+    netNetworkCode,
+    inVehicle,
+    externalAntenna,
+    createdOn,
+    updatedOn
+)
+
+fun FccSubmission.asNetworkModel() = NetworkFccSubmission(
+    id,
+    groupId,
+    challengeDataId,
     contactName,
     contactEmail,
     contactPhone,

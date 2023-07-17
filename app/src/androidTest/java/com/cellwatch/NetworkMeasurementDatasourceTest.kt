@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.cellwatch.data.model.Cell
 import com.cellwatch.data.model.ChallengeData
+import com.cellwatch.data.model.FccSubmission
 import com.cellwatch.data.model.LatencyData
 import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
@@ -49,10 +50,11 @@ class NetworkMeasurementDatasourceTest {
     companion object {
         private const val TAG = "MeasurementNetworkDatasourceTest"
     }
+
+    private val groupId = UUID.randomUUID().toString()
     
     @Before
     fun createMeasurementNetworkDatasource() {
-        val context: Context = ApplicationProvider.getApplicationContext()
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val supabaseApiKey = BuildConfig.SUPABASE_API_KEY
 
@@ -133,7 +135,7 @@ class NetworkMeasurementDatasourceTest {
         var insertedLatencyMeasurement: Measurement?
 
         val deviceId = UUID.randomUUID().toString()
-        val groupId = UUID.randomUUID().toString()
+//        val groupId = UUID.randomUUID().toString()
 
         val downloadLocations = listOf<Location>(
             Location(
@@ -491,6 +493,29 @@ class NetworkMeasurementDatasourceTest {
 
     @Test
     @Throws(Exception::class)
+    fun GetMeasurementsByGroupId() {
+        var measurements: List<Measurement>?
+        val gson = GsonBuilder().setPrettyPrinting().create()
+
+        try {
+            measurements = runBlocking {
+                networkMeasurementDatasource.getMeasurements()
+            }
+        } catch (e: Exception) {
+            Log.e(NetworkMeasurementSubmissionTest.TAG, "Error inserting measurement record", e)
+            throw e
+        }
+
+        Log.d(NetworkMeasurementSubmissionTest.TAG, "*** Got all Measurements: ${measurements?.count()}")
+
+        measurements?.forEach { measurement ->
+            val jsonString = gson.toJson(measurement.asNetworkModel())
+            Log.d(NetworkMeasurementSubmissionTest.TAG, jsonString)
+        }
+    }
+
+    @Test
+    @Throws(Exception::class)
     fun MeasurementNetworkDatasourceInsert() {
         val deviceId = UUID.randomUUID().toString()
         val groupId = UUID.randomUUID().toString()
@@ -741,16 +766,24 @@ class NetworkMeasurementDatasourceTest {
 
     @Test
     @Throws(Exception::class)
-    fun ChallangeDataInsert() {
-        val challengeData: ChallengeData = ChallengeData(
-            submissionCategory = "Consumer Challenge",
-            contactName = "George Burdell",
-            contactEmail = "gburdell@gatech.edu",
-            contactPhone = "404-555-2000"
-        )
+    fun GetMeasurementById() {
+        var measurement: Measurement?
+        val measurementId = "0f65833e-5c3f-4738-8005-8b294ccf074d"
+        val gson = GsonBuilder().setPrettyPrinting().create()
 
-        val fccSubmission:
+        try {
+            measurement = runBlocking {
+                networkMeasurementDatasource.getMeasurementById(measurementId)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Cannot find Measurement with id = $measurementId", e)
+            throw e
+        }
 
-
+        if (measurement != null) {
+            Log.d(TAG, "*** Found Measurement with id = $measurementId")
+            val jsonString = gson.toJson(measurement.asNetworkModel())
+            Log.d(TAG, jsonString)
+        }
     }
 }
