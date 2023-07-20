@@ -7,9 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
-import com.cellwatch.data.core.repositories.MeasurementRepository
 import com.cellwatch.data.model.Measurement
-import com.cellwatch.domain.ndt8.managers.Ndt8MeasurementManager
+import com.cellwatch.domain.msak.managers.MeasurementManager
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
@@ -20,7 +19,7 @@ class MeasurementViewModel(private val repository: com.cellwatch.data.core.repos
     val allMeasurementsWithData: LiveData<List<Measurement>> =
         repository.allMeasurementsWithData.asLiveData()
 
-    var bytesPerSecState: StateFlow<Double> = Ndt8MeasurementManager.bytesPerSecState
+    var bytesPerSecState: StateFlow<Double> = MeasurementManager.bytesPerSecState
 
     private var _maxBytesPerSec: MutableLiveData<Double> = MutableLiveData(0.0)
     val maxBytesPerSec: LiveData<Double>
@@ -47,7 +46,7 @@ class MeasurementViewModel(private val repository: com.cellwatch.data.core.repos
     }
 
     suspend fun runTestSequence() {
-        Ndt8MeasurementManager.runTestSequence()
+        MeasurementManager.runTestSequence()
     }
 }
 

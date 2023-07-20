@@ -1,16 +1,16 @@
-package com.cellwatch.domain.ndt8.services
+package com.cellwatch.domain.msak.services
 
 import android.os.SystemClock
 import android.util.Log
-import com.cellwatch.domain.ndt8.model.Ndt8LocateServer
-import com.cellwatch.domain.ndt8.model.Ndt8TestDirection
-import com.cellwatch.domain.ndt8.model.Ndt8TestMetrics
-import com.cellwatch.domain.ndt8.model.Ndt8TestResult
-import com.cellwatch.domain.ndt8.managers.Ndt8LocateManager
-import com.cellwatch.domain.ndt8.util.NDT8_MAX_MILLIS
-import com.cellwatch.domain.ndt8.util.NDT8_MAX_WARMUP_MILLIS
-import com.cellwatch.domain.ndt8.util.NDT8_STREAMS
-import com.cellwatch.domain.ndt8.util.NDT8_STREAM_DELAY
+import com.cellwatch.domain.msak.model.LocateServer
+import com.cellwatch.domain.msak.model.MsakTestDirection
+import com.cellwatch.domain.msak.model.MsakTestMetrics
+import com.cellwatch.domain.msak.model.ThroughputTestResult
+import com.cellwatch.domain.msak.managers.LocateManager
+import com.cellwatch.domain.msak.util.MSAK_MAX_MILLIS
+import com.cellwatch.domain.msak.util.MSAK_MAX_WARMUP_MILLIS
+import com.cellwatch.domain.msak.util.MSAK_STREAMS
+import com.cellwatch.domain.msak.util.MSAK_STREAM_DELAY
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -19,30 +19,30 @@ import okhttp3.OkHttpClient
 import java.util.*
 import kotlin.concurrent.schedule
 
-class Ndt8TestComponent(
+class ThroughputTestComponent(
     private val client: OkHttpClient,
-    server: Ndt8LocateServer,
+    server: LocateServer,
     measurementId: String?,
-    direction: Ndt8TestDirection,
+    direction: MsakTestDirection,
 ) {
-    private val TAG = Ndt8TestComponent::class.simpleName
-    private val url = Ndt8LocateManager.getUrl(server, direction, measurementId)
-    private val streams = Array(NDT8_STREAMS) { Ndt8Stream(it, client, url, direction) }
+    private val TAG = ThroughputTestComponent::class.simpleName
+    private val url = LocateManager.getUrl(server, direction, measurementId)
+    private val streams = Array(MSAK_STREAMS) { ThroughputStream(it, client, url, direction) }
     private var startUsec: Long = 0
     private var warmupUsec: Long? = null
     private var endUsec: Long? = null
     private val maxWarmupDurationTimer = Timer()
-    private val progressChan = Channel<Ndt8TestMetrics>()
-    val progress: ReceiveChannel<Ndt8TestMetrics> = progressChan
+    private val progressChan = Channel<MsakTestMetrics>()
+    val progress: ReceiveChannel<MsakTestMetrics> = progressChan
 
-    suspend fun run(): Ndt8TestResult {
+    suspend fun run(): ThroughputTestResult {
         val maxDurationTimer = Timer()
-        maxDurationTimer.schedule(NDT8_MAX_MILLIS) {
+        maxDurationTimer.schedule(MSAK_MAX_MILLIS) {
             Log.d(TAG, "max test duration reached")
             for (stream in streams) stream.cancel(false)
         }
 
-        maxWarmupDurationTimer.schedule(NDT8_MAX_WARMUP_MILLIS) {
+        maxWarmupDurationTimer.schedule(MSAK_MAX_WARMUP_MILLIS) {
             Log.d(TAG, "max warmup duration reached")
             endWarmup()
         }
@@ -59,7 +59,7 @@ class Ndt8TestComponent(
                         for (s in streams) s.cancel(false)
                     }
 
-                    delay(NDT8_STREAM_DELAY)
+                    delay(MSAK_STREAM_DELAY)
                 }
             }
 
@@ -89,7 +89,7 @@ class Ndt8TestComponent(
             }
         } else null
 
-        return Ndt8TestResult(
+        return ThroughputTestResult(
             streams.all { it.result?.success ?: false },
             warmupMetrics,
             activeMetrics,
@@ -127,8 +127,8 @@ class Ndt8TestComponent(
 
     private fun aggregateMetrics(
         duration: Long,
-        getMetrics: (stream: Ndt8Stream) -> Ndt8TestMetrics?,
-    ): Ndt8TestMetrics {
+        getMetrics: (stream: ThroughputStream) -> MsakTestMetrics?,
+    ): MsakTestMetrics {
         var bytes = 0L
         var bytesPerSec = 0.0
         for (stream in streams) {
@@ -137,6 +137,6 @@ class Ndt8TestComponent(
             bytesPerSec += metrics.bytesPerSec
         }
 
-        return Ndt8TestMetrics(bytesPerSec, bytes, duration)
+        return MsakTestMetrics(bytesPerSec, bytes, duration)
     }
 }

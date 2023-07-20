@@ -1,4 +1,4 @@
-package com.cellwatch.domain.ndt8.util
+package com.cellwatch.domain.msak.util
 
 import java.security.InvalidParameterException
 import kotlin.concurrent.thread

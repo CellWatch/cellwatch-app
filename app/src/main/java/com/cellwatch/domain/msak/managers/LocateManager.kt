@@ -1,12 +1,12 @@
-package com.cellwatch.domain.ndt8.managers
+package com.cellwatch.domain.msak.managers
 
 import android.util.Log
-import com.cellwatch.domain.ndt8.model.Ndt8LocateResponse
-import com.cellwatch.domain.ndt8.model.Ndt8LocateServer
-import com.cellwatch.domain.ndt8.model.Ndt8TestDirection
-import com.cellwatch.domain.ndt8.util.NDT8_MAX_MILLIS
-import com.cellwatch.domain.ndt8.util.NDT8_STREAMS
-import com.cellwatch.domain.ndt8.util.NDT8_STREAM_DELAY
+import com.cellwatch.domain.msak.model.LocateResponse
+import com.cellwatch.domain.msak.model.LocateServer
+import com.cellwatch.domain.msak.model.MsakTestDirection
+import com.cellwatch.domain.msak.util.MSAK_MAX_MILLIS
+import com.cellwatch.domain.msak.util.MSAK_STREAMS
+import com.cellwatch.domain.msak.util.MSAK_STREAM_DELAY
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import com.spectrum.android.ping.Ping
@@ -26,15 +26,15 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-object Ndt8LocateManager {
-    private const val TAG = "Ndt8LocateManager"
+object LocateManager {
+    private const val TAG = "MsakLocateManager"
     private const val locateUrl = "https://locate-dot-mlab-staging.appspot.com/v2/nearest/" //"https://locate.measurementlab.net/v2/nearest/"
 
     suspend fun selectServerAsync(
         client: OkHttpClient,
-        locateUrl: String = Ndt8LocateManager.locateUrl
-    ): Ndt8LocateServer = suspendCoroutine { continuation ->
-        val request = Request.Builder().url("${locateUrl}msak/ndt8").build()
+        locateUrl: String = LocateManager.locateUrl
+    ): LocateServer = suspendCoroutine { continuation ->
+        val request = Request.Builder().url("${locateUrl}msak/throughput1").build()
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
@@ -50,7 +50,7 @@ object Ndt8LocateManager {
                 }
 
                 val results = try {
-                    Gson().fromJson(body.charStream(), Ndt8LocateResponse::class.java).results
+                    Gson().fromJson(body.charStream(), LocateResponse::class.java).results
                 } catch (e: JsonSyntaxException) {
                     Log.e(TAG, "locate response deserialization failed: $body", e)
                     throw e
@@ -62,7 +62,7 @@ object Ndt8LocateManager {
                     throw Throwable("no servers found")
                 }
 
-                val locateServer: Ndt8LocateServer = try {
+                val locateServer: LocateServer = try {
                     runBlocking { results.maxBy { ping(it.machine) } }
                 } catch (t: Throwable) {
                     Log.e(TAG, "pinging available servers failed", t)
@@ -78,9 +78,9 @@ object Ndt8LocateManager {
 
     fun selectServer(
         client: OkHttpClient,
-        locateUrl: String = Ndt8LocateManager.locateUrl
-    ): Ndt8LocateServer {
-        val request = Request.Builder().url("${locateUrl}msak/ndt8").build()
+        locateUrl: String = LocateManager.locateUrl
+    ): LocateServer {
+        val request = Request.Builder().url("${locateUrl}msak/msak").build()
         val response = try {
             client.newCall(request).execute()
         } catch (t: Throwable) {
@@ -95,7 +95,7 @@ object Ndt8LocateManager {
         }
 
         val results = try {
-            Gson().fromJson(body.charStream(), Ndt8LocateResponse::class.java).results
+            Gson().fromJson(body.charStream(), LocateResponse::class.java).results
         } catch (e: JsonSyntaxException) {
             Log.e(TAG, "locate response deserialization failed: $body", e)
             throw e
@@ -147,14 +147,14 @@ object Ndt8LocateManager {
     }
 
     fun getUrl(
-        server: Ndt8LocateServer,
-        direction: Ndt8TestDirection,
+        server: LocateServer,
+        direction: MsakTestDirection,
         measurementId: String?,
     ): String {
-        val testUrl = "/ndt/v8/${if (direction == Ndt8TestDirection.DOWNLOAD) "download" else "upload" }"
+        val testUrl = "/throughput/v1/${if (direction == MsakTestDirection.DOWNLOAD) "download" else "upload" }"
         val baseUrl = server.urls["wss://$testUrl"] ?: server.urls["ws://$testUrl"] ?: throw Throwable("no base URL found in urls: $server.urls")
 
-        var options = "streams=$NDT8_STREAMS&duration=$NDT8_MAX_MILLIS&delay=$NDT8_STREAM_DELAY"
+        var options = "streams=$MSAK_STREAMS&duration=$MSAK_MAX_MILLIS&delay=$MSAK_STREAM_DELAY"
         if (measurementId != null) {
             options += "&mid=$measurementId"
         }

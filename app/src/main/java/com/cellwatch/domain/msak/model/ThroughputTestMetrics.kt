@@ -1,9 +1,9 @@
-package com.cellwatch.domain.ndt8.model
+package com.cellwatch.domain.msak.model
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Ndt8TestMetrics(
+data class MsakTestMetrics(
     val bytesPerSec: Double,
     val bytes: Long,
     val usecs: Long,

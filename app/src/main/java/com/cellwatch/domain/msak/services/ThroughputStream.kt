@@ -1,20 +1,20 @@
-package com.cellwatch.domain.ndt8.services
+package com.cellwatch.domain.msak.services
 
 import android.util.Log
-import com.cellwatch.domain.ndt8.util.NDT8_USER_AGENT
-import com.cellwatch.domain.ndt8.util.NDT8_WS_PROTO
-import com.cellwatch.domain.ndt8.util.Ndt8UnexpectedCloseException
-import com.cellwatch.domain.ndt8.util.WS_CODE_GOING_AWAY
-import com.cellwatch.domain.ndt8.util.WS_CODE_NORMAL_CLOSURE
-import com.cellwatch.domain.ndt8.model.Ndt8Measurement
-import com.cellwatch.domain.ndt8.model.Ndt8TestDirection
-import com.cellwatch.domain.ndt8.model.Ndt8TestMetrics
-import com.cellwatch.domain.ndt8.mappers.measurementToMetrics
-import com.cellwatch.domain.ndt8.model.Ndt8StreamResult
-import com.cellwatch.domain.ndt8.usecases.calcBytesPerSec
-import com.cellwatch.domain.ndt8.util.NDT8_CONNECT_TIMEOUT_MILLIS
-import com.cellwatch.domain.ndt8.util.NDT8_READ_TIMEOUT_MILLIS
-import com.cellwatch.domain.ndt8.util.NDT8_WRITE_TIMEOUT_MILLIS
+import com.cellwatch.domain.msak.util.MSAK_USER_AGENT
+import com.cellwatch.domain.msak.util.MSAK_WS_PROTO
+import com.cellwatch.domain.msak.util.UnexpectedCloseException
+import com.cellwatch.domain.msak.util.WS_CODE_GOING_AWAY
+import com.cellwatch.domain.msak.util.WS_CODE_NORMAL_CLOSURE
+import com.cellwatch.domain.msak.model.MsakMeasurement
+import com.cellwatch.domain.msak.model.MsakTestDirection
+import com.cellwatch.domain.msak.model.MsakTestMetrics
+import com.cellwatch.domain.msak.mappers.measurementToMetrics
+import com.cellwatch.domain.msak.model.ThroughputStreamResult
+import com.cellwatch.domain.msak.usecases.calcBytesPerSec
+import com.cellwatch.domain.msak.util.MSAK_CONNECT_TIMEOUT_MILLIS
+import com.cellwatch.domain.msak.util.MSAK_READ_TIMEOUT_MILLIS
+import com.cellwatch.domain.msak.util.MSAK_WRITE_TIMEOUT_MILLIS
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
@@ -28,41 +28,41 @@ import kotlin.collections.ArrayList
 import kotlin.concurrent.schedule
 import kotlin.concurrent.thread
 
-class Ndt8Stream(
+class ThroughputStream(
     num: Int,
     private val client: OkHttpClient,
     private val url: String,
-    private val direction: Ndt8TestDirection,
+    private val direction: MsakTestDirection,
 ) {
-    private val TAG = "${Ndt8Stream::class.simpleName} $num"
+    private val TAG = "${ThroughputStream::class.simpleName} $num"
     private var webSocket: WebSocket? = null
     private var complete = false
-    private val measurementChan = Channel<Pair<Boolean, Ndt8Measurement>>()
+    private val measurementChan = Channel<Pair<Boolean, MsakMeasurement>>()
     private val listener = when (direction) {
-        Ndt8TestDirection.UPLOAD -> Ndt8Sender(num, measurementChan)
-        Ndt8TestDirection.DOWNLOAD -> Ndt8Receiver(num, measurementChan)
+        MsakTestDirection.UPLOAD -> ThroughputSender(num, measurementChan)
+        MsakTestDirection.DOWNLOAD -> ThroughputReceiver(num, measurementChan)
     }
-    private val _updateChan = Channel<Ndt8Measurement>()
-    val updateChan: ReceiveChannel<Ndt8Measurement> = _updateChan
+    private val _updateChan = Channel<MsakMeasurement>()
+    val updateChan: ReceiveChannel<MsakMeasurement> = _updateChan
     private var success = true
     var readyToEndWarmup = false
         private set
-    private val measurements = ArrayList<Ndt8Measurement>()
-    private var endWarmupMeasurement: Ndt8Measurement? = null
+    private val measurements = ArrayList<MsakMeasurement>()
+    private var endWarmupMeasurement: MsakMeasurement? = null
     private val latestMeasurement
         get() = if (measurements.isEmpty()) null else measurements.last()
-    val activeMetrics: Ndt8TestMetrics?
+    val activeMetrics: MsakTestMetrics?
         get() {
             val warmup = measurementToMetrics(endWarmupMeasurement)
             val latest = measurementToMetrics(latestMeasurement)
             if (warmup == null || latest == null) return null
             val bytes = latest.bytes - warmup.bytes
             val usecs = latest.usecs - warmup.usecs
-            return Ndt8TestMetrics(calcBytesPerSec(bytes, usecs), bytes, usecs)
+            return MsakTestMetrics(calcBytesPerSec(bytes, usecs), bytes, usecs)
         }
-    val currentMetrics: Ndt8TestMetrics?
+    val currentMetrics: MsakTestMetrics?
         get() = activeMetrics ?: measurementToMetrics(latestMeasurement)
-    var result: Ndt8StreamResult? = null
+    var result: ThroughputStreamResult? = null
         private set
 
     // WireMeasurement connection-related fields sent by the server
@@ -100,15 +100,15 @@ class Ndt8Stream(
 
     private suspend fun run() {
         val requestClient = client.newBuilder()
-            .connectTimeout(NDT8_CONNECT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
-            .readTimeout(NDT8_READ_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
-            .writeTimeout(NDT8_WRITE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+            .connectTimeout(MSAK_CONNECT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+            .readTimeout(MSAK_READ_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+            .writeTimeout(MSAK_WRITE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
             .build()
 
         val request = Request.Builder()
             .url(url)
-            .header("Sec-WebSocket-Protocol", NDT8_WS_PROTO)
-            .header("User-Agent", NDT8_USER_AGENT)
+            .header("Sec-WebSocket-Protocol", MSAK_WS_PROTO)
+            .header("User-Agent", MSAK_USER_AGENT)
             .build()
 
         webSocket = requestClient.newWebSocket(request, listener)
@@ -121,13 +121,13 @@ class Ndt8Stream(
             success = false
             addMeasurement()
 
-            if (t is Ndt8UnexpectedCloseException) {
+            if (t is UnexpectedCloseException) {
                 onComplete(t)
             }
         }
     }
 
-    private fun onMeasurementReceived(fromServer: Boolean, measurement: Ndt8Measurement) {
+    private fun onMeasurementReceived(fromServer: Boolean, measurement: MsakMeasurement) {
         Log.v(TAG, "got measurement from stream")
         if (fromServer) {
             cc = measurement.CC ?: cc
@@ -136,7 +136,7 @@ class Ndt8Stream(
             remoteAddr = measurement.RemoteAddr ?: remoteAddr
         }
 
-        if ((direction == Ndt8TestDirection.DOWNLOAD) == fromServer) {
+        if ((direction == MsakTestDirection.DOWNLOAD) == fromServer) {
             return
         }
 
@@ -146,7 +146,7 @@ class Ndt8Stream(
 
     private fun onComplete(t: Throwable? = null) {
         complete = true
-        result = Ndt8StreamResult(
+        result = ThroughputStreamResult(
             success,
             cc,
             uuid,
@@ -159,13 +159,13 @@ class Ndt8Stream(
         _updateChan.close(t)
     }
 
-    private fun addMeasurement(measurement: Ndt8Measurement? = null) {
+    private fun addMeasurement(measurement: MsakMeasurement? = null) {
         val m = measurement ?: listener.latestMeasurement ?: return
         measurements.add(m)
         _updateChan.trySend(m)
     }
 
-    private fun checkReadyToEndWarmup(curMeasurement: Ndt8Measurement) {
+    private fun checkReadyToEndWarmup(curMeasurement: MsakMeasurement) {
         if (readyToEndWarmup) return
 
         val lastBPS = measurementToMetrics(latestMeasurement)?.bytesPerSec ?: return

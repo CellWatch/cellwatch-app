@@ -1,4 +1,4 @@
-# Android ndt8 implementation
+# Android msak implementation
 
 ## Testing with a local server
 
