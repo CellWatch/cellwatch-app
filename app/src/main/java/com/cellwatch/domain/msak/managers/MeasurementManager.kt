@@ -10,6 +10,7 @@ import com.cellwatch.data.model.UploadDownloadData
 import com.cellwatch.domain.msak.model.LocateServer
 import com.cellwatch.domain.msak.model.MsakTestDirection
 import com.cellwatch.domain.msak.model.ThroughputTestResult
+import com.cellwatch.domain.msak.services.LatencyTest
 import com.cellwatch.domain.msak.services.ThroughputTestComponent
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
@@ -117,16 +118,16 @@ object MeasurementManager {
         }
 
         writeMessage("selected server ${server.machine} in ${server.location}")
-        // TODO: run latency test
-        runTest(client, server, measurementId, groupId, MsakTestDirection.DOWNLOAD)
-        runTest(client, server, measurementId, groupId, MsakTestDirection.UPLOAD)
+        runLatencyTest(client, server, measurementId)
+        runThroughputTest(client, server, measurementId, groupId, MsakTestDirection.DOWNLOAD)
+        runThroughputTest(client, server, measurementId, groupId, MsakTestDirection.UPLOAD)
 
         // Try to upload measurements to Supabase
         measurementRepository.uploadMeasurements()
 //        runBlocking { measurementRepository?.uploadMeasurementsWithData() }
     }
 
-    suspend fun runTest(
+    suspend fun runThroughputTest(
         client: OkHttpClient,
         server: LocateServer,
         measurementId: String?,
@@ -182,6 +183,30 @@ object MeasurementManager {
 
         insertMeasurement(groupId, result, direction, locations)
 //        runBlocking { createMeasurement(result, direction) }
+    }
+
+    suspend fun runLatencyTest(
+        client: OkHttpClient,
+        server: LocateServer,
+        measurementId: String?,
+    ) {
+        val result = try {
+            val test = LatencyTest(client, server, measurementId)
+
+            coroutineScope {
+                launch {
+                    test.progress.consumeEach {
+                        Log.d(TAG, "got progress $it")
+                    }
+                }
+
+                test.run()
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "latency test failed", t)
+        }
+
+        Log.d(TAG, "got latency result: $result")
     }
 
     suspend fun insertMeasurement(groupId: String, result: ThroughputTestResult, direction: MsakTestDirection, locations: List<Location>?) {

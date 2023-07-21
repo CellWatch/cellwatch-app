@@ -7,9 +7,9 @@ import com.cellwatch.domain.msak.util.WS_CODE_GOING_AWAY
 import com.cellwatch.domain.msak.util.WS_CODE_NORMAL_CLOSURE
 import com.cellwatch.domain.msak.model.MsakMeasurement
 import com.cellwatch.domain.msak.util.MemorylessTicker
-import com.cellwatch.domain.msak.util.MSAK_AVG_MEASUREMENT_INTERVAL_MILLIS
-import com.cellwatch.domain.msak.util.MSAK_MAX_MEASUREMENT_INTERVAL_MILLIS
-import com.cellwatch.domain.msak.util.MSAK_MIN_MEASUREMENT_INTERVAL_MILLIS
+import com.cellwatch.domain.msak.util.THROUGHPUT_AVG_MEASUREMENT_INTERVAL_MILLIS
+import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_MEASUREMENT_INTERVAL_MILLIS
+import com.cellwatch.domain.msak.util.THROUGHPUT_MIN_MEASUREMENT_INTERVAL_MILLIS
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,9 +35,9 @@ open class ThroughputListener(
         protected set
 
     private val measurementTicker = MemorylessTicker(
-        MSAK_AVG_MEASUREMENT_INTERVAL_MILLIS,
-        MSAK_MAX_MEASUREMENT_INTERVAL_MILLIS,
-        MSAK_MIN_MEASUREMENT_INTERVAL_MILLIS,
+        THROUGHPUT_AVG_MEASUREMENT_INTERVAL_MILLIS,
+        THROUGHPUT_MAX_MEASUREMENT_INTERVAL_MILLIS,
+        THROUGHPUT_MIN_MEASUREMENT_INTERVAL_MILLIS,
     )
 
     final override fun onOpen(webSocket: WebSocket, response: Response) {

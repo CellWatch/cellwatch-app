@@ -1,14 +1,14 @@
 package com.cellwatch.domain.msak.services
 
 import android.util.Log
-import com.cellwatch.domain.msak.util.MSAK_USER_AGENT
-import com.cellwatch.domain.msak.util.MSAK_WS_PROTO
+import com.cellwatch.domain.msak.util.THROUGHPUT_USER_AGENT
+import com.cellwatch.domain.msak.util.THROUGHPUT_WS_PROTO
 import com.cellwatch.domain.msak.util.UnexpectedCloseException
 import com.cellwatch.domain.msak.util.WS_CODE_GOING_AWAY
 import com.cellwatch.domain.msak.util.WS_CODE_NORMAL_CLOSURE
 import com.cellwatch.domain.msak.model.MsakMeasurement
 import com.cellwatch.domain.msak.model.MsakTestDirection
-import com.cellwatch.domain.msak.model.MsakTestMetrics
+import com.cellwatch.domain.msak.model.ThroughputTestMetrics
 import com.cellwatch.domain.msak.mappers.measurementToMetrics
 import com.cellwatch.domain.msak.model.ThroughputStreamResult
 import com.cellwatch.domain.msak.usecases.calcBytesPerSec
@@ -51,16 +51,16 @@ class ThroughputStream(
     private var endWarmupMeasurement: MsakMeasurement? = null
     private val latestMeasurement
         get() = if (measurements.isEmpty()) null else measurements.last()
-    val activeMetrics: MsakTestMetrics?
+    val activeMetrics: ThroughputTestMetrics?
         get() {
             val warmup = measurementToMetrics(endWarmupMeasurement)
             val latest = measurementToMetrics(latestMeasurement)
             if (warmup == null || latest == null) return null
             val bytes = latest.bytes - warmup.bytes
             val usecs = latest.usecs - warmup.usecs
-            return MsakTestMetrics(calcBytesPerSec(bytes, usecs), bytes, usecs)
+            return ThroughputTestMetrics(calcBytesPerSec(bytes, usecs), bytes, usecs)
         }
-    val currentMetrics: MsakTestMetrics?
+    val currentMetrics: ThroughputTestMetrics?
         get() = activeMetrics ?: measurementToMetrics(latestMeasurement)
     var result: ThroughputStreamResult? = null
         private set
@@ -107,8 +107,8 @@ class ThroughputStream(
 
         val request = Request.Builder()
             .url(url)
-            .header("Sec-WebSocket-Protocol", MSAK_WS_PROTO)
-            .header("User-Agent", MSAK_USER_AGENT)
+            .header("Sec-WebSocket-Protocol", THROUGHPUT_WS_PROTO)
+            .header("User-Agent", THROUGHPUT_USER_AGENT)
             .build()
 
         webSocket = requestClient.newWebSocket(request, listener)

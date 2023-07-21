@@ -4,13 +4,13 @@ import android.os.SystemClock
 import android.util.Log
 import com.cellwatch.domain.msak.model.LocateServer
 import com.cellwatch.domain.msak.model.MsakTestDirection
-import com.cellwatch.domain.msak.model.MsakTestMetrics
+import com.cellwatch.domain.msak.model.ThroughputTestMetrics
 import com.cellwatch.domain.msak.model.ThroughputTestResult
 import com.cellwatch.domain.msak.managers.LocateManager
-import com.cellwatch.domain.msak.util.MSAK_MAX_MILLIS
-import com.cellwatch.domain.msak.util.MSAK_MAX_WARMUP_MILLIS
-import com.cellwatch.domain.msak.util.MSAK_STREAMS
-import com.cellwatch.domain.msak.util.MSAK_STREAM_DELAY
+import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_MILLIS
+import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_WARMUP_MILLIS
+import com.cellwatch.domain.msak.util.THROUGHPUT_STREAMS
+import com.cellwatch.domain.msak.util.THROUGHPUT_STREAM_DELAY
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -26,23 +26,23 @@ class ThroughputTestComponent(
     direction: MsakTestDirection,
 ) {
     private val TAG = ThroughputTestComponent::class.simpleName
-    private val url = LocateManager.getUrl(server, direction, measurementId)
-    private val streams = Array(MSAK_STREAMS) { ThroughputStream(it, client, url, direction) }
+    private val url = LocateManager.getThroughputUrl(server, direction, measurementId)
+    private val streams = Array(THROUGHPUT_STREAMS) { ThroughputStream(it, client, url, direction) }
     private var startUsec: Long = 0
     private var warmupUsec: Long? = null
     private var endUsec: Long? = null
     private val maxWarmupDurationTimer = Timer()
-    private val progressChan = Channel<MsakTestMetrics>()
-    val progress: ReceiveChannel<MsakTestMetrics> = progressChan
+    private val progressChan = Channel<ThroughputTestMetrics>()
+    val progress: ReceiveChannel<ThroughputTestMetrics> = progressChan
 
     suspend fun run(): ThroughputTestResult {
         val maxDurationTimer = Timer()
-        maxDurationTimer.schedule(MSAK_MAX_MILLIS) {
+        maxDurationTimer.schedule(THROUGHPUT_MAX_MILLIS) {
             Log.d(TAG, "max test duration reached")
             for (stream in streams) stream.cancel(false)
         }
 
-        maxWarmupDurationTimer.schedule(MSAK_MAX_WARMUP_MILLIS) {
+        maxWarmupDurationTimer.schedule(THROUGHPUT_MAX_WARMUP_MILLIS) {
             Log.d(TAG, "max warmup duration reached")
             endWarmup()
         }
@@ -59,7 +59,7 @@ class ThroughputTestComponent(
                         for (s in streams) s.cancel(false)
                     }
 
-                    delay(MSAK_STREAM_DELAY)
+                    delay(THROUGHPUT_STREAM_DELAY)
                 }
             }
 
@@ -127,8 +127,8 @@ class ThroughputTestComponent(
 
     private fun aggregateMetrics(
         duration: Long,
-        getMetrics: (stream: ThroughputStream) -> MsakTestMetrics?,
-    ): MsakTestMetrics {
+        getMetrics: (stream: ThroughputStream) -> ThroughputTestMetrics?,
+    ): ThroughputTestMetrics {
         var bytes = 0L
         var bytesPerSec = 0.0
         for (stream in streams) {
@@ -137,6 +137,6 @@ class ThroughputTestComponent(
             bytesPerSec += metrics.bytesPerSec
         }
 
-        return MsakTestMetrics(bytesPerSec, bytes, duration)
+        return ThroughputTestMetrics(bytesPerSec, bytes, duration)
     }
 }

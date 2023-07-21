@@ -1,9 +1,9 @@
 package com.cellwatch.domain.msak.services
 
 import android.util.Log
-import com.cellwatch.domain.msak.util.MSAK_MAX_SCALED_MESSAGE_SIZE
-import com.cellwatch.domain.msak.util.MSAK_MESSAGE_SCALING_FRACTION
-import com.cellwatch.domain.msak.util.MSAK_MIN_MESSAGE_SIZE
+import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_SCALED_MESSAGE_SIZE
+import com.cellwatch.domain.msak.util.THROUGHPUT_MESSAGE_SCALING_FRACTION
+import com.cellwatch.domain.msak.util.THROUGHPUT_MIN_MESSAGE_SIZE
 import com.cellwatch.domain.msak.util.WS_CODE_INTERNAL_ERROR
 import com.cellwatch.domain.msak.model.MsakMeasurement
 import kotlinx.coroutines.channels.Channel
@@ -37,7 +37,7 @@ class ThroughputSender(
     }
 
     private suspend fun sendData(webSocket: WebSocket) {
-        var size = MSAK_MIN_MESSAGE_SIZE
+        var size = THROUGHPUT_MIN_MESSAGE_SIZE
         var message = nextBytes(size).toByteString()
         while (send(webSocket, message)) {
             Log.v(TAG, "sent $size byte message")
@@ -46,7 +46,7 @@ class ThroughputSender(
                 delay(1)
             }
 
-            if (size < MSAK_MAX_SCALED_MESSAGE_SIZE && size < bytesSent.get() / MSAK_MESSAGE_SCALING_FRACTION) {
+            if (size < THROUGHPUT_MAX_SCALED_MESSAGE_SIZE && size < bytesSent.get() / THROUGHPUT_MESSAGE_SCALING_FRACTION) {
                 size = size shl 1
                 message = nextBytes(size).toByteString()
                 Log.d(TAG, "scaled message size to $size bytes")

@@ -4,9 +4,9 @@ import android.util.Log
 import com.cellwatch.domain.msak.model.LocateResponse
 import com.cellwatch.domain.msak.model.LocateServer
 import com.cellwatch.domain.msak.model.MsakTestDirection
-import com.cellwatch.domain.msak.util.MSAK_MAX_MILLIS
-import com.cellwatch.domain.msak.util.MSAK_STREAMS
-import com.cellwatch.domain.msak.util.MSAK_STREAM_DELAY
+import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_MILLIS
+import com.cellwatch.domain.msak.util.THROUGHPUT_STREAMS
+import com.cellwatch.domain.msak.util.THROUGHPUT_STREAM_DELAY
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import com.spectrum.android.ping.Ping
@@ -46,20 +46,23 @@ object LocateManager {
                 val body = response.body
                 if (response.code != 200 || body == null) {
                     Log.e(TAG, "locate request $request failed: $response")
-                    throw Throwable("locate request $request failed: $response")
+                    continuation.resumeWithException(Throwable("locate request $request failed: $response"))
+                    return
                 }
 
                 val results = try {
                     Gson().fromJson(body.charStream(), LocateResponse::class.java).results
                 } catch (e: JsonSyntaxException) {
                     Log.e(TAG, "locate response deserialization failed: $body", e)
-                    throw e
+                    continuation.resumeWithException(e)
+                    return
                 }
 
                 Log.d(TAG, "got ${results.size} results: $results")
                 if (results.isEmpty()) {
                     Log.e(TAG, "locate request $request returned no servers: $response")
-                    throw Throwable("no servers found")
+                    continuation.resumeWithException(Throwable("no servers found"))
+                    return
                 }
 
                 val locateServer: LocateServer = try {
@@ -146,7 +149,7 @@ object LocateManager {
         return totalTimeMillis.toDouble() / count.toDouble()
     }
 
-    fun getUrl(
+    fun getThroughputUrl(
         server: LocateServer,
         direction: MsakTestDirection,
         measurementId: String?,
@@ -154,7 +157,7 @@ object LocateManager {
         val testUrl = "/throughput/v1/${if (direction == MsakTestDirection.DOWNLOAD) "download" else "upload" }"
         val baseUrl = server.urls["wss://$testUrl"] ?: server.urls["ws://$testUrl"] ?: throw Throwable("no base URL found in urls: $server.urls")
 
-        var options = "streams=$MSAK_STREAMS&duration=$MSAK_MAX_MILLIS&delay=$MSAK_STREAM_DELAY"
+        var options = "streams=$THROUGHPUT_STREAMS&duration=$THROUGHPUT_MAX_MILLIS&delay=$THROUGHPUT_STREAM_DELAY"
         if (measurementId != null) {
             options += "&mid=$measurementId"
         }

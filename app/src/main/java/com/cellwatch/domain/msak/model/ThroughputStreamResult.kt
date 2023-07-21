@@ -9,7 +9,7 @@ data class ThroughputStreamResult (
     val uuid: String?,
     val localAddr: String?,
     val remoteAddr: String?,
-    val warmupMetrics: MsakTestMetrics?,
-    val activeMetrics: MsakTestMetrics?,
+    val warmupMetrics: ThroughputTestMetrics?,
+    val activeMetrics: ThroughputTestMetrics?,
     val measurements: Collection<MsakMeasurement>
 )

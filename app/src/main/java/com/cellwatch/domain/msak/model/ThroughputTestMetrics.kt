@@ -3,7 +3,7 @@ package com.cellwatch.domain.msak.model
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class MsakTestMetrics(
+data class ThroughputTestMetrics(
     val bytesPerSec: Double,
     val bytes: Long,
     val usecs: Long,
