@@ -1,6 +1,6 @@
-package com.cellwatch.domain.ndt8.util
+package com.cellwatch.domain.msak.util
 
-class Ndt8UnexpectedCloseException(
+class UnexpectedCloseException(
     code: Int,
     reason: String?,
 ): Throwable("websocket closed with unexpected code: $code $reason") {}

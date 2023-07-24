@@ -75,7 +75,7 @@ class FirstFragment : Fragment() {
 
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
-//                    Ndt8MeasurementManager.runTestSequence()
+//                    MsakMeasurementManager.runTestSequence()
                     measurementViewModel.runTestSequence()
                 } catch (e: Exception) {
                     Log.e(TAG, "unexpected error running test sequence", e)

@@ -1,15 +1,15 @@
-package com.cellwatch.domain.ndt8.services
+package com.cellwatch.domain.msak.services
 
 import android.os.SystemClock
 import android.util.Log
-import com.cellwatch.domain.ndt8.util.Ndt8UnexpectedCloseException
-import com.cellwatch.domain.ndt8.util.WS_CODE_GOING_AWAY
-import com.cellwatch.domain.ndt8.util.WS_CODE_NORMAL_CLOSURE
-import com.cellwatch.domain.ndt8.model.Ndt8Measurement
-import com.cellwatch.domain.ndt8.util.MemorylessTicker
-import com.cellwatch.domain.ndt8.util.NDT8_AVG_MEASUREMENT_INTERVAL_MILLIS
-import com.cellwatch.domain.ndt8.util.NDT8_MAX_MEASUREMENT_INTERVAL_MILLIS
-import com.cellwatch.domain.ndt8.util.NDT8_MIN_MEASUREMENT_INTERVAL_MILLIS
+import com.cellwatch.domain.msak.util.UnexpectedCloseException
+import com.cellwatch.domain.msak.util.WS_CODE_GOING_AWAY
+import com.cellwatch.domain.msak.util.WS_CODE_NORMAL_CLOSURE
+import com.cellwatch.domain.msak.model.MsakMeasurement
+import com.cellwatch.domain.msak.util.MemorylessTicker
+import com.cellwatch.domain.msak.util.THROUGHPUT_AVG_MEASUREMENT_INTERVAL_MILLIS
+import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_MEASUREMENT_INTERVAL_MILLIS
+import com.cellwatch.domain.msak.util.THROUGHPUT_MIN_MEASUREMENT_INTERVAL_MILLIS
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,9 +21,9 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import java.util.concurrent.atomic.AtomicLong
 
-open class Ndt8Listener(
+open class ThroughputListener(
     streamNum: Int,
-    private val measurementChan: Channel<Pair<Boolean, Ndt8Measurement>>,
+    private val measurementChan: Channel<Pair<Boolean, MsakMeasurement>>,
 ): WebSocketListener() {
     protected val TAG = "${this::class.simpleName} $streamNum"
     protected var startUsec: Long = 0
@@ -31,13 +31,13 @@ open class Ndt8Listener(
     protected var bytesSent = AtomicLong(0)
     protected var bytesReceived = AtomicLong(0)
     //private var lastMeasurementUsec: Long = 0
-    open var latestMeasurement: Ndt8Measurement? = null
+    open var latestMeasurement: MsakMeasurement? = null
         protected set
 
     private val measurementTicker = MemorylessTicker(
-        NDT8_AVG_MEASUREMENT_INTERVAL_MILLIS,
-        NDT8_MAX_MEASUREMENT_INTERVAL_MILLIS,
-        NDT8_MIN_MEASUREMENT_INTERVAL_MILLIS,
+        THROUGHPUT_AVG_MEASUREMENT_INTERVAL_MILLIS,
+        THROUGHPUT_MAX_MEASUREMENT_INTERVAL_MILLIS,
+        THROUGHPUT_MIN_MEASUREMENT_INTERVAL_MILLIS,
     )
 
     final override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -53,7 +53,7 @@ open class Ndt8Listener(
         bytesReceived.addAndGet(text.toByteArray().size.toLong())
 
         val wireMeasurement = try {
-            Gson().fromJson(text, Ndt8Measurement::class.java)
+            Gson().fromJson(text, MsakMeasurement::class.java)
         } catch (e: JsonSyntaxException) {
             Log.w(TAG, "text message deserialization failed", e)
             return
@@ -85,7 +85,7 @@ open class Ndt8Listener(
         if (code == WS_CODE_NORMAL_CLOSURE || code == WS_CODE_GOING_AWAY) {
             measurementChan.close()
         } else {
-            measurementChan.close(Ndt8UnexpectedCloseException(code, reason))
+            measurementChan.close(UnexpectedCloseException(code, reason))
         }
 
         measurementTicker.stop()
@@ -102,7 +102,7 @@ open class Ndt8Listener(
     open fun onOpen(webSocket: WebSocket) {}
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    open fun onMeasurement(webSocket: WebSocket, measurement: Ndt8Measurement) {
+    open fun onMeasurement(webSocket: WebSocket, measurement: MsakMeasurement) {
         if (!measurementChan.isClosedForSend) {
             try {
                 runBlocking { measurementChan.send(Pair(true, measurement)) }
@@ -130,7 +130,7 @@ open class Ndt8Listener(
 
     private fun sendMeasurement(webSocket: WebSocket) {
         val usec = endUsec ?: (SystemClock.elapsedRealtimeNanos() / 1000)
-        val measurement = Ndt8Measurement(
+        val measurement = MsakMeasurement(
             bytesSent.get(),
             bytesReceived.get(),
             usec - startUsec,

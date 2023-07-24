@@ -1,4 +1,4 @@
-package com.cellwatch.domain.ndt8.managers
+package com.cellwatch.domain.msak.managers
 
 import android.os.Build
 import android.os.SystemClock
@@ -10,11 +10,11 @@ import com.cellwatch.data.datastore.LocalDataStore
 import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
 import com.cellwatch.data.model.UploadDownloadData
-import com.cellwatch.domain.ndt8.model.Ndt8LocateServer
-import com.cellwatch.domain.ndt8.model.Ndt8TestDirection
-import com.cellwatch.domain.ndt8.model.Ndt8TestResult
-import com.cellwatch.domain.ndt8.services.Ndt8TestComponent
-import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
+import com.cellwatch.domain.msak.model.LocateServer
+import com.cellwatch.domain.msak.model.MsakTestDirection
+import com.cellwatch.domain.msak.model.ThroughputTestResult
+import com.cellwatch.domain.msak.services.LatencyTest
+import com.cellwatch.domain.msak.services.ThroughputTestComponent
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
 import github.nisrulz.easydeviceinfo.base.EasyNetworkMod
@@ -33,7 +33,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 
-object Ndt8MeasurementManager {
+object MeasurementManager {
     private var _bytesPerSecState = MutableStateFlow(0.0)
     val bytesPerSecState: StateFlow<Double> = _bytesPerSecState //.asStateFlow()
 
@@ -110,48 +110,40 @@ object Ndt8MeasurementManager {
 
         writeMessage("selecting server")
 
-        var server: Ndt8LocateServer
-
-        if (useLocalServer) {
+        val server = if (useLocalServer) {
             writeMessage("Using local server")
-            server = Ndt8LocateServer(
+            LocateServer(
                 "10.0.2.2", null, mapOf(
-                    "ws:///ndt/v8/download" to "ws://10.0.2.2:8080/ndt/v8/download",
-                    "ws:///ndt/v8/upload" to "ws://10.0.2.2:8080/ndt/v8/upload",
+                    "ws:///throughput/v1/download" to "ws://10.0.2.2:8080/throughput/v1/download",
+                    "ws:///throughput/v1/upload" to "ws://10.0.2.2:8080/throughput/v1/upload",
                 )
             )
         } else {
             writeMessage("Using MLabs server")
-            server = try {
-                Ndt8LocateManager.selectServerAsync(client)
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception in Ndt8LocateManager.selectServerAsync")
-                return
-            }
+            LocateManager.selectServerAsync(client)
         }
 
         writeMessage("selected server ${server.machine} in ${server.location}")
-        // TODO: run latency test
-        runTest(client, server, measurementId, groupId, Ndt8TestDirection.DOWNLOAD)
-        runTest(client, server, measurementId, groupId, Ndt8TestDirection.UPLOAD)
+        runLatencyTest(client, server, measurementId)
+        runThroughputTest(client, server, measurementId, groupId, MsakTestDirection.DOWNLOAD)
+        runThroughputTest(client, server, measurementId, groupId, MsakTestDirection.UPLOAD)
 
         // Try to upload measurements to Supabase
         measurementRepository.uploadMeasurements()
 //        runBlocking { measurementRepository?.uploadMeasurementsWithData() }
     }
 
-    @RequiresApi(Build.VERSION_CODES.Q)
-    suspend fun runTest(
+    suspend fun runThroughputTest(
         client: OkHttpClient,
-        server: Ndt8LocateServer,
+        server: LocateServer,
         measurementId: String?,
         groupId: String,
-        direction: Ndt8TestDirection
+        direction: MsakTestDirection
     ) {
         var location: Location?
         val locations = ArrayList<Location>()
 
-        val dir = if (direction == Ndt8TestDirection.DOWNLOAD) "download" else "upload"
+        val dir = if (direction == MsakTestDirection.DOWNLOAD) "download" else "upload"
         writeMessage("running $dir test")
 
         val result = try {
@@ -162,6 +154,7 @@ object Ndt8MeasurementManager {
             else
                 Log.e(TAG, "Error getting GPS location!!!")
 
+            val test = ThroughputTestComponent(client, server, measurementId, direction)
             // Get device connection info
             Log.d(TAG, "Starting getCellInfo test *******")
             val cells = telephonyInfoManager.getCells()
@@ -206,7 +199,31 @@ object Ndt8MeasurementManager {
 //        runBlocking { createMeasurement(result, direction) }
     }
 
-    suspend fun insertMeasurement(groupId: String, result: Ndt8TestResult, direction: Ndt8TestDirection, locations: List<Location>?) {
+    suspend fun runLatencyTest(
+        client: OkHttpClient,
+        server: LocateServer,
+        measurementId: String?,
+    ) {
+        val result = try {
+            val test = LatencyTest(client, server, measurementId)
+
+            coroutineScope {
+                launch {
+                    test.progress.consumeEach {
+                        Log.d(TAG, "got progress $it")
+                    }
+                }
+
+                test.run()
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "latency test failed", t)
+        }
+
+        Log.d(TAG, "got latency result: $result")
+    }
+
+    suspend fun insertMeasurement(groupId: String, result: ThroughputTestResult, direction: MsakTestDirection, locations: List<Location>?) {
         val context = CellWatchApp.applicationContext()
         val dataStore = LocalDataStore(context)
         var deviceId = dataStore.getDeviceId.first()
