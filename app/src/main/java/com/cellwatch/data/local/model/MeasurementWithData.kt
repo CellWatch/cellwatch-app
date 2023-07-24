@@ -23,7 +23,13 @@ data class MeasurementWithData(
         parentColumn = "id",
         entityColumn = "measurementId"
     )
-    val locations: List<LocationEntity>?
+    val locations: List<LocationEntity>?,
+
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "measurementId"
+    )
+    val cells: List<CellEntity>?
 )
 
 fun MeasurementWithData.asExternalModel() = Measurement(

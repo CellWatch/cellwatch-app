@@ -1,6 +1,10 @@
 package com.cellwatch.domain.ndt8.managers
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.widget.Toast
+import com.cellwatch.CellWatchApp
 import com.cellwatch.domain.ndt8.model.Ndt8LocateResponse
 import com.cellwatch.domain.ndt8.model.Ndt8LocateServer
 import com.cellwatch.domain.ndt8.model.Ndt8TestDirection
@@ -26,6 +30,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
+
 object Ndt8LocateManager {
     private const val TAG = "Ndt8LocateManager"
     private const val locateUrl = "https://locate-dot-mlab-staging.appspot.com/v2/nearest/" //"https://locate.measurementlab.net/v2/nearest/"
@@ -36,44 +41,55 @@ object Ndt8LocateManager {
     ): Ndt8LocateServer = suspendCoroutine { continuation ->
         val request = Request.Builder().url("${locateUrl}msak/ndt8").build()
 
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                continuation.resumeWithException(e) // resume calling coroutine
-                e.printStackTrace()
-            }
-
-            override fun onResponse(call: Call, response: Response) {
-                val body = response.body
-                if (response.code != 200 || body == null) {
-                    Log.e(TAG, "locate request $request failed: $response")
-                    throw Throwable("locate request $request failed: $response")
+        try {
+            client.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    continuation.resumeWithException(e) // resume calling coroutine
+                    e.printStackTrace()
                 }
 
-                val results = try {
-                    Gson().fromJson(body.charStream(), Ndt8LocateResponse::class.java).results
-                } catch (e: JsonSyntaxException) {
-                    Log.e(TAG, "locate response deserialization failed: $body", e)
-                    throw e
-                }
+                override fun onResponse(call: Call, response: Response) {
+                    val body = response.body
+                    if (response.code != 200 || body == null) {
+                        Log.e(TAG, "locate request $request failed: $response")
+//                        throw Throwable("locate request $request failed: $response")
+                        val mHandler = Handler(Looper.getMainLooper())
+                        mHandler.post(Runnable {
+                            // Your UI updates here
+                            Toast.makeText(CellWatchApp.applicationContext(), "Locate Request Failed with code ${response.code}", Toast.LENGTH_LONG).show()
+                        })
+                        throw IOException("locate request $request failed: $response")
+                    }
 
-                Log.d(TAG, "got ${results.size} results: $results")
-                if (results.isEmpty()) {
-                    Log.e(TAG, "locate request $request returned no servers: $response")
-                    throw Throwable("no servers found")
-                }
+                    val results = try {
+                        Gson().fromJson(body.charStream(), Ndt8LocateResponse::class.java).results
+                    } catch (e: JsonSyntaxException) {
+                        Log.e(TAG, "locate response deserialization failed: $body", e)
+                        throw e
+                    }
 
-                val locateServer: Ndt8LocateServer = try {
-                    runBlocking { results.maxBy { ping(it.machine) } }
-                } catch (t: Throwable) {
-                    Log.e(TAG, "pinging available servers failed", t)
-                    results[0]
-                }
+                    Log.d(TAG, "got ${results.size} results: $results")
+                    if (results.isEmpty()) {
+                        Log.e(TAG, "locate request $request returned no servers: $response")
+                        throw Throwable("no servers found")
+                    }
 
-                response.use {
-                    continuation.resume(locateServer) // resume calling coroutine
+                    val locateServer: Ndt8LocateServer = try {
+                        runBlocking { results.maxBy { ping(it.machine) } }
+                    } catch (t: Throwable) {
+                        Log.e(TAG, "pinging available servers failed", t)
+                        results[0]
+                    }
+
+                    response.use {
+                        continuation.resume(locateServer) // resume calling coroutine
+                    }
                 }
-            }
-        })
+            })
+        } catch (e: Exception) {
+            Log.e(TAG, "selectServerAsync Error!: ${e.message}")
+            throw e
+        }
     }
 
     fun selectServer(

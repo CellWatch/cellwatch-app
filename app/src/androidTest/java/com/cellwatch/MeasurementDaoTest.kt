@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.cellwatch.data.local.CellWatchDatabase
+import com.cellwatch.data.local.dao.CellDao
 import com.cellwatch.data.local.model.LatencyDataEntity
 import com.cellwatch.data.local.model.LocationEntity
 import com.cellwatch.data.local.model.MeasurementEntity
@@ -15,6 +16,7 @@ import com.cellwatch.data.local.dao.LatencyDataDao
 import com.cellwatch.data.local.dao.LocationDao
 import com.cellwatch.data.local.dao.MeasurementDao
 import com.cellwatch.data.local.dao.UploadDownloadDataDao
+import com.cellwatch.data.local.model.CellEntity
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import junit.framework.TestCase.assertEquals
@@ -36,6 +38,7 @@ class MeasurementDaoTest {
     private lateinit var locationDao: LocationDao
     private lateinit var dataDao: UploadDownloadDataDao
     private lateinit var latencyDao: LatencyDataDao
+    private lateinit var cellDao: CellDao
 
     companion object {
         private const val TAG = "MeasurementDaoTest"
@@ -54,6 +57,7 @@ class MeasurementDaoTest {
         locationDao = db.locationDao()
         dataDao = db.uploadDownloadDataDao()
         latencyDao = db.latencyDataDao()
+        cellDao = db.cellDao()
     }
 
     @After
@@ -204,6 +208,132 @@ class MeasurementDaoTest {
             received = 779927,
             servers = listOf("server1", "server2")
         )
+        val downloadCells = listOf<CellEntity>(
+            CellEntity(
+                timestamp = Clock.System.now(),
+                cellId = 234,
+                physicalCellId = 4321,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -103,
+                rssi = -78,
+                rsrp = -102,
+                rsrq = -12,
+                sinr = 2,
+                csiRsrp = -101,
+                csiRsrq = -13,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            ),
+            CellEntity(
+                timestamp = Clock.System.now(),
+                cellId = 235,
+                physicalCellId = 4322,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -102,
+                rssi = -79,
+                rsrp = -101,
+                rsrq = -11,
+                sinr = 2,
+                csiRsrp = -100,
+                csiRsrq = -14,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            )
+        )
+        val uploadCells = listOf<CellEntity>(
+            CellEntity(
+                timestamp = Clock.System.now(),
+                cellId = 234,
+                physicalCellId = 4321,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -103,
+                rssi = -78,
+                rsrp = -102,
+                rsrq = -12,
+                sinr = 2,
+                csiRsrp = -101,
+                csiRsrq = -13,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            ),
+            CellEntity(
+                timestamp = Clock.System.now(),
+                cellId = 235,
+                physicalCellId = 4322,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -102,
+                rssi = -79,
+                rsrp = -101,
+                rsrq = -11,
+                sinr = 2,
+                csiRsrp = -100,
+                csiRsrq = -14,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            )
+        )
+        val latencyCells = listOf<CellEntity>(
+            CellEntity(
+                timestamp = Clock.System.now(),
+                cellId = 234,
+                physicalCellId = 4321,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -103,
+                rssi = -78,
+                rsrp = -102,
+                rsrq = -12,
+                sinr = 2,
+                csiRsrp = -101,
+                csiRsrq = -13,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            ),
+            CellEntity(
+                timestamp = Clock.System.now(),
+                cellId = 235,
+                physicalCellId = 4322,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -102,
+                rssi = -79,
+                rsrp = -101,
+                rsrq = -11,
+                sinr = 2,
+                csiRsrp = -100,
+                csiRsrq = -14,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            )
+        )
 
         runBlocking {
 
@@ -217,7 +347,8 @@ class MeasurementDaoTest {
                     downloadMeasurement,
                     downloadData,
                     null,
-                    listOf<LocationEntity>(locationEntity)
+                    listOf<LocationEntity>(locationEntity),
+                    downloadCells
                 )
             )
             measurementDao.insertMeasurementWithData(
@@ -225,7 +356,8 @@ class MeasurementDaoTest {
                     uploadMeasurement,
                     uploadData,
                     null,
-                    listOf<LocationEntity>(locationEntity2)
+                    listOf<LocationEntity>(locationEntity2),
+                    uploadCells
                 )
             )
             measurementDao.insertMeasurementWithData(
@@ -233,7 +365,8 @@ class MeasurementDaoTest {
                     latencyMeasurement,
                     null,
                     latencyDataEntity,
-                    listOf<LocationEntity>(locationEntity3)
+                    listOf<LocationEntity>(locationEntity3),
+                    latencyCells
                 )
             )
 
@@ -250,6 +383,9 @@ class MeasurementDaoTest {
                 }
                 locations?.forEach {
                     assertEquals(it.lat, 33.5597)
+                }
+                cells?.forEach {
+                    assertEquals(it.arfcn, 528000)
                 }
             }
 

@@ -71,7 +71,8 @@ fun Measurement.asEntityWithData() = MeasurementWithData(
     measurement = MeasurementEntity(id, groupId, campaignId, sessionId, deviceId, deviceManufacturer, deviceModel, deviceOsName, deviceOsVersion, appName, provider, type, timestamp, duration, scheduled, success, carrierAggregation, networkConnected, networkAvailable, networkRoaming, extraData, createdOn, updatedOn),
     uploadDownloadData = uploadDownloadData?.asEntity(),
     latencyData = latencyData?.asEntity(),
-    locations = locations?.map { it.asEntity() }
+    locations = locations?.map { it.asEntity() },
+    cells = cells?.map { it.asEntity() }
 )
 
 fun Measurement.asNetworkModel() = NetworkMeasurement(

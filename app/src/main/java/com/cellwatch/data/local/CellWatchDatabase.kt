@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.cellwatch.core.util.SingletonHolder
+import com.cellwatch.data.local.dao.CellDao
 import com.cellwatch.data.local.model.LatencyDataEntity
 import com.cellwatch.data.local.model.LocationEntity
 import com.cellwatch.data.local.model.MeasurementEntity
@@ -14,6 +15,7 @@ import com.cellwatch.data.local.dao.LatencyDataDao
 import com.cellwatch.data.local.dao.LocationDao
 import com.cellwatch.data.local.dao.MeasurementDao
 import com.cellwatch.data.local.dao.UploadDownloadDataDao
+import com.cellwatch.data.local.model.CellEntity
 import com.cellwatch.data.local.util.InstantConverter
 import com.cellwatch.data.local.util.ListConverter
 
@@ -22,9 +24,10 @@ import com.cellwatch.data.local.util.ListConverter
         MeasurementEntity::class,
         UploadDownloadDataEntity::class,
         LatencyDataEntity::class,
-        LocationEntity::class
+        LocationEntity::class,
+        CellEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(
@@ -39,6 +42,8 @@ abstract class CellWatchDatabase : RoomDatabase() {
     abstract fun latencyDataDao(): LatencyDataDao
 
     abstract fun locationDao(): LocationDao
+
+    abstract fun cellDao(): CellDao
 
     companion object : com.cellwatch.core.util.SingletonHolder<CellWatchDatabase, Context>({
         Room.databaseBuilder(

@@ -12,10 +12,10 @@ data class NetworkCell(
     val timestamp: Instant? = null,
 
     @SerialName("cell_id")
-    val cellId: Long? = null,
+    val cellId: Int? = null,
 
     @SerialName("physical_cell_id")
-    val physicalCellId: Long? = null,
+    val physicalCellId: Int? = null,
 
     @SerialName("cell_connection")
     val cellConnection: Int? = null,

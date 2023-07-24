@@ -1,7 +1,9 @@
 package com.cellwatch.domain.ndt8.managers
 
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.birjuvachhani.locus.Locus
 import com.cellwatch.CellWatchApp
 import com.cellwatch.data.datastore.LocalDataStore
@@ -12,6 +14,7 @@ import com.cellwatch.domain.ndt8.model.Ndt8LocateServer
 import com.cellwatch.domain.ndt8.model.Ndt8TestDirection
 import com.cellwatch.domain.ndt8.model.Ndt8TestResult
 import com.cellwatch.domain.ndt8.services.Ndt8TestComponent
+import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
 import github.nisrulz.easydeviceinfo.base.EasyNetworkMod
@@ -38,6 +41,8 @@ object Ndt8MeasurementManager {
     private val TAG = this::class.simpleName
 //    private var locationEntities: List<LocationEntity>? = null
 
+    private lateinit var telephonyInfoManager: TelephonyInfoManager
+
     private var deviceMod: EasyDeviceMod? = EasyDeviceMod(CellWatchApp.applicationContext())
     private var networkMod: EasyNetworkMod = EasyNetworkMod(CellWatchApp.applicationContext())
     private var simMod: EasySimMod? = EasySimMod(CellWatchApp.applicationContext())
@@ -48,6 +53,7 @@ object Ndt8MeasurementManager {
         _bytesPerSecState.update { newBytesPerSec }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     suspend fun runTestSequence() {
         val useLocalServer = false
         val measurementId: String? = if (useLocalServer) UUID.randomUUID().toString() else null
@@ -104,9 +110,11 @@ object Ndt8MeasurementManager {
 
         writeMessage("selecting server")
 
-        val server = if (useLocalServer) {
+        var server: Ndt8LocateServer
+
+        if (useLocalServer) {
             writeMessage("Using local server")
-            Ndt8LocateServer(
+            server = Ndt8LocateServer(
                 "10.0.2.2", null, mapOf(
                     "ws:///ndt/v8/download" to "ws://10.0.2.2:8080/ndt/v8/download",
                     "ws:///ndt/v8/upload" to "ws://10.0.2.2:8080/ndt/v8/upload",
@@ -114,7 +122,12 @@ object Ndt8MeasurementManager {
             )
         } else {
             writeMessage("Using MLabs server")
-            Ndt8LocateManager.selectServerAsync(client)
+            server = try {
+                Ndt8LocateManager.selectServerAsync(client)
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception in Ndt8LocateManager.selectServerAsync")
+                return
+            }
         }
 
         writeMessage("selected server ${server.machine} in ${server.location}")
@@ -127,6 +140,7 @@ object Ndt8MeasurementManager {
 //        runBlocking { measurementRepository?.uploadMeasurementsWithData() }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     suspend fun runTest(
         client: OkHttpClient,
         server: Ndt8LocateServer,
@@ -147,6 +161,13 @@ object Ndt8MeasurementManager {
                 locations.add(location)
             else
                 Log.e(TAG, "Error getting GPS location!!!")
+
+            // Get device connection info
+            Log.d(TAG, "Starting getCellInfo test *******")
+            val cells = telephonyInfoManager.getCells()
+            cells?.forEach { cell ->
+                Log.d(TAG, "${cell.toString()}")
+            }
 
             val test = Ndt8TestComponent(client, server, measurementId, direction)
 //            runBlocking {
