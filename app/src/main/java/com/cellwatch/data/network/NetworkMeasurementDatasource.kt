@@ -198,8 +198,13 @@ object NetworkMeasurementDatasource {
     suspend fun insertMeasurements(measurements: List<Measurement>): List<Measurement>? {
         var insertedMeasurements: List<Measurement>? = null
 
+
+        measurements.map { measurement ->
+            Log.d(TAG, "insertMeasurements: $measurement")
+        }
+
         if (measurements.isNotEmpty()) {
-            Log.d(TAG, "uploadMeasurementsWithData: Attempting to upload ${measurements.size} measurements")
+            Log.d(TAG, "insertMeasurements: Attempting to upload ${measurements.size} measurements")
 
             try {
                 insertedMeasurements = measurements.map { measurement ->

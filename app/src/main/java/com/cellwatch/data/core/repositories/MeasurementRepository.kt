@@ -84,10 +84,10 @@ class MeasurementRepository(
     suspend fun uploadMeasurements() {
         val measurements = getUnsynchronizedMeasurementsWithData()
 
-        Log.i(TAG, "uploadMeasurementsWithData: Attempt to upload measurements")
+        Log.i(TAG, "uploadMeasurements: Attempt to upload measurements")
 
         if (measurements.isNotEmpty()) {
-            Log.d(TAG, "uploadMeasurementsWithData: Attempting to upload ${measurements.size} measurements")
+            Log.d(TAG, "uploadMeasurements: Attempting to upload ${measurements.size} measurements")
 
             try {
                 networkDataSource.insertMeasurements(measurements)

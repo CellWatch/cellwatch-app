@@ -15,6 +15,7 @@ import com.cellwatch.domain.msak.model.MsakTestDirection
 import com.cellwatch.domain.msak.model.ThroughputTestResult
 import com.cellwatch.domain.msak.services.LatencyTest
 import com.cellwatch.domain.msak.services.ThroughputTestComponent
+import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
 import github.nisrulz.easydeviceinfo.base.EasyNetworkMod
@@ -85,7 +86,7 @@ object MeasurementManager {
         writeMessage("-----------------")
 
         writeMessage("network available = ${networkMod.isNetworkAvailable.toString()}")
-        writeMessage("wifi state = ${networkMod?.isWifiEnabled}")
+        writeMessage("wifi state = ${networkMod.isWifiEnabled}")
         
 //        @NetworkType val networkType: Int = networkMod.getNetworkType()
 //
@@ -124,7 +125,7 @@ object MeasurementManager {
         }
 
         writeMessage("selected server ${server.machine} in ${server.location}")
-        runLatencyTest(client, server, measurementId)
+//        runLatencyTest(client, server, measurementId)
         runThroughputTest(client, server, measurementId, groupId, MsakTestDirection.DOWNLOAD)
         runThroughputTest(client, server, measurementId, groupId, MsakTestDirection.UPLOAD)
 
@@ -133,6 +134,7 @@ object MeasurementManager {
 //        runBlocking { measurementRepository?.uploadMeasurementsWithData() }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     suspend fun runThroughputTest(
         client: OkHttpClient,
         server: LocateServer,
@@ -156,13 +158,12 @@ object MeasurementManager {
 
             val test = ThroughputTestComponent(client, server, measurementId, direction)
             // Get device connection info
-            Log.d(TAG, "Starting getCellInfo test *******")
-            val cells = telephonyInfoManager.getCells()
-            cells?.forEach { cell ->
-                Log.d(TAG, "${cell.toString()}")
-            }
+//            Log.d(TAG, "Starting getCellInfo test *******")
+//            val cells = telephonyInfoManager.getCells()
+//            cells?.forEach { cell ->
+//                Log.d(TAG, "${cell.toString()}")
+//            }
 
-            val test = Ndt8TestComponent(client, server, measurementId, direction)
 //            runBlocking {
             coroutineScope {
                 launch {
@@ -276,7 +277,7 @@ object MeasurementManager {
             scheduled = false,
             success = result.success,
             carrierAggregation = false,
-            networkAvailable = networkMod?.isNetworkAvailable,
+            networkAvailable = networkMod.isNetworkAvailable,
             networkConnected = true,
             networkRoaming = false,
             uploadDownloadData = uploadDownloadData,
