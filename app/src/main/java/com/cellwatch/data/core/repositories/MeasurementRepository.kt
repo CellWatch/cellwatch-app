@@ -55,10 +55,13 @@ class MeasurementRepository(
 //    @Suppress("RedundantSuspendModifier")
     @WorkerThread
     suspend fun insertMeasurement(measurement: Measurement) {
-        if (measurement.uploadDownloadData != null)
-            measurementDao.insertMeasurementWithData(measurement.asEntityWithData())
-        else
-            measurementDao.insertMeasurement(measurement.asEntity())
+        val measurementWithDataEntity = measurement.asEntityWithData()
+        Log.d(TAG, "MeasurementRepository.insertMeasurement: measurementWithDataEntity.cells length is ${measurementWithDataEntity.cells?.size}")
+        measurementDao.insertMeasurementWithData(measurement.asEntityWithData())
+//        if (measurement.uploadDownloadData != null)
+//            measurementDao.insertMeasurementWithData(measurement.asEntityWithData())
+//        else
+//            measurementDao.insertMeasurement(measurement.asEntity())
     }
 
     @WorkerThread
@@ -85,6 +88,7 @@ class MeasurementRepository(
         val measurements = getUnsynchronizedMeasurementsWithData()
 
         Log.i(TAG, "uploadMeasurements: Attempt to upload measurements")
+        Log.d(TAG, "uploadMeasurements: Number of cells = ${measurements[0].cells?.size}")
 
         if (measurements.isNotEmpty()) {
             Log.d(TAG, "uploadMeasurements: Attempting to upload ${measurements.size} measurements")

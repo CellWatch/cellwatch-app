@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import com.cellwatch.data.local.model.CellEntity
 import com.cellwatch.data.local.model.LatencyDataEntity
 import com.cellwatch.data.local.model.LocationEntity
 import com.cellwatch.data.local.model.MeasurementEntity
@@ -31,9 +32,13 @@ abstract class MeasurementDao {
                 latencyData.measurementId = measurement.id
                 insertLatencyData(latencyData)
             }
-            locations?.forEach {
-                it.measurementId = measurement.id
-                insertLocation(it)
+            cells?.forEach { cell ->
+                cell.measurementId = measurement.id
+                insertCell(cell)
+            }
+            locations?.forEach { location ->
+                location.measurementId = measurement.id
+                insertLocation(location)
             }
         }
     }
@@ -43,6 +48,9 @@ abstract class MeasurementDao {
 
     @Insert
     abstract suspend fun insertLatencyData(latencyDataEntity: LatencyDataEntity)
+
+    @Insert
+    abstract suspend fun insertCell(cellEntity: CellEntity)
 
     @Insert
     abstract suspend fun insertLocation(locationEntity: LocationEntity)

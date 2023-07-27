@@ -1,5 +1,6 @@
 package com.cellwatch.ui.measurement
 
+import android.Manifest
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -8,6 +9,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
@@ -19,7 +21,6 @@ import com.github.anastr.speedviewlib.Gauge
 import com.github.anastr.speedviewlib.SpeedView
 import github.nisrulz.easydeviceinfo.base.*
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.handleCoroutineException
 import kotlinx.coroutines.launch
 
 /**
@@ -33,7 +34,22 @@ class FirstFragment : Fragment() {
         MeasurementViewModelFactory(com.cellwatch.CellWatchApp.measurementRepository)
     }
 
-//    private var deviceMod: EasyDeviceMod? = null
+    private val standardPermissions = arrayOf(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION,
+        Manifest.permission.READ_PHONE_STATE
+    )
+
+    private val standardPermissionRequest = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permission ->
+        if (permission[standardPermissions[0]] == true && permission[standardPermissions[1]] == true && permission[standardPermissions[2]] == true) {
+            // permissions granted
+            Log.d(TAG, "Permissions are granted!")
+        } else {
+            Log.d(TAG, "Permissions are not granted!!!")
+        }
+    }
+
+    //    private var deviceMod: EasyDeviceMod? = null
 //    private var networkMod: EasyNetworkMod? = null
 //    private var simMod: EasySimMod? = null
 //    private var appMod: EasyAppMod? = null
@@ -54,6 +70,8 @@ class FirstFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        standardPermissionRequest.launch(standardPermissions)
 
         speedometer = binding.speedView
         speedometer.setMinMaxSpeed(0F, 10F)
@@ -129,6 +147,13 @@ class FirstFragment : Fragment() {
         super.onDestroyView()
         _binding = null
     }
+
+//    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+//
+//        // EasyPermissions handles the request result.
+//        EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this)
+//    }
 
     fun toggleButton(enabled: Boolean) {
         val handler = Handler(Looper.getMainLooper())

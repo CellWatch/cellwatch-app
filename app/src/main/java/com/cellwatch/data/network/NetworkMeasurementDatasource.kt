@@ -158,6 +158,10 @@ object NetworkMeasurementDatasource {
 
         Log.d(TAG, "Attempting to insert measurement ${measurement.id} to Supabase API at ${supabaseUrl}")
 
+        if (measurement.cells == null) {
+            Log.e(TAG, "Error in insertMeasurementTransaction: measurement.cells is null!!!")
+        }
+
         val networkMeasurementData = NetworkMeasurementWithData(
             measurement.asNetworkModel(),
             measurement.uploadDownloadData?.asNetworkModel(),

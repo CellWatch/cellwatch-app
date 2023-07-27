@@ -372,7 +372,8 @@ class MeasurementDaoTest {
 
 //            measurementDao.insertMeasurement(uploadMeasurement)
 
-            val allMeasurements = measurementDao.getMeasurementsWithDataFlow().first()
+            val allMeasurements = measurementDao.getUnsynchronizedMeasurementsWithData()
+//            val allMeasurements = measurementDao.getMeasurementsWithDataFlow().first()
             assertEquals(allMeasurements[0].measurement.id, downloadMeasurement.id)
             assertEquals(allMeasurements[1].measurement.id, uploadMeasurement.id)
             with(allMeasurements[0]) {
@@ -386,6 +387,7 @@ class MeasurementDaoTest {
                 }
                 cells?.forEach {
                     assertEquals(it.arfcn, 528000)
+                    Log.d(TAG, "cell = ${it}")
                 }
             }
 

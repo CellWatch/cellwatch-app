@@ -96,9 +96,13 @@ object TelephonyInfoManager {
 
         val cells = mutableListOf<Cell>()
 
+        var cellIndex = 0
+
         for (cellInfo in cellInfoList) {
             when (cellInfo) {
                 is CellInfoLte -> {
+                    Log.d(TAG, "======= Cell($cellIndex) =======")
+                    cellIndex++
                     val cellInfoLte = cellInfo as CellInfoLte
                     val signalStrength: CellSignalStrengthLte = cellInfo.cellSignalStrength
                     Log.d(TAG, "*** LTE Connection ***")
@@ -125,6 +129,11 @@ object TelephonyInfoManager {
 
                     val cellIdentity: CellIdentityLte = cellInfo.cellIdentity
 
+                    Log.d(TAG, "Number of Bands: ${cellIdentity.bands.size}")
+                    val bands = cellIdentity.bands.joinToString(prefix = "[", separator = ", ", postfix = "]")
+                    Log.d(TAG, "bands = $bands")
+                    Log.d(TAG, "spectrumBandwidth = ${cellIdentity.bandwidth.toFloat()}")
+
                     cells.add(
                         Cell(
                             timestamp = Clock.System.now(),
@@ -142,8 +151,9 @@ object TelephonyInfoManager {
                             csiRsrq = if (networkGeneration == "5G") signalStrength.rsrq else null,
                             csiSinr = if (networkGeneration == "5G") signalStrength.rssnr else null,
                             cqi = if (networkGeneration == "3G") null else signalStrength.cqi,
-                            spectrumBand = "TODO_BAND", // cellIdentity.bands.toString(),
-                            spectrumBandwidth = cellIdentity.bandwidth as Float,
+                            spectrumBand = cellIdentity.bands.toString(),
+//                            spectrumBand = "TODO_BAND", // cellIdentity.bands.toString(),
+                            spectrumBandwidth = cellIdentity.bandwidth.toFloat(),
                             arfcn = cellIdentity.earfcn
                         )
                     )

@@ -7,6 +7,7 @@ import androidx.annotation.RequiresApi
 import com.birjuvachhani.locus.Locus
 import com.cellwatch.CellWatchApp
 import com.cellwatch.data.datastore.LocalDataStore
+import com.cellwatch.data.model.Cell
 import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
 import com.cellwatch.data.model.UploadDownloadData
@@ -42,8 +43,6 @@ object MeasurementManager {
     private val TAG = this::class.simpleName
 //    private var locationEntities: List<LocationEntity>? = null
 
-    private lateinit var telephonyInfoManager: TelephonyInfoManager
-
     private var deviceMod: EasyDeviceMod? = EasyDeviceMod(CellWatchApp.applicationContext())
     private var networkMod: EasyNetworkMod = EasyNetworkMod(CellWatchApp.applicationContext())
     private var simMod: EasySimMod? = EasySimMod(CellWatchApp.applicationContext())
@@ -61,6 +60,14 @@ object MeasurementManager {
         val groupId: String = UUID.randomUUID().toString()
 
         writeMessage("RUNNING TEST SEQUENCE with measurement id $measurementId")
+
+        // Get device connection info
+        Log.d(TAG, "Starting getCellInfo test *******")
+        val cells = TelephonyInfoManager.getCells()
+        Log.d(TAG, "Got ${cells?.size} cells")
+        cells?.forEach { cell ->
+            Log.d(TAG, "cell: ${cell.toString()}")
+        }
 
         writeMessage("-----------------")
         writeMessage("Device Manufacturer = ${deviceMod?.manufacturer}")
@@ -142,6 +149,7 @@ object MeasurementManager {
         groupId: String,
         direction: MsakTestDirection
     ) {
+        var cells: List<Cell>?
         var location: Location?
         val locations = ArrayList<Location>()
 
@@ -149,6 +157,8 @@ object MeasurementManager {
         writeMessage("running $dir test")
 
         val result = try {
+            cells = TelephonyInfoManager.getCells()
+
             // get test start GPS location
             location = getLocation()
             if (location != null)
@@ -157,12 +167,6 @@ object MeasurementManager {
                 Log.e(TAG, "Error getting GPS location!!!")
 
             val test = ThroughputTestComponent(client, server, measurementId, direction)
-            // Get device connection info
-//            Log.d(TAG, "Starting getCellInfo test *******")
-//            val cells = telephonyInfoManager.getCells()
-//            cells?.forEach { cell ->
-//                Log.d(TAG, "${cell.toString()}")
-//            }
 
 //            runBlocking {
             coroutineScope {
@@ -196,7 +200,7 @@ object MeasurementManager {
         Log.i(TAG, "$dir test locations = ${locations.map { it.id }.joinToString()}")
 //        writeMessage("$dir test complete: ${if (result.success) "success" else "failure"}; warmup ${result.warmupMetrics}; active ${result.activeMetrics}")
 
-        insertMeasurement(groupId, result, direction, locations)
+        insertMeasurement(groupId, result, direction, cells, locations)
 //        runBlocking { createMeasurement(result, direction) }
     }
 
@@ -224,7 +228,13 @@ object MeasurementManager {
         Log.d(TAG, "got latency result: $result")
     }
 
-    suspend fun insertMeasurement(groupId: String, result: ThroughputTestResult, direction: MsakTestDirection, locations: List<Location>?) {
+    suspend fun insertMeasurement(
+        groupId: String,
+        result: ThroughputTestResult,
+        direction: MsakTestDirection,
+        cells: List<Cell>?,
+        locations: List<Location>?
+    ) {
         val context = CellWatchApp.applicationContext()
         val dataStore = LocalDataStore(context)
         var deviceId = dataStore.getDeviceId.first()
@@ -262,6 +272,8 @@ object MeasurementManager {
             servers = servers
         )
 
+        Log.d(TAG,"insertMeasurement: cells = ${cells}")
+
         val measurement = Measurement(
             groupId = groupId,
             deviceId = deviceId,
@@ -281,6 +293,7 @@ object MeasurementManager {
             networkConnected = true,
             networkRoaming = false,
             uploadDownloadData = uploadDownloadData,
+            cells = cells,
             locations = locations
         )
         Log.d(TAG,"measurement = $measurement")

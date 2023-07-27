@@ -17,6 +17,8 @@ import kotlinx.coroutines.runBlocking
 import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
+    private val TAG = "MainActivity"
+
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
 
