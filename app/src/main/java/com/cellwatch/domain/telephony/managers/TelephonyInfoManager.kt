@@ -121,6 +121,9 @@ object TelephonyInfoManager {
                     val networkGeneration = getNetworkGeneration()
                     val networkSubtype = getNetworkSubType()
 
+                    Log.d(TAG, "NetworkGeneration = $networkGeneration")
+                    Log.d(TAG, "NetworkSubtype = $networkSubtype")
+
                     val sigStrength = when (networkGeneration) {
                         "3G", "2G" -> signalStrength.rssi
                         "4G", "5G" -> signalStrength.rsrp

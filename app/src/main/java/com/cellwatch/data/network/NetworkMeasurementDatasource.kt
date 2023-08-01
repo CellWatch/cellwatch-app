@@ -28,6 +28,8 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.PostgrestResult
 import io.github.jan.supabase.postgrest.rpc
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 //class NetworkMeasurementDatasource {
 object NetworkMeasurementDatasource {
@@ -49,7 +51,6 @@ object NetworkMeasurementDatasource {
     val latencyTable = supabaseClient.postgrest["latency_data"]
     val cellTable = supabaseClient.postgrest["cells"]
     val fccSubmissionTable = supabaseClient.postgrest["fcc_submissions"]
-
 
     @WorkerThread
     suspend fun insertFccSubmission(fccSubmission: FccSubmission): FccSubmission? {
@@ -209,15 +210,17 @@ object NetworkMeasurementDatasource {
 
         if (measurements.isNotEmpty()) {
             Log.d(TAG, "insertMeasurements: Attempting to upload ${measurements.size} measurements")
-
-            try {
-                insertedMeasurements = measurements.map { measurement ->
-                    insertMeasurementTransaction(measurement)!!
+            // Move network IO off the Main thread
+            withContext(Dispatchers.IO) {
+                try {
+                    insertedMeasurements = measurements.map { measurement ->
+                        insertMeasurementTransaction(measurement)!!
 //                    insertMeasurement(measurement)!!
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in uploadMeasurementsWithData: ${e.message}")
+                    throw e
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in uploadMeasurementsWithData: ${e.message}")
-                throw e
             }
         }
 
@@ -229,22 +232,27 @@ object NetworkMeasurementDatasource {
         var insertedLatencyData: LatencyData? = null
 
         Log.d(TAG, "insertLatencyData: ${latencyData}")
-        try {
-            insertedLatencyData =
-                latencyTable.insert(latencyData.asNetworkModel()).decodeSingle<NetworkLatencyData>().asExternalModel()
-            Log.d(TAG, "*** Inserted new LatencyData record: $insertedLatencyData")
-        } catch (e: RestException) {
-            Log.e(TAG, "RestException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestTimeoutException) {
-            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestException) {
-            Log.e(TAG, "HttpRequestException: ${e.message}")
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}")
-            throw e
+
+        // Move network IO off the Main thread
+        withContext(Dispatchers.IO) {
+            try {
+                insertedLatencyData =
+                    latencyTable.insert(latencyData.asNetworkModel())
+                        .decodeSingle<NetworkLatencyData>().asExternalModel()
+                Log.d(TAG, "*** Inserted new LatencyData record: $insertedLatencyData")
+            } catch (e: RestException) {
+                Log.e(TAG, "RestException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestTimeoutException) {
+                Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestException) {
+                Log.e(TAG, "HttpRequestException: ${e.message}")
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception: ${e.message}")
+                throw e
+            }
         }
 
         return insertedLatencyData
@@ -254,22 +262,29 @@ object NetworkMeasurementDatasource {
     suspend fun insertUploadDownloadData(uploadDownloadData: UploadDownloadData): UploadDownloadData? {
         var insertedUploadDownloadData: UploadDownloadData?
 
-        try {
-            insertedUploadDownloadData =
-                dataTable.insert(uploadDownloadData.asNetworkModel()).decodeSingle<NetworkUploadDownloadData>().asExternalModel()
-            Log.d(TAG, "*** Inserted new UploadDownloadData record: $insertedUploadDownloadData")
-        } catch (e: RestException) {
-            Log.e(TAG, "RestException in insertUploadDownloadData: ${e.message}")
-            throw e
-        } catch (e: HttpRequestTimeoutException) {
-            Log.e(TAG, "HttpRequestTimeoutException in insertUploadDownloadData: ${e.message}")
-            throw e
-        } catch (e: HttpRequestException) {
-            Log.e(TAG, "HttpRequestException in insertUploadDownloadData: ${e.message}")
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception in insertUploadDownloadData: ${e.message}")
-            throw e
+        // Move network IO off the Main thread
+        withContext(Dispatchers.IO) {
+            try {
+                insertedUploadDownloadData =
+                    dataTable.insert(uploadDownloadData.asNetworkModel())
+                        .decodeSingle<NetworkUploadDownloadData>().asExternalModel()
+                Log.d(
+                    TAG,
+                    "*** Inserted new UploadDownloadData record: $insertedUploadDownloadData"
+                )
+            } catch (e: RestException) {
+                Log.e(TAG, "RestException in insertUploadDownloadData: ${e.message}")
+                throw e
+            } catch (e: HttpRequestTimeoutException) {
+                Log.e(TAG, "HttpRequestTimeoutException in insertUploadDownloadData: ${e.message}")
+                throw e
+            } catch (e: HttpRequestException) {
+                Log.e(TAG, "HttpRequestException in insertUploadDownloadData: ${e.message}")
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception in insertUploadDownloadData: ${e.message}")
+                throw e
+            }
         }
 
         return insertedUploadDownloadData
@@ -280,22 +295,26 @@ object NetworkMeasurementDatasource {
         var insertedLocation: Location? = null
 
         Log.d(TAG, "insertLocation ${location.id}")
-        try {
-            insertedLocation =
-                locationTable.insert(location.asNetworkModel()).decodeSingle<NetworkLocation>().asExternalModel()
-            Log.d(TAG, "*** Inserted new Location record: $insertedLocation")
-        } catch (e: RestException) {
-            Log.e(TAG, "RestException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestTimeoutException) {
-            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestException) {
-            Log.e(TAG, "HttpRequestException: ${e.message}")
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}")
-            throw e
+        // Move network IO off the Main thread
+        withContext(Dispatchers.IO) {
+            try {
+                insertedLocation =
+                    locationTable.insert(location.asNetworkModel()).decodeSingle<NetworkLocation>()
+                        .asExternalModel()
+                Log.d(TAG, "*** Inserted new Location record: $insertedLocation")
+            } catch (e: RestException) {
+                Log.e(TAG, "RestException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestTimeoutException) {
+                Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestException) {
+                Log.e(TAG, "HttpRequestException: ${e.message}")
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception: ${e.message}")
+                throw e
+            }
         }
 
         return insertedLocation
@@ -305,22 +324,25 @@ object NetworkMeasurementDatasource {
     suspend fun insertLocations(locations: List<Location>): List<Location>? {
         var insertedLocations: List<Location>? = null
 
-        try {
-            insertedLocations = locations.map { location ->
-                insertLocation(location)!!
+        // Move network IO off the Main thread
+        withContext(Dispatchers.IO) {
+            try {
+                insertedLocations = locations.map { location ->
+                    insertLocation(location)!!
+                }
+            } catch (e: RestException) {
+                Log.e(TAG, "RestException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestTimeoutException) {
+                Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestException) {
+                Log.e(TAG, "HttpRequestException: ${e.message}")
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception: ${e.message}")
+                throw e
             }
-        } catch (e: RestException) {
-            Log.e(TAG, "RestException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestTimeoutException) {
-            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestException) {
-            Log.e(TAG, "HttpRequestException: ${e.message}")
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}")
-            throw e
         }
 
         return insertedLocations
@@ -331,22 +353,27 @@ object NetworkMeasurementDatasource {
         var insertedCell: Cell? = null
 
         Log.d(TAG, "insertCell ${cell.id}")
-        try {
-            insertedCell =
-                cellTable.insert(cell.asNetworkModel()).decodeSingle<NetworkCell>().asExternalModel()
-            Log.d(TAG, "*** Inserted new Cell record: $insertedCell")
-        } catch (e: RestException) {
-            Log.e(TAG, "RestException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestTimeoutException) {
-            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestException) {
-            Log.e(TAG, "HttpRequestException: ${e.message}")
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}")
-            throw e
+
+        // Move network IO off the Main thread
+        withContext(Dispatchers.IO) {
+            try {
+                insertedCell =
+                    cellTable.insert(cell.asNetworkModel()).decodeSingle<NetworkCell>()
+                        .asExternalModel()
+                Log.d(TAG, "*** Inserted new Cell record: $insertedCell")
+            } catch (e: RestException) {
+                Log.e(TAG, "RestException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestTimeoutException) {
+                Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestException) {
+                Log.e(TAG, "HttpRequestException: ${e.message}")
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception: ${e.message}")
+                throw e
+            }
         }
 
         return insertedCell
@@ -356,22 +383,25 @@ object NetworkMeasurementDatasource {
     suspend fun insertCells(cells: List<Cell>): List<Cell>? {
         var insertedCells: List<Cell>? = null
 
-        try {
-            insertedCells = cells.map { cell ->
-                insertCell(cell)!!
+        // Move network IO off the Main thread
+        withContext(Dispatchers.IO) {
+            try {
+                insertedCells = cells.map { cell ->
+                    insertCell(cell)!!
+                }
+            } catch (e: RestException) {
+                Log.e(TAG, "RestException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestTimeoutException) {
+                Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestException) {
+                Log.e(TAG, "HttpRequestException: ${e.message}")
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception: ${e.message}")
+                throw e
             }
-        } catch (e: RestException) {
-            Log.e(TAG, "RestException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestTimeoutException) {
-            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestException) {
-            Log.e(TAG, "HttpRequestException: ${e.message}")
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}")
-            throw e
         }
 
         return insertedCells
@@ -381,22 +411,26 @@ object NetworkMeasurementDatasource {
     suspend fun getMeasurements(): List<Measurement>? {
         var measurements: List<Measurement>
 
-        try {
-            measurements = measurementTable.select().decodeList<NetworkMeasurement>().map {
-                networkMeasurement -> networkMeasurement.asExternalModel()
+        // Move network IO off the Main thread
+        withContext(Dispatchers.IO) {
+            try {
+                measurements = measurementTable.select().decodeList<NetworkMeasurement>()
+                    .map { networkMeasurement ->
+                        networkMeasurement.asExternalModel()
+                    }
+            } catch (e: RestException) {
+                Log.e(TAG, "RestException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestTimeoutException) {
+                Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestException) {
+                Log.e(TAG, "HttpRequestException: ${e.message}")
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception: ${e.message}")
+                throw e
             }
-        } catch (e: RestException) {
-            Log.e(TAG, "RestException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestTimeoutException) {
-            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestException) {
-            Log.e(TAG, "HttpRequestException: ${e.message}")
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}")
-            throw e
         }
 
         return measurements
@@ -408,14 +442,16 @@ object NetworkMeasurementDatasource {
         var measurement: Measurement?
         var result: PostgrestResult
 
-        try {
-            result = measurementTable.select(
-                columns = Columns.raw("""*,upload_download_data(*),latency_data(*),locations(*),cells(*)""")
-            ) {
-                Measurement::id eq measurementId
-            }
+        // Move network IO off the Main thread
+        withContext(Dispatchers.IO) {
+            try {
+                result = measurementTable.select(
+                    columns = Columns.raw("""*,upload_download_data(*),latency_data(*),locations(*),cells(*)""")
+                ) {
+                    Measurement::id eq measurementId
+                }
 
-            Log.d(TAG, "PostgrestResult = ${result.body}")
+                Log.d(TAG, "PostgrestResult = ${result.body}")
 
 //            networkMeasurementWithData = measurementTable.select(
 //                columns = Columns.raw("""*,upload_download_data(*),latency_data(*),locations(*),cells(*)""")
@@ -423,18 +459,19 @@ object NetworkMeasurementDatasource {
 //                Measurement::id eq measurementId
 //            }.decodeSingle<NetworkMeasurementWithData>()
 //            measurement = networkMeasurementWithData.asExternalModel()
-        } catch (e: RestException) {
-            Log.e(TAG, "RestException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestTimeoutException) {
-            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
-            throw e
-        } catch (e: HttpRequestException) {
-            Log.e(TAG, "HttpRequestException: ${e.message}")
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}")
-            throw e
+            } catch (e: RestException) {
+                Log.e(TAG, "RestException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestTimeoutException) {
+                Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+                throw e
+            } catch (e: HttpRequestException) {
+                Log.e(TAG, "HttpRequestException: ${e.message}")
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception: ${e.message}")
+                throw e
+            }
         }
 
         return null;

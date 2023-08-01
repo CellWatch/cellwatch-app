@@ -1,6 +1,7 @@
 package com.cellwatch.ui
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
@@ -12,7 +13,9 @@ import com.cellwatch.data.datastore.LocalDataStore
 import com.cellwatch.databinding.ActivityMainBinding
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.UUID
 
@@ -21,6 +24,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
+
+    val measurementRepository = com.cellwatch.CellWatchApp.measurementRepository
 
     private val measurementViewModel: MeasurementViewModel by viewModels() {
         MeasurementViewModelFactory(com.cellwatch.CellWatchApp.measurementRepository)
@@ -80,7 +85,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-//        measurementViewModel.
+        val globalRoutine = GlobalScope.launch {
+            try {
+                measurementRepository.uploadMeasurements()
+            } catch (err: Exception) {
+                Log.e(TAG, "Error in MainActivity.onResume: uploadMeasurement error ${err.message}")
+            }
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {

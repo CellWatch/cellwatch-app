@@ -21,6 +21,7 @@ import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
 import github.nisrulz.easydeviceinfo.base.EasyNetworkMod
 import github.nisrulz.easydeviceinfo.base.EasySimMod
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import okhttp3.OkHttpClient
 import java.util.UUID
@@ -39,7 +41,7 @@ object MeasurementManager {
     private var _bytesPerSecState = MutableStateFlow(0.0)
     val bytesPerSecState: StateFlow<Double> = _bytesPerSecState //.asStateFlow()
 
-    private val measurementRepository = com.cellwatch.CellWatchApp.measurementRepository;
+    private val measurementRepository = com.cellwatch.CellWatchApp.measurementRepository
     private val TAG = this::class.simpleName
 //    private var locationEntities: List<LocationEntity>? = null
 
@@ -171,11 +173,13 @@ object MeasurementManager {
 //            runBlocking {
             coroutineScope {
                 launch {
-                    test.progress.consumeEach() {
-                        Log.d(TAG, "got progress $it")
+                    withContext(Dispatchers.IO) {
+                        test.progress.consumeEach() {
+                            Log.d(TAG, "got progress $it")
 //                        writeMessage("progress: $it")
-                        updateBytesPerSec(it.bytesPerSec)
+                            updateBytesPerSec(it.bytesPerSec)
 //                        writeMessage("***** speed = ${8 * it.bytesPerSec / 1e6}")
+                        }
                     }
                 }
 

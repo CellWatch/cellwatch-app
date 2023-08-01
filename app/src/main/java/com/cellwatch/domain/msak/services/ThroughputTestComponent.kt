@@ -54,7 +54,7 @@ class ThroughputTestComponent(
                 for (stream in streams) {
                     stream.start()
 
-                    async {
+                    async(Dispatchers.IO) {
                         stream.updateChan.consumeEach { onUpdateReceived() }
                         for (s in streams) s.cancel(false)
                     }
