@@ -29,39 +29,41 @@ import kotlin.coroutines.suspendCoroutine
 
 object LocateManager {
     private const val TAG = "MsakLocateManager"
-    private const val locateUrl = "https://locate-dot-mlab-staging.appspot.com/v2/nearest/" //"https://locate.measurementlab.net/v2/nearest/"
+    private const val locateUrl = "https://locate.measurementlab.net/v2/nearest/"
 
     suspend fun selectServerAsync(client: OkHttpClient): LocateServer {
         val throughputServers = getServers(client, "msak/throughput1")
-        val latencyServers = getServers(client, "msak/latency1")
 
-        val servers = throughputServers.filter { ts ->
-            latencyServers.find { it.machine == ts.machine } != null
-        }
-
-        servers.forEach { s ->
-            val ls = latencyServers.find { it.machine == s.machine }
-            ls?.urls?.forEach { k, v -> s.urls[k] = v}
-        }
-
-        if (servers.isEmpty()) {
-            Log.e(TAG, "no overlap in throughput and latency servers: ${throughputServers.joinToString { it.machine }} ${latencyServers.joinToString { it.machine }}")
+        if (throughputServers.isEmpty()) {
+            Log.e(TAG, "no throughput servers")
             throw Throwable("no servers found")
         }
 
-        return try {
-            runBlocking { servers.maxBy { ping(it.machine) } }
+        val server =  try {
+            runBlocking { throughputServers.maxBy { ping(it.machine) } }
         } catch (t: Throwable) {
             Log.e(TAG, "pinging available servers failed", t)
-            servers[0]
+            throughputServers[0]
         }
+
+        val site = Regex("([^-]+)\\.").find(server.machine)?.groupValues?.get(1) ?: throw Throwable("not site found in machine ${server.machine}")
+        val latencyServers = getServers(client, "msak/latency1", site)
+
+        if (latencyServers.isEmpty()) {
+            Log.e(TAG, "no latency servers at site $site")
+            throw Throwable("no servers found")
+        }
+
+        latencyServers[0].urls.forEach { k, v -> server.urls[k] = v }
+        return server
     }
 
     private suspend fun getServers(
         client: OkHttpClient,
         test: String,
+        site: String? = null,
     ): List<LocateServer> = suspendCoroutine { continuation ->
-        val request = Request.Builder().url("${locateUrl}${test}").build()
+        val request = Request.Builder().url("${locateUrl}${test}${if (site != null) { "?site=$site" } else { "" }}").build()
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
