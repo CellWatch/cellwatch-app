@@ -1,9 +1,10 @@
 package com.cellwatch.domain.msak.managers
 
 import android.util.Log
+import com.cellwatch.domain.msak.model.LatencyUrlType
 import com.cellwatch.domain.msak.model.LocateResponse
 import com.cellwatch.domain.msak.model.LocateServer
-import com.cellwatch.domain.msak.model.MsakTestDirection
+import com.cellwatch.domain.msak.model.ThroughputTestDirection
 import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_MILLIS
 import com.cellwatch.domain.msak.util.THROUGHPUT_STREAMS
 import com.cellwatch.domain.msak.util.THROUGHPUT_STREAM_DELAY
@@ -30,11 +31,37 @@ object LocateManager {
     private const val TAG = "MsakLocateManager"
     private const val locateUrl = "https://locate-dot-mlab-staging.appspot.com/v2/nearest/" //"https://locate.measurementlab.net/v2/nearest/"
 
-    suspend fun selectServerAsync(
+    suspend fun selectServerAsync(client: OkHttpClient): LocateServer {
+        val throughputServers = getServers(client, "msak/throughput1")
+        val latencyServers = getServers(client, "msak/latency1")
+
+        val servers = throughputServers.filter { ts ->
+            latencyServers.find { it.machine == ts.machine } != null
+        }
+
+        servers.forEach { s ->
+            val ls = latencyServers.find { it.machine == s.machine }
+            ls?.urls?.forEach { k, v -> s.urls[k] = v}
+        }
+
+        if (servers.isEmpty()) {
+            Log.e(TAG, "no overlap in throughput and latency servers: ${throughputServers.joinToString { it.machine }} ${latencyServers.joinToString { it.machine }}")
+            throw Throwable("no servers found")
+        }
+
+        return try {
+            runBlocking { servers.maxBy { ping(it.machine) } }
+        } catch (t: Throwable) {
+            Log.e(TAG, "pinging available servers failed", t)
+            servers[0]
+        }
+    }
+
+    private suspend fun getServers(
         client: OkHttpClient,
-        locateUrl: String = LocateManager.locateUrl
-    ): LocateServer = suspendCoroutine { continuation ->
-        val request = Request.Builder().url("${locateUrl}msak/throughput1").build()
+        test: String,
+    ): List<LocateServer> = suspendCoroutine { continuation ->
+        val request = Request.Builder().url("${locateUrl}${test}").build()
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
@@ -65,57 +92,9 @@ object LocateManager {
                     return
                 }
 
-                val locateServer: LocateServer = try {
-                    runBlocking { results.maxBy { ping(it.machine) } }
-                } catch (t: Throwable) {
-                    Log.e(TAG, "pinging available servers failed", t)
-                    results[0]
-                }
-
-                response.use {
-                    continuation.resume(locateServer) // resume calling coroutine
-                }
+                continuation.resume(results)
             }
         })
-    }
-
-    fun selectServer(
-        client: OkHttpClient,
-        locateUrl: String = LocateManager.locateUrl
-    ): LocateServer {
-        val request = Request.Builder().url("${locateUrl}msak/msak").build()
-        val response = try {
-            client.newCall(request).execute()
-        } catch (t: Throwable) {
-            Log.e(TAG, "locate request $request threw error", t)
-            throw t
-        }
-
-        val body = response.body
-        if (response.code != 200 || body == null) {
-            Log.e(TAG, "locate request $request failed: $response")
-            throw Throwable("locate request $request failed: $response")
-        }
-
-        val results = try {
-            Gson().fromJson(body.charStream(), LocateResponse::class.java).results
-        } catch (e: JsonSyntaxException) {
-            Log.e(TAG, "locate response deserialization failed: $body", e)
-            throw e
-        }
-
-        Log.d(TAG, "got ${results.size} results: $results")
-        if (results.isEmpty()) {
-            Log.e(TAG, "locate request $request returned no servers: $response")
-            throw Throwable("no servers found")
-        }
-
-        return try {
-            runBlocking { results.maxBy { ping(it.machine) } }
-        } catch (t: Throwable) {
-            Log.e(TAG, "pinging available servers failed", t)
-            results[0]
-        }
     }
 
     suspend fun ping(host: String, count: Int = 5, delayMillis: Int = 5): Double {
@@ -151,11 +130,11 @@ object LocateManager {
 
     fun getThroughputUrl(
         server: LocateServer,
-        direction: MsakTestDirection,
+        direction: ThroughputTestDirection,
         measurementId: String?,
     ): String {
-        val testUrl = "/throughput/v1/${if (direction == MsakTestDirection.DOWNLOAD) "download" else "upload" }"
-        val baseUrl = server.urls["wss://$testUrl"] ?: server.urls["ws://$testUrl"] ?: throw Throwable("no base URL found in urls: $server.urls")
+        val testUrl = "/throughput/v1/${if (direction == ThroughputTestDirection.DOWNLOAD) "download" else "upload" }"
+        val baseUrl = server.urls["wss://$testUrl"] ?: server.urls["ws://$testUrl"] ?: throw Throwable("no base URL found in urls: ${server.urls}")
 
         var options = "streams=$THROUGHPUT_STREAMS&duration=$THROUGHPUT_MAX_MILLIS&delay=$THROUGHPUT_STREAM_DELAY"
         if (measurementId != null) {
@@ -163,5 +142,20 @@ object LocateManager {
         }
 
         return "$baseUrl${if (baseUrl.contains("?")) "&" else "?"}$options"
+    }
+
+    fun getLatencyUrl(
+        server: LocateServer,
+        type: LatencyUrlType,
+        measurementId: String?,
+    ): String {
+        val testUrl = "/latency/v1/${if (type == LatencyUrlType.AUTH) "authorize" else "result"}"
+        val baseUrl = server.urls["https://$testUrl"] ?: server.urls["http://$testUrl"] ?: throw Throwable("no base URL found in urls: ${server.urls}")
+
+        if (measurementId == null) {
+            return baseUrl
+        }
+
+        return "$baseUrl${if (baseUrl.contains("?")) "&" else "?"}mid=$measurementId"
     }
 }

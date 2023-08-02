@@ -7,7 +7,7 @@ import com.cellwatch.domain.msak.util.UnexpectedCloseException
 import com.cellwatch.domain.msak.util.WS_CODE_GOING_AWAY
 import com.cellwatch.domain.msak.util.WS_CODE_NORMAL_CLOSURE
 import com.cellwatch.domain.msak.model.MsakMeasurement
-import com.cellwatch.domain.msak.model.MsakTestDirection
+import com.cellwatch.domain.msak.model.ThroughputTestDirection
 import com.cellwatch.domain.msak.model.ThroughputTestMetrics
 import com.cellwatch.domain.msak.mappers.measurementToMetrics
 import com.cellwatch.domain.msak.model.ThroughputStreamResult
@@ -32,15 +32,15 @@ class ThroughputStream(
     num: Int,
     private val client: OkHttpClient,
     private val url: String,
-    private val direction: MsakTestDirection,
+    private val direction: ThroughputTestDirection,
 ) {
     private val TAG = "${ThroughputStream::class.simpleName} $num"
     private var webSocket: WebSocket? = null
     private var complete = false
     private val measurementChan = Channel<Pair<Boolean, MsakMeasurement>>()
     private val listener = when (direction) {
-        MsakTestDirection.UPLOAD -> ThroughputSender(num, measurementChan)
-        MsakTestDirection.DOWNLOAD -> ThroughputReceiver(num, measurementChan)
+        ThroughputTestDirection.UPLOAD -> ThroughputSender(num, measurementChan)
+        ThroughputTestDirection.DOWNLOAD -> ThroughputReceiver(num, measurementChan)
     }
     private val _updateChan = Channel<MsakMeasurement>()
     val updateChan: ReceiveChannel<MsakMeasurement> = _updateChan
@@ -136,7 +136,7 @@ class ThroughputStream(
             remoteAddr = measurement.RemoteAddr ?: remoteAddr
         }
 
-        if ((direction == MsakTestDirection.DOWNLOAD) == fromServer) {
+        if ((direction == ThroughputTestDirection.DOWNLOAD) == fromServer) {
             return
         }
 

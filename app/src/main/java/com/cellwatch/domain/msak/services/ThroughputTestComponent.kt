@@ -3,7 +3,7 @@ package com.cellwatch.domain.msak.services
 import android.os.SystemClock
 import android.util.Log
 import com.cellwatch.domain.msak.model.LocateServer
-import com.cellwatch.domain.msak.model.MsakTestDirection
+import com.cellwatch.domain.msak.model.ThroughputTestDirection
 import com.cellwatch.domain.msak.model.ThroughputTestMetrics
 import com.cellwatch.domain.msak.model.ThroughputTestResult
 import com.cellwatch.domain.msak.managers.LocateManager
@@ -23,7 +23,7 @@ class ThroughputTestComponent(
     private val client: OkHttpClient,
     server: LocateServer,
     measurementId: String?,
-    direction: MsakTestDirection,
+    direction: ThroughputTestDirection,
 ) {
     private val TAG = ThroughputTestComponent::class.simpleName
     private val url = LocateManager.getThroughputUrl(server, direction, measurementId)

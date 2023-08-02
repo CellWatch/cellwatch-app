@@ -8,7 +8,7 @@ import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
 import com.cellwatch.data.model.UploadDownloadData
 import com.cellwatch.domain.msak.model.LocateServer
-import com.cellwatch.domain.msak.model.MsakTestDirection
+import com.cellwatch.domain.msak.model.ThroughputTestDirection
 import com.cellwatch.domain.msak.model.ThroughputTestResult
 import com.cellwatch.domain.msak.services.LatencyTest
 import com.cellwatch.domain.msak.services.ThroughputTestComponent
@@ -107,9 +107,11 @@ object MeasurementManager {
         val server = if (useLocalServer) {
             writeMessage("Using local server")
             LocateServer(
-                "10.0.2.2", null, mapOf(
+                "10.0.2.2", null, mutableMapOf(
                     "ws:///throughput/v1/download" to "ws://10.0.2.2:8080/throughput/v1/download",
                     "ws:///throughput/v1/upload" to "ws://10.0.2.2:8080/throughput/v1/upload",
+                    "http:///latency/v1/authorize" to "http://10.0.2.2:8080/latency/v1/authorize",
+                    "http:///latency/v1/result" to "http://10.0.2.2:8080/latency/v1/result",
                 )
             )
         } else {
@@ -119,8 +121,8 @@ object MeasurementManager {
 
         writeMessage("selected server ${server.machine} in ${server.location}")
         runLatencyTest(client, server, measurementId)
-        runThroughputTest(client, server, measurementId, groupId, MsakTestDirection.DOWNLOAD)
-        runThroughputTest(client, server, measurementId, groupId, MsakTestDirection.UPLOAD)
+        runThroughputTest(client, server, measurementId, groupId, ThroughputTestDirection.DOWNLOAD)
+        runThroughputTest(client, server, measurementId, groupId, ThroughputTestDirection.UPLOAD)
 
         // Try to upload measurements to Supabase
         measurementRepository.uploadMeasurements()
@@ -132,12 +134,12 @@ object MeasurementManager {
         server: LocateServer,
         measurementId: String?,
         groupId: String,
-        direction: MsakTestDirection
+        direction: ThroughputTestDirection
     ) {
         var location: Location?
         val locations = ArrayList<Location>()
 
-        val dir = if (direction == MsakTestDirection.DOWNLOAD) "download" else "upload"
+        val dir = if (direction == ThroughputTestDirection.DOWNLOAD) "download" else "upload"
         writeMessage("running $dir test")
 
         val result = try {
@@ -209,7 +211,7 @@ object MeasurementManager {
         Log.d(TAG, "got latency result: $result")
     }
 
-    suspend fun insertMeasurement(groupId: String, result: ThroughputTestResult, direction: MsakTestDirection, locations: List<Location>?) {
+    suspend fun insertMeasurement(groupId: String, result: ThroughputTestResult, direction: ThroughputTestDirection, locations: List<Location>?) {
         val context = CellWatchApp.applicationContext()
         val dataStore = LocalDataStore(context)
         var deviceId = dataStore.getDeviceId.first()
