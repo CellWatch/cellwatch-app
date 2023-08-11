@@ -1,9 +1,11 @@
 package com.cellwatch.domain.msak.services
 
 import android.util.Log
+import com.cellwatch.domain.msak.managers.LocateManager
 import com.cellwatch.domain.msak.model.LatencyMessage
 import com.cellwatch.domain.msak.model.LatencyResult
 import com.cellwatch.domain.msak.model.LatencyResultMessage
+import com.cellwatch.domain.msak.model.LatencyUrlType
 import okhttp3.OkHttpClient
 import com.cellwatch.domain.msak.model.LocateServer
 import com.cellwatch.domain.msak.util.LATENCY_CHARSET
@@ -11,8 +13,12 @@ import com.cellwatch.domain.msak.util.LATENCY_DURATION
 import com.cellwatch.domain.msak.util.LATENCY_END_DELAY
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import io.ktor.util.reflect.instanceOf
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import okhttp3.Call
@@ -22,8 +28,11 @@ import okhttp3.Response
 import java.io.IOException
 import java.net.DatagramPacket
 import java.net.DatagramSocket
+import java.net.Inet4Address
 import java.net.InetAddress
+import java.util.concurrent.CancellationException
 import kotlin.concurrent.thread
+import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -35,9 +44,9 @@ class LatencyTest (
     measurementId: String?,
 ) {
     private val TAG = LatencyTest::class.simpleName
-    // TODO: make the LocateManager create these URLs once they're in the locate response
-    private val authorizeUrl = "http://10.0.2.2:8080/latency/v1/authorize?mid=${measurementId}"
-    private val resultsUrl = "http://10.0.2.2:8080/latency/v1/result?mid=${measurementId}"
+    private val authorizeUrl = LocateManager.getLatencyUrl(server, LatencyUrlType.AUTH, measurementId)
+    private val resultsUrl = LocateManager.getLatencyUrl(server, LatencyUrlType.RESULT, measurementId)
+    private val serverHost = Regex("^https?://([^/]+)/").find(authorizeUrl)?.groupValues?.get(1) ?: throw Throwable("no hostname found in authorize URL $authorizeUrl")
     val progress = Channel<LatencyMessage>(32)
 
     suspend fun run(): LatencyResult {
@@ -62,6 +71,7 @@ class LatencyTest (
     }
 
     private suspend fun authorize(): LatencyMessage = suspendCoroutine { continuation ->
+        Log.d(TAG, "making authorize request to $authorizeUrl")
         val request = Request.Builder().url(authorizeUrl).build()
 
         client.newCall(request).enqueue(object: Callback {
@@ -90,12 +100,24 @@ class LatencyTest (
         })
     }
 
-    private suspend fun echoPackets(initialMessage: LatencyMessage) {
+    private suspend fun echoPackets(initialMessage: LatencyMessage) = coroutineScope {
         val sock = DatagramSocket()
         var closing = false
+        var delayJob: Job? = null
 
-        val echoThread = thread {
-            val serverAddr = InetAddress.getByName(server.machine)
+        fun echo() {
+            val serverAddr = try {
+                val addrs = InetAddress.getAllByName(serverHost)
+                Log.d(TAG, "got latency addrs ${addrs.joinToString(", ")}")
+                val v4Addrs = addrs.filter { it.instanceOf(Inet4Address::class) }
+                // prefer IPv4 as IPv6 connectivity is often incomplete
+                if (v4Addrs.isNotEmpty()) v4Addrs[0] else addrs[0]
+            } catch (t: Throwable) {
+                Log.e(TAG, "no server addr for latency test", t)
+                throw Throwable("no addr")
+            }
+
+            Log.d(TAG, "using latency address $serverAddr for ${server.machine}")
             val serverPort = 1053 // TODO: don't hardcode this
 
             val buf = ByteArray(1024)
@@ -106,6 +128,7 @@ class LatencyTest (
             pkt.address = serverAddr
             pkt.port = serverPort
 
+            // TODO: what if this initial packet doesn't make it?
             sock.send(pkt)
 
             while (true) {
@@ -151,7 +174,19 @@ class LatencyTest (
             }
         }
 
-        delay(LATENCY_DURATION + LATENCY_END_DELAY)
+        val echoThread = thread {
+            try {
+                echo()
+                delayJob?.cancel()
+            } catch (e: Exception) {
+                Log.e(TAG, "unexpected error echoing packets" , e)
+                delayJob?.cancel(CancellationException("latency test failed"))
+            }
+
+        }
+
+        delayJob = launch { delay(LATENCY_DURATION + LATENCY_END_DELAY) }
+        delayJob.join()
 
         closing = true
         sock.close()
@@ -196,7 +231,7 @@ class LatencyTest (
                 val result = LatencyResult(
                     Instant.parse(resultMessage.StartTime),
                     LATENCY_DURATION * 1000,
-                    true,
+                    resultMessage.PacketsSent > 0,
                     meanRtt.toInt(),
                     variance.toInt(),
                     resultMessage.PacketsSent,
