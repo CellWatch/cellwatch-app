@@ -11,6 +11,7 @@ import com.cellwatch.data.model.Cell
 import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
 import com.cellwatch.data.model.UploadDownloadData
+import com.cellwatch.domain.msak.model.LatencyResult
 import com.cellwatch.domain.msak.model.LocateServer
 import com.cellwatch.domain.msak.model.ThroughputTestDirection
 import com.cellwatch.domain.msak.model.ThroughputTestResult
@@ -229,10 +230,20 @@ object MeasurementManager {
             }
         } catch (t: Throwable) {
             Log.e(TAG, "latency test failed", t)
+            return
         }
 
         Log.d(TAG, "got latency result: $result")
+//        insertLatency(measurementId, result)
+        return result
     }
+
+//    suspend fun insertLatency(
+//        measurementId: String?,
+//        result: LatencyResult
+//    ) {
+//
+//    }
 
     suspend fun insertMeasurement(
         groupId: String,
