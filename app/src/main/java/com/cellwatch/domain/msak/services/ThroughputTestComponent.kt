@@ -7,6 +7,7 @@ import com.cellwatch.domain.msak.model.ThroughputTestDirection
 import com.cellwatch.domain.msak.model.ThroughputTestMetrics
 import com.cellwatch.domain.msak.model.ThroughputTestResult
 import com.cellwatch.domain.msak.managers.LocateManager
+import com.cellwatch.domain.msak.usecases.getUrlHost
 import com.cellwatch.domain.msak.model.ThroughputStreamResult
 import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_MILLIS
 import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_WARMUP_MILLIS
@@ -16,6 +17,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.datetime.Clock
 import okhttp3.OkHttpClient
 import java.util.*
 import kotlin.concurrent.schedule
@@ -28,6 +30,7 @@ class ThroughputTestComponent(
 ) {
     private val TAG = ThroughputTestComponent::class.simpleName
     private val url = LocateManager.getThroughputUrl(server, direction, measurementId)
+    private val targetHost = getUrlHost(url)
     private val streams = Array(THROUGHPUT_STREAMS) { ThroughputStream(it, client, url, direction) }
     private var startUsec: Long = 0
     private var warmupUsec: Long? = null
@@ -48,9 +51,10 @@ class ThroughputTestComponent(
             endWarmup()
         }
 
-        try {
-            startUsec = SystemClock.elapsedRealtimeNanos() / 1000
+        val start = Clock.System.now()
+        startUsec = SystemClock.elapsedRealtimeNanos() / 1000
 
+        try {
             coroutineScope {
                 for (stream in streams) {
                     stream.start()
@@ -63,8 +67,6 @@ class ThroughputTestComponent(
                     delay(THROUGHPUT_STREAM_DELAY)
                 }
             }
-
-            endUsec = SystemClock.elapsedRealtimeNanos() / 1000
         } catch (c: CancellationException) {
             Log.i(TAG, "download test cancelled")
             for (stream in streams) stream.cancel(true)
@@ -74,6 +76,7 @@ class ThroughputTestComponent(
             for (stream in streams) stream.cancel(true)
             throw t
         } finally {
+            endUsec = SystemClock.elapsedRealtimeNanos() / 1000
             maxDurationTimer.cancel()
             maxWarmupDurationTimer.cancel()
             progressChan.close()
@@ -93,7 +96,9 @@ class ThroughputTestComponent(
         val streamResults: List<ThroughputStreamResult?> = if (streams.isNotEmpty()) streams.map { it.result } else mutableListOf()
 
         return ThroughputTestResult(
+            targetHost,
             streams.all { it.result?.success ?: false },
+            start,
             warmupMetrics,
             activeMetrics,
             streamResults

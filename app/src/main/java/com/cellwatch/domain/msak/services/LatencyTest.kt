@@ -8,6 +8,7 @@ import com.cellwatch.domain.msak.model.LatencyResultMessage
 import com.cellwatch.domain.msak.model.LatencyUrlType
 import okhttp3.OkHttpClient
 import com.cellwatch.domain.msak.model.LocateServer
+import com.cellwatch.domain.msak.usecases.getUrlHost
 import com.cellwatch.domain.msak.util.LATENCY_CHARSET
 import com.cellwatch.domain.msak.util.LATENCY_DURATION
 import com.cellwatch.domain.msak.util.LATENCY_END_DELAY
@@ -46,7 +47,8 @@ class LatencyTest (
     private val TAG = LatencyTest::class.simpleName
     private val authorizeUrl = LocateManager.getLatencyUrl(server, LatencyUrlType.AUTH, measurementId)
     private val resultsUrl = LocateManager.getLatencyUrl(server, LatencyUrlType.RESULT, measurementId)
-    private val serverHost = Regex("^https?://([^/]+)/").find(authorizeUrl)?.groupValues?.get(1) ?: throw Throwable("no hostname found in authorize URL $authorizeUrl")
+    private val serverHost = getUrlHost(authorizeUrl)
+    private val delayMillis = LATENCY_DURATION + LATENCY_END_DELAY
     val progress = Channel<LatencyMessage>(32)
 
     suspend fun run(): LatencyResult {
@@ -57,10 +59,10 @@ class LatencyTest (
         } catch (t: Throwable) {
             Log.e(TAG, "latency test failed", t)
             return LatencyResult(
+                serverHost,
+                false,
                 Clock.System.now(),
                 0,
-                false,
-                resultsUrl,
                 0,
                 0,
                 0,
@@ -186,7 +188,7 @@ class LatencyTest (
 
         }
 
-        delayJob = launch { delay(LATENCY_DURATION + LATENCY_END_DELAY) }
+        delayJob = launch { delay(delayMillis) }
         delayJob.join()
 
         closing = true
@@ -230,10 +232,10 @@ class LatencyTest (
                 val variance = rtts.map { abs(it - meanRtt) }.sum() / rtts.size
 
                 val result = LatencyResult(
-                    Instant.parse(resultMessage.StartTime),
-                    LATENCY_DURATION * 1000,
+                    serverHost,
                     resultMessage.PacketsSent > 0,
-                    resultsUrl,
+                    Instant.parse(resultMessage.StartTime),
+                    delayMillis * 1000,
                     meanRtt.toInt(),
                     variance.toInt(),
                     resultMessage.PacketsSent,

@@ -5,14 +5,14 @@ import com.cellwatch.data.model.Location
 import kotlinx.datetime.Instant
 
 data class LatencyResult(
-    val start: Instant? = null,
-    val usecs: Long? = null,
+    val targetHost: String,
     val success: Boolean,
-    val remoteAddr: String? = null,
-    val meanRtt: Int? = null,
-    val jitter: Int? = null,
-    val packetsSent: Int? = null,
-    val packetsReceived: Int? = null,
+    val start: Instant,
+    val usecs: Long,
+    val meanRtt: Int,
+    val jitter: Int,
+    val packetsSent: Int,
+    val packetsReceived: Int,
 )
 
 data class FullLatencyResult(
