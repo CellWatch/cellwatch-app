@@ -1,18 +1,21 @@
 package com.cellwatch.domain.msak.managers
 
 import android.os.Build
-import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.birjuvachhani.locus.Locus
 import com.cellwatch.CellWatchApp
 import com.cellwatch.data.datastore.LocalDataStore
 import com.cellwatch.data.model.Cell
+import com.cellwatch.data.model.LatencyData
 import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
 import com.cellwatch.data.model.UploadDownloadData
+import com.cellwatch.domain.msak.model.FullLatencyResult
+import com.cellwatch.domain.msak.model.FullThroughputTestResult
 import com.cellwatch.domain.msak.model.LatencyResult
 import com.cellwatch.domain.msak.model.LocateServer
+import com.cellwatch.domain.msak.model.TestResult
 import com.cellwatch.domain.msak.model.ThroughputTestDirection
 import com.cellwatch.domain.msak.model.ThroughputTestResult
 import com.cellwatch.domain.msak.services.LatencyTest
@@ -65,12 +68,12 @@ object MeasurementManager {
         writeMessage("RUNNING TEST SEQUENCE with measurement id $measurementId")
 
         // Get device connection info
-        Log.d(TAG, "Starting getCellInfo test *******")
-        val cells = TelephonyInfoManager.getCells()
-        Log.d(TAG, "Got ${cells?.size} cells")
-        cells?.forEach { cell ->
-            Log.d(TAG, "cell: ${cell.toString()}")
-        }
+//        Log.d(TAG, "Starting getCellInfo test *******")
+//        var cells = TelephonyInfoManager.getCells()
+//        Log.d(TAG, "Got ${cells?.size} cells")
+//        cells?.forEach { cell ->
+//            Log.d(TAG, "cell: ${cell.toString()}")
+//        }
 
         writeMessage("-----------------")
         writeMessage("Device Manufacturer = ${deviceMod?.manufacturer}")
@@ -137,13 +140,58 @@ object MeasurementManager {
         }
 
         writeMessage("selected server ${server.machine} in ${server.location}")
-        runLatencyTest(client, server, measurementId)
-        runThroughputTest(client, server, measurementId, groupId, ThroughputTestDirection.DOWNLOAD)
-        runThroughputTest(client, server, measurementId, groupId, ThroughputTestDirection.UPLOAD)
+
+        val fullLatencyResult = runFullLatencyTest(client, server, measurementId)
+        insertLatency(groupId, fullLatencyResult.latencyResult, fullLatencyResult.cells, fullLatencyResult.locations)
+
+        val downloadResult = runFullThroughputTest(client, server, measurementId, ThroughputTestDirection.DOWNLOAD)
+        insertMeasurement(groupId, downloadResult.throughputTestResult, ThroughputTestDirection.DOWNLOAD, downloadResult.cells, downloadResult.locations)
+
+        val uploadResult = runFullThroughputTest(client, server, measurementId, ThroughputTestDirection.UPLOAD)
+        insertMeasurement(groupId, uploadResult.throughputTestResult, ThroughputTestDirection.UPLOAD, uploadResult.cells, uploadResult.locations)
 
         // Try to upload measurements to Supabase
         measurementRepository.uploadMeasurements()
 //        runBlocking { measurementRepository?.uploadMeasurementsWithData() }
+    }
+
+    suspend fun runFullLatencyTest(
+        client: OkHttpClient,
+        server: LocateServer,
+        measurementId: String?
+    ): FullLatencyResult {
+        val beginLocation: Location? = getLocation()
+        val cells = TelephonyInfoManager.getCells()
+
+        val latencyResult = runLatencyTest(client, server, measurementId)
+
+        val endLocation: Location? = getLocation()
+
+        return FullLatencyResult(
+            latencyResult,
+            listOfNotNull(beginLocation, endLocation),
+            cells
+        )
+    }
+
+    suspend fun runFullThroughputTest(
+        client: OkHttpClient,
+        server: LocateServer,
+        measurementId: String?,
+        direction: ThroughputTestDirection
+    ): FullThroughputTestResult {
+        val beginLocation: Location? = getLocation()
+        val cells = TelephonyInfoManager.getCells()
+
+        val throughputTestResult = runThroughputTest(client, server, measurementId, direction)
+
+        val endLocation: Location? = getLocation()
+
+        return FullThroughputTestResult(
+            throughputTestResult,
+            listOfNotNull(beginLocation, endLocation),
+            cells
+            )
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -151,25 +199,25 @@ object MeasurementManager {
         client: OkHttpClient,
         server: LocateServer,
         measurementId: String?,
-        groupId: String,
+//        groupId: String,
         direction: ThroughputTestDirection
-    ) {
-        var cells: List<Cell>?
-        var location: Location?
-        val locations = ArrayList<Location>()
+    ): ThroughputTestResult {
+//        var cells: List<Cell>?
+//        var location: Location?
+//        val locations = ArrayList<Location>()
 
         val dir = if (direction == ThroughputTestDirection.DOWNLOAD) "download" else "upload"
         writeMessage("running $dir test")
 
-        val result = try {
-            cells = TelephonyInfoManager.getCells()
+        val throughputTestResult = try {
+//            cells = TelephonyInfoManager.getCells()
 
             // get test start GPS location
-            location = getLocation()
-            if (location != null)
-                locations.add(location)
-            else
-                Log.e(TAG, "Error getting GPS location!!!")
+//            location = getLocation()
+//            if (location != null)
+//                locations.add(location)
+//            else
+//                Log.e(TAG, "Error getting GPS location!!!")
 
             val test = ThroughputTestComponent(client, server, measurementId, direction)
 
@@ -191,23 +239,25 @@ object MeasurementManager {
         } catch (t: Throwable) {
             Log.d(TAG, "$dir test failed", t)
             writeMessage("$dir test failed: ${t.localizedMessage}")
-            return
+            return ThroughputTestResult(success = false)
         } finally {
             updateBytesPerSec(0.0)
             Log.d(TAG, "Done running test...")
             // get test end GPS location
             // get test start GPS location
-            location = getLocation()
-            if (location != null)
-                locations.add(location)
+//            location = getLocation()
+//            if (location != null)
+//                locations.add(location)
         }
 
         Log.i(TAG, "$dir test complete: measurementId = $measurementId")
-        Log.i(TAG, "$dir test complete: $result")
-        Log.i(TAG, "$dir test locations = ${locations.map { it.id }.joinToString()}")
+        Log.i(TAG, "$dir test complete: $throughputTestResult")
+//        Log.i(TAG, "$dir test locations = ${locations.map { it.id }.joinToString()}")
 //        writeMessage("$dir test complete: ${if (result.success) "success" else "failure"}; warmup ${result.warmupMetrics}; active ${result.activeMetrics}")
 
-        insertMeasurement(groupId, result, direction, cells, locations)
+        return throughputTestResult
+
+//        insertMeasurement(groupId, result, direction, cells, locations)
 //        runBlocking { createMeasurement(result, direction) }
     }
 
@@ -215,8 +265,8 @@ object MeasurementManager {
         client: OkHttpClient,
         server: LocateServer,
         measurementId: String?,
-    ) {
-        val result = try {
+    ): LatencyResult {
+        val latencyResult = try {
             val test = LatencyTest(client, server, measurementId)
 
             coroutineScope {
@@ -230,12 +280,12 @@ object MeasurementManager {
             }
         } catch (t: Throwable) {
             Log.e(TAG, "latency test failed", t)
-            return
+            return LatencyResult(success = false)
         }
 
-        Log.d(TAG, "got latency result: $result")
+        Log.d(TAG, "got latency result: $latencyResult")
 //        insertLatency(measurementId, result)
-        return result
+        return latencyResult
     }
 
 //    suspend fun insertLatency(
@@ -245,33 +295,83 @@ object MeasurementManager {
 //
 //    }
 
+    suspend fun insertLatency(
+        groupId: String,
+        latencyResult: LatencyResult,
+        cells: List<Cell>?,
+        locations: List<Location>?
+    ) {
+        val context = CellWatchApp.applicationContext()
+        val dataStore = LocalDataStore(context)
+        val deviceId = dataStore.getDeviceId.first()
+
+        val servers: List<String>? = if (latencyResult.remoteAddr != null) listOf(latencyResult.remoteAddr) else null
+
+        val latencyData = LatencyData(
+            rtt = latencyResult.meanRtt,
+            jitter = latencyResult.jitter,
+            sent = latencyResult.packetsSent,
+            received = latencyResult.packetsReceived,
+            servers = servers
+        )
+
+        val measurement = Measurement(
+            groupId = groupId,
+            deviceId = deviceId,
+            deviceManufacturer = deviceMod?.manufacturer,
+            deviceModel = deviceMod?.model,
+            deviceOsName = "Android",
+            deviceOsVersion = deviceMod?.osVersion,
+            appName = appMod?.appName,
+            provider = simMod?.carrier,
+            type = "latency",
+            timestamp = Clock.System.now(),
+            duration = null,
+            scheduled = false,
+            success = latencyResult.success,
+            carrierAggregation = null,
+            networkAvailable = networkMod.isNetworkAvailable,
+            networkConnected = networkMod.isNetworkAvailable,
+            networkRoaming = false,
+            uploadDownloadData = null,
+            latencyData = latencyData,
+            cells = cells,
+            locations = locations
+        )
+//        Log.d(TAG, "measurement = $measurement")
+
+        try {
+            measurementRepository.insertMeasurement(measurement)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error inserting new measurement in MeasurementManager: ${e.message}")
+            throw e
+        }
+    }
+
     suspend fun insertMeasurement(
         groupId: String,
-        result: ThroughputTestResult,
+        throughputTestResult: ThroughputTestResult,
         direction: ThroughputTestDirection,
         cells: List<Cell>?,
         locations: List<Location>?
     ) {
         val context = CellWatchApp.applicationContext()
         val dataStore = LocalDataStore(context)
-        var deviceId = dataStore.getDeviceId.first()
-//        var deviceId = runBlocking {
-//            dataStore.getDeviceId.first()
-//        }
+        val deviceId = dataStore.getDeviceId.first()
 
-        val warmupDuration = if (result.warmupMetrics != null)
-            result.warmupMetrics.usecs else 0
+        val warmupDuration = if (throughputTestResult.warmupMetrics != null)
+            throughputTestResult.warmupMetrics.usecs else 0
 
-        val activeDuration = if (result.activeMetrics != null)
-            result.activeMetrics.usecs else 0
+        val activeDuration = if (throughputTestResult.activeMetrics != null)
+            throughputTestResult.activeMetrics.usecs else 0
 
         val totalDuration = warmupDuration + activeDuration
 
-        var server = if (result.streamResults.isNotEmpty())
-            result.streamResults.first()?.remoteAddr else "server"
+        var server = if (throughputTestResult.streamResults.isNotEmpty())
+            throughputTestResult.streamResults.first()?.remoteAddr else "server"
 
-        var client = if (result.streamResults.isNotEmpty())
-            result.streamResults.first()?.localAddr else "client"
+        var client = if (throughputTestResult.streamResults.isNotEmpty())
+            throughputTestResult.streamResults.first()?.localAddr else "client"
 
         if (server == null) server = "none"
 
@@ -282,14 +382,14 @@ object MeasurementManager {
 
         val uploadDownloadData = UploadDownloadData(
 //            measurementId = measurement.id,
-            warmupDuration = result.warmupMetrics?.usecs,
-            warmupBytes = result.warmupMetrics?.bytes,
-            duration = result.activeMetrics?.usecs,
-            bytes = result.activeMetrics?.bytes,
+            warmupDuration = throughputTestResult.warmupMetrics?.usecs,
+            warmupBytes = throughputTestResult.warmupMetrics?.bytes,
+            duration = throughputTestResult.activeMetrics?.usecs,
+            bytes = throughputTestResult.activeMetrics?.bytes,
             servers = servers
         )
 
-        Log.d(TAG,"insertMeasurement: cells = ${cells}")
+        Log.d(TAG, "insertMeasurement: cells = ${cells}")
 
         val measurement = Measurement(
             groupId = groupId,
@@ -304,7 +404,7 @@ object MeasurementManager {
             timestamp = Clock.System.now(),
             duration = totalDuration,
             scheduled = false,
-            success = result.success,
+            success = throughputTestResult.success,
             carrierAggregation = false,
             networkAvailable = networkMod.isNetworkAvailable,
             networkConnected = true,
@@ -313,34 +413,7 @@ object MeasurementManager {
             cells = cells,
             locations = locations
         )
-        Log.d(TAG,"measurement = $measurement")
-
-//        measurement.uploadDownloadData?.measurementId = measurement.id
-
-//        val uploadDownloadData = UploadDownloadData(
-//            measurementId = measurement.id,
-//            warmupDuration = result.warmupMetrics?.usecs,
-//            warmupBytes = result.warmupMetrics?.bytes,
-//            duration = result.activeMetrics?.usecs,
-//            bytes = result.activeMetrics?.bytes,
-//            servers = servers
-//        )
-
-//        measurement.uploadDownloadData = uploadDownloadData
-
-//        var location: android.location.Location? = null
-//
-//        Locus.getCurrentLocation(context) { locationResult ->
-//            locationResult.location?.let { /* Received location update */
-//                location = locationResult.location
-//                Log.d(TAG,"lat/lon: ${location?.latitude} / ${location?.longitude}")
-//                Log.d(TAG,"accuracy: ${location?.accuracy}")
-//                Log.d(TAG,"heading: ${location?.bearing}")
-//            }
-//            locationResult.error?.let { /* Received error! */
-//                Log.e(TAG,"Got a location services error!!! ${it.message}")
-//            }
-//        }
+//        Log.d(TAG, "measurement = $measurement")
 
         try {
             measurementRepository.insertMeasurement(measurement)

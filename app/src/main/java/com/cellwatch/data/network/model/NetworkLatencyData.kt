@@ -14,13 +14,13 @@ data class NetworkLatencyData(
     @SerialName("measurement_id")
     var measurementId: String? = null, // UUID
 
-    val rtt: Long? = null,
+    val rtt: Int? = null,
 
-    val jitter: Long? = null,
+    val jitter: Int? = null,
 
-    val sent: Long? = null,
+    val sent: Int? = null,
 
-    val received: Long? = null,
+    val received: Int? = null,
 
     val servers: List<String>? = null,
 

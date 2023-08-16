@@ -11,10 +11,10 @@ import java.util.UUID
 data class LatencyData(
     var id: String = UUID.randomUUID().toString(),
     var measurementId: String? = null, // UUID
-    val rtt: Long? = null,
-    val jitter: Long? = null,
-    val sent: Long? = null,
-    val received: Long? = null,
+    val rtt: Int? = null,
+    val jitter: Int? = null,
+    val sent: Int? = null,
+    val received: Int? = null,
     val servers: List<String>? = null,
     val createdOn: Instant? = null,
     val updatedOn: Instant? = null

@@ -7,6 +7,7 @@ import com.cellwatch.domain.msak.model.ThroughputTestDirection
 import com.cellwatch.domain.msak.model.ThroughputTestMetrics
 import com.cellwatch.domain.msak.model.ThroughputTestResult
 import com.cellwatch.domain.msak.managers.LocateManager
+import com.cellwatch.domain.msak.model.ThroughputStreamResult
 import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_MILLIS
 import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_WARMUP_MILLIS
 import com.cellwatch.domain.msak.util.THROUGHPUT_STREAMS
@@ -89,11 +90,13 @@ class ThroughputTestComponent(
             }
         } else null
 
+        val streamResults: List<ThroughputStreamResult?> = if (streams.isNotEmpty()) streams.map { it.result } else mutableListOf()
+
         return ThroughputTestResult(
             streams.all { it.result?.success ?: false },
             warmupMetrics,
             activeMetrics,
-            streams.map { it.result },
+            streamResults
         )
     }
 

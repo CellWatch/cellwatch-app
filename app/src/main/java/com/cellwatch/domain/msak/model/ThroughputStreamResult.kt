@@ -5,11 +5,11 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ThroughputStreamResult (
     val success: Boolean,
-    val cc: String?,
-    val uuid: String?,
-    val localAddr: String?,
-    val remoteAddr: String?,
-    val warmupMetrics: ThroughputTestMetrics?,
-    val activeMetrics: ThroughputTestMetrics?,
-    val measurements: Collection<MsakMeasurement>
+    val cc: String? = null,
+    val uuid: String? = null,
+    val localAddr: String? = null,
+    val remoteAddr: String? = null,
+    val warmupMetrics: ThroughputTestMetrics? = null,
+    val activeMetrics: ThroughputTestMetrics? = null,
+    val measurements: Collection<MsakMeasurement> = mutableListOf()
 )
