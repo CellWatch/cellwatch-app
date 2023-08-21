@@ -58,6 +58,7 @@ class LatencyTest (
             return getResults()
         } catch (t: Throwable) {
             Log.e(TAG, "latency test failed", t)
+//            throw t
             return LatencyResult(
                 serverHost,
                 false,

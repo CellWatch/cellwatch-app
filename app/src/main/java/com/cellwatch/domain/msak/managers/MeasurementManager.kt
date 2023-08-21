@@ -185,13 +185,15 @@ object MeasurementManager {
 
         val throughputTestResult = runThroughputTest(client, server, measurementId, direction)
 
+//        if (throughputTestResult == null) return null
+
         val endLocation: Location? = getLocation()
 
         return FullThroughputTestResult(
             throughputTestResult,
             listOfNotNull(beginLocation, endLocation),
             cells
-            )
+        )
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -239,7 +241,8 @@ object MeasurementManager {
         } catch (t: Throwable) {
             Log.d(TAG, "$dir test failed", t)
             writeMessage("$dir test failed: ${t.localizedMessage}")
-            return ThroughputTestResult(success = false)
+            throw t
+//            return ThroughputTestResult(success = false)
         } finally {
             updateBytesPerSec(0.0)
             Log.d(TAG, "Done running test...")
@@ -280,7 +283,17 @@ object MeasurementManager {
             }
         } catch (t: Throwable) {
             Log.e(TAG, "latency test failed", t)
-            return LatencyResult(success = false)
+            throw t
+//            return LatencyResult(
+//                serverHost,
+//                false,
+//                Clock.System.now(),
+//                0,
+//                0,
+//                0,
+//                0,
+//                0,
+//            )
         }
 
         Log.d(TAG, "got latency result: $latencyResult")
@@ -305,7 +318,8 @@ object MeasurementManager {
         val dataStore = LocalDataStore(context)
         val deviceId = dataStore.getDeviceId.first()
 
-        val servers: List<String>? = if (latencyResult.remoteAddr != null) listOf(latencyResult.remoteAddr) else null
+        val servers: List<String>? = listOf(latencyResult.targetHost)
+//        val servers: List<String>? = if (latencyResult.remoteAddr != null) listOf(latencyResult.remoteAddr) else null
 
         val latencyData = LatencyData(
             rtt = latencyResult.meanRtt,
