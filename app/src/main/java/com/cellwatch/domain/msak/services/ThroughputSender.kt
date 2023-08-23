@@ -5,7 +5,7 @@ import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_SCALED_MESSAGE_SIZE
 import com.cellwatch.domain.msak.util.THROUGHPUT_MESSAGE_SCALING_FRACTION
 import com.cellwatch.domain.msak.util.THROUGHPUT_MIN_MESSAGE_SIZE
 import com.cellwatch.domain.msak.util.WS_CODE_INTERNAL_ERROR
-import com.cellwatch.domain.msak.model.MsakMeasurement
+import com.cellwatch.domain.msak.model.ThroughputMeasurement
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -16,8 +16,9 @@ import kotlin.random.Random.Default.nextBytes
 
 class ThroughputSender(
     streamNum: Int,
-    measurementChan: Channel<Pair<Boolean, MsakMeasurement>>,
-): ThroughputListener(streamNum, measurementChan) {
+    measurementChan: Channel<Pair<Boolean, ThroughputMeasurement>>,
+    sockFactory: ThroughputSocketFactory,
+): ThroughputListener(streamNum, measurementChan, sockFactory) {
     override fun onOpen(webSocket: WebSocket) {
         super.onOpen(webSocket)
 
@@ -31,7 +32,7 @@ class ThroughputSender(
         }
     }
 
-    override fun onMeasurement(webSocket: WebSocket, measurement: MsakMeasurement) {
+    override fun onMeasurement(webSocket: WebSocket, measurement: ThroughputMeasurement) {
         super.onMeasurement(webSocket, measurement)
         latestMeasurement = measurement
     }
@@ -46,7 +47,7 @@ class ThroughputSender(
                 delay(1)
             }
 
-            if (size < THROUGHPUT_MAX_SCALED_MESSAGE_SIZE && size < bytesSent.get() / THROUGHPUT_MESSAGE_SCALING_FRACTION) {
+            if (size < THROUGHPUT_MAX_SCALED_MESSAGE_SIZE && size < appBytesSent.get() / THROUGHPUT_MESSAGE_SCALING_FRACTION) {
                 size = size shl 1
                 message = nextBytes(size).toByteString()
                 Log.d(TAG, "scaled message size to $size bytes")

@@ -30,6 +30,8 @@ import kotlin.coroutines.suspendCoroutine
 object LocateManager {
     private const val TAG = "MsakLocateManager"
     private const val locateUrl = "https://locate.measurementlab.net/v2/nearest/"
+    // prod: https://locate.measurementlab.net/v2/nearest/
+    // staging: https://locate-dot-mlab-staging.appspot.com/v2/nearest/
 
     suspend fun selectServerAsync(client: OkHttpClient): LocateServer {
         val throughputServers = getServers(client, "msak/throughput1")

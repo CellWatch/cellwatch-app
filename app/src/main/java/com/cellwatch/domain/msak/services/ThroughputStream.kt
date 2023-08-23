@@ -6,7 +6,7 @@ import com.cellwatch.domain.msak.util.THROUGHPUT_WS_PROTO
 import com.cellwatch.domain.msak.util.UnexpectedCloseException
 import com.cellwatch.domain.msak.util.WS_CODE_GOING_AWAY
 import com.cellwatch.domain.msak.util.WS_CODE_NORMAL_CLOSURE
-import com.cellwatch.domain.msak.model.MsakMeasurement
+import com.cellwatch.domain.msak.model.ThroughputMeasurement
 import com.cellwatch.domain.msak.model.ThroughputTestDirection
 import com.cellwatch.domain.msak.model.ThroughputTestMetrics
 import com.cellwatch.domain.msak.mappers.measurementToMetrics
@@ -37,18 +37,19 @@ class ThroughputStream(
     private val TAG = "${ThroughputStream::class.simpleName} $num"
     private var webSocket: WebSocket? = null
     private var complete = false
-    private val measurementChan = Channel<Pair<Boolean, MsakMeasurement>>()
+    private val measurementChan = Channel<Pair<Boolean, ThroughputMeasurement>>()
+    private val sockFactory = ThroughputSocketFactory()
     private val listener = when (direction) {
-        ThroughputTestDirection.UPLOAD -> ThroughputSender(num, measurementChan)
-        ThroughputTestDirection.DOWNLOAD -> ThroughputReceiver(num, measurementChan)
+        ThroughputTestDirection.UPLOAD -> ThroughputSender(num, measurementChan, sockFactory)
+        ThroughputTestDirection.DOWNLOAD -> ThroughputReceiver(num, measurementChan, sockFactory)
     }
-    private val _updateChan = Channel<MsakMeasurement>()
-    val updateChan: ReceiveChannel<MsakMeasurement> = _updateChan
+    private val _updateChan = Channel<ThroughputMeasurement>()
+    val updateChan: ReceiveChannel<ThroughputMeasurement> = _updateChan
     private var success = true
     var readyToEndWarmup = false
         private set
-    private val measurements = ArrayList<MsakMeasurement>()
-    private var endWarmupMeasurement: MsakMeasurement? = null
+    private val measurements = ArrayList<ThroughputMeasurement>()
+    private var endWarmupMeasurement: ThroughputMeasurement? = null
     private val latestMeasurement
         get() = if (measurements.isEmpty()) null else measurements.last()
     val activeMetrics: ThroughputTestMetrics?
@@ -99,10 +100,12 @@ class ThroughputStream(
     }
 
     private suspend fun run() {
-        val requestClient = client.newBuilder()
+        // Use a new client to prevent streams from sharing TCP connections.
+        val client = OkHttpClient.Builder()
             .connectTimeout(MSAK_CONNECT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
             .readTimeout(MSAK_READ_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
             .writeTimeout(MSAK_WRITE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+            .socketFactory(sockFactory)
             .build()
 
         val request = Request.Builder()
@@ -111,7 +114,7 @@ class ThroughputStream(
             .header("User-Agent", THROUGHPUT_USER_AGENT)
             .build()
 
-        webSocket = requestClient.newWebSocket(request, listener)
+        webSocket = client.newWebSocket(request, listener)
 
         try {
             measurementChan.consumeEach { onMeasurementReceived(it.first, it.second) }
@@ -127,7 +130,7 @@ class ThroughputStream(
         }
     }
 
-    private fun onMeasurementReceived(fromServer: Boolean, measurement: MsakMeasurement) {
+    private fun onMeasurementReceived(fromServer: Boolean, measurement: ThroughputMeasurement) {
         Log.v(TAG, "got measurement from stream")
         if (fromServer) {
             cc = measurement.CC ?: cc
@@ -159,13 +162,13 @@ class ThroughputStream(
         _updateChan.close(t)
     }
 
-    private fun addMeasurement(measurement: MsakMeasurement? = null) {
+    private fun addMeasurement(measurement: ThroughputMeasurement? = null) {
         val m = measurement ?: listener.latestMeasurement ?: return
         measurements.add(m)
         _updateChan.trySend(m)
     }
 
-    private fun checkReadyToEndWarmup(curMeasurement: MsakMeasurement) {
+    private fun checkReadyToEndWarmup(curMeasurement: ThroughputMeasurement) {
         if (readyToEndWarmup) return
 
         val lastBPS = measurementToMetrics(latestMeasurement)?.bytesPerSec ?: return

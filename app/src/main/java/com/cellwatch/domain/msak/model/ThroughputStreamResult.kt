@@ -11,5 +11,5 @@ data class ThroughputStreamResult (
     val remoteAddr: String?,
     val warmupMetrics: ThroughputTestMetrics?,
     val activeMetrics: ThroughputTestMetrics?,
-    val measurements: Collection<MsakMeasurement>
+    val measurements: Collection<ThroughputMeasurement>,
 )
