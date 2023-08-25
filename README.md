@@ -20,13 +20,13 @@ but at its core Clean Architecture embodies the principle:
 
 **A good architecture emphasizes what the application does, not how it does it.**
 
-![Original Clean Architecture dependency diagram, by Robert C. Martin](images/UncleBobCleanArchitecture.jpg)
+![Original Clean Architecture dependency diagram, by Robert C. Martin](doc/images/UncleBobCleanArchitecture.jpg)
 
 Above is the original Clean Architecture dependency diagram by "Uncle Bob".
 
 And here is our version of the diagram, better reflecting where things live in this project:
 
-![Dependency diagram for our Clean Architecture implementation](images/AndroidCleanArchitecture.png)
+![Dependency diagram for our Clean Architecture implementation](doc/images/AndroidCleanArchitecture.png)
 
 
 ### Key Points of Clean Architecture ###
