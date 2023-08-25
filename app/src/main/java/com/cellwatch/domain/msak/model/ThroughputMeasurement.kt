@@ -3,10 +3,14 @@ package com.cellwatch.domain.msak.model
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class MsakMeasurement(
-    val BytesSent: Long,
-    val BytesReceived: Long,
+data class ThroughputMeasurement(
+    // TODO: remove top-level BytesSent, BytesReceived and make Application mandatory once schema change goes to prod
+    val BytesSent: Long?,
+    val BytesReceived: Long?,
+    val Network: ByteCounters?,
+    val Application: ByteCounters?,
     val ElapsedTime: Long,
+
     // TODO: add BBRInfo and TCPInfo
 
     // WireMeasurement fields, only sent once by server

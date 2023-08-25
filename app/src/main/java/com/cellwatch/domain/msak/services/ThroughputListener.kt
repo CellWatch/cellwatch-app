@@ -2,10 +2,11 @@ package com.cellwatch.domain.msak.services
 
 import android.os.SystemClock
 import android.util.Log
+import com.cellwatch.domain.msak.model.ByteCounters
 import com.cellwatch.domain.msak.util.UnexpectedCloseException
 import com.cellwatch.domain.msak.util.WS_CODE_GOING_AWAY
 import com.cellwatch.domain.msak.util.WS_CODE_NORMAL_CLOSURE
-import com.cellwatch.domain.msak.model.MsakMeasurement
+import com.cellwatch.domain.msak.model.ThroughputMeasurement
 import com.cellwatch.domain.msak.util.MemorylessTicker
 import com.cellwatch.domain.msak.util.THROUGHPUT_AVG_MEASUREMENT_INTERVAL_MILLIS
 import com.cellwatch.domain.msak.util.THROUGHPUT_MAX_MEASUREMENT_INTERVAL_MILLIS
@@ -23,15 +24,20 @@ import java.util.concurrent.atomic.AtomicLong
 
 open class ThroughputListener(
     streamNum: Int,
-    private val measurementChan: Channel<Pair<Boolean, MsakMeasurement>>,
+    private val measurementChan: Channel<Pair<Boolean, ThroughputMeasurement>>,
+    private val sockFactory: ThroughputSocketFactory,
 ): WebSocketListener() {
     protected val TAG = "${this::class.simpleName} $streamNum"
     protected var startUsec: Long = 0
     protected var endUsec: Long? = null
-    protected var bytesSent = AtomicLong(0)
-    protected var bytesReceived = AtomicLong(0)
+    protected var appBytesSent = AtomicLong(0)
+    protected var appBytesReceived = AtomicLong(0)
+    protected val netBytesSent
+        get() = sockFactory.throughputSock?.outBytes ?: 0
+    protected val netBytesReceived
+        get() = sockFactory.throughputSock?.inBytes ?: 0
     //private var lastMeasurementUsec: Long = 0
-    open var latestMeasurement: MsakMeasurement? = null
+    open var latestMeasurement: ThroughputMeasurement? = null
         protected set
 
     private val measurementTicker = MemorylessTicker(
@@ -50,10 +56,10 @@ open class ThroughputListener(
     final override fun onMessage(webSocket: WebSocket, text: String) {
         super.onMessage(webSocket, text)
         Log.v(TAG, "got text message: $text")
-        bytesReceived.addAndGet(text.toByteArray().size.toLong())
+        appBytesReceived.addAndGet(text.toByteArray().size.toLong())
 
         val wireMeasurement = try {
-            Gson().fromJson(text, MsakMeasurement::class.java)
+            Gson().fromJson(text, ThroughputMeasurement::class.java)
         } catch (e: JsonSyntaxException) {
             Log.w(TAG, "text message deserialization failed", e)
             return
@@ -66,7 +72,7 @@ open class ThroughputListener(
     final override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
         super.onMessage(webSocket, bytes)
         Log.v(TAG, "got binary message of size ${bytes.size}")
-        bytesReceived.addAndGet(bytes.size.toLong())
+        appBytesReceived.addAndGet(bytes.size.toLong())
         //sendMeasurement(webSocket)
     }
 
@@ -102,7 +108,7 @@ open class ThroughputListener(
     open fun onOpen(webSocket: WebSocket) {}
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    open fun onMeasurement(webSocket: WebSocket, measurement: MsakMeasurement) {
+    open fun onMeasurement(webSocket: WebSocket, measurement: ThroughputMeasurement) {
         if (!measurementChan.isClosedForSend) {
             try {
                 runBlocking { measurementChan.send(Pair(true, measurement)) }
@@ -115,7 +121,7 @@ open class ThroughputListener(
     fun send(webSocket: WebSocket, bytes: ByteString): Boolean {
         val sent = webSocket.send(bytes)
         if (sent) {
-            bytesSent.addAndGet(bytes.size.toLong())
+            appBytesSent.addAndGet(bytes.size.toLong())
         }
         return sent
     }
@@ -123,18 +129,24 @@ open class ThroughputListener(
     private fun send(webSocket: WebSocket, text: String): Boolean {
         val sent = webSocket.send(text)
         if (sent) {
-            bytesSent.addAndGet(text.toByteArray().size.toLong())
+            appBytesSent.addAndGet(text.toByteArray().size.toLong())
         }
         return sent
     }
 
-    private fun sendMeasurement(webSocket: WebSocket) {
+    protected fun makeMeasurement(): ThroughputMeasurement {
         val usec = endUsec ?: (SystemClock.elapsedRealtimeNanos() / 1000)
-        val measurement = MsakMeasurement(
-            bytesSent.get(),
-            bytesReceived.get(),
-            usec - startUsec,
+        return ThroughputMeasurement(
+            netBytesSent,
+            netBytesReceived,
+            ByteCounters(netBytesSent, netBytesReceived),
+            ByteCounters(appBytesSent.get(), appBytesReceived.get()),
+            usec - startUsec
         )
+    }
+
+    private fun sendMeasurement(webSocket: WebSocket) {
+        val measurement = makeMeasurement()
 
         Log.d(TAG, "sending measurement: $measurement")
         if (send(webSocket, Gson().toJson(measurement))) {
