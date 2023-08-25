@@ -33,6 +33,11 @@ android {
 
             buildConfigField("String", "SUPABASE_URL", cellwatchProperties['SUPABASE_LOCAL_URL'])
             buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties['SUPABASE_LOCAL_API_KEY'])
+            buildConfigField("String", "MSAK_SERVER_ENV", cellwatchProperties['MSAK_SERVER_ENV'])
+            buildConfigField("String", "MSAK_LOCAL_SERVER_HOST", cellwatchProperties['MSAK_LOCAL_SERVER_HOST'])
+            buildConfigField("Boolean", "MSAK_LOCAL_SERVER_SECURE", cellwatchProperties['MSAK_LOCAL_SERVER_SECURE'])
+            buildConfigField("Integer", "MSAK_LATENCY_PORT", cellwatchProperties['MSAK_LOCAL_LATENCY_PORT'])
+            buildConfigField("String", "USER_AGENT", "\"CellWatch/dev\"")
         }
         release {
             minifyEnabled false
@@ -40,6 +45,11 @@ android {
 
             buildConfigField("String", "SUPABASE_URL", cellwatchProperties['SUPABASE_URL'])
             buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties['SUPABASE_API_KEY'])
+            buildConfigField("String", "MSAK_SERVER_ENV", "\"prod\"")
+            buildConfigField("String", "MSAK_LOCAL_SERVER_HOST", "\"\"")
+            buildConfigField("Boolean", "MSAK_LOCAL_SERVER_SECURE", "true")
+            buildConfigField("Integer", "MSAK_LATENCY_PORT", cellwatchProperties['MSAK_LATENCY_PORT'])
+            buildConfigField("String", "USER_AGENT", "\"CellWatch/0.1.0\"") // TODO: use real version
         }
     }
     compileOptions {

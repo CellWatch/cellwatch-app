@@ -8,7 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.cellwatch.data.model.Measurement
-import com.cellwatch.domain.msak.managers.MeasurementManager
+import com.cellwatch.domain.fcc.MeasurementManager
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
