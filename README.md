@@ -6,7 +6,9 @@ in support of FCC cellular quality challenges.
 # Application Architecture #
 
 The app is built on the concepts of [Clean Architecture](https://8thlight.com/blog/uncle-bob/2012/08/13/the-clean-architecture.html),
-originally developed by Robert C. Martin a.k.a. "Uncle Bob", which we have adapted to fit our needs.
+originally developed by Robert C. Martin a.k.a. "Uncle Bob", which we have adapted to fit our needs. **Note: The CellWatch app currently
+"aspires" to fully utilize the Clean Architecture concepts below. For example, many features of various repositories
+and managers do not yet have UseCases implemented.**
 
 
 ## What is Clean Architecture? ##
