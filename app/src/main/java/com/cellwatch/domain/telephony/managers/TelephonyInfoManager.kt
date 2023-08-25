@@ -106,8 +106,8 @@ object TelephonyInfoManager {
                     val cellInfoLte = cellInfo as CellInfoLte
                     val signalStrength: CellSignalStrengthLte = cellInfo.cellSignalStrength
                     Log.d(TAG, "*** LTE Connection ***")
-                    Log.d(TAG, "cid = ${cellInfo.cellIdentity.ci}")
-                    Log.d(TAG, "pci = ${cellInfo.cellIdentity.pci}")
+                    Log.d(TAG, "cid = ${cellInfoLte.cellIdentity.ci}")
+                    Log.d(TAG, "pci = ${cellInfoLte.cellIdentity.pci}")
                     Log.d(TAG, "dbm = ${signalStrength.dbm}")
                     Log.d(TAG, "rsrp = ${signalStrength.rsrp}")
                     Log.d(TAG, "rsrq = ${signalStrength.rsrq}")
@@ -116,7 +116,8 @@ object TelephonyInfoManager {
                     Log.d(TAG, "rssi = ${signalStrength.rssi}")
                     Log.d(TAG, "level = ${signalStrength.level}")
                     Log.d(TAG, "asuLevel = ${signalStrength.asuLevel}")
-                    Log.d(TAG, "cellInfo = ${cellInfo.cellIdentity}")
+                    Log.d(TAG, "cellInfo = ${cellInfoLte.cellIdentity}")
+                    Log.d(TAG, "cellConnectionStatus = ${cellInfoLte.cellConnectionStatus}")
 
                     val networkGeneration = getNetworkGeneration()
                     val networkSubtype = getNetworkSubType()
@@ -130,7 +131,7 @@ object TelephonyInfoManager {
                         else -> null
                     }
 
-                    val cellIdentity: CellIdentityLte = cellInfo.cellIdentity
+                    val cellIdentity: CellIdentityLte = cellInfoLte.cellIdentity
 
                     Log.d(TAG, "Number of Bands: ${cellIdentity.bands.size}")
                     val bands = cellIdentity.bands.joinToString(prefix = "[", separator = ", ", postfix = "]")
@@ -140,9 +141,9 @@ object TelephonyInfoManager {
                     cells.add(
                         Cell(
                             timestamp = Clock.System.now(),
-                            cellId = cellInfo.cellIdentity.ci,
-                            physicalCellId = cellInfo.cellIdentity.pci,
-                            cellConnection = null, // TODO
+                            cellId = cellInfoLte.cellIdentity.ci,
+                            physicalCellId = cellInfoLte.cellIdentity.pci,
+                            cellConnection = cellInfoLte.cellConnectionStatus,
                             networkGeneration = networkGeneration,
                             networkSubtype = networkSubtype,
                             signalStrength = sigStrength,
@@ -163,9 +164,10 @@ object TelephonyInfoManager {
                 }
 
                 is CellInfoGsm -> {
+                    val cellInfoGsm = cellInfo as CellInfoGsm
                     Log.d(TAG, "*** GSM Connection ***")
-                    Log.d(TAG, "GSM Cell Identity = ${cellInfo.cellIdentity}")
-                    Log.d(TAG, "GSM Signal Strength = ${cellInfo.cellSignalStrength}")
+                    Log.d(TAG, "GSM Cell Identity = ${cellInfoGsm.cellIdentity}")
+                    Log.d(TAG, "GSM Signal Strength = ${cellInfoGsm.cellSignalStrength}")
                 }
             }
         }
