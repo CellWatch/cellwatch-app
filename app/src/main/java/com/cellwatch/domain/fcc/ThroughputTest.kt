@@ -103,6 +103,10 @@ class ThroughputTest(
             if (!result.isSuccess) {
                 Log.d(TAG, "failed to send throughput update on channel: $result")
             }
+
+            if (activeStartTime != null && latest.bytes >= 10e9) {
+                msakTest.stop()
+            }
         }
     }
 
