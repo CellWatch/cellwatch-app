@@ -18,7 +18,6 @@ import com.cellwatch.core.util.PermissionManager
 import com.cellwatch.data.model.Cell
 import kotlinx.datetime.Clock
 import java.util.Objects
-import kotlin.math.sign
 
 object TelephonyInfoManager {
     private val TAG = this::class.simpleName
