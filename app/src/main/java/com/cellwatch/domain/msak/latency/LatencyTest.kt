@@ -182,7 +182,13 @@ class LatencyTest(
             }
             socket.send(initialPkt)
             if (maxRetries > 0) {
-                handler.postDelayed({ sendInitial(maxRetries - 1) }, 1000L)
+                handler.postDelayed({
+                    try {
+                        sendInitial(maxRetries - 1)
+                    } catch (e: Exception) {
+                        error = e
+                    }
+                }, 1000L)
             }
         }
 

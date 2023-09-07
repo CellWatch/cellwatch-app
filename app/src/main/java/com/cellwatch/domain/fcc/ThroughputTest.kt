@@ -34,6 +34,7 @@ class ThroughputTest(
     private var activeStartTime: Instant? = null
     private val readyForActive = MutableList(streams) { false }
     private var lastWarmupUpdates: List<ThroughputUpdate>? = null
+    private var error: Throwable? = null
     private val _metricsChan = Channel<ThroughputMetrics>(32)
     private val latestUpdates; get() = msakTest.streams.map {s ->s.updates.lastOrNull { isFromReceiver(it) }}
     private val handler = Handler(Looper.getMainLooper())
@@ -50,7 +51,7 @@ class ThroughputTest(
     suspend fun run(): ThroughputResult {
         try {
             msakTest.start()
-            handler.postDelayed({ startActive() }, maxWarmupTime)
+            handler.postDelayed({ catchErrors { startActive() } }, maxWarmupTime)
             msakTest.updatesChan.consumeEach { handleUpdate(it) }
 
             // Assume start time was set since we started the test above.
@@ -69,7 +70,7 @@ class ThroughputTest(
 
             return ThroughputResult(
                 msakTest.serverHost,
-                msakTest.streams.all { it.error == null },
+                error == null && msakTest.streams.all { it.error == null },
                 startTime,
                 warmupMetrics,
                 activeMetrics,
@@ -116,8 +117,14 @@ class ThroughputTest(
         }
 
         activeStartTime = Clock.System.now()
-        handler.postDelayed({ msakTest.stop() }, maxActiveTime)
-        lastWarmupUpdates = msakTest.streams.map { s -> s.updates.last{ isFromReceiver(it) } }
+        handler.postDelayed({ catchErrors { msakTest.stop() } }, maxActiveTime)
+
+        try {
+            lastWarmupUpdates = msakTest.streams.map { s -> s.updates.last { isFromReceiver(it) } }
+        } catch (e: NoSuchElementException) {
+            error = e
+            msakTest.stop()
+        }
     }
 
     private fun shouldStartActive(): Boolean {
@@ -173,5 +180,14 @@ class ThroughputTest(
 
         val totalBytes = effectiveMetrics.sumOf { it.bytes }
         return ThroughputMetrics(totalBytes, usecs)
+    }
+
+    private fun catchErrors(fn: () -> Unit) {
+        try {
+            fn()
+        } catch (e: Exception) {
+            Log.e(TAG, "unexpected error running throughput test", e)
+            error = e
+        }
     }
 }
