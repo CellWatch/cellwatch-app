@@ -17,6 +17,8 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.conscrypt.Conscrypt
+import java.security.Security
 import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
@@ -43,6 +45,13 @@ class MainActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Using Conscrypt somehow makes the CountableSocket work with TLS sockets --
+        // it doesn't otherwise. I found a project on GitHub trying to count socket bytes
+        // (https://github.com/dave-r12/okhttp-byte-counter) and then found a linked
+        // issue (https://github.com/google/conscrypt/issues/65) that suggests Conscrypt
+        // might eventually solve the problem but hasn't yet. I guess it has now...
+        Security.insertProviderAt(Conscrypt.newProvider(), 1)
 
         val dataStore = LocalDataStore(this)
 
