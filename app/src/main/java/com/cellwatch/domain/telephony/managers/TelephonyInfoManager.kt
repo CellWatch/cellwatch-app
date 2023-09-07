@@ -133,8 +133,12 @@ object TelephonyInfoManager {
 
                     val cellIdentity: CellIdentityLte = cellInfoLte.cellIdentity
 
-                    Log.d(TAG, "Number of Bands: ${cellIdentity.bands.size}")
-                    val bands = cellIdentity.bands.joinToString(prefix = "[", separator = ", ", postfix = "]")
+                    val bands = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        Log.d(TAG, "Number of Bands: ${cellIdentity.bands.size}")
+                        cellIdentity.bands.joinToString(prefix = "[", separator = ", ", postfix = "]")
+                    } else {
+                        null
+                    }
                     Log.d(TAG, "bands = $bands")
                     Log.d(TAG, "spectrumBandwidth = ${cellIdentity.bandwidth.toFloat()}")
 
@@ -155,7 +159,11 @@ object TelephonyInfoManager {
                             csiRsrq = if (networkGeneration == "5G") signalStrength.rsrq else null,
                             csiSinr = if (networkGeneration == "5G") signalStrength.rssnr else null,
                             cqi = if (networkGeneration == "3G") null else signalStrength.cqi,
-                            spectrumBand = cellIdentity.bands.toString(),
+                            spectrumBand = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                cellIdentity.bands.toString()
+                            } else {
+                                null
+                            },
 //                            spectrumBand = "TODO_BAND", // cellIdentity.bands.toString(),
                             spectrumBandwidth = cellIdentity.bandwidth.toFloat(),
                             arfcn = cellIdentity.earfcn
