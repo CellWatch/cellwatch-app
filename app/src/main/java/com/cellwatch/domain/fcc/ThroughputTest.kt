@@ -63,7 +63,7 @@ class ThroughputTest(
             )
 
             val activeMetrics = calcAggregateMetrics(
-                ((msakTest.endTime ?: Clock.System.now()) - startTime).inWholeMicroseconds,
+                ((msakTest.endTime ?: Clock.System.now()) - (activeStartTime ?: startTime)).inWholeMicroseconds,
                 latestUpdates,
                 lastWarmupUpdates,
             )
