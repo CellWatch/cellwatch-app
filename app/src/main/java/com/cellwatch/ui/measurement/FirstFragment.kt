@@ -93,7 +93,7 @@ class FirstFragment : Fragment() {
 //        speedometer.withTremble = false
 //        speedometer.speedTo(45F)
 
-        binding.buttonFirst.setOnClickListener {
+        binding.buttonMeasure.setOnClickListener {
 //            startMeasuring()
 //            val connectionType = TelephonyInfoManager.getConnectionType()
 //            run {
@@ -174,11 +174,11 @@ class FirstFragment : Fragment() {
                 }
             }
 
-            measurementViewModel.bytesPerSecState.collect {
-                bytesPerSec = it
-                bytesPerSecList.add(it)
-                updateSpeedometer(8 * bytesPerSec / 1e6)
-            }
+//            measurementViewModel.bytesPerSecState.collect {
+//                bytesPerSec = it
+//                bytesPerSecList.add(it)
+//                updateSpeedometer(8 * bytesPerSec / 1e6)
+//            }
 //            measurementViewModel.bytesPerSecState.collect { bytesPerSec ->
 //                updateSpeedometer(8 * bytesPerSec / 1e6)
 //            }
@@ -226,9 +226,9 @@ class FirstFragment : Fragment() {
     fun toggleButton(enabled: Boolean) {
         val handler = Handler(Looper.getMainLooper())
         handler.post {
-//            binding.buttonFirst.setText(if (enabled) "Measure" else "Measuring")
-            binding.buttonFirst.setText(if (enabled) R.string.measure else R.string.measuring)
-            binding.buttonFirst.isEnabled = enabled
+//            binding.buttonMeasure.setText(if (enabled) "Measure" else "Measuring")
+            binding.buttonMeasure.setText(if (enabled) R.string.measure else R.string.measuring)
+            binding.buttonMeasure.isEnabled = enabled
         }
     }
 
@@ -286,7 +286,7 @@ class FirstFragment : Fragment() {
 
     fun handleDownloadStart() {
         binding.downloadContent.text = "running..."
-//    }
+    }
 
     fun handleUploadStart() {
         binding.uploadContent.text = "running..."
