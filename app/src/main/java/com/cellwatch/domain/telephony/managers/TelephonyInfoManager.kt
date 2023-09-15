@@ -18,7 +18,10 @@ import com.cellwatch.core.util.PermissionManager
 import com.cellwatch.data.model.Cell
 import kotlinx.datetime.Clock
 import java.util.Objects
-import kotlin.math.sign
+
+enum class NetworkConnectionType {
+    NONE, WIFI, CELLULAR, VPN
+}
 
 object TelephonyInfoManager {
     private val TAG = this::class.simpleName
@@ -26,6 +29,37 @@ object TelephonyInfoManager {
     private var telephonyManager: TelephonyManager =
         appContext.getSystemService(Context.TELEPHONY_SERVICE) as
             TelephonyManager
+
+    fun getConnectionType(): NetworkConnectionType {
+        var result = NetworkConnectionType.NONE // Returns connection type. 0: none; 1: mobile data; 2: wifi; 3: vpn
+        val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager?
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            cm?.run {
+                cm.getNetworkCapabilities(cm.activeNetwork)?.run {
+                    if (hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                        result = NetworkConnectionType.WIFI
+                    } else if (hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                        result = NetworkConnectionType.CELLULAR
+                    } else if (hasTransport(NetworkCapabilities.TRANSPORT_VPN)){
+                        result = NetworkConnectionType.VPN
+                    }
+                }
+            }
+        } else {
+            cm?.run {
+                cm.activeNetworkInfo?.run {
+                    if (type == ConnectivityManager.TYPE_WIFI) {
+                        result = NetworkConnectionType.WIFI
+                    } else if (type == ConnectivityManager.TYPE_MOBILE) {
+                        result = NetworkConnectionType.CELLULAR
+                    } else if(type == ConnectivityManager.TYPE_VPN) {
+                        result = NetworkConnectionType.VPN
+                    }
+                }
+            }
+        }
+        return result
+    }
 
     fun getNetworkGeneration(): String? {
         if (!PermissionManager.checkPermission()) return null

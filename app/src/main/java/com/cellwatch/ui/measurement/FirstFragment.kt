@@ -9,12 +9,14 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import com.cellwatch.R
 import com.cellwatch.databinding.FragmentFirstBinding
+import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import com.github.anastr.speedviewlib.Gauge
@@ -89,11 +91,16 @@ class FirstFragment : Fragment() {
         }
 
         binding.buttonFirst.setOnClickListener {
+//            startMeasuring()
+//            val connectionType = TelephonyInfoManager.getConnectionType()
+//            run {
+//                Toast.makeText(context, "Connection type is ${connectionType.toString()}",
+//                    Toast.LENGTH_SHORT).show()
+//            }
             toggleButton(false)
 
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
-//                    MsakMeasurementManager.runTestSequence()
                     measurementViewModel.runTestSequence()
                 } catch (e: Exception) {
                     Log.e(TAG, "unexpected error running test sequence", e)
@@ -134,7 +141,6 @@ class FirstFragment : Fragment() {
                 bytesPerSec = it
                 bytesPerSecList.add(it)
                 updateSpeedometer(8 * bytesPerSec / 1e6)
-
             }
 //            measurementViewModel.bytesPerSecState.collect { bytesPerSec ->
 //                updateSpeedometer(8 * bytesPerSec / 1e6)
@@ -154,6 +160,31 @@ class FirstFragment : Fragment() {
 //        // EasyPermissions handles the request result.
 //        EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this)
 //    }
+
+    // Measuring methods
+    private fun startMeasuring() {
+        val connectionType = TelephonyInfoManager.getConnectionType()
+        run {
+            Toast.makeText(context, "Connection type is ${connectionType.toString()}",
+                Toast.LENGTH_SHORT).show()
+        }
+        toggleButton(false)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                measurementViewModel.runTestSequence()
+            } catch (e: Exception) {
+                Log.e(TAG, "unexpected error running test sequence", e)
+                writeMessage("unexpected error running test sequence: ${e.localizedMessage}")
+            } finally {
+                writeMessage("*** Done with Upload/Download Test ***")
+            }
+
+//                binding.maxSpeed.text = String.format("Max: 0.0 MB/Sec")
+
+            toggleButton(true)
+        }
+    }
 
     fun toggleButton(enabled: Boolean) {
         val handler = Handler(Looper.getMainLooper())
