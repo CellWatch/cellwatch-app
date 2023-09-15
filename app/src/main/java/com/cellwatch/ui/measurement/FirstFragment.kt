@@ -10,13 +10,18 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import com.cellwatch.R
+import com.cellwatch.data.model.Location
 import com.cellwatch.databinding.FragmentFirstBinding
 import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
+import com.cellwatch.domain.fcc.FullLatencyResult
+import com.cellwatch.domain.fcc.FullThroughputResult
+import com.cellwatch.domain.fcc.MeasurementManager
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import com.github.anastr.speedviewlib.Gauge
@@ -24,6 +29,7 @@ import com.github.anastr.speedviewlib.SpeedView
 import github.nisrulz.easydeviceinfo.base.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -74,21 +80,18 @@ class FirstFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         standardPermissionRequest.launch(standardPermissions)
+        binding.latencyDetails.movementMethod = ScrollingMovementMethod()
+        binding.downloadDetails.movementMethod = ScrollingMovementMethod()
+        binding.uploadDetails.movementMethod = ScrollingMovementMethod()
 
-        speedometer = binding.speedView
-        speedometer.setMinMaxSpeed(0F, 10F)
-        speedometer.unit = " MB/Sec"
-        speedometer.speedTextPosition = Gauge.Position.BOTTOM_CENTER
+
+//        speedometer = binding.speedView
+//        speedometer.setMinMaxSpeed(0F, 10F)
+//        speedometer.unit = " MB/Sec"
+//        speedometer.speedTextPosition = Gauge.Position.BOTTOM_CENTER
 //        speedometer.speedTextColor = Color.WHITE
-        speedometer.withTremble = false
+//        speedometer.withTremble = false
 //        speedometer.speedTo(45F)
-
-        binding.textviewFirst.movementMethod = ScrollingMovementMethod()
-
-//        binding.maxSpeed.text = measurementViewModel.maxBytesPerSec.value.toString()
-        measurementViewModel.maxBytesPerSec.observe(viewLifecycleOwner) { newMaxBytesPerSec ->
-            binding.maxSpeed.text = String.format("Max: %.2f MB/Sec", 8 * newMaxBytesPerSec / 1e6)
-        }
 
         binding.buttonFirst.setOnClickListener {
 //            startMeasuring()
@@ -100,11 +103,45 @@ class FirstFragment : Fragment() {
             toggleButton(false)
 
             viewLifecycleOwner.lifecycleScope.launch {
+                binding.locateStatus.text = ""
+                binding.latencyContent.text = ""
+                binding.downloadContent.text = ""
+                binding.uploadContent.text = ""
+                binding.latencyDetails.text = ""
+                binding.downloadDetails.text = ""
+                binding.uploadDetails.text = ""
+
                 try {
-                    measurementViewModel.runTestSequence()
+//                    measurementViewModel.runTestSequence()
+                    MeasurementManager.runTestSequence(
+                        { binding.locateStatus.text = "finding server..." },
+                        {r -> binding.locateStatus.text = "found server $r"},
+                        { handleLatencyStart() },
+                        {r -> handleLatencyComplete(r)},
+                        { handleDownloadStart() },
+                        {r -> handleThroughputComplete(binding.downloadContent, binding.downloadDetails, r)},
+                        { handleUploadStart() },
+                        {r -> handleThroughputComplete(binding.uploadContent, binding.uploadDetails, r)},
+                    )
                 } catch (e: Exception) {
                     Log.e(TAG, "unexpected error running test sequence", e)
                     writeMessage("unexpected error running test sequence: ${e.localizedMessage}")
+
+                    if (binding.locateStatus.text == "" || binding.locateStatus.text == "finding server...") {
+                        binding.locateStatus.text == "failed to find server"
+                    }
+
+                    if (binding.latencyContent.text == "" || binding.latencyContent.text == "running...") {
+                        binding.latencyContent.text = "failed"
+                    }
+
+                    if (binding.downloadContent.text == "" || binding.downloadContent.text == "running...") {
+                        binding.downloadContent.text = "failed"
+                    }
+
+                    if (binding.uploadContent.text == "" || binding.uploadContent.text == "running...") {
+                        binding.uploadContent.text = "failed"
+                    }
                 } finally {
                     writeMessage("*** Done with Upload/Download Test ***")
                 }
@@ -198,29 +235,85 @@ class FirstFragment : Fragment() {
     fun writeMessage(m: String) {
         val handler = Handler(Looper.getMainLooper())
         handler.post {
-            binding.textviewFirst.append("\n> $m")
+            //binding.textviewFirst.append("\n> $m")
         }
     }
 
-    fun updateSpeedometer(megabytesPerSec: Double, moveDuration: Long = 1000) {
-        val handler = Handler(Looper.getMainLooper())
+//    fun updateSpeedometer(megabytesPerSec: Double, moveDuration: Long = 1000) {
+//        val handler = Handler(Looper.getMainLooper())
+//
+//        Log.d(TAG, "megabytesPerSec = ${megabytesPerSec}")
+//
+//        handler.post {
+//            speedometer.speedTo(megabytesPerSec.toFloat(), moveDuration)
+//        }
+//    }
+//
+//    fun updateSpeedometerRange(maxMegabytesPerSec: Double) {
+//        if (maxMegabytesPerSec == 0.0) return
+//
+//        val handler = Handler(Looper.getMainLooper())
+//
+//        Log.d(TAG, "maxMegabytesPerSec = ${maxMegabytesPerSec}")
+//
+//        handler.post {
+//            speedometer.setMinMaxSpeed(0F, maxMegabytesPerSec.toFloat() * 1.2F)
+//        }
+//    }
 
-        Log.d(TAG, "megabytesPerSec = ${megabytesPerSec}")
-
-        handler.post {
-            speedometer.speedTo(megabytesPerSec.toFloat(), moveDuration)
-        }
+    fun handleLatencyStart() {
+        binding.latencyContent.text = "running..."
     }
 
-    fun updateSpeedometerRange(maxMegabytesPerSec: Double) {
-        if (maxMegabytesPerSec == 0.0) return
-
-        val handler = Handler(Looper.getMainLooper())
-
-        Log.d(TAG, "maxMegabytesPerSec = ${maxMegabytesPerSec}")
-
-        handler.post {
-            speedometer.setMinMaxSpeed(0F, maxMegabytesPerSec.toFloat() * 1.2F)
+    fun handleLatencyComplete(r: FullLatencyResult) {
+        if (!r.latencyResult.success) {
+            binding.latencyContent.text = "failed"
+            return
         }
+
+        binding.latencyContent.text = "success"
+        val mean = "Mean RTT: ${r.latencyResult.meanRtt / 1e3}ms"
+        val jitter = "Jitter: ${r.latencyResult.jitter / 1e3}ms"
+        val received = "Received: ${r.latencyResult.packetsReceived}/${r.latencyResult.packetsSent}"
+        val start = "Start time: ${r.latencyResult.start}"
+        val duration = "Duration: ${r.latencyResult.usecs / 1e6}s"
+        val target = "Target host: ${r.latencyResult.targetHost}"
+        val startLoc = "Start location: ${locationToString(r.locations.getOrNull(0))}"
+        val endLoc = "End location: ${locationToString(r.locations.getOrNull(1))}"
+        val cells = "Cells: ${r.cells}"
+        binding.latencyDetails.text = "$mean\n$jitter\n$received\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells"
+    }
+
+    fun handleDownloadStart() {
+        binding.downloadContent.text = "running..."
+//    }
+
+    fun handleUploadStart() {
+        binding.uploadContent.text = "running..."
+    }
+
+    fun handleThroughputComplete(content: TextView, details: TextView, r: FullThroughputResult) {
+        if (!r.throughputTestResult.success || r.throughputTestResult.activeMetrics == null) {
+            content.text = "failed"
+            return
+        }
+
+        content.text = "success"
+        val speed = "Speed: ${(r.throughputTestResult.activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()} Mbps"
+        val start = "Start time: ${r.throughputTestResult.start}"
+        val duration = "Duration: ${(r.throughputTestResult.activeMetrics.usecs + (r.throughputTestResult.warmupMetrics?.usecs ?: 0)) / 1e6}s"
+        val target = "Target host: ${r.throughputTestResult.targetHost}"
+        val startLoc = "Start location: ${locationToString(r.locations.getOrNull(0))}"
+        val endLoc = "End location: ${locationToString(r.locations.getOrNull(1))}"
+        val cells = "Cells: ${r.cells}"
+        details.text = "$speed\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells"
+    }
+
+    fun locationToString(l: Location?): String {
+        if (l == null) {
+            return ""
+        }
+
+        return String.format("lat=%f, lon=%f, speed=%.2fm/s", l.lat, l.lon, l.speed)
     }
 }

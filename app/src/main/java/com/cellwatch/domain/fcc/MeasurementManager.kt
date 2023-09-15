@@ -55,7 +55,16 @@ object MeasurementManager {
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
-    suspend fun runTestSequence() {
+    suspend fun runTestSequence(
+        onLocateStart: () -> Unit,
+        onLocateComplete: (r: String) -> Unit,
+        onLatencyStart: () -> Unit,
+        onLatencyComplete: (r: FullLatencyResult) -> Unit,
+        onDownloadStart: () -> Unit,
+        onDownloadComplete: (r: FullThroughputResult) -> Unit,
+        onUploadStart: () -> Unit,
+        onUploadComplete: (r: FullThroughputResult) -> Unit,
+    ) {
         val measurementId: String? = if (BuildConfig.MSAK_SERVER_ENV == "local") {
             UUID.randomUUID().toString()
         } else {
@@ -123,23 +132,31 @@ object MeasurementManager {
 
         writeMessage("selecting server")
 
+        onLocateStart()
         val servers = chooseMsakServers(client)
         val throughputServer = servers.first
         val latencyServer = servers.second
+        onLocateComplete(throughputServer.machine)
 
         writeMessage("selected servers $throughputServer $latencyServer")
 
+        onLatencyStart()
         val fullLatencyResult = runFullLatencyTest(client, latencyServer, measurementId)
+        onLatencyComplete(fullLatencyResult)
         insertLatency(groupId, fullLatencyResult.latencyResult, fullLatencyResult.cells, fullLatencyResult.locations)
 
+        onDownloadStart()
         val downloadResult = runFullThroughputTest(throughputServer, measurementId, ThroughputDirection.DOWNLOAD)
+        onDownloadComplete(downloadResult)
         insertMeasurement(groupId, downloadResult.throughputTestResult, ThroughputDirection.DOWNLOAD, downloadResult.cells, downloadResult.locations)
 
+        onUploadStart()
         val uploadResult = runFullThroughputTest(throughputServer, measurementId, ThroughputDirection.UPLOAD)
+        onUploadComplete(uploadResult)
         insertMeasurement(groupId, uploadResult.throughputTestResult, ThroughputDirection.UPLOAD, uploadResult.cells, uploadResult.locations)
 
         // Try to upload measurements to Supabase
-        measurementRepository.uploadMeasurements()
+//        measurementRepository.uploadMeasurements()
 //        runBlocking { measurementRepository?.uploadMeasurementsWithData() }
     }
 

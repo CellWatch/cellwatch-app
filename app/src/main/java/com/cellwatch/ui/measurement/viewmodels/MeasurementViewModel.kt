@@ -19,18 +19,11 @@ class MeasurementViewModel(private val repository: com.cellwatch.data.core.repos
     val allMeasurementsWithData: LiveData<List<Measurement>> =
         repository.allMeasurementsWithData.asLiveData()
 
-    var bytesPerSecState: StateFlow<Double> = MeasurementManager.bytesPerSecState
-
-    private var _maxBytesPerSec: MutableLiveData<Double> = MutableLiveData(0.0)
-    val maxBytesPerSec: LiveData<Double>
-        get() = _maxBytesPerSec
+    val bytesPerSecState: StateFlow<Double> = MeasurementManager.bytesPerSecState
 
     init {
         viewModelScope.launch {
             bytesPerSecState.collect { bytesPerSec ->
-//                updateSpeedometer(8 * bytesPerSec / 1e6)
-                Log.d(TAG, "maxBytesPerSec = ${maxBytesPerSec.value.toString()}")
-                _maxBytesPerSec.value = _maxBytesPerSec.value?.let { maxOf(it, bytesPerSec) }
             }
         }
     }
@@ -46,7 +39,7 @@ class MeasurementViewModel(private val repository: com.cellwatch.data.core.repos
     }
 
     suspend fun runTestSequence() {
-        MeasurementManager.runTestSequence()
+//        MeasurementManager.runTestSequence()
     }
 }
 
