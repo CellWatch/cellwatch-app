@@ -338,7 +338,7 @@ object MeasurementManager {
             cells = cells,
             locations = locations
         )
-//        Log.d(TAG, "measurement = $measurement")
+        Log.d(TAG, "Insert ${measurement.type} measurement with id = ${measurement.id}")
 
         try {
             measurementRepository.insertMeasurement(measurement)
@@ -387,7 +387,7 @@ object MeasurementManager {
             servers = servers
         )
 
-        Log.d(TAG, "insertMeasurement: cells = ${cells}")
+//        Log.d(TAG, "insertMeasurement: cells = ${cells}")
 
         val measurement = Measurement(
             groupId = groupId,
@@ -411,7 +411,7 @@ object MeasurementManager {
             cells = cells,
             locations = locations
         )
-//        Log.d(TAG, "measurement = $measurement")
+        Log.d(TAG, "Insert ${measurement.type} measurement with id = ${measurement.id}")
 
         try {
             measurementRepository.insertMeasurement(measurement)

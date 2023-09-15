@@ -87,9 +87,6 @@ class MeasurementRepository(
     suspend fun uploadMeasurements() {
         val measurements = getUnsynchronizedMeasurementsWithData()
 
-        Log.i(TAG, "uploadMeasurements: Attempt to upload measurements")
-        Log.d(TAG, "uploadMeasurements: Number of cells = ${measurements[0].cells?.size}")
-
         if (measurements.isNotEmpty()) {
             Log.d(TAG, "uploadMeasurements: Attempting to upload ${measurements.size} measurements")
 
@@ -99,6 +96,8 @@ class MeasurementRepository(
                 Log.e(TAG, "Error in uploadMeasurements: ${e.message}")
                 throw e
             }
+
+            Log.d(TAG, "Update ${measurements.size} measurements as synchronized")
 
             measurements.forEach { measurement ->
                 val measurementEntity = measurement.asEntity()
@@ -116,6 +115,8 @@ class MeasurementRepository(
 //                }
 //
 //            }
+        } else {
+            Log.d(TAG, "No measurements to upload !!!")
         }
     }
 }

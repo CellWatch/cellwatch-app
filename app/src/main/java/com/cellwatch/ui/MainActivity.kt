@@ -2,6 +2,7 @@ package com.cellwatch.ui
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
@@ -11,6 +12,7 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import com.cellwatch.R
 import com.cellwatch.data.datastore.LocalDataStore
 import com.cellwatch.databinding.ActivityMainBinding
+import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import kotlinx.coroutines.GlobalScope
@@ -68,6 +70,12 @@ class MainActivity : AppCompatActivity() {
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
 
+//        val connectionType = TelephonyInfoManager.getConnectionType()
+//        run {
+//            Toast.makeText(applicationContext, "Connection type is ${connectionType.toString()}",
+//                Toast.LENGTH_SHORT).show()
+//        }
+
 //        measurementViewModelFactory = MeasurementViewModelFactory(CellWatchApp.measurementRepository)
 //        measurementViewModelFactory = MeasurementViewModelFactory((application as CellWatchApp).measurementRepository)
 //        measurementViewModel = ViewModelProvider(this, measurementViewModelFactory).get(MeasurementViewModel::class.java)
@@ -85,6 +93,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        Log.d(TAG, "MainActivity.onResume: uploadMeasurements")
         val globalRoutine = GlobalScope.launch {
             try {
                 measurementRepository.uploadMeasurements()
