@@ -176,24 +176,23 @@ class LatencyTest(
         initialPkt.port = latencyPort
 
         var gotOne = false
-        fun sendInitial(maxRetries: Int) {
-            if (gotOne) {
-                return
+        thread {
+            startTime = Clock.System.now()
+            val maxAttempts = 3
+            var attemptsRemaining = maxAttempts
+            while (!gotOne && attemptsRemaining > 0) {
+                Log.d(TAG, "sending initial packet; ${attemptsRemaining - 1} attempt(s) remaining")
+                socket.send(initialPkt)
+                Thread.sleep(1000L + 500L * (maxAttempts - attemptsRemaining))
+                attemptsRemaining--
             }
-            socket.send(initialPkt)
-            if (maxRetries > 0) {
-                handler.postDelayed({
-                    try {
-                        sendInitial(maxRetries - 1)
-                    } catch (e: Exception) {
-                        error = e
-                    }
-                }, 1000L)
+
+            if (!gotOne) {
+                Log.w(TAG, "never received next latency packet")
+                error = Throwable("initial packet timeout")
+                finish(false)
             }
         }
-
-        startTime = Clock.System.now()
-        sendInitial(2)
 
         val buf = ByteArray(1024)
         val pkt = DatagramPacket(buf, buf.size)
