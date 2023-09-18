@@ -68,7 +68,9 @@ class LatencyTest(
             } catch (e: Exception) {
                 Log.e(TAG, "latency test error", e)
                 error = e
+            } finally {
                 finish()
+                _updatesChan.close()
             }
         }
     }
@@ -92,7 +94,6 @@ class LatencyTest(
 
         result = getResult()
         Log.d(TAG, "got latency result: $result")
-        _updatesChan.close()
     }
 
     private fun finish(closeUpdatesChan: Boolean = true) {
