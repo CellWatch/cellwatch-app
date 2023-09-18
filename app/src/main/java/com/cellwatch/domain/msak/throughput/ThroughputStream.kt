@@ -109,6 +109,10 @@ class ThroughputStream(
             .header("User-Agent", BuildConfig.USER_AGENT)
             .build()
 
+        // Record a fallback start time. This will be overwritten in onOpen, but we need to have a
+        // start time to mark the stream as started in case the websocket never opens.
+        startTime = Clock.System.now()
+
         webSocket = client.newWebSocket(request, this)
     }
 

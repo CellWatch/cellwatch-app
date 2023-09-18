@@ -17,7 +17,7 @@ class ThroughputTest(
     server: Server,
     direction: ThroughputDirection,
     streams: Int = 3,
-    duration: Long = 10 * 1000,
+    private val duration: Long = 10 * 1000,
     private val delay: Long = 0,
     measurementId: String? = null,
 ) {
@@ -43,6 +43,11 @@ class ThroughputTest(
         streams.forEachIndexed { i, stream ->
             handler.postDelayed({runStream(stream) }, i * delay)
         }
+
+        handler.postDelayed({
+            Log.w(TAG, "test not ended by server")
+            finish()
+        }, duration + 5000L)
     }
 
     fun stop() {
