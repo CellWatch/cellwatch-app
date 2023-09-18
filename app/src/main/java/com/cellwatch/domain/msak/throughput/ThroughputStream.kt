@@ -175,7 +175,7 @@ class ThroughputStream(
         val measurement = makeMeasurement()
         val time = Clock.System.now()
 
-        Log.d(TAG, "sending measurement: $measurement")
+        Log.v(TAG, "sending measurement: $measurement")
         if (send(webSocket, Gson().toJson(measurement))) {
             sendUpdate(ThroughputUpdate(false, num, time, measurement))
         } else {
