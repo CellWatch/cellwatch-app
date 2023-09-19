@@ -120,7 +120,20 @@ class ThroughputTest(
         handler.postDelayed({ catchErrors { msakTest.stop() } }, maxActiveTime)
 
         try {
-            lastWarmupUpdates = msakTest.streams.map { s -> s.updates.last { isFromReceiver(it) } }
+            lastWarmupUpdates = msakTest.streams.map {
+                // avoid using an iterator on the list of updates to prevent a ConcurrentModificationException
+                // see https://stackoverflow.com/questions/27818867/java-concurrentmodificationexception-when-iterating-arraylist
+                var update: ThroughputUpdate? = null
+                for (i in (it.updates.size - 1) downTo 0) {
+                    val u = it.updates[i]
+                    if (isFromReceiver(u)) {
+                        update = u
+                        break
+                    }
+                }
+
+                update ?: throw NoSuchElementException()
+            }
         } catch (e: NoSuchElementException) {
             error = e
             msakTest.stop()
@@ -143,7 +156,16 @@ class ThroughputTest(
     }
 
     private fun isReadyForActive(stream: Int): Boolean {
-        val updates = msakTest.streams[stream].updates.filter { isFromReceiver(it) }
+        // avoid using an iterator on the list of updates to prevent a ConcurrentModificationException
+        // see https://stackoverflow.com/questions/27818867/java-concurrentmodificationexception-when-iterating-arraylist
+        val updates = ArrayList<ThroughputUpdate>()
+        for (i in 0 until msakTest.streams[stream].updates.size) {
+            val update = msakTest.streams[stream].updates[i]
+            if (isFromReceiver(update)) {
+                updates.add(update)
+            }
+        }
+
         if (updates.size < 2) {
             return false
         }
