@@ -11,6 +11,7 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import java.util.concurrent.Semaphore
 import kotlin.concurrent.thread
 
 class ThroughputTest(
@@ -25,6 +26,7 @@ class ThroughputTest(
     private val url = server.getThroughputUrl(direction, streams, duration, delay, measurementId)
     private val _updatesChan = Channel<ThroughputUpdate>(32)
     private val handler = Handler(Looper.getMainLooper())
+    private val startStopSem = Semaphore(1)
 
     val streams = List(streams) { ThroughputStream(it, url, direction) }
     val updatesChan: ReceiveChannel<ThroughputUpdate> = _updatesChan
@@ -35,27 +37,39 @@ class ThroughputTest(
     val serverHost = Url(url).host
 
     fun start() {
-        if (started) {
-            throw Throwable("already started")
-        }
+        startStopSem.acquire()
 
-        startTime = Clock.System.now()
-        streams.forEachIndexed { i, stream ->
-            handler.postDelayed({runStream(stream) }, i * delay)
-        }
+        try {
+            if (started) {
+                throw Throwable("already started")
+            }
 
-        handler.postDelayed({
-            Log.w(TAG, "test not ended by server")
-            finish()
-        }, duration + 5000L)
+            startTime = Clock.System.now()
+            streams.forEachIndexed { i, stream ->
+                handler.postDelayed({ runStream(stream) }, i * delay)
+            }
+
+            handler.postDelayed({
+                Log.w(TAG, "test not ended by server")
+                finish()
+            }, duration + 5000L)
+        } finally {
+            startStopSem.release()
+        }
     }
 
     fun stop() {
-        if (!started) {
-            throw Throwable("can't stop before starting")
-        }
+        startStopSem.acquire()
 
-        finish()
+        try {
+            if (!started) {
+                throw Throwable("can't stop before starting")
+            }
+
+            finish()
+        } finally {
+            startStopSem.release()
+        }
     }
 
     private fun finish() {
@@ -64,8 +78,10 @@ class ThroughputTest(
         }
 
         for (stream in streams) {
-            if (stream.started) {
+            try {
                 stream.stop()
+            } catch (n: NotStartedException) {
+                // ignore
             }
         }
 

@@ -24,6 +24,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
+import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.concurrent.thread
@@ -45,6 +46,7 @@ class ThroughputStream(
     private val socketFactory = CountableSocketFactory()
     private var webSocket: WebSocket? = null
     private var socket: CountableSocket? = null
+    private val startStopSem = Semaphore(1)
     private val _updatesChan = Channel<ThroughputUpdate>(32)
     private val _updates = ArrayList<ThroughputUpdate>()
     private var startNetBytesSent: Long? = null
@@ -90,39 +92,51 @@ class ThroughputStream(
         }
 
     fun start() {
-        if (started) {
-            throw Throwable("already started")
+        startStopSem.acquire()
+
+        try {
+            if (started) {
+                throw Throwable("already started")
+            }
+
+            // Use a new client to prevent streams from sharing TCP connections and to allow using a
+            // custom socket factory to get access to the underlying TCP socket.
+            val client = OkHttpClient.Builder()
+                .connectTimeout(connectTimeoutMillis, TimeUnit.MILLISECONDS)
+                .readTimeout(readTimeoutMillis, TimeUnit.MILLISECONDS)
+                .writeTimeout(writeTimeoutMillis, TimeUnit.MILLISECONDS)
+                .socketFactory(socketFactory)
+                .build()
+
+            val request = Request.Builder()
+                .url(url)
+                .header("Sec-WebSocket-Protocol", THROUGHPUT_WS_PROTO)
+                .header("User-Agent", BuildConfig.USER_AGENT)
+                .build()
+
+            // Record a fallback start time. This will be overwritten in onOpen, but we need to have a
+            // start time to mark the stream as started in case the websocket never opens.
+            startTime = Clock.System.now()
+
+            webSocket = client.newWebSocket(request, this)
+        } finally {
+            startStopSem.release()
         }
-
-        // Use a new client to prevent streams from sharing TCP connections and to allow using a
-        // custom socket factory to get access to the underlying TCP socket.
-        val client = OkHttpClient.Builder()
-            .connectTimeout(connectTimeoutMillis, TimeUnit.MILLISECONDS)
-            .readTimeout(readTimeoutMillis, TimeUnit.MILLISECONDS)
-            .writeTimeout(writeTimeoutMillis, TimeUnit.MILLISECONDS)
-            .socketFactory(socketFactory)
-            .build()
-
-        val request = Request.Builder()
-            .url(url)
-            .header("Sec-WebSocket-Protocol", THROUGHPUT_WS_PROTO)
-            .header("User-Agent", BuildConfig.USER_AGENT)
-            .build()
-
-        // Record a fallback start time. This will be overwritten in onOpen, but we need to have a
-        // start time to mark the stream as started in case the websocket never opens.
-        startTime = Clock.System.now()
-
-        webSocket = client.newWebSocket(request, this)
     }
 
     fun stop() {
-        if (!started) {
-            throw Throwable("can't stop before starting")
-        }
+        startStopSem.acquire()
 
-        finish()
-        webSocket?.close(wsCodeNormalClosure, "stream stopped")
+        try {
+            if (!started) {
+                throw NotStartedException()
+            }
+
+            finish()
+            webSocket?.close(wsCodeNormalClosure, "stream stopped")
+        } finally {
+            startStopSem.release()
+        }
     }
 
     private fun finish(err: Throwable? = null) {
@@ -239,7 +253,7 @@ class ThroughputStream(
     override fun onMessage(webSocket: WebSocket, text: String) {
         super.onMessage(webSocket, text)
         Log.v(TAG, "got text message: $text")
-        if (endTime != null) {
+        if (ended) {
             return
         }
 
@@ -259,7 +273,7 @@ class ThroughputStream(
     override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
         super.onMessage(webSocket, bytes)
         Log.v(TAG, "got binary message of size ${bytes.size}")
-        if (endTime != null) {
+        if (ended) {
             return
         }
 
@@ -292,3 +306,5 @@ class ThroughputStream(
         finish(t)
     }
 }
+
+class NotStartedException: Throwable("not started")
