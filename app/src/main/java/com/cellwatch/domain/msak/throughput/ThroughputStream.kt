@@ -240,6 +240,14 @@ class ThroughputStream(
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
         super.onOpen(webSocket, response)
+        Log.v(TAG, "WebSocket open")
+
+        if (ended) {
+            Log.d(TAG, "WebSocket opened after stream stopped")
+            webSocket?.close(wsCodeNormalClosure, "stream stopped")
+            return
+        }
+
         socket = socketFactory.sockets.last()
         startNetBytesSent = socket?.outBytes ?: 0
         startNetBytesReceived = socket?.inBytes ?: 0

@@ -21,7 +21,7 @@ class ThroughputTest(
     measurementId: String? = null,
 ) {
     private val TAG = this::class.simpleName
-    private val maxWarmupTime = 5 * 1000L
+    private val maxWarmupTime = 10 * 1000L
     private val maxActiveTime = 10 * 1000L
     private val msakTest = ThroughputTest(
         server,
@@ -120,21 +120,22 @@ class ThroughputTest(
         handler.postDelayed({ catchErrors { msakTest.stop() } }, maxActiveTime)
 
         try {
-            lastWarmupUpdates = msakTest.streams.map {
+            lastWarmupUpdates = msakTest.streams.mapIndexed() { i, stream ->
                 // avoid using an iterator on the list of updates to prevent a ConcurrentModificationException
                 // see https://stackoverflow.com/questions/27818867/java-concurrentmodificationexception-when-iterating-arraylist
                 var update: ThroughputUpdate? = null
-                for (i in (it.updates.size - 1) downTo 0) {
-                    val u = it.updates[i]
+                for (i in (stream.updates.size - 1) downTo 0) {
+                    val u = stream.updates[i]
                     if (isFromReceiver(u)) {
                         update = u
                         break
                     }
                 }
 
-                update ?: throw NoSuchElementException()
+                update ?: throw NoSuchElementException("stream $i has no warmup updates")
             }
         } catch (e: NoSuchElementException) {
+            Log.d(TAG, "one or more streams had no updates during the warmup period", e)
             error = e
             msakTest.stop()
         }
