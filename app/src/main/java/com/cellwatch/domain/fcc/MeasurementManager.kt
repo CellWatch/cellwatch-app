@@ -16,7 +16,6 @@ import com.cellwatch.domain.msak.throughput.ThroughputDirection
 import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
-import github.nisrulz.easydeviceinfo.base.EasyNetworkMod
 import github.nisrulz.easydeviceinfo.base.EasySimMod
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.consumeEach
@@ -42,7 +41,6 @@ object MeasurementManager {
     private val TAG = this::class.simpleName
 
     private var deviceMod: EasyDeviceMod? = EasyDeviceMod(CellWatchApp.applicationContext())
-    private var networkMod: EasyNetworkMod = EasyNetworkMod(CellWatchApp.applicationContext())
     private var simMod: EasySimMod? = EasySimMod(CellWatchApp.applicationContext())
     private var appMod: EasyAppMod? = EasyAppMod(CellWatchApp.applicationContext())
 
@@ -232,10 +230,10 @@ object MeasurementManager {
             duration = duration,
             scheduled = false,
             success = throughputResult?.success ?: latencyResult?.success,
-            carrierAggregation = false,
-            networkAvailable = networkMod.isNetworkAvailable,
-            networkConnected = true,
-            networkRoaming = TelephonyInfoManager.isRoaming(),
+            carrierAggregation = false, // TODO: how do we get this?
+            networkAvailable = TelephonyInfoManager.isNetworkAvailable(),
+            networkConnected = TelephonyInfoManager.isNetworkConnected(),
+            networkRoaming = TelephonyInfoManager.isNetworkRoaming(),
             uploadDownloadData = uploadDownloadData,
             latencyData = latencyData,
             cells = cells,

@@ -3,7 +3,9 @@ package com.cellwatch.domain.telephony.managers
 import android.content.Context
 import android.content.Context.CONNECTIVITY_SERVICE
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.telephony.CellIdentityLte
 import android.telephony.CellInfo
@@ -29,12 +31,31 @@ object TelephonyInfoManager {
     private var telephonyManager: TelephonyManager =
         appContext.getSystemService(Context.TELEPHONY_SERVICE) as
             TelephonyManager
+    private var availableNetworks = HashSet<Network>()
+    val connectivityManager = appContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+
+    init {
+        connectivityManager.registerNetworkCallback(
+            NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR).build(),
+            object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    super.onAvailable(network)
+                    availableNetworks.add(network)
+                }
+
+                override fun onLost(network: Network) {
+                    super.onLost(network)
+                    availableNetworks.remove(network)
+                }
+            }
+        )
+    }
 
     fun getConnectionType(): NetworkConnectionType {
         var result = NetworkConnectionType.NONE // Returns connection type. 0: none; 1: mobile data; 2: wifi; 3: vpn
-        val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager?
+        val cm = connectivityManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            cm?.run {
+            cm.run {
                 cm.getNetworkCapabilities(cm.activeNetwork)?.run {
                     if (hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
                         result = NetworkConnectionType.WIFI
@@ -46,7 +67,7 @@ object TelephonyInfoManager {
                 }
             }
         } else {
-            cm?.run {
+            cm.run {
                 cm.activeNetworkInfo?.run {
                     if (type == ConnectivityManager.TYPE_WIFI) {
                         result = NetworkConnectionType.WIFI
@@ -64,8 +85,6 @@ object TelephonyInfoManager {
     fun getNetworkGeneration(): String? {
         if (!PermissionManager.checkPermission()) return null
 
-        // ConnectionManager instance
-        val connectivityManager = appContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         val currentNetwork = connectivityManager.activeNetwork
         val networkCapabilities = connectivityManager.getNetworkCapabilities(currentNetwork)
 
@@ -182,12 +201,13 @@ object TelephonyInfoManager {
                             rsrp = signalStrength.rsrp,
                             rsrq = signalStrength.rsrq,
                             sinr = if (networkGeneration == "3G") null else signalStrength.rssnr,
+                            // TODO: should these be different than the ones reported above?
                             csiRsrp = if (networkGeneration == "5G") signalStrength.rsrp else null,
                             csiRsrq = if (networkGeneration == "5G") signalStrength.rsrq else null,
                             csiSinr = if (networkGeneration == "5G") signalStrength.rssnr else null,
                             cqi = if (networkGeneration == "3G") null else signalStrength.cqi,
                             spectrumBand = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                cellIdentity.bands.toString()
+                                cellIdentity.bands.toString() // TODO: is this formatted correctly?
                             } else {
                                 null
                             },
@@ -202,10 +222,26 @@ object TelephonyInfoManager {
                     Log.d(TAG, "*** GSM Connection ***")
                     Log.d(TAG, "GSM Cell Identity = ${cellInfoGsm.cellIdentity}")
                     Log.d(TAG, "GSM Signal Strength = ${cellInfoGsm.cellSignalStrength}")
+
+                    // TODO: add a cell?
                 }
+
+                // TODO: what about other types of CellInfo?
             }
         }
 
         return cells
+    }
+
+    fun isNetworkAvailable(): Boolean {
+        return availableNetworks.isNotEmpty()
+    }
+
+    fun isNetworkConnected(): Boolean {
+        return telephonyManager.dataState == TelephonyManager.DATA_CONNECTED
+    }
+
+    fun isNetworkRoaming(): Boolean {
+        return telephonyManager.isNetworkRoaming
     }
 }
