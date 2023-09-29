@@ -16,12 +16,13 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import com.cellwatch.R
+import com.cellwatch.data.model.Cell
 import com.cellwatch.data.model.Location
 import com.cellwatch.databinding.FragmentFirstBinding
 import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
-import com.cellwatch.domain.fcc.FullLatencyResult
-import com.cellwatch.domain.fcc.FullThroughputResult
+import com.cellwatch.domain.fcc.LatencyResult
 import com.cellwatch.domain.fcc.MeasurementManager
+import com.cellwatch.domain.fcc.ThroughputResult
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import com.github.anastr.speedviewlib.Gauge
@@ -117,11 +118,11 @@ class FirstFragment : Fragment() {
                         { binding.locateStatus.text = "finding server..." },
                         {r -> binding.locateStatus.text = "found server $r"},
                         { handleLatencyStart() },
-                        {r -> handleLatencyComplete(r)},
+                        {r, l, c -> handleLatencyComplete(r, l, c)},
                         { handleDownloadStart() },
-                        {r -> handleThroughputComplete(binding.downloadContent, binding.downloadDetails, r)},
+                        {r, l, c -> handleThroughputComplete(binding.downloadContent, binding.downloadDetails, r, l, c)},
                         { handleUploadStart() },
-                        {r -> handleThroughputComplete(binding.uploadContent, binding.uploadDetails, r)},
+                        {r, l, c -> handleThroughputComplete(binding.uploadContent, binding.uploadDetails, r, l, c)},
                     )
                 } catch (e: Exception) {
                     Log.e(TAG, "unexpected error running test sequence", e)
@@ -265,22 +266,22 @@ class FirstFragment : Fragment() {
         binding.latencyContent.text = "running..."
     }
 
-    fun handleLatencyComplete(r: FullLatencyResult) {
-        if (!r.latencyResult.success) {
+    fun handleLatencyComplete(r: LatencyResult, l: List<Location>, c: List<Cell>) {
+        if (!r.success) {
             binding.latencyContent.text = "failed"
             return
         }
 
         binding.latencyContent.text = "success"
-        val mean = "Mean RTT: ${r.latencyResult.meanRtt / 1e3}ms"
-        val jitter = "Jitter: ${r.latencyResult.jitter / 1e3}ms"
-        val received = "Received: ${r.latencyResult.packetsReceived}/${r.latencyResult.packetsSent}"
-        val start = "Start time: ${r.latencyResult.start}"
-        val duration = "Duration: ${r.latencyResult.usecs / 1e6}s"
-        val target = "Target host: ${r.latencyResult.targetHost}"
-        val startLoc = "Start location: ${locationToString(r.locations.getOrNull(0))}"
-        val endLoc = "End location: ${locationToString(r.locations.getOrNull(1))}"
-        val cells = "Cells: ${r.cells}"
+        val mean = "Mean RTT: ${r.meanRtt / 1e3}ms"
+        val jitter = "Jitter: ${r.jitter / 1e3}ms"
+        val received = "Received: ${r.packetsReceived}/${r.packetsSent}"
+        val start = "Start time: ${r.start}"
+        val duration = "Duration: ${r.usecs / 1e6}s"
+        val target = "Target host: ${r.targetHost}"
+        val startLoc = "Start location: ${locationToString(l.getOrNull(0))}"
+        val endLoc = "End location: ${locationToString(l.getOrNull(1))}"
+        val cells = "Cells: ${c}"
         binding.latencyDetails.text = "$mean\n$jitter\n$received\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells"
     }
 
@@ -292,20 +293,20 @@ class FirstFragment : Fragment() {
         binding.uploadContent.text = "running..."
     }
 
-    fun handleThroughputComplete(content: TextView, details: TextView, r: FullThroughputResult) {
-        if (!r.throughputTestResult.success || r.throughputTestResult.activeMetrics == null) {
+    fun handleThroughputComplete(content: TextView, details: TextView, r: ThroughputResult, l: List<Location>, c: List<Cell>) {
+        if (!r.success || r.activeMetrics == null) {
             content.text = "failed"
             return
         }
 
         content.text = "success"
-        val speed = "Speed: ${(r.throughputTestResult.activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()} Mbps"
-        val start = "Start time: ${r.throughputTestResult.start}"
-        val duration = "Duration: ${(r.throughputTestResult.activeMetrics.usecs + (r.throughputTestResult.warmupMetrics?.usecs ?: 0)) / 1e6}s"
-        val target = "Target host: ${r.throughputTestResult.targetHost}"
-        val startLoc = "Start location: ${locationToString(r.locations.getOrNull(0))}"
-        val endLoc = "End location: ${locationToString(r.locations.getOrNull(1))}"
-        val cells = "Cells: ${r.cells}"
+        val speed = "Speed: ${(r.activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()} Mbps"
+        val start = "Start time: ${r.start}"
+        val duration = "Duration: ${(r.activeMetrics.usecs + (r.warmupMetrics?.usecs ?: 0)) / 1e6}s"
+        val target = "Target host: ${r.targetHost}"
+        val startLoc = "Start location: ${locationToString(l.getOrNull(0))}"
+        val endLoc = "End location: ${locationToString(l.getOrNull(1))}"
+        val cells = "Cells: ${c}"
         details.text = "$speed\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells"
     }
 
