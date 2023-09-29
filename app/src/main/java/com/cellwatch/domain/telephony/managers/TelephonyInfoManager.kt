@@ -121,15 +121,8 @@ object TelephonyInfoManager {
         if (!PermissionManager.checkPermission()) return null
 
         val cellInfoList: List<CellInfo> = Objects.requireNonNull(telephonyManager).allCellInfo
-
-//        if (PermissionManager.checkPermission()) {
-//            cellInfoList = Objects.requireNonNull(telephonyManager).allCellInfo
-//        } else return null
-
         Log.d(TAG, "cellInfoList length = ${cellInfoList.size}")
-
         val cells = mutableListOf<Cell>()
-
         var cellIndex = 0
 
         for (cellInfo in cellInfoList) {
@@ -198,7 +191,6 @@ object TelephonyInfoManager {
                             } else {
                                 null
                             },
-//                            spectrumBand = "TODO_BAND", // cellIdentity.bands.toString(),
                             spectrumBandwidth = cellIdentity.bandwidth.toFloat(),
                             arfcn = cellIdentity.earfcn
                         )

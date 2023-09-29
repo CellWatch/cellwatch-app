@@ -1,8 +1,6 @@
 package com.cellwatch.domain.fcc
 
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import com.birjuvachhani.locus.Locus
 import com.cellwatch.BuildConfig
 import com.cellwatch.CellWatchApp
@@ -38,11 +36,10 @@ import kotlin.coroutines.suspendCoroutine
 
 object MeasurementManager {
     private var _bytesPerSecState = MutableStateFlow(0.0)
-    val bytesPerSecState: StateFlow<Double> = _bytesPerSecState //.asStateFlow()
+    val bytesPerSecState: StateFlow<Double> = _bytesPerSecState
 
     private val measurementRepository = com.cellwatch.CellWatchApp.measurementRepository
     private val TAG = this::class.simpleName
-//    private var locationEntities: List<LocationEntity>? = null
 
     private var deviceMod: EasyDeviceMod? = EasyDeviceMod(CellWatchApp.applicationContext())
     private var networkMod: EasyNetworkMod = EasyNetworkMod(CellWatchApp.applicationContext())
@@ -50,11 +47,9 @@ object MeasurementManager {
     private var appMod: EasyAppMod? = EasyAppMod(CellWatchApp.applicationContext())
 
     fun updateBytesPerSec(newBytesPerSec: Double) {
-//        _bytesPerSecState.value = newBytesPerSec
         _bytesPerSecState.update { newBytesPerSec }
     }
 
-    @RequiresApi(Build.VERSION_CODES.Q)
     suspend fun runTestSequence(
         onLocateStart: () -> Unit,
         onLocateComplete: (r: String) -> Unit,
@@ -71,66 +66,12 @@ object MeasurementManager {
             null
         }
 
+        Log.i(TAG,"RUNNING TEST SEQUENCE with measurement id $measurementId")
+
         val groupId: String = UUID.randomUUID().toString()
-
-        writeMessage("RUNNING TEST SEQUENCE with measurement id $measurementId")
-
-        // Get device connection info
-//        Log.d(TAG, "Starting getCellInfo test *******")
-//        var cells = TelephonyInfoManager.getCells()
-//        Log.d(TAG, "Got ${cells?.size} cells")
-//        cells?.forEach { cell ->
-//            Log.d(TAG, "cell: ${cell.toString()}")
-//        }
-
-        writeMessage("-----------------")
-        writeMessage("Device Manufacturer = ${deviceMod?.manufacturer}")
-        writeMessage("Device Model = ${deviceMod?.model}")
-        writeMessage("Device = ${deviceMod?.device}")
-        writeMessage("OS Version = ${deviceMod?.osVersion}")
-        deviceMod?.let { writeMessage(it.board) }
-        deviceMod?.let { writeMessage(it.buildBrand) }
-        deviceMod?.let { writeMessage(it.buildHost) }
-        deviceMod?.let { writeMessage(it.buildID) }
-        deviceMod?.let { writeMessage(it.buildVersionCodename) }
-        deviceMod?.let { writeMessage(it.displayVersion) }
-        deviceMod?.let { writeMessage(it.fingerprint) }
-
-        writeMessage("-----------------")
-
-//        val appMod = EasyAppMod(context)
-        appMod?.let { writeMessage(it.appName) }
-        appMod?.let { writeMessage(it.appVersion) }
-        appMod?.let { writeMessage(it.appVersionCode) }
-        appMod?.let { writeMessage(it.activityName) }
-
-        writeMessage("-----------------")
-
-        writeMessage("network available = ${networkMod.isNetworkAvailable.toString()}")
-        writeMessage("wifi state = ${networkMod.isWifiEnabled}")
-        
-//        @NetworkType val networkType: Int = networkMod.getNetworkType()
-//
-//        when (networkType) {
-//            NetworkType.CELLULAR_UNKNOWN -> writeMessage("Network Type : Unknown")
-//            NetworkType.CELLULAR_UNIDENTIFIED_GEN -> writeMessage("Network Type : Cellular Unidentified Generation")
-//            NetworkType.CELLULAR_2G -> writeMessage("Network Type : Cellular 2G")
-//            NetworkType.CELLULAR_3G -> writeMessage("Network Type : Cellular 3G")
-//            NetworkType.CELLULAR_4G -> writeMessage("Network Type : Cellular 4G")
-//            NetworkType.WIFI_WIFIMAX -> writeMessage("Network Type : WIFI/WIFIMAX")
-//            NetworkType.UNKNOWN -> writeMessage("Network Type : Unknown")
-//            else -> writeMessage("Network Type : Unknown")
-//        }
-        writeMessage("-----------------")
-
-        writeMessage("Carrier = ${simMod?.carrier}")
-        writeMessage("Country = ${simMod?.country}")
-
-        writeMessage("-----------------")
-
         val client = OkHttpClient.Builder().build()
 
-        writeMessage("selecting server")
+        Log.i(TAG, "selecting server")
 
         onLocateStart()
         val servers = chooseMsakServers(client)
@@ -138,7 +79,7 @@ object MeasurementManager {
         val latencyServer = servers.second
         onLocateComplete(throughputServer.machine)
 
-        writeMessage("selected servers $throughputServer $latencyServer")
+        Log.i(TAG, "selected servers $throughputServer $latencyServer")
 
         onLatencyStart()
         val fullLatencyResult = runFullLatencyTest(client, latencyServer, measurementId)
@@ -155,9 +96,7 @@ object MeasurementManager {
         onUploadComplete(uploadResult)
         insertMeasurement(groupId, uploadResult.throughputTestResult, ThroughputDirection.UPLOAD, uploadResult.cells, uploadResult.locations)
 
-        // Try to upload measurements to Supabase
-//        measurementRepository.uploadMeasurements()
-//        runBlocking { measurementRepository?.uploadMeasurementsWithData() }
+        measurementRepository.uploadMeasurements()
     }
 
     suspend fun runFullLatencyTest(
@@ -167,9 +106,7 @@ object MeasurementManager {
     ): FullLatencyResult {
         val beginLocation: Location? = getLocation()
         val cells = TelephonyInfoManager.getCells()
-
         val latencyResult = runLatencyTest(client, server, measurementId)
-
         val endLocation: Location? = getLocation()
 
         return FullLatencyResult(
@@ -186,11 +123,7 @@ object MeasurementManager {
     ): FullThroughputResult {
         val beginLocation: Location? = getLocation()
         val cells = TelephonyInfoManager.getCells()
-
         val throughputTestResult = runThroughputTest(server, measurementId, direction)
-
-//        if (throughputTestResult == null) return null
-
         val endLocation: Location? = getLocation()
 
         return FullThroughputResult(
@@ -200,41 +133,23 @@ object MeasurementManager {
         )
     }
 
-    @RequiresApi(Build.VERSION_CODES.Q)
     suspend fun runThroughputTest(
         server: Server,
         measurementId: String?,
-//        groupId: String,
         direction: ThroughputDirection,
     ): ThroughputResult {
-//        var cells: List<Cell>?
-//        var location: Location?
-//        val locations = ArrayList<Location>()
-
         val dir = if (direction == ThroughputDirection.DOWNLOAD) "download" else "upload"
-        writeMessage("running $dir test")
+        Log.i(TAG, "running $dir test")
 
         val throughputTestResult = try {
-//            cells = TelephonyInfoManager.getCells()
-
-            // get test start GPS location
-//            location = getLocation()
-//            if (location != null)
-//                locations.add(location)
-//            else
-//                Log.e(TAG, "Error getting GPS location!!!")
-
             val test = ThroughputTest(server, 3, direction, measurementId)
 
-//            runBlocking {
             coroutineScope {
                 launch {
                     withContext(Dispatchers.IO) {
                         test.metricsChan.consumeEach {
                             Log.v(TAG, "got metrics $it")
-//                        writeMessage("progress: $it")
                             updateBytesPerSec(it.bytesPerSec)
-//                        writeMessage("***** speed = ${8 * it.bytesPerSec / 1e6}")
                         }
                     }
                 }
@@ -243,28 +158,17 @@ object MeasurementManager {
             }
         } catch (t: Throwable) {
             Log.d(TAG, "$dir test failed", t)
-            writeMessage("$dir test failed: ${t.localizedMessage}")
+            Log.e(TAG, "$dir test failed: ${t.localizedMessage}")
             throw t
-//            return ThroughputTestResult(success = false)
         } finally {
             updateBytesPerSec(0.0)
             Log.d(TAG, "Done running test...")
-            // get test end GPS location
-            // get test start GPS location
-//            location = getLocation()
-//            if (location != null)
-//                locations.add(location)
         }
 
         Log.i(TAG, "$dir test complete: measurementId = $measurementId")
         Log.i(TAG, "$dir test complete: $throughputTestResult")
-//        Log.i(TAG, "$dir test locations = ${locations.map { it.id }.joinToString()}")
-//        writeMessage("$dir test complete: ${if (result.success) "success" else "failure"}; warmup ${result.warmupMetrics}; active ${result.activeMetrics}")
 
         return throughputTestResult
-
-//        insertMeasurement(groupId, result, direction, cells, locations)
-//        runBlocking { createMeasurement(result, direction) }
     }
 
     suspend fun runLatencyTest(
@@ -287,29 +191,11 @@ object MeasurementManager {
         } catch (t: Throwable) {
             Log.e(TAG, "latency test failed", t)
             throw t
-//            return LatencyResult(
-//                serverHost,
-//                false,
-//                Clock.System.now(),
-//                0,
-//                0,
-//                0,
-//                0,
-//                0,
-//            )
         }
 
         Log.d(TAG, "got latency result: $latencyResult")
-//        insertLatency(measurementId, result)
         return latencyResult
     }
-
-//    suspend fun insertLatency(
-//        measurementId: String?,
-//        result: LatencyResult
-//    ) {
-//
-//    }
 
     suspend fun insertLatency(
         groupId: String,
@@ -320,9 +206,7 @@ object MeasurementManager {
         val context = CellWatchApp.applicationContext()
         val dataStore = LocalDataStore(context)
         val deviceId = dataStore.getDeviceId.first()
-
-        val servers: List<String>? = listOf(latencyResult.targetHost)
-//        val servers: List<String>? = if (latencyResult.remoteAddr != null) listOf(latencyResult.remoteAddr) else null
+        val servers: List<String> = listOf(latencyResult.targetHost)
 
         val latencyData = LatencyData(
             rtt = latencyResult.meanRtt,
@@ -393,18 +277,14 @@ object MeasurementManager {
         var client = "client"
 
         val servers = listOf(client, server)
-//        val serversString = servers.joinToString(prefix = "{", postfix = "}", separator = ",")
 
         val uploadDownloadData = UploadDownloadData(
-//            measurementId = measurement.id,
             warmupDuration = throughputTestResult.warmupMetrics?.usecs,
             warmupBytes = throughputTestResult.warmupMetrics?.bytes,
             duration = throughputTestResult.activeMetrics?.usecs,
             bytes = throughputTestResult.activeMetrics?.bytes,
             servers = servers
         )
-
-//        Log.d(TAG, "insertMeasurement: cells = ${cells}")
 
         val measurement = Measurement(
             groupId = groupId,
@@ -436,7 +316,6 @@ object MeasurementManager {
             Log.e(TAG, "Error inserting new measurement in MeasurementManager: ${e.message}")
             throw e
         }
-//        val insertedMeasurement = measurementNetworkDatasource?.insertMeasurement(measurement)
     }
 
     suspend fun getLocation(): Location? = suspendCoroutine { continuation ->
@@ -481,9 +360,5 @@ object MeasurementManager {
         }
 
         return Pair(throughputServer, latencyServers[0])
-    }
-
-    fun writeMessage(m: String) {
-        Log.i(TAG, m)
     }
 }
