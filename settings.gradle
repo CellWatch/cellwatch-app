@@ -5,13 +5,30 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+
+def cellwatchProperties = new Properties()
+file("cellwatch.properties").withInputStream { cellwatchProperties.load(it) }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' } // for locus-android library
+        maven {
+            url 'https://api.mapbox.com/downloads/v2/releases/maven'
+            authentication {
+                basic(BasicAuthentication)
+            }
+            credentials {
+                // This should always be `mapbox` (not your username).
+                username = "mapbox"
+                password = cellwatchProperties["MAPBOX_DOWNLOADS_TOKEN"]
+            }
+        }
     }
+
+
 }
 rootProject.name = "cellwatch"
 include ':app'
