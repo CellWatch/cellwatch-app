@@ -191,7 +191,7 @@ object TelephonyInfoManager {
             }
 
             val spectrumBandwidth = when (cellIdentity) {
-                is CellIdentityLte -> cellIdentity.bandwidth
+                is CellIdentityLte -> cellIdentity.bandwidth / 1000
                 else -> null
             }
 
