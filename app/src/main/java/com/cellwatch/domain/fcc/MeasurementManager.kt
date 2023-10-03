@@ -216,6 +216,9 @@ object MeasurementManager {
             null
         }
 
+        val (simMcc, simMnc) = TelephonyInfoManager.getSimMobileCodes()
+        val (netMcc, netMnc) = TelephonyInfoManager.getNetMobileCodes()
+
         val measurement = Measurement(
             groupId = groupId,
             deviceId = deviceId,
@@ -237,7 +240,11 @@ object MeasurementManager {
             uploadDownloadData = uploadDownloadData,
             latencyData = latencyData,
             cells = cells,
-            locations = locations
+            locations = locations,
+            simMcc = simMcc,
+            simMnc = simMnc,
+            netMcc = netMcc,
+            netMnc = netMnc,
         )
 
         Log.d(TAG, "Insert ${measurement.type} measurement with id = ${measurement.id}")

@@ -7,6 +7,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
+import android.telephony.CellIdentityCdma
 import android.telephony.CellIdentityGsm
 import android.telephony.CellIdentityLte
 import android.telephony.CellIdentityNr
@@ -290,5 +291,41 @@ object TelephonyInfoManager {
 
     fun isNetworkRoaming(): Boolean {
         return telephonyManager.isNetworkRoaming
+    }
+
+    fun getSimMobileCodes(): Pair<String?, String?> {
+        val operator = telephonyManager.simOperator
+        return Pair(operator.substring(0, 3), operator.substring(3))
+    }
+
+    fun getNetMobileCodes(): Pair<String?, String?> {
+        if (!PermissionManager.checkPermission()) return Pair(null, null)
+
+        for (cellInfo in telephonyManager.allCellInfo.filter { it.isRegistered }) {
+            val cellIdentity = when (cellInfo) {
+                is CellInfoCdma -> cellInfo.cellIdentity
+                is CellInfoGsm -> cellInfo.cellIdentity
+                is CellInfoLte -> cellInfo.cellIdentity
+                is CellInfoNr -> cellInfo.cellIdentity
+                is CellInfoTdscdma -> cellInfo.cellIdentity
+                is CellInfoWcdma -> cellInfo.cellIdentity
+                else -> null
+            }
+
+            val codes = when (cellIdentity) {
+                is CellIdentityGsm -> Pair(cellIdentity.mccString, cellIdentity.mncString)
+                is CellIdentityLte -> Pair(cellIdentity.mccString, cellIdentity.mncString)
+                is CellIdentityNr -> Pair(cellIdentity.mccString, cellIdentity.mncString)
+                is CellIdentityTdscdma -> Pair(cellIdentity.mccString, cellIdentity.mncString)
+                is CellIdentityWcdma -> Pair(cellIdentity.mccString, cellIdentity.mncString)
+                else -> null
+            }
+
+            if (codes != null) {
+                return codes
+            }
+        }
+
+        return Pair(null, null)
     }
 }
