@@ -54,6 +54,7 @@
                   <entry key="Tests" value="360" />
                   <entry key="samsung" value="120" />
                   <entry key="samsung&#10; SM-G970U" value="120" />
+                  <entry key="samsung SM-G970U" value="120" />
                 </map>
               </option>
             </AndroidTestResultsTableState>
@@ -68,6 +69,7 @@
                   <entry key="R58N23W237M" value="120" />
                   <entry key="Tests" value="360" />
                   <entry key="samsung&#10; SM-G970U" value="120" />
+                  <entry key="samsung SM-G970U" value="120" />
                 </map>
               </option>
             </AndroidTestResultsTableState>
@@ -82,6 +84,32 @@
                   <entry key="R58N23W237M" value="120" />
                   <entry key="Tests" value="360" />
                   <entry key="samsung&#10; SM-G970U" value="120" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+        <entry key="126988244">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="Tests" value="360" />
+                  <entry key="samsung SM-G970U" value="120" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+        <entry key="369467129">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="Tests" value="360" />
+                  <entry key="samsung SM-G970U" value="120" />
                 </map>
               </option>
             </AndroidTestResultsTableState>
@@ -111,6 +139,7 @@
                   <entry key="R58N23W237M" value="120" />
                   <entry key="Tests" value="360" />
                   <entry key="samsung&#10; SM-G970U" value="120" />
+                  <entry key="samsung SM-G970U" value="120" />
                 </map>
               </option>
             </AndroidTestResultsTableState>
@@ -153,6 +182,7 @@
                   <entry key="R58N23W237M" value="120" />
                   <entry key="Tests" value="360" />
                   <entry key="samsung&#10; SM-G970U" value="120" />
+                  <entry key="samsung SM-G970U" value="120" />
                 </map>
               </option>
             </AndroidTestResultsTableState>
@@ -167,6 +197,7 @@
                   <entry key="R58N23W237M" value="120" />
                   <entry key="Tests" value="360" />
                   <entry key="samsung&#10; SM-G970U" value="120" />
+                  <entry key="samsung SM-G970U" value="120" />
                 </map>
               </option>
             </AndroidTestResultsTableState>
@@ -181,6 +212,7 @@
                   <entry key="R58N23W237M" value="120" />
                   <entry key="Tests" value="360" />
                   <entry key="samsung&#10; SM-G970U" value="120" />
+                  <entry key="samsung SM-G970U" value="120" />
                 </map>
               </option>
             </AndroidTestResultsTableState>
@@ -195,6 +227,7 @@
                   <entry key="R58N23W237M" value="120" />
                   <entry key="Tests" value="360" />
                   <entry key="samsung&#10; SM-G970U" value="120" />
+                  <entry key="samsung SM-G970U" value="120" />
                 </map>
               </option>
             </AndroidTestResultsTableState>

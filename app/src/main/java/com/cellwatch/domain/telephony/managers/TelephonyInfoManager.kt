@@ -11,6 +11,7 @@ import android.telephony.CellInfoGsm
 import android.telephony.CellInfoLte
 import android.telephony.CellSignalStrengthLte
 import android.telephony.TelephonyManager
+import android.text.TextUtils
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.cellwatch.CellWatchApp
@@ -18,6 +19,7 @@ import com.cellwatch.core.util.PermissionManager
 import com.cellwatch.data.model.Cell
 import kotlinx.datetime.Clock
 import java.util.Objects
+
 
 enum class NetworkConnectionType {
     NONE, WIFI, CELLULAR, VPN
@@ -29,6 +31,54 @@ object TelephonyInfoManager {
     private var telephonyManager: TelephonyManager =
         appContext.getSystemService(Context.TELEPHONY_SERVICE) as
             TelephonyManager
+
+    fun getNetworkMobileCountryCode(): String? {
+        val networkOperator: String = Objects.requireNonNull(telephonyManager).networkOperator
+        var mcc: String? = null;
+
+        if (!TextUtils.isEmpty(networkOperator)) {
+            mcc = networkOperator.substring(0, 3)
+        }
+
+        Log.d(TAG, "net_mcc = $mcc")
+        return mcc;
+    }
+
+    fun getNetworkMobileNetworkCode(): String? {
+        val networkOperator: String = Objects.requireNonNull(telephonyManager).networkOperator
+        var mnc: String? = null;
+
+        if (!TextUtils.isEmpty(networkOperator)) {
+            mnc = networkOperator.substring(3)
+        }
+
+        Log.d(TAG, "net_mnc = $mnc")
+        return mnc;
+    }
+
+    fun getSimMobileCountryCode(): String? {
+        val simOperator: String = Objects.requireNonNull(telephonyManager).simOperator
+        var mcc: String? = null;
+
+        if (!TextUtils.isEmpty(simOperator)) {
+            mcc = simOperator.substring(0, 3)
+        }
+
+        Log.d(TAG, "sim_mcc = $mcc")
+        return mcc;
+    }
+
+    fun getSimMobileNetworkCode(): String? {
+        val simOperator: String = Objects.requireNonNull(telephonyManager).simOperator
+        var mnc: String? = null;
+
+        if (!TextUtils.isEmpty(simOperator)) {
+            mnc = simOperator.substring(3)
+        }
+
+        Log.d(TAG, "net_mcc = $mnc")
+        return mnc;
+    }
 
     fun getConnectionType(): NetworkConnectionType {
         var result = NetworkConnectionType.NONE // Returns connection type. 0: none; 1: mobile data; 2: wifi; 3: vpn

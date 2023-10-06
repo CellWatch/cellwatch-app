@@ -1,12 +1,8 @@
 package com.cellwatch
 
-import android.content.Context
 import android.util.Log
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.cellwatch.data.model.Cell
-import com.cellwatch.data.model.ChallengeData
-import com.cellwatch.data.model.FccSubmission
 import com.cellwatch.data.model.LatencyData
 import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
@@ -97,6 +93,10 @@ class NetworkMeasurementDatasourceTest {
             networkAvailable = true,
             networkConnected = true,
             networkRoaming = false,
+            simMobileCountryCode = "310",
+            simMobileNetworkCode = "310",
+            netMobileCountryCode = "410",
+            netMobileNetworkCode = "410",
             extraData = "extraData"
         )
 
@@ -328,6 +328,7 @@ class NetworkMeasurementDatasourceTest {
             warmupBytes = 134425,
             duration = 9372444,
             bytes = 83724,
+            applicationBytes = 92331,
             servers = listOf("server1", "server2")
         )
 
@@ -336,6 +337,7 @@ class NetworkMeasurementDatasourceTest {
             warmupBytes = 56325,
             duration = 3756444,
             bytes = 53724,
+            applicationBytes = 92331,
             servers = listOf("server1", "server2")
         )
 
@@ -346,14 +348,6 @@ class NetworkMeasurementDatasourceTest {
             received = 779927,
             servers = listOf("server1", "server2")
         )
-
-//        val downloadLatencyData = LatencyData(
-//            rtt = 56455,
-//            jitter = 97372,
-//            sent = 3424553,
-//            received = 409927,
-//            servers = listOf("server2", "server1")
-//        )
 
         val downloadMeasurement = Measurement(
 //            id = UUID.randomUUID().toString(),
@@ -376,6 +370,10 @@ class NetworkMeasurementDatasourceTest {
             networkAvailable = true,
             networkConnected = true,
             networkRoaming = false,
+            simMobileCountryCode = "310",
+            simMobileNetworkCode = "310",
+            netMobileCountryCode = "410",
+            netMobileNetworkCode = "410",
             extraData = "extraData"
         )
 
@@ -400,6 +398,10 @@ class NetworkMeasurementDatasourceTest {
             networkAvailable = true,
             networkConnected = true,
             networkRoaming = false,
+            simMobileCountryCode = "310",
+            simMobileNetworkCode = "310",
+            netMobileCountryCode = "410",
+            netMobileNetworkCode = "410",
             extraData = "extraData",
         )
 
@@ -424,6 +426,10 @@ class NetworkMeasurementDatasourceTest {
             networkAvailable = true,
             networkConnected = true,
             networkRoaming = false,
+            simMobileCountryCode = "310",
+            simMobileNetworkCode = "310",
+            netMobileCountryCode = "410",
+            netMobileNetworkCode = "410",
             extraData = "extraData",
         )
 
@@ -608,6 +614,7 @@ class NetworkMeasurementDatasourceTest {
             warmupBytes = 134425,
             duration = 9372444,
             bytes = 83724,
+            applicationBytes = 92331,
             servers = listOf("server1", "server2")
         )
 
@@ -616,6 +623,7 @@ class NetworkMeasurementDatasourceTest {
             warmupBytes = 56325,
             duration = 3756444,
             bytes = 53724,
+            applicationBytes = 92331,
             servers = listOf("server1", "server2")
         )
 
@@ -625,6 +633,49 @@ class NetworkMeasurementDatasourceTest {
             sent = 8124553,
             received = 779927,
             servers = listOf("server1", "server2")
+        )
+
+        val downloadCells = listOf<Cell>(
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 234,
+                physicalCellId = 4321,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -103,
+                rssi = -78,
+                rsrp = -102,
+                rsrq = -12,
+                sinr = 2,
+                csiRsrp = -101,
+                csiRsrq = -13,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            ),
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 235,
+                physicalCellId = 4322,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -102,
+                rssi = -79,
+                rsrp = -101,
+                rsrq = -11,
+                sinr = 2,
+                csiRsrp = -100,
+                csiRsrq = -14,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            )
         )
 
         val latencyMeasurement = Measurement(
@@ -648,6 +699,10 @@ class NetworkMeasurementDatasourceTest {
             networkAvailable = true,
             networkConnected = true,
             networkRoaming = false,
+            simMobileCountryCode = "310",
+            simMobileNetworkCode = "310",
+            netMobileCountryCode = "410",
+            netMobileNetworkCode = "410",
             extraData = "extraData",
             latencyData = latencyData,
             locations = latencyLocations
@@ -674,8 +729,13 @@ class NetworkMeasurementDatasourceTest {
             networkAvailable = true,
             networkConnected = true,
             networkRoaming = false,
+            simMobileCountryCode = "310",
+            simMobileNetworkCode = "310",
+            netMobileCountryCode = "410",
+            netMobileNetworkCode = "410",
             extraData = "extraData",
             uploadDownloadData = downloadData,
+            cells = downloadCells,
             locations = downloadLocations
         )
 
@@ -700,6 +760,10 @@ class NetworkMeasurementDatasourceTest {
             networkAvailable = true,
             networkConnected = true,
             networkRoaming = false,
+            simMobileCountryCode = "310",
+            simMobileNetworkCode = "310",
+            netMobileCountryCode = "410",
+            netMobileNetworkCode = "410",
             extraData = "extraData",
             uploadDownloadData = uploadData,
             locations = uploadLocations

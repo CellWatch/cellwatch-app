@@ -64,6 +64,18 @@ data class NetworkMeasurement(
     @SerialName("network_roaming")
     val networkRoaming: Boolean? = null,
 
+    @SerialName("sim_mobile_country_code")
+    val simMobileCountryCode: String? = null,
+
+    @SerialName("sim_mobile_network_code")
+    val simMobileNetworkCode: String? = null,
+
+    @SerialName("net_mobile_country_code")
+    val netMobileCountryCode: String? = null,
+
+    @SerialName("net_mobile_network_code")
+    val netMobileNetworkCode: String? = null,
+
     @SerialName("extra_data")
     val extraData: String? = null,
 
@@ -122,6 +134,10 @@ fun NetworkMeasurement.asExternalModel() = Measurement(
     networkConnected,
     networkAvailable,
     networkRoaming,
+    simMobileCountryCode,
+    simMobileNetworkCode,
+    netMobileCountryCode,
+    netMobileNetworkCode,
     extraData,
     createdOn,
     updatedOn,

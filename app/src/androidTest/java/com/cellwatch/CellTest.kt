@@ -22,6 +22,21 @@ class CellTest {
 
     @Test
     @Throws(Exception::class)
+    fun getMobileCountryCode() {
+        Log.d(TAG, "Starting getMobileCountryCode test ********")
+        val simMCC = TelephonyInfoManager.getSimMobileCountryCode();
+        val netMCC = TelephonyInfoManager.getNetworkMobileCountryCode();
+        val simMNC = TelephonyInfoManager.getSimMobileNetworkCode();
+        val netMNC = TelephonyInfoManager.getNetworkMobileNetworkCode();
+
+        Log.d(TAG, "sim_mcc = ${simMCC}");
+        Log.d(TAG, "net_mcc = ${netMCC}");
+        Log.d(TAG, "sim_mnc = ${simMNC}");
+        Log.d(TAG, "net_mnc = ${netMNC}");
+    }
+
+    @Test
+    @Throws(Exception::class)
     fun getCellInfo() {
         Log.d(TAG, "Starting getCellInfo test *******")
         val cells = telephonyInfoManager.getCells()

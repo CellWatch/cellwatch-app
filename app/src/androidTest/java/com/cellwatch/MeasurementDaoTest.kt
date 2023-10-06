@@ -108,7 +108,11 @@ class MeasurementDaoTest {
             carrierAggregation = false,
             networkAvailable = true,
             networkConnected = true,
-            networkRoaming = false
+            networkRoaming = false,
+            simMobileCountryCode = "310",
+            simMobileNetworkCode = "310",
+            netMobileCountryCode = "410",
+            netMobileNetworkCode = "410"
         )
         val measurementJson: String = gsonPretty.toJson(measurement)
         println("**** Measurement JSON = $measurementJson")
@@ -122,6 +126,8 @@ class MeasurementDaoTest {
         assertEquals(allMeasurements[0].deviceManufacturer, measurement.deviceManufacturer)
         assertEquals(allMeasurements[0].deviceModel, measurement.deviceModel)
         assertEquals(allMeasurements[0].type, "download")
+        assertEquals(allMeasurements[0].simMobileCountryCode, "310")
+        assertEquals(allMeasurements[0].simMobileCountryCode, "310")
 
         print("******** Done with insertAndGetMeasurement")
 //        Log.d(TAG, "insertAndGetMeasurement")
@@ -139,7 +145,12 @@ class MeasurementDaoTest {
             type = "download",
             appName = "CellWatch",
             deviceManufacturer = "Samsung",
-            deviceModel = "Galaxy"
+            deviceModel = "Galaxy",
+            networkRoaming = false,
+            simMobileCountryCode = "310",
+            simMobileNetworkCode = "410",
+            netMobileCountryCode = "310",
+            netMobileNetworkCode = "410"
         )
         val uploadMeasurement = MeasurementEntity(
             groupId = groupId,
@@ -147,7 +158,12 @@ class MeasurementDaoTest {
             type = "upload",
             appName = "CellWatch",
             deviceManufacturer = "Google",
-            deviceModel = "Pixel"
+            deviceModel = "Pixel",
+            networkRoaming = false,
+            simMobileCountryCode = "310",
+            simMobileNetworkCode = "410",
+            netMobileCountryCode = "310",
+            netMobileNetworkCode = "410"
         )
         val latencyMeasurement = MeasurementEntity(
             groupId = groupId,
@@ -190,6 +206,7 @@ class MeasurementDaoTest {
             warmupBytes = 56325,
             duration = 3756444,
             bytes = 53724,
+            applicationBytes = 56724,
             servers = listOf("server1", "server2")
         )
         val uploadData = UploadDownloadDataEntity(
@@ -198,6 +215,7 @@ class MeasurementDaoTest {
             warmupBytes = 134425,
             duration = 9372444,
             bytes = 83724,
+            applicationBytes = 56724,
             servers = listOf("server1", "server2")
         )
         val latencyDataEntity = LatencyDataEntity(
@@ -342,32 +360,35 @@ class MeasurementDaoTest {
 //            dataDao.insertUploadDownloadData(downloadData)
 //            dataDao.insertUploadDownloadData(uploadData)
 
-            measurementDao.insertMeasurementWithData(
-                MeasurementWithData(
-                    downloadMeasurement,
-                    downloadData,
-                    null,
-                    listOf<LocationEntity>(locationEntity),
-                    downloadCells
-                )
+            val downloadMeasurementWithData = MeasurementWithData(
+                downloadMeasurement,
+                downloadData,
+                null,
+                listOf<LocationEntity>(locationEntity),
+                downloadCells
             )
             measurementDao.insertMeasurementWithData(
-                MeasurementWithData(
-                    uploadMeasurement,
-                    uploadData,
-                    null,
-                    listOf<LocationEntity>(locationEntity2),
-                    uploadCells
-                )
+                downloadMeasurementWithData
+            )
+            val uploadMeasurementWithData = MeasurementWithData(
+                uploadMeasurement,
+                uploadData,
+                null,
+                listOf<LocationEntity>(locationEntity2),
+                uploadCells
             )
             measurementDao.insertMeasurementWithData(
-                MeasurementWithData(
-                    latencyMeasurement,
-                    null,
-                    latencyDataEntity,
-                    listOf<LocationEntity>(locationEntity3),
-                    latencyCells
-                )
+                uploadMeasurementWithData
+            )
+            val latencyMeasurementWithData = MeasurementWithData(
+                latencyMeasurement,
+                null,
+                latencyDataEntity,
+                listOf<LocationEntity>(locationEntity3),
+                latencyCells
+            )
+            measurementDao.insertMeasurementWithData(
+                latencyMeasurementWithData
             )
 
 //            measurementDao.insertMeasurement(uploadMeasurement)
@@ -376,11 +397,15 @@ class MeasurementDaoTest {
 //            val allMeasurements = measurementDao.getMeasurementsWithDataFlow().first()
             assertEquals(allMeasurements[0].measurement.id, downloadMeasurement.id)
             assertEquals(allMeasurements[1].measurement.id, uploadMeasurement.id)
+            assertEquals(allMeasurements[0].measurement.simMobileNetworkCode, "410")
             with(allMeasurements[0]) {
                 assertEquals(measurement.type, "download")
+                assertEquals(measurement.simMobileNetworkCode, "410")
+                Log.d(TAG, "measurement.simMobileNetworkCode = ${measurement.simMobileNetworkCode}")
                 uploadDownloadData?.let {
                     assertEquals(it.measurementId, measurement.id)
                     assertEquals(it.bytes, 53724L)
+                    assertEquals(it.applicationBytes, 56724L)
                 }
                 locations?.forEach {
                     assertEquals(it.lat, 33.5597)

@@ -180,7 +180,7 @@ object NetworkMeasurementDatasource {
 
             Log.d(
                 TAG,
-                "*** Inserted new Measurement record: $insertedMeasurement"
+                "*** Inserted new Measurement record as transaction: $insertedMeasurement"
             )
         } catch (e: RestException) {
             Log.e(TAG, "RestException: ${e.message}")
@@ -203,7 +203,6 @@ object NetworkMeasurementDatasource {
     suspend fun insertMeasurements(measurements: List<Measurement>): List<Measurement>? {
         var insertedMeasurements: List<Measurement>? = null
 
-
         measurements.map { measurement ->
             Log.d(TAG, "insertMeasurements: $measurement")
         }
@@ -214,6 +213,7 @@ object NetworkMeasurementDatasource {
             withContext(Dispatchers.IO) {
                 try {
                     insertedMeasurements = measurements.map { measurement ->
+                        Log.d(TAG, "insertMeasurements: $measurement")
                         insertMeasurementTransaction(measurement)!!
 //                    insertMeasurement(measurement)!!
                     }
@@ -265,6 +265,7 @@ object NetworkMeasurementDatasource {
         // Move network IO off the Main thread
         withContext(Dispatchers.IO) {
             try {
+                Log.d(TAG, "insertUploadDownloadData: ${uploadDownloadData.asNetworkModel()}")
                 insertedUploadDownloadData =
                     dataTable.insert(uploadDownloadData.asNetworkModel())
                         .decodeSingle<NetworkUploadDownloadData>().asExternalModel()

@@ -41,6 +41,8 @@ object MeasurementManager {
     private val measurementRepository = com.cellwatch.CellWatchApp.measurementRepository
     private val TAG = this::class.simpleName
 
+//    private lateinit var telephonyInfoManager: TelephonyInfoManager
+
     private var deviceMod: EasyDeviceMod? = EasyDeviceMod(CellWatchApp.applicationContext())
     private var networkMod: EasyNetworkMod = EasyNetworkMod(CellWatchApp.applicationContext())
     private var simMod: EasySimMod? = EasySimMod(CellWatchApp.applicationContext())
@@ -235,6 +237,10 @@ object MeasurementManager {
             networkConnected = networkMod.isNetworkAvailable,
             networkRoaming = false,
             uploadDownloadData = null,
+            simMobileCountryCode = TelephonyInfoManager.getSimMobileCountryCode(),
+            simMobileNetworkCode = TelephonyInfoManager.getSimMobileNetworkCode(),
+            netMobileCountryCode = TelephonyInfoManager.getNetworkMobileCountryCode(),
+            netMobileNetworkCode = TelephonyInfoManager.getNetworkMobileNetworkCode(),
             latencyData = latencyData,
             cells = cells,
             locations = locations
@@ -286,6 +292,17 @@ object MeasurementManager {
             servers = servers
         )
 
+        Log.d(TAG, "*****************n Starting getMobileCountryCode test ********")
+        val simMCC = TelephonyInfoManager.getSimMobileCountryCode();
+        val netMCC = TelephonyInfoManager.getNetworkMobileCountryCode();
+        val simMNC = TelephonyInfoManager.getSimMobileNetworkCode();
+        val netMNC = TelephonyInfoManager.getNetworkMobileNetworkCode();
+
+        Log.d(TAG, "sim_mcc = ${simMCC}");
+        Log.d(TAG, "net_mcc = ${netMCC}");
+        Log.d(TAG, "sim_mnc = ${simMNC}");
+        Log.d(TAG, "net_mnc = ${netMNC}");
+
         val measurement = Measurement(
             groupId = groupId,
             deviceId = deviceId,
@@ -304,6 +321,10 @@ object MeasurementManager {
             networkAvailable = networkMod.isNetworkAvailable,
             networkConnected = true,
             networkRoaming = false,
+            simMobileCountryCode = simMCC,
+            simMobileNetworkCode = simMNC,
+            netMobileCountryCode = netMCC,
+            netMobileNetworkCode = netMNC,
             uploadDownloadData = uploadDownloadData,
             cells = cells,
             locations = locations

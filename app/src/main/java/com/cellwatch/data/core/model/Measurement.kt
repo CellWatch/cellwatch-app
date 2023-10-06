@@ -24,6 +24,10 @@ fun NetworkMeasurement.asEntity() = MeasurementEntity(
     networkConnected,
     networkAvailable,
     networkRoaming,
+    simMobileCountryCode,
+    simMobileNetworkCode,
+    netMobileCountryCode,
+    netMobileNetworkCode,
     extraData,
     createdOn,
     updatedOn
@@ -50,6 +54,10 @@ fun MeasurementEntity.asNetworkModel() = NetworkMeasurement(
     networkConnected,
     networkAvailable,
     networkRoaming,
+    simMobileCountryCode,
+    simMobileNetworkCode,
+    netMobileCountryCode,
+    netMobileNetworkCode,
     extraData,
     createdOn,
     updatedOn

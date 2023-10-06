@@ -24,6 +24,9 @@ data class NetworkUploadDownloadData(
 
     val bytes: Long? = null,
 
+    @SerialName("application_bytes")
+    val applicationBytes: Long? = null,
+
     val servers: List<String>? = null,
 
 //    @Transient
@@ -36,5 +39,5 @@ data class NetworkUploadDownloadData(
 )
 
 fun NetworkUploadDownloadData.asExternalModel() = UploadDownloadData(
-    id, measurementId, warmupDuration, warmupBytes, duration, bytes, servers, createdOn, updatedOn
+    id, measurementId, warmupDuration, warmupBytes, duration, bytes, applicationBytes, servers, createdOn, updatedOn
 )

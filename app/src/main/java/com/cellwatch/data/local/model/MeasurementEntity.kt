@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.cellwatch.data.model.Measurement
 import kotlinx.datetime.Instant
+import kotlinx.serialization.SerialName
 import java.util.UUID
 
 @Entity
@@ -63,6 +64,14 @@ data class MeasurementEntity(
 //    @ColumnInfo(name = "network_roaming")
     val networkRoaming: Boolean? = null,
 
+    val simMobileCountryCode: String? = null,
+
+    val simMobileNetworkCode: String? = null,
+
+    val netMobileCountryCode: String? = null,
+
+    val netMobileNetworkCode: String? = null,
+
 //    @SerialName("data_id")
 //    @ColumnInfo(name = "data_id")
 //    var dataId: String? = null,
@@ -105,6 +114,10 @@ fun MeasurementEntity.asExternalModel() = Measurement(
     networkConnected,
     networkAvailable,
     networkRoaming,
+    simMobileCountryCode,
+    simMobileNetworkCode,
+    netMobileCountryCode,
+    netMobileNetworkCode,
     extraData,
     createdOn,
     updatedOn
