@@ -27,7 +27,7 @@ import com.cellwatch.data.local.util.ListConverter
         LocationEntity::class,
         CellEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 @TypeConverters(

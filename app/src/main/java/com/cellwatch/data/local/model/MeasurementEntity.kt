@@ -64,13 +64,13 @@ data class MeasurementEntity(
 //    @ColumnInfo(name = "network_roaming")
     val networkRoaming: Boolean? = null,
 
-    val simMobileCountryCode: String? = null,
+    val simMcc: String? = null,
 
-    val simMobileNetworkCode: String? = null,
+    val simMnc: String? = null,
 
-    val netMobileCountryCode: String? = null,
+    val netMcc: String? = null,
 
-    val netMobileNetworkCode: String? = null,
+    val netMnc: String? = null,
 
 //    @SerialName("data_id")
 //    @ColumnInfo(name = "data_id")
@@ -114,10 +114,10 @@ fun MeasurementEntity.asExternalModel() = Measurement(
     networkConnected,
     networkAvailable,
     networkRoaming,
-    simMobileCountryCode,
-    simMobileNetworkCode,
-    netMobileCountryCode,
-    netMobileNetworkCode,
+    simMcc,
+    simMnc,
+    netMcc,
+    netMnc,
     extraData,
     createdOn,
     updatedOn

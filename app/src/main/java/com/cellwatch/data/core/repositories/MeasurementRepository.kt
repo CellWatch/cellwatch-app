@@ -57,7 +57,7 @@ class MeasurementRepository(
     suspend fun insertMeasurement(measurement: Measurement) {
         val measurementWithDataEntity = measurement.asEntityWithData()
         Log.d(TAG, "MeasurementRepository.insertMeasurement: measurementWithDataEntity.cells length is ${measurementWithDataEntity.cells?.size}")
-        Log.d(TAG, "MeasurementRepository.insertMeasurement: measurementWithDataEntity.simMobileCountryCode is ${measurementWithDataEntity.measurement?.simMobileCountryCode}")
+        Log.d(TAG, "MeasurementRepository.insertMeasurement: measurementWithDataEntity.simMcc is ${measurementWithDataEntity.measurement?.simMcc}")
         measurementDao.insertMeasurementWithData(measurementWithDataEntity)
     }
 
@@ -86,7 +86,7 @@ class MeasurementRepository(
 
         if (measurements.isNotEmpty()) {
             Log.d(TAG, "uploadMeasurements: Attempting to upload ${measurements.size} measurements")
-            Log.d(TAG, "uploadMeasurements: measurements[0].simMobileNetworkCode = ${measurements[0].simMobileNetworkCode}")
+            Log.d(TAG, "uploadMeasurements: measurements[0].simMnc = ${measurements[0].simMnc}")
             try {
                 networkDataSource.insertMeasurements(measurements)
             } catch (e: Exception) {
