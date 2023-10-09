@@ -16,7 +16,6 @@ import com.cellwatch.domain.msak.throughput.ThroughputDirection
 import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
-import github.nisrulz.easydeviceinfo.base.EasyNetworkMod
 import github.nisrulz.easydeviceinfo.base.EasySimMod
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.consumeEach
@@ -27,8 +26,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Clock
 import okhttp3.OkHttpClient
+import java.security.InvalidParameterException
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -44,7 +43,6 @@ object MeasurementManager {
 //    private lateinit var telephonyInfoManager: TelephonyInfoManager
 
     private var deviceMod: EasyDeviceMod? = EasyDeviceMod(CellWatchApp.applicationContext())
-    private var networkMod: EasyNetworkMod = EasyNetworkMod(CellWatchApp.applicationContext())
     private var simMod: EasySimMod? = EasySimMod(CellWatchApp.applicationContext())
     private var appMod: EasyAppMod? = EasyAppMod(CellWatchApp.applicationContext())
 
@@ -56,11 +54,11 @@ object MeasurementManager {
         onLocateStart: () -> Unit,
         onLocateComplete: (r: String) -> Unit,
         onLatencyStart: () -> Unit,
-        onLatencyComplete: (r: FullLatencyResult) -> Unit,
+        onLatencyComplete: (r: LatencyResult, l: List<Location>, c: List<Cell>) -> Unit,
         onDownloadStart: () -> Unit,
-        onDownloadComplete: (r: FullThroughputResult) -> Unit,
+        onDownloadComplete: (r: ThroughputResult, l: List<Location>, c: List<Cell>) -> Unit,
         onUploadStart: () -> Unit,
-        onUploadComplete: (r: FullThroughputResult) -> Unit,
+        onUploadComplete: (r: ThroughputResult, l: List<Location>, c: List<Cell>) -> Unit,
     ) {
         val measurementId: String? = if (BuildConfig.MSAK_SERVER_ENV == "local") {
             UUID.randomUUID().toString()
@@ -84,55 +82,30 @@ object MeasurementManager {
         Log.i(TAG, "selected servers $throughputServer $latencyServer")
 
         onLatencyStart()
-        val fullLatencyResult = runFullLatencyTest(client, latencyServer, measurementId)
-        onLatencyComplete(fullLatencyResult)
-        insertLatency(groupId, fullLatencyResult.latencyResult, fullLatencyResult.cells, fullLatencyResult.locations)
+        val (latencyResult, latencyLocations, latencyCells) = runFullTest { runLatencyTest(client, latencyServer, measurementId) }
+        onLatencyComplete(latencyResult, latencyLocations, latencyCells)
+        insertMeasurement(groupId, latencyCells, latencyLocations, "latency", null, latencyResult)
 
         onDownloadStart()
-        val downloadResult = runFullThroughputTest(throughputServer, measurementId, ThroughputDirection.DOWNLOAD)
-        onDownloadComplete(downloadResult)
-        insertMeasurement(groupId, downloadResult.throughputTestResult, ThroughputDirection.DOWNLOAD, downloadResult.cells, downloadResult.locations)
+        val (downloadResult, downloadLocations, downloadCells) = runFullTest { runThroughputTest(throughputServer, measurementId, ThroughputDirection.DOWNLOAD) }
+        onDownloadComplete(downloadResult, downloadLocations, downloadCells)
+        insertMeasurement(groupId, downloadCells, downloadLocations, "download", downloadResult, null)
 
         onUploadStart()
-        val uploadResult = runFullThroughputTest(throughputServer, measurementId, ThroughputDirection.UPLOAD)
-        onUploadComplete(uploadResult)
-        insertMeasurement(groupId, uploadResult.throughputTestResult, ThroughputDirection.UPLOAD, uploadResult.cells, uploadResult.locations)
+        val (uploadResult, uploadLocations, uploadCells) = runFullTest { runThroughputTest(throughputServer, measurementId, ThroughputDirection.UPLOAD) }
+        onUploadComplete(uploadResult, uploadLocations, uploadCells)
+        insertMeasurement(groupId, uploadCells, uploadLocations, "upload", uploadResult, null)
 
         measurementRepository.uploadMeasurements()
     }
 
-    suspend fun runFullLatencyTest(
-        client: OkHttpClient,
-        server: Server,
-        measurementId: String?
-    ): FullLatencyResult {
+    suspend fun <T> runFullTest(testFn: suspend () -> T): Triple<T, List<Location>, List<Cell>> {
         val beginLocation: Location? = getLocation()
         val cells = TelephonyInfoManager.getCells()
-        val latencyResult = runLatencyTest(client, server, measurementId)
+        val testResult = testFn()
         val endLocation: Location? = getLocation()
 
-        return FullLatencyResult(
-            latencyResult,
-            listOfNotNull(beginLocation, endLocation),
-            cells
-        )
-    }
-
-    suspend fun runFullThroughputTest(
-        server: Server,
-        measurementId: String?,
-        direction: ThroughputDirection,
-    ): FullThroughputResult {
-        val beginLocation: Location? = getLocation()
-        val cells = TelephonyInfoManager.getCells()
-        val throughputTestResult = runThroughputTest(server, measurementId, direction)
-        val endLocation: Location? = getLocation()
-
-        return FullThroughputResult(
-            throughputTestResult,
-            listOfNotNull(beginLocation, endLocation),
-            cells
-        )
+        return Triple(testResult, listOfNotNull(beginLocation, endLocation), cells ?: listOf())
     }
 
     suspend fun runThroughputTest(
@@ -199,109 +172,54 @@ object MeasurementManager {
         return latencyResult
     }
 
-    suspend fun insertLatency(
-        groupId: String,
-        latencyResult: LatencyResult,
-        cells: List<Cell>?,
-        locations: List<Location>?
-    ) {
-        val context = CellWatchApp.applicationContext()
-        val dataStore = LocalDataStore(context)
-        val deviceId = dataStore.getDeviceId.first()
-        val servers: List<String> = listOf(latencyResult.targetHost)
-
-        val latencyData = LatencyData(
-            rtt = latencyResult.meanRtt,
-            jitter = latencyResult.jitter,
-            sent = latencyResult.packetsSent,
-            received = latencyResult.packetsReceived,
-            servers = servers
-        )
-
-        val measurement = Measurement(
-            groupId = groupId,
-            deviceId = deviceId,
-            deviceManufacturer = deviceMod?.manufacturer,
-            deviceModel = deviceMod?.model,
-            deviceOsName = "Android",
-            deviceOsVersion = deviceMod?.osVersion,
-            appName = appMod?.appName,
-            provider = simMod?.carrier,
-            type = "latency",
-            timestamp = Clock.System.now(),
-            duration = null,
-            scheduled = false,
-            success = latencyResult.success,
-            carrierAggregation = null,
-            networkAvailable = networkMod.isNetworkAvailable,
-            networkConnected = networkMod.isNetworkAvailable,
-            networkRoaming = false,
-            uploadDownloadData = null,
-            simMcc = TelephonyInfoManager.getSimMobileCountryCode(),
-            simMnc = TelephonyInfoManager.getSimMobileNetworkCode(),
-            netMcc = TelephonyInfoManager.getNetworkMobileCountryCode(),
-            netMnc = TelephonyInfoManager.getNetworkMobileNetworkCode(),
-            latencyData = latencyData,
-            cells = cells,
-            locations = locations
-        )
-        Log.d(TAG, "Insert ${measurement.type} measurement with id = ${measurement.id}")
-
-        try {
-            measurementRepository.insertMeasurement(measurement)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error inserting new measurement in MeasurementManager: ${e.message}")
-            throw e
-        }
-    }
-
     suspend fun insertMeasurement(
         groupId: String,
-        throughputTestResult: ThroughputResult,
-        direction: ThroughputDirection,
-        cells: List<Cell>?,
-        locations: List<Location>?
+        cells: List<Cell>,
+        locations: List<Location>,
+        type: String,
+        throughputResult: ThroughputResult?,
+        latencyResult: LatencyResult?,
     ) {
+        if (throughputResult == null && latencyResult == null) {
+            throw InvalidParameterException("either throughput or latency result must be provided")
+        }
+
         val context = CellWatchApp.applicationContext()
         val dataStore = LocalDataStore(context)
         val deviceId = dataStore.getDeviceId.first()
 
-        val warmupDuration = if (throughputTestResult.warmupMetrics != null)
-            throughputTestResult.warmupMetrics.usecs else 0
+        val duration = if (throughputResult != null) {
+            (throughputResult.activeMetrics?.usecs ?: 0) + (throughputResult.warmupMetrics?.usecs ?: 0)
+        } else {
+            latencyResult?.usecs
+        }
 
-        val activeDuration = if (throughputTestResult.activeMetrics != null)
-            throughputTestResult.activeMetrics.usecs else 0
+        val latencyData = if (latencyResult != null) {
+            LatencyData(
+                rtt = latencyResult.meanRtt,
+                jitter = latencyResult.jitter,
+                sent = latencyResult.packetsSent,
+                received = latencyResult.packetsReceived,
+                servers = listOf(latencyResult.targetHost),
+            )
+        } else {
+            null
+        }
 
-        val totalDuration = warmupDuration + activeDuration
+        val uploadDownloadData = if (throughputResult != null) {
+            UploadDownloadData(
+                warmupDuration = throughputResult.warmupMetrics?.usecs,
+                warmupBytes = throughputResult.warmupMetrics?.bytes,
+                duration = throughputResult.activeMetrics?.usecs,
+                bytes = throughputResult.activeMetrics?.bytes,
+                servers = listOf(throughputResult.targetHost),
+            )
+        } else {
+            null
+        }
 
-        val server = throughputTestResult.targetHost
-
-        // TODO: fix this -- I don't understand why it's needed
-        //var client = if (result.streamResults.isNotEmpty())
-        //    result.streamResults.first()?.localAddr else "client"
-        //if (client == null) client = "none"
-        var client = "client"
-
-        val servers = listOf(client, server)
-
-        val uploadDownloadData = UploadDownloadData(
-            warmupDuration = throughputTestResult.warmupMetrics?.usecs,
-            warmupBytes = throughputTestResult.warmupMetrics?.bytes,
-            duration = throughputTestResult.activeMetrics?.usecs,
-            bytes = throughputTestResult.activeMetrics?.bytes,
-            servers = servers
-        )
-
-        Log.d(TAG, "*****************n Starting getMobileCountryCode test ********")
-        val simMCC = TelephonyInfoManager.getSimMobileCountryCode();
-        val netMCC = TelephonyInfoManager.getNetworkMobileCountryCode();
-        val simMNC = TelephonyInfoManager.getSimMobileNetworkCode();
-        val netMNC = TelephonyInfoManager.getNetworkMobileNetworkCode();
-
-        Log.d(TAG, "sim_mcc = ${simMCC}");
-        Log.d(TAG, "net_mcc = ${netMCC}");
-        Log.d(TAG, "sim_mnc = ${simMNC}");
-        Log.d(TAG, "net_mnc = ${netMNC}");
+        val (simMcc, simMnc) = TelephonyInfoManager.getSimMobileCodes()
+        val (netMcc, netMnc) = TelephonyInfoManager.getNetMobileCodes()
 
         val measurement = Measurement(
             groupId = groupId,
@@ -312,23 +230,25 @@ object MeasurementManager {
             deviceOsVersion = deviceMod?.osVersion,
             appName = appMod?.appName,
             provider = simMod?.carrier,
-            type = direction.toString().lowercase(),
-            timestamp = Clock.System.now(),
-            duration = totalDuration,
+            type = type,
+            timestamp = throughputResult?.start ?: latencyResult?.start,
+            duration = duration,
             scheduled = false,
-            success = throughputTestResult.success,
-            carrierAggregation = false,
-            networkAvailable = networkMod.isNetworkAvailable,
-            networkConnected = true,
-            networkRoaming = false,
-            simMcc = simMCC,
-            simMnc = simMNC,
-            netMcc = netMCC,
-            netMnc = netMNC,
+            success = throughputResult?.success ?: latencyResult?.success,
+            carrierAggregation = false, // TODO: how do we get this?
+            networkAvailable = TelephonyInfoManager.isNetworkAvailable(),
+            networkConnected = TelephonyInfoManager.isNetworkConnected(),
+            networkRoaming = TelephonyInfoManager.isNetworkRoaming(),
             uploadDownloadData = uploadDownloadData,
+            latencyData = latencyData,
             cells = cells,
-            locations = locations
+            locations = locations,
+            simMcc = simMcc,
+            simMnc = simMnc,
+            netMcc = netMcc,
+            netMnc = netMnc,
         )
+
         Log.d(TAG, "Insert ${measurement.type} measurement with id = ${measurement.id}")
 
         try {

@@ -8,7 +8,7 @@ import java.util.UUID
 data class Cell(
     var id: String = UUID.randomUUID().toString(),
     val timestamp: Instant? = null,
-    val cellId: Int? = null,
+    val cellId: Long? = null,
     val physicalCellId: Int? = null,
     val cellConnection: Int? = null,
     val networkGeneration: String? = null,

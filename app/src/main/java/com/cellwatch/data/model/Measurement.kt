@@ -42,7 +42,11 @@ data class Measurement(
     var uploadDownloadData: UploadDownloadData? = null,
     var latencyData: LatencyData? = null,
     var locations: List<Location>? = null,
-    var cells: List<Cell>? = null
+    var cells: List<Cell>? = null,
+    val simMcc: String? = null,
+    val simMnc: String? = null,
+    val netMcc: String? = null,
+    val netMnc: String? = null,
 )
 
 fun Measurement.asEntity() = MeasurementEntity(
