@@ -218,9 +218,6 @@ object MeasurementManager {
             null
         }
 
-        val (simMcc, simMnc) = TelephonyInfoManager.getSimMobileCodes()
-        val (netMcc, netMnc) = TelephonyInfoManager.getNetMobileCodes()
-
         val measurement = Measurement(
             groupId = groupId,
             deviceId = deviceId,
@@ -243,10 +240,10 @@ object MeasurementManager {
             latencyData = latencyData,
             cells = cells,
             locations = locations,
-            simMcc = simMcc,
-            simMnc = simMnc,
-            netMcc = netMcc,
-            netMnc = netMnc,
+            simMcc = TelephonyInfoManager.getSimMobileCountryCode(),
+            simMnc = TelephonyInfoManager.getSimMobileNetworkCode(),
+            netMcc = TelephonyInfoManager.getNetworkMobileCountryCode(),
+            netMnc = TelephonyInfoManager.getNetworkMobileNetworkCode(),
         )
 
         Log.d(TAG, "Insert ${measurement.type} measurement with id = ${measurement.id}")
