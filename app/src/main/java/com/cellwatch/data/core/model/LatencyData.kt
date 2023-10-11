@@ -5,12 +5,12 @@ import com.cellwatch.data.network.model.NetworkLatencyData
 
 fun NetworkLatencyData.asEntity() = LatencyDataEntity(
     id, measurementId, rtt, jitter, sent, received,
-    servers = ArrayList(servers),
+    servers = servers?.let { ArrayList(it) },
     createdOn, updatedOn
 )
 
 fun LatencyDataEntity.asNetworkModel() = NetworkLatencyData(
     id, measurementId, rtt, jitter, sent, received,
-    servers = ArrayList(servers),
+    servers = servers?.let { ArrayList(it) },
     createdOn, updatedOn
 )

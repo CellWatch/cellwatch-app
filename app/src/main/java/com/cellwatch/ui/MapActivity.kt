@@ -18,11 +18,11 @@ import androidx.appcompat.widget.SwitchCompat
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.cellwatch.R
-import com.cellwatch.ui.groupCoords
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 
 import androidx.appcompat.content.res.AppCompatResources
+import com.cellwatch.domain.map.managers.MapAnnotationManager
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
@@ -158,7 +158,7 @@ class MapActivity : AppCompatActivity() {
             pointAnnotationManager = annotationApi.createPointAnnotationManager()
         }
 
-        for (coordinate in groupCoords()) {
+        for (coordinate in MapAnnotationManager.getAllCoordinates()) {
             bitmapFromDrawableRes(
                 this@MapActivity,
                 R.drawable.blue_marker_transparent,
