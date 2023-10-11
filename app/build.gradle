@@ -38,6 +38,7 @@ android {
             buildConfigField("Boolean", "MSAK_LOCAL_SERVER_SECURE", cellwatchProperties['MSAK_LOCAL_SERVER_SECURE'])
             buildConfigField("Integer", "MSAK_LATENCY_PORT", cellwatchProperties['MSAK_LOCAL_LATENCY_PORT'])
             buildConfigField("String", "USER_AGENT", "\"CellWatch/dev\"")
+            //buildConfigField("String", "MAPBOX_API_KEY", cellwatchProperties['MAPBOX_DOWNLOADS_TOKEN'])
         }
         release {
             minifyEnabled false
@@ -50,6 +51,7 @@ android {
             buildConfigField("Boolean", "MSAK_LOCAL_SERVER_SECURE", "true")
             buildConfigField("Integer", "MSAK_LATENCY_PORT", cellwatchProperties['MSAK_LATENCY_PORT'])
             buildConfigField("String", "USER_AGENT", "\"CellWatch/0.1.0\"") // TODO: use real version
+            //buildConfigField("String", "MAPBOX_API_KEY", cellwatchProperties['MAPBOX_DOWNLOADS_TOKEN'])
         }
     }
     compileOptions {
@@ -106,6 +108,12 @@ dependencies {
     implementation "androidx.room:room-runtime:$room_version"
     annotationProcessor "androidx.room:room-compiler:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
+
+    implementation 'com.mapbox.maps:android:10.16.0'
+    implementation "com.mapbox.search:mapbox-search-android-ui:1.0.0-rc.6"
+    implementation "com.mapbox.search:mapbox-search-android:1.0.0-rc.6"
+    implementation "com.mapbox.search:offline:1.0.0-rc.6"
+    implementation "com.mapbox.search:place-autocomplete:1.0.0-rc.6"
 
 
     // To use Kotlin annotation processing tool (kapt)
