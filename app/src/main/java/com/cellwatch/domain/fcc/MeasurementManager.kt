@@ -232,7 +232,7 @@ object MeasurementManager {
             duration = duration,
             scheduled = false,
             success = throughputResult?.success ?: latencyResult?.success,
-            carrierAggregation = false, // TODO: how do we get this?
+            carrierAggregation = TelephonyInfoManager.isUsingCarrierAggregation(cells),
             networkAvailable = TelephonyInfoManager.isNetworkAvailable(),
             networkConnected = TelephonyInfoManager.isNetworkConnected(),
             networkRoaming = TelephonyInfoManager.isNetworkRoaming(),

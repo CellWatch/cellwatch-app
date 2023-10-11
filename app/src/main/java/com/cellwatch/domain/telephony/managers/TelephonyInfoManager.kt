@@ -330,6 +330,13 @@ object TelephonyInfoManager {
         return cells
     }
 
+    fun isUsingCarrierAggregation(cells: List<Cell>): Boolean {
+        // There will only be multiple cells that are currently "serving" (primary or secondary) if
+        // carrier aggregation is enabled.
+        // See https://www.sharetechnote.com/html/Handbook_LTE_CellType.html
+        return cells.filter { it.cellConnection == CellInfo.CONNECTION_PRIMARY_SERVING || it.cellConnection == CellInfo.CONNECTION_SECONDARY_SERVING }.size > 1
+    }
+
     fun isNetworkAvailable(): Boolean {
         return availableNetworks.isNotEmpty()
     }
