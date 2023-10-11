@@ -2,7 +2,6 @@ package com.cellwatch.ui
 
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
@@ -12,7 +11,6 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import com.cellwatch.R
 import com.cellwatch.data.datastore.LocalDataStore
 import com.cellwatch.databinding.ActivityMainBinding
-import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import kotlinx.coroutines.GlobalScope
