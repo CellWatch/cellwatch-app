@@ -1,6 +1,7 @@
 package com.cellwatch.ui
 
 import android.util.Log
+import kotlinx.coroutines.runBlocking
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.max
@@ -51,17 +52,34 @@ fun groupCoordinates(coordinates: MutableList<Coordinate>, threshold: Double): M
 }
 
 fun groupCoords(): MutableList<Coordinate> {
-    val coords = mutableListOf(
-        Coordinate(40.7128, -74.0060, 1),
-        Coordinate(40.7033, -74.0170, 1),
-        Coordinate(40.7851, -73.9683, 1),
-        Coordinate(37.7749, -122.4194, 1),
-        Coordinate(37.8080, -122.4177, 1),
-        Coordinate(34.0522, -118.2437, 1),
-        Coordinate(19.43, -99.133, 1),
-        Coordinate(46.8771, -96.0, 1),
-        Coordinate(46.8771, -96.0, 1)
-    )
+    val measurementRepository = com.cellwatch.CellWatchApp.measurementRepository
+
+    var measurements = runBlocking { measurementRepository.getMeasurementsWithData() };
+    var coords: MutableList<Coordinate> = mutableListOf()
+
+    Log.d("MapAnnotationFactory","getting stored measurements");
+
+    for (measurement in measurements) {
+        if (measurement.locations != null) {
+            coords = measurement.locations?.map { location ->
+                Coordinate(location.lat!!, location.lon!!, 1)
+            }!!.toMutableList()
+        }
+    }
+
+    Log.d("MapAnnotationFactory", "Got ${coords.size} measurements")
+
+//    val coords = mutableListOf(
+//        Coordinate(40.7128, -74.0060, 1),
+//        Coordinate(40.7033, -74.0170, 1),
+//        Coordinate(40.7851, -73.9683, 1),
+//        Coordinate(37.7749, -122.4194, 1),
+//        Coordinate(37.8080, -122.4177, 1),
+//        Coordinate(34.0522, -118.2437, 1),
+//        Coordinate(19.43, -99.133, 1),
+//        Coordinate(46.8771, -96.0, 1),
+//        Coordinate(46.8771, -96.0, 1)
+//    )
     val threshold = 1.0 //in miles
     val result = groupCoordinates(coords, threshold)
     for (coord in result) {

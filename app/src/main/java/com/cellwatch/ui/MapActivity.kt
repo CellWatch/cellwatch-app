@@ -158,8 +158,6 @@ class MapActivity : AppCompatActivity() {
             pointAnnotationManager = annotationApi.createPointAnnotationManager()
         }
 
-
-
         for (coordinate in groupCoords()) {
             bitmapFromDrawableRes(
                 this@MapActivity,

@@ -22,8 +22,8 @@ dependencyResolutionManagement {
             }
             credentials {
                 // This should always be `mapbox` (not your username).
-                username = "mapbox"
-                password = cellwatchProperties["MAPBOX_DOWNLOADS_TOKEN"]
+                username = 'mapbox'
+                password = 'sk.eyJ1Ijoic2xyb2JlcnRzb242OSIsImEiOiJjbG5scWhqaWoxZGljMnJxaTF1bm1nbTNqIn0.Cqrrxm_03CcRBor8f0WR6Q'
             }
         }
     }
