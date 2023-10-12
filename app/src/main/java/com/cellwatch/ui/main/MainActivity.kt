@@ -1,4 +1,4 @@
-package com.cellwatch.ui
+package com.cellwatch.ui.main
 
 import android.os.Bundle
 import android.util.Log

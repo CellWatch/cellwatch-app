@@ -1,4 +1,4 @@
-package com.cellwatch.ui
+package com.cellwatch.ui.map
 
 import android.content.Context
 import android.graphics.Bitmap
