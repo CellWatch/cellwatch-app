@@ -16,7 +16,6 @@ import com.cellwatch.domain.msak.throughput.ThroughputDirection
 import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
-import github.nisrulz.easydeviceinfo.base.EasySimMod
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.coroutineScope
@@ -43,7 +42,6 @@ object MeasurementManager {
 //    private lateinit var telephonyInfoManager: TelephonyInfoManager
 
     private var deviceMod: EasyDeviceMod? = EasyDeviceMod(CellWatchApp.applicationContext())
-    private var simMod: EasySimMod? = EasySimMod(CellWatchApp.applicationContext())
     private var appMod: EasyAppMod? = EasyAppMod(CellWatchApp.applicationContext())
 
     fun updateBytesPerSec(newBytesPerSec: Double) {
@@ -226,7 +224,7 @@ object MeasurementManager {
             deviceOsName = "Android",
             deviceOsVersion = deviceMod?.osVersion,
             appName = appMod?.appName,
-            provider = simMod?.carrier,
+            provider = TelephonyInfoManager.getProviderName(),
             type = type,
             timestamp = throughputResult?.start ?: latencyResult?.start,
             duration = duration,

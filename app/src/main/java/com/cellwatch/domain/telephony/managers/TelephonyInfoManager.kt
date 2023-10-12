@@ -114,6 +114,10 @@ object TelephonyInfoManager {
         return mnc;
     }
 
+    fun getProviderName(): String? {
+        return telephonyManager?.networkOperatorName?.lowercase()
+    }
+
     fun getConnectionType(): NetworkConnectionType {
         var result = NetworkConnectionType.NONE // Returns connection type. 0: none; 1: mobile data; 2: wifi; 3: vpn
         val cm = connectivityManager
