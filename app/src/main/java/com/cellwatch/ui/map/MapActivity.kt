@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.os.Debug
 import android.util.Log
 import android.widget.Button
 import android.widget.ImageButton
@@ -24,6 +25,7 @@ import com.mapbox.maps.Style
 
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.lifecycle.lifecycleScope
+import com.cellwatch.CellWatchApp
 import com.cellwatch.data.model.Cell
 import com.cellwatch.data.model.Location
 import com.cellwatch.domain.fcc.LatencyResult
@@ -47,6 +49,7 @@ import com.mapbox.maps.plugin.locationcomponent.OnIndicatorBearingChangedListene
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
 import com.mapbox.maps.plugin.locationcomponent.location
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.math.roundToInt
 
 class MapActivity : AppCompatActivity() {
@@ -162,9 +165,17 @@ class MapActivity : AppCompatActivity() {
         }
     }
     private fun loadMapAnnotations() {
+        val measurementRepository = CellWatchApp.measurementRepository
+
         if(!this::pointAnnotationManager.isInitialized) {
             val annotationApi = mapView.annotations
             pointAnnotationManager = annotationApi.createPointAnnotationManager()
+        }
+
+        runBlocking {
+            val measurements = measurementRepository.getMeasurementsWithData();
+
+            Log.d(TAG, "*** Got ${measurements.size} measurements ***")
         }
 
         for (coordinate in MapAnnotationManager.getAllCoordinates()) {

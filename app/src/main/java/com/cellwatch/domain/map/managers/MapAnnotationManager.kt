@@ -1,6 +1,7 @@
 package com.cellwatch.domain.map.managers
 
 import android.util.Log
+import com.cellwatch.CellWatchApp
 import com.cellwatch.data.model.Measurement
 import com.cellwatch.domain.map.model.Coordinate
 import kotlinx.coroutines.runBlocking
@@ -15,10 +16,12 @@ object MapAnnotationManager {
     private val TAG = this::class.simpleName
 
     fun getAllCoordinates(): MutableList<Coordinate> {
-        val measurementRepository = com.cellwatch.CellWatchApp.measurementRepository
+        val measurementRepository = CellWatchApp.measurementRepository
 
         Log.d(TAG,"Getting stored measurements");
         var measurements = runBlocking { measurementRepository.getMeasurementsWithData() };
+        Log.d(TAG, "*** Got ${measurements.size} measurements ***")
+
         val coords: MutableList<Coordinate> = measurementsToCoordinates(measurements)
 
         Log.d(TAG, "Got ${coords.size} measurements")
@@ -68,6 +71,8 @@ object MapAnnotationManager {
                 coords = measurement.locations?.map { location ->
                     Coordinate(location.lat!!, location.lon!!, 1)
                 }!!.toMutableList()
+            } else {
+                Log.e(TAG, "!!!!! measurement ${measurement.id} has no locations !!!!!!")
             }
         }
 
