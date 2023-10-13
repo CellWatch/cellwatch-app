@@ -18,16 +18,14 @@ import androidx.lifecycle.lifecycleScope
 import com.cellwatch.R
 import com.cellwatch.data.model.Cell
 import com.cellwatch.data.model.Location
-import com.cellwatch.databinding.FragmentFirstBinding
+import com.cellwatch.databinding.FragmentMeasurementBinding
 import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import com.cellwatch.domain.fcc.LatencyResult
 import com.cellwatch.domain.fcc.MeasurementManager
 import com.cellwatch.domain.fcc.ThroughputResult
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
-import com.github.anastr.speedviewlib.Gauge
 import com.github.anastr.speedviewlib.SpeedView
-import github.nisrulz.easydeviceinfo.base.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -35,9 +33,9 @@ import kotlin.math.roundToInt
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
  */
-class FirstFragment : Fragment() {
+class MeasurementFragment : Fragment() {
     private val TAG = this::class.simpleName
-    private var _binding: FragmentFirstBinding? = null
+    private var _binding: FragmentMeasurementBinding? = null
 
     private val measurementViewModel: MeasurementViewModel by activityViewModels() {
         MeasurementViewModelFactory(com.cellwatch.CellWatchApp.measurementRepository)
@@ -72,7 +70,7 @@ class FirstFragment : Fragment() {
             inflater: LayoutInflater, container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View? {
-        _binding = FragmentFirstBinding.inflate(inflater, container, false)
+        _binding = FragmentMeasurementBinding.inflate(inflater, container, false)
         return binding.root
 
     }
@@ -184,7 +182,7 @@ class FirstFragment : Fragment() {
 //                updateSpeedometer(8 * bytesPerSec / 1e6)
 //            }
         }
-        Log.d(TAG, "***** FirstFragment Created *****")
+        Log.d(TAG, "***** MeasurementFragment Created *****")
     }
 
     override fun onDestroyView() {
