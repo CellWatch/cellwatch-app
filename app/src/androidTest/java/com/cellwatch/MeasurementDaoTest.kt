@@ -109,10 +109,10 @@ class MeasurementDaoTest {
             networkAvailable = true,
             networkConnected = true,
             networkRoaming = false,
-            simMobileCountryCode = "310",
-            simMobileNetworkCode = "310",
-            netMobileCountryCode = "410",
-            netMobileNetworkCode = "410"
+            simMcc = "310",
+            simMnc = "310",
+            netMcc = "410",
+            netMnc = "410"
         )
         val measurementJson: String = gsonPretty.toJson(measurement)
         println("**** Measurement JSON = $measurementJson")
@@ -126,8 +126,8 @@ class MeasurementDaoTest {
         assertEquals(allMeasurements[0].deviceManufacturer, measurement.deviceManufacturer)
         assertEquals(allMeasurements[0].deviceModel, measurement.deviceModel)
         assertEquals(allMeasurements[0].type, "download")
-        assertEquals(allMeasurements[0].simMobileCountryCode, "310")
-        assertEquals(allMeasurements[0].simMobileCountryCode, "310")
+        assertEquals(allMeasurements[0].simMcc, "310")
+        assertEquals(allMeasurements[0].simMcc, "310")
 
         print("******** Done with insertAndGetMeasurement")
 //        Log.d(TAG, "insertAndGetMeasurement")
@@ -147,10 +147,10 @@ class MeasurementDaoTest {
             deviceManufacturer = "Samsung",
             deviceModel = "Galaxy",
             networkRoaming = false,
-            simMobileCountryCode = "310",
-            simMobileNetworkCode = "410",
-            netMobileCountryCode = "310",
-            netMobileNetworkCode = "410"
+            simMcc = "310",
+            simMnc = "410",
+            netMcc = "310",
+            netMnc = "410"
         )
         val uploadMeasurement = MeasurementEntity(
             groupId = groupId,
@@ -160,10 +160,10 @@ class MeasurementDaoTest {
             deviceManufacturer = "Google",
             deviceModel = "Pixel",
             networkRoaming = false,
-            simMobileCountryCode = "310",
-            simMobileNetworkCode = "410",
-            netMobileCountryCode = "310",
-            netMobileNetworkCode = "410"
+            simMcc = "310",
+            simMnc = "410",
+            netMcc = "310",
+            netMnc = "410"
         )
         val latencyMeasurement = MeasurementEntity(
             groupId = groupId,
@@ -397,11 +397,11 @@ class MeasurementDaoTest {
 //            val allMeasurements = measurementDao.getMeasurementsWithDataFlow().first()
             assertEquals(allMeasurements[0].measurement.id, downloadMeasurement.id)
             assertEquals(allMeasurements[1].measurement.id, uploadMeasurement.id)
-            assertEquals(allMeasurements[0].measurement.simMobileNetworkCode, "410")
+            assertEquals(allMeasurements[0].measurement.simMnc, "410")
             with(allMeasurements[0]) {
                 assertEquals(measurement.type, "download")
-                assertEquals(measurement.simMobileNetworkCode, "410")
-                Log.d(TAG, "measurement.simMobileNetworkCode = ${measurement.simMobileNetworkCode}")
+                assertEquals(measurement.simMnc, "410")
+                Log.d(TAG, "measurement.simMnc = ${measurement.simMnc}")
                 uploadDownloadData?.let {
                     assertEquals(it.measurementId, measurement.id)
                     assertEquals(it.bytes, 53724L)

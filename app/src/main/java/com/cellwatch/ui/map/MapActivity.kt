@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.ImageButton
+import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatActivity
@@ -22,6 +23,12 @@ import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.lifecycle.lifecycleScope
+import com.cellwatch.data.model.Cell
+import com.cellwatch.data.model.Location
+import com.cellwatch.domain.fcc.LatencyResult
+import com.cellwatch.domain.fcc.MeasurementManager
+import com.cellwatch.domain.fcc.ThroughputResult
 import com.cellwatch.domain.map.managers.MapAnnotationManager
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
@@ -39,6 +46,8 @@ import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorBearingChangedListener
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
 import com.mapbox.maps.plugin.locationcomponent.location
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 class MapActivity : AppCompatActivity() {
     private val TAG = "MapActivity"
@@ -251,8 +260,83 @@ class MapActivity : AppCompatActivity() {
             }
         }
 
+        fun locationToString(l: Location?): String {
+            if (l == null) {
+                return ""
+            }
+
+            return String.format("lat=%f, lon=%f, speed=%.2fm/s", l.lat, l.lon, l.speed)
+        }
+
+        fun handleLatencyComplete(r: LatencyResult, l: List<Location>, c: List<Cell>) {
+            if (!r.success) {
+//                binding.latencyContent.text = "failed"
+                return
+            }
+
+//            binding.latencyContent.text = "success"
+            val mean = "Mean RTT: ${r.meanRtt / 1e3}ms"
+            val jitter = "Jitter: ${r.jitter / 1e3}ms"
+            val received = "Received: ${r.packetsReceived}/${r.packetsSent}"
+            val start = "Start time: ${r.start}"
+            val duration = "Duration: ${r.usecs / 1e6}s"
+            val target = "Target host: ${r.targetHost}"
+            val startLoc = "Start location: ${locationToString(l.getOrNull(0))}"
+            val endLoc = "End location: ${locationToString(l.getOrNull(1))}"
+            val cells = "Cells: $c"
+            Log.d(TAG, "$mean\n$jitter\n$received\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells")
+
+//            binding.latencyDetails.text = "$mean\n$jitter\n$received\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells"
+        }
+
+        fun handleThroughputComplete(r: ThroughputResult, l: List<Location>, c: List<Cell>) {
+            if (!r.success || r.activeMetrics == null) {
+                return
+            }
+
+            val speed = "Speed: ${(r.activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()} Mbps"
+            val start = "Start time: ${r.start}"
+            val duration = "Duration: ${(r.activeMetrics.usecs + (r.warmupMetrics?.usecs ?: 0)) / 1e6}s"
+            val target = "Target host: ${r.targetHost}"
+            val startLoc = "Start location: ${locationToString(l.getOrNull(0))}"
+            val endLoc = "End location: ${locationToString(l.getOrNull(1))}"
+            val cells = "Cells: ${c}"
+            Log.d(TAG, "$speed\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells")
+        }
+
         measureButton.setOnClickListener {
             Toast.makeText(this@MapActivity, "Measure taken1", Toast.LENGTH_SHORT).show()
+
+            lifecycleScope.launch {
+                try {
+                    MeasurementManager.runTestSequence(
+                        { Log.d(TAG, "finding server...") },
+                        { r -> Log.d(TAG, "found server $r") },
+                        { Log.d(TAG, "running latency...") },
+                        { r, l, c -> handleLatencyComplete(r, l, c) },
+                        { Log.d(TAG, "running download...") },
+                        { r, l, c ->
+                            handleThroughputComplete(
+                                r,
+                                l,
+                                c
+                            )
+                        },
+                        { Log.d(TAG, "running upload...") },
+                        { r, l, c ->
+                            handleThroughputComplete(
+                                r,
+                                l,
+                                c
+                            )
+                        },
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "unexpected error running test sequence", e)
+                } finally {
+                    Log.d(TAG,"*** Done with Upload/Download Test ***")
+                }
+            }
         }
     }
     override fun onDestroy() {
