@@ -165,17 +165,9 @@ class MapActivity : AppCompatActivity() {
         }
     }
     private fun loadMapAnnotations() {
-        val measurementRepository = CellWatchApp.measurementRepository
-
         if(!this::pointAnnotationManager.isInitialized) {
             val annotationApi = mapView.annotations
             pointAnnotationManager = annotationApi.createPointAnnotationManager()
-        }
-
-        runBlocking {
-            val measurements = measurementRepository.getMeasurementsWithData();
-
-            Log.d(TAG, "*** Got ${measurements.size} measurements ***")
         }
 
         for (coordinate in MapAnnotationManager.getAllCoordinates()) {
@@ -183,10 +175,10 @@ class MapActivity : AppCompatActivity() {
                 this@MapActivity,
                 R.drawable.blue_marker_transparent,
                 coordinate.count
-            )?.let {
+            )?.let { bitmap ->
                 val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
                     .withPoint(Point.fromLngLat(coordinate.long, coordinate.lat))
-                    .withIconImage(it)
+                    .withIconImage(bitmap)
                 val pointAnnotation = pointAnnotationManager.create(pointAnnotationOptions)
                 pointAnnotation.let { annotations.add(it) }
             }
