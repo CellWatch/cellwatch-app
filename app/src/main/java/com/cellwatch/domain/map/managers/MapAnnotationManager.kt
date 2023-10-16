@@ -68,9 +68,10 @@ object MapAnnotationManager {
 
         for (measurement in measurements) {
             if (measurement.locations != null) {
-                coords = measurement.locations?.map { location ->
+                val measurementCoords = measurement.locations?.map { location ->
                     Coordinate(location.lat!!, location.lon!!, 1)
-                }!!.toMutableList()
+                }!!.toList()
+                coords.addAll(measurementCoords)
             } else {
                 Log.e(TAG, "!!!!! measurement ${measurement.id} has no locations !!!!!!")
             }
