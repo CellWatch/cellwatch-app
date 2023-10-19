@@ -13,23 +13,16 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ImageButton
 import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.appcompat.widget.SwitchCompat
 import androidx.core.view.GravityCompat
-import androidx.drawerlayout.widget.DrawerLayout
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.Navigation
-import com.cellwatch.CellWatchApp
 import com.cellwatch.R
 import com.cellwatch.data.model.Cell
 import com.cellwatch.data.model.Location
 import com.cellwatch.databinding.FragmentMapBinding
 import com.cellwatch.domain.fcc.LatencyResult
-import com.cellwatch.domain.fcc.MeasurementManager
 import com.cellwatch.domain.fcc.ThroughputResult
 import com.cellwatch.domain.map.managers.MapAnnotationManager
 import com.mapbox.android.gestures.MoveGestureDetector
@@ -50,7 +43,6 @@ import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorBearingChangedListener
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
 import com.mapbox.maps.plugin.locationcomponent.location
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 // TODO: Rename parameter arguments, choose names that match
@@ -137,6 +129,7 @@ class MapFragment : Fragment() {
         }
 
         h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
+            Log.d(TAG, "H3 Toggle Switch = ${isChecked.toString()}")
             if(isChecked) {
                 loadMapAnnotations()
             } else {
@@ -305,9 +298,13 @@ class MapFragment : Fragment() {
         if(!this::pointAnnotationManager.isInitialized) {
             val annotationApi = mapView.annotations
             pointAnnotationManager = annotationApi.createPointAnnotationManager()
+            Log.d(TAG, "loadMapAnnotations initialize pointAnnotationManager")
         }
 
-        for (coordinate in MapAnnotationManager.getAllCoordinates()) {
+        val coordinates = MapAnnotationManager.getAllCoordinates()
+        Log.d(TAG, "loadMapAnnotations got ${coordinates.size} coordinates")
+        for (coordinate in coordinates) {
+            Log.d(TAG, "coordinate = $coordinate")
             bitmapFromDrawableRes(
                 requireContext(),
                 R.drawable.blue_marker_transparent,
