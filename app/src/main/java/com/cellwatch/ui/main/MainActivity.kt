@@ -1,4 +1,4 @@
-package com.cellwatch.ui
+package com.cellwatch.ui.main
 
 import android.os.Bundle
 import android.util.Log
@@ -46,36 +46,41 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Using Conscrypt somehow makes the CountableSocket work with TLS sockets --
-        // it doesn't otherwise. I found a project on GitHub trying to count socket bytes
-        // (https://github.com/dave-r12/okhttp-byte-counter) and then found a linked
-        // issue (https://github.com/google/conscrypt/issues/65) that suggests Conscrypt
-        // might eventually solve the problem but hasn't yet. I guess it has now...
-        Security.insertProviderAt(Conscrypt.newProvider(), 1)
+        try {
+            // Using Conscrypt somehow makes the CountableSocket work with TLS sockets --
+            // it doesn't otherwise. I found a project on GitHub trying to count socket bytes
+            // (https://github.com/dave-r12/okhttp-byte-counter) and then found a linked
+            // issue (https://github.com/google/conscrypt/issues/65) that suggests Conscrypt
+            // might eventually solve the problem but hasn't yet. I guess it has now...
+            Security.insertProviderAt(Conscrypt.newProvider(), 1)
 
-        val dataStore = LocalDataStore(this)
+            val dataStore = LocalDataStore(this)
 
-        // Create new deviceId on first run of app
-        var deviceId = runBlocking {
-            dataStore.getDeviceId.first()
-        }
-
-        // If there is no deviceId stored, assume first run of app and create a new, unique ID
-        if (deviceId == "") {
-            runBlocking {
-                deviceId = UUID.randomUUID().toString()
-                dataStore.saveDeviceId(deviceId)
+            // Create new deviceId on first run of app
+            var deviceId = runBlocking {
+                dataStore.getDeviceId.first()
             }
+
+            // If there is no deviceId stored, assume first run of app and create a new, unique ID
+            if (deviceId == "") {
+                runBlocking {
+                    deviceId = UUID.randomUUID().toString()
+                    dataStore.saveDeviceId(deviceId)
+                }
+            }
+
+            binding = ActivityMainBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+
+            setSupportActionBar(binding.toolbar)
+
+            val navController = findNavController(R.id.nav_host_fragment_content_main)
+            appBarConfiguration = AppBarConfiguration(navController.graph)
+            setupActionBarWithNavController(navController, appBarConfiguration)
+        } catch (e: Exception) {
+            Log.e(TAG, "onCreate exception:", e)
+            throw e
         }
-
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        setSupportActionBar(binding.toolbar)
-
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
-        appBarConfiguration = AppBarConfiguration(navController.graph)
-        setupActionBarWithNavController(navController, appBarConfiguration)
 
 //        val connectionType = TelephonyInfoManager.getConnectionType()
 //        run {
