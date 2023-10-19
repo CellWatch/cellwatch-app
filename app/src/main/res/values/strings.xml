@@ -2,7 +2,9 @@
     <string name="app_name">CellWatch</string>
     <string name="measure">Measure</string>
     <string name="measuring">Measuring</string>
-    <string name="hello_first_fragment">Hello first fragment</string>
-    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+<!--    <string name="hello_first_fragment">Hello first fragment</string>-->
+<!--    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>-->
     <string name="mapbox_access_token">pk.eyJ1IjoiZHBlZWxlciIsImEiOiJjbG1yczNsbDQwODF2MmpucG9rajZqb21mIn0.ImMYfjW1aQ3KtioSRUS_Dg</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>
