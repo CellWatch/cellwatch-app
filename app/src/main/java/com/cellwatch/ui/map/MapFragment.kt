@@ -185,7 +185,8 @@ class MapFragment : Fragment() {
     }
 
     private val onIndicatorBearingChangedListener = OnIndicatorBearingChangedListener {
-        mapView.getMapboxMap().setCamera(CameraOptions.Builder().bearing(it).build())
+//        mapView.getMapboxMap().setCamera(CameraOptions.Builder().bearing(it).build())
+        Log.d(TAG, "Bearing changed to $it")
     }
 
     private val onIndicatorPositionChangedListener = OnIndicatorPositionChangedListener {
