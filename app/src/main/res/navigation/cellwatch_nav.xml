@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cellwatch_nav"
+    app:startDestination="@id/mapFragment">
+    <fragment
+        android:id="@+id/mapFragment"
+        android:name="com.cellwatch.ui.map.MapFragment"
+        android:label="fragment_map"
+        tools:layout="@layout/fragment_map" >
+        <action
+            android:id="@+id/navigateToMeasurementFragment"
+            app:destination="@id/measurementFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/measurementFragment"
+        android:name="com.cellwatch.ui.measurement.MeasurementFragment"
+        android:label="fragment_measurement"
+        tools:layout="@layout/fragment_measurement" >
+        <action
+            android:id="@+id/navigateToMapFragment"
+            app:destination="@id/mapFragment" />
+    </fragment>
+</navigation>

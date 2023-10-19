@@ -301,7 +301,7 @@ go build ./cmd/msak-server
 ./msak-server
 ```
 
-Then, in `FirstFragment.kt`, uncomment the lines following `// use local server for testing` and comment out the line following `// use real M-Lab server`.
+Then, in `MeasurementFragment.kt`, uncomment the lines following `// use local server for testing` and comment out the line following `// use real M-Lab server`.
 
 ## TODO
 
