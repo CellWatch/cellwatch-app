@@ -24,12 +24,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".ui.map.MapActivity"
-            android:exported="true"
-            android:label="CellWatchMapActivity"
-            android:theme="@style/Theme.Msak.NoActionBar">
-        </activity>
+<!--        <activity-->
+<!--            android:name=".ui.map.MapActivity"-->
+<!--            android:exported="true"-->
+<!--            android:label="CellWatchMapActivity"-->
+<!--            android:theme="@style/Theme.Msak.NoActionBar">-->
+<!--        </activity>-->
 
 
 
