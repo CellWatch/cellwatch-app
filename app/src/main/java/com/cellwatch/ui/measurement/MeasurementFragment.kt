@@ -70,9 +70,13 @@ class MeasurementFragment : Fragment() {
             inflater: LayoutInflater, container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View? {
-        _binding = FragmentMeasurementBinding.inflate(inflater, container, false)
+        try {
+            _binding = FragmentMeasurementBinding.inflate(inflater, container, false)
+        } catch (e: Exception) {
+            Log.e(TAG, "onCreateView exception:", e)
+            throw e
+        }
         return binding.root
-
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
