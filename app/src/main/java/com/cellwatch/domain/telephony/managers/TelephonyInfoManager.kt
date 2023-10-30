@@ -149,7 +149,7 @@ object TelephonyInfoManager {
         return result
     }
 
-    fun getNetworkSubType(): String? {
+    fun getActiveNetworkSubType(cells: List<CellInfo>): String? {
         if (!PermissionManager.checkPermission()) return null
 
         // ConnectionManager instance
@@ -158,41 +158,50 @@ object TelephonyInfoManager {
         val networkCapabilities = connectivityManager.getNetworkCapabilities(currentNetwork)
 
         if (networkCapabilities!!.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+            // must be one of 1X, EVDO, WCDMA, GSM, HSPA, HSPA+, LTE, NRSA, NRNSA
             return when (Objects.requireNonNull(telephonyManager).dataNetworkType) {
-                TelephonyManager.NETWORK_TYPE_GPRS -> "GPRS"
-                TelephonyManager.NETWORK_TYPE_EDGE -> "EDGE"
-                TelephonyManager.NETWORK_TYPE_CDMA -> "CDMA"
                 TelephonyManager.NETWORK_TYPE_1xRTT -> "1X"
-                TelephonyManager.NETWORK_TYPE_IDEN -> "IDEN"
-                TelephonyManager.NETWORK_TYPE_GSM -> "GSM"
-                TelephonyManager.NETWORK_TYPE_UMTS -> "UMTS"
-                TelephonyManager.NETWORK_TYPE_EVDO_0,
-                TelephonyManager.NETWORK_TYPE_EVDO_A,
+                TelephonyManager.NETWORK_TYPE_EHRPD -> "EVDO"
+                TelephonyManager.NETWORK_TYPE_EVDO_0 -> "EVDO"
+                TelephonyManager.NETWORK_TYPE_EVDO_A -> "EVDO"
                 TelephonyManager.NETWORK_TYPE_EVDO_B -> "EVDO"
+                TelephonyManager.NETWORK_TYPE_CDMA -> "EVDO"
+                TelephonyManager.NETWORK_TYPE_UMTS -> "WCDMA"
+                TelephonyManager.NETWORK_TYPE_GPRS -> "GSM"
+                TelephonyManager.NETWORK_TYPE_EDGE -> "GSM"
+                TelephonyManager.NETWORK_TYPE_TD_SCDMA -> "GSM"
+                TelephonyManager.NETWORK_TYPE_GSM -> "GSM"
+                TelephonyManager.NETWORK_TYPE_HSDPA -> "HSPA"
+                TelephonyManager.NETWORK_TYPE_HSUPA -> "HSPA"
                 TelephonyManager.NETWORK_TYPE_HSPA -> "HSPA"
-                TelephonyManager.NETWORK_TYPE_HSDPA,
-                TelephonyManager.NETWORK_TYPE_HSUPA -> "HSPA+"
-                TelephonyManager.NETWORK_TYPE_EHRPD -> "EHRPD"
-                TelephonyManager.NETWORK_TYPE_HSPAP -> "HSPAP"
-                TelephonyManager.NETWORK_TYPE_TD_SCDMA -> "SCDMA"
+                TelephonyManager.NETWORK_TYPE_HSPAP -> "HSPA+"
                 TelephonyManager.NETWORK_TYPE_LTE -> "LTE"
-                TelephonyManager.NETWORK_TYPE_IWLAN -> "IWLAN"
-                TelephonyManager.NETWORK_TYPE_NR -> "NR"
-                else -> "UNKNOWN"
+                TelephonyManager.NETWORK_TYPE_NR -> if (isNRNonStandAlone(cells)) "NRNSA" else "NRSA"
+                TelephonyManager.NETWORK_TYPE_IWLAN -> null
+                TelephonyManager.NETWORK_TYPE_IDEN -> null
+                else -> null
             }
         }
         return null
+    }
+
+    fun isNRNonStandAlone(cells: List<CellInfo>): Boolean {
+        val primary = cells.filter { it.cellConnectionStatus == CellInfo.CONNECTION_PRIMARY_SERVING }
+        val secondary = cells.filter { it.cellConnectionStatus == CellInfo.CONNECTION_SECONDARY_SERVING }
+
+        return primary.filterIsInstance<CellInfoLte>().isNotEmpty()
+            && secondary.filterIsInstance<CellInfoNr>().isNotEmpty()
     }
 
     fun getCells(): List<Cell>? {
         if (!PermissionManager.checkPermission()) return null
 
         val cellInfoList: List<CellInfo> = Objects.requireNonNull(telephonyManager).allCellInfo
+        val activeNetworkSubtype = getActiveNetworkSubType(cellInfoList)
         Log.d(TAG, "cellInfoList length = ${cellInfoList.size}")
         val cells = mutableListOf<Cell>()
         val timestamp = Clock.System.now()
 
-        // TODO: filter only registered cells?
         for (cellInfo in cellInfoList) {
             val cellSignalStrength = when (cellInfo) {
                 is CellInfoCdma -> cellInfo.cellSignalStrength
@@ -214,13 +223,27 @@ object TelephonyInfoManager {
                 else -> null
             }
 
-            // TODO: is this correct?
             val networkGeneration = when (cellInfo) {
                 is CellInfoCdma, is CellInfoTdscdma, is CellInfoWcdma -> "3G"
                 is CellInfoGsm -> "2G"
                 is CellInfoLte -> "4G"
                 is CellInfoNr -> "5G"
                 else -> "Other"
+            }
+
+            // must be one of 1X, EVDO, WCDMA, GSM, HSPA, HSPA+, LTE, NRSA, NRNSA
+            val networkSubtype = if (cellInfo.cellConnectionStatus == CellInfo.CONNECTION_PRIMARY_SERVING && activeNetworkSubtype != null) {
+                activeNetworkSubtype
+            } else {
+                when (cellInfo) {
+                    is CellInfoCdma -> "EVDO"
+                    is CellInfoTdscdma -> "GSM"
+                    is CellInfoWcdma -> "WCDMA"
+                    is CellInfoGsm -> "GSM"
+                    is CellInfoLte -> "LTE"
+                    is CellInfoNr -> if (isNRNonStandAlone(cellInfoList)) "NRNSA" else "NRSA"
+                    else -> null
+                }
             }
 
             val cellId = when (cellIdentity) {
@@ -312,7 +335,7 @@ object TelephonyInfoManager {
                 physicalCellId = if (cellId == UNAVAILABLE) null else physicalCellId,
                 cellConnection = if (cellInfo.cellConnectionStatus == CONNECTION_UNKNOWN) null else cellInfo.cellConnectionStatus,
                 networkGeneration = networkGeneration,
-                networkSubtype = getNetworkSubType(), // TODO: get for this cell, not just for current connection
+                networkSubtype = networkSubtype,
                 signalStrength = signalStrength,
                 rssi = if (rssi == UNAVAILABLE) null else rssi,
                 rsrp = if (rsrp == UNAVAILABLE) null else rsrp,
@@ -322,7 +345,7 @@ object TelephonyInfoManager {
                 csiRsrq = if (csiRsrq == UNAVAILABLE) null else csiRsrq,
                 csiSinr = if (csiSinr == UNAVAILABLE) null else csiSinr,
                 cqi = if (cqi == UNAVAILABLE) null else cqi,
-                spectrumBand = spectrumBands?.joinToString(","), // TODO: is this formatted correctly
+                spectrumBand = spectrumBands?.joinToString(","),
                 spectrumBandwidth = if (spectrumBandwidth == UNAVAILABLE) null else spectrumBandwidth?.toFloat(),
                 arfcn = if (arfcn == UNAVAILABLE) null else arfcn,
             )
