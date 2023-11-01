@@ -331,7 +331,7 @@ class MapFragment : Fragment() {
 
     private fun loadMapH3() {
         val center = mapboxMap.cameraState.center
-        val delta = 0.289855 // Rough estimation of 20 miles in lat/long
+        val delta = 0.1447 // Rough estimation of 10 miles in lat/long
 
         // Create a bounding box using the rough estimation
         val ne = Point.fromLngLat(center.latitude() + delta, center.longitude() + delta)
@@ -347,12 +347,14 @@ class MapFragment : Fragment() {
             val annotationApi = mapView.annotations
             polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
         }
+        h3Boundaries.forEach { boundary ->
+            val polygonOptions = PolygonAnnotationOptions()
+                .withPoints(listOf(boundary))
+                .withFillColor("rgba(0, 0, 0, 0)") // Transparent fill color
+                .withFillOutlineColor("#0000FF") // Blue outline color
+            polygonAnnotationManager.create(polygonOptions)
+        }
 
-        val polygonOptions = PolygonAnnotationOptions()
-            .withPoints(h3Boundaries)
-            .withFillColor("#ee4e8b")
-            .withFillOpacity(0.4)
-        polygonAnnotationManager.create(polygonOptions)
     }
 
     private fun onMapReady() {
