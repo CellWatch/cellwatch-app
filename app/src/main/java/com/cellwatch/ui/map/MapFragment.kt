@@ -42,6 +42,7 @@ import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
+import com.mapbox.maps.plugin.delegates.listeners.OnCameraChangeListener
 import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorBearingChangedListener
@@ -135,13 +136,14 @@ class MapFragment : Fragment() {
 
 
         h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
-            Log.d(TAG, "H3 Toggle Switch = ${isChecked.toString()}")
             if(isChecked) {
                 polygonAnnotationManager.deleteAll()
                 loadMapAnnotations()
+                mapboxMap.removeOnCameraChangeListener(onCameraChangeListener)
             } else {
                 pointAnnotationManager.deleteAll()
                 loadMapH3()
+                mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
             }
         }
 
@@ -212,6 +214,11 @@ class MapFragment : Fragment() {
         }
 
         override fun onMoveEnd(detector: MoveGestureDetector) {}
+    }
+
+    private val onCameraChangeListener = OnCameraChangeListener {
+        polygonAnnotationManager.deleteAll()
+        loadMapH3()
     }
 
     private lateinit var mapView: MapView
@@ -369,6 +376,7 @@ class MapFragment : Fragment() {
             initLocationComponent()
             setupGesturesListener()
             loadMapH3()
+            mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
         }
     }
 
