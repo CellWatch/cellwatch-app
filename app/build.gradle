@@ -41,6 +41,7 @@ android {
             //buildConfigField("String", "MAPBOX_API_KEY", cellwatchProperties['MAPBOX_DOWNLOADS_TOKEN'])
         }
         release {
+            ndk { abiFilters "armeabi" }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
@@ -138,4 +139,6 @@ dependencies {
     implementation "androidx.room:room-paging:$room_version"
 
     implementation "androidx.datastore:datastore-preferences:1.0.0"
+
+    implementation "com.uber:h3:3.7.2"
 }

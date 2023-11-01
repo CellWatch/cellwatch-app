@@ -9,7 +9,6 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.util.Log
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,6 +16,7 @@ import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.GravityCompat
+import androidx.fragment.app.Fragment
 import androidx.navigation.Navigation
 import com.cellwatch.R
 import com.cellwatch.data.model.Cell
@@ -24,6 +24,7 @@ import com.cellwatch.data.model.Location
 import com.cellwatch.databinding.FragmentMapBinding
 import com.cellwatch.domain.fcc.LatencyResult
 import com.cellwatch.domain.fcc.ThroughputResult
+import com.cellwatch.domain.map.managers.H3Manager
 import com.cellwatch.domain.map.managers.MapAnnotationManager
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
@@ -37,7 +38,10 @@ import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotation
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
 import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorBearingChangedListener
@@ -128,12 +132,16 @@ class MapFragment : Fragment() {
             drawerLayout.closeDrawer(GravityCompat.START)
         }
 
+
+
         h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
             Log.d(TAG, "H3 Toggle Switch = ${isChecked.toString()}")
             if(isChecked) {
+                polygonAnnotationManager.deleteAll()
                 loadMapAnnotations()
             } else {
                 pointAnnotationManager.deleteAll()
+                loadMapH3()
             }
         }
 
@@ -209,6 +217,7 @@ class MapFragment : Fragment() {
     private lateinit var mapView: MapView
     private lateinit var mapboxMap : MapboxMap
     private lateinit var pointAnnotationManager: PointAnnotationManager
+    private lateinit var polygonAnnotationManager: PolygonAnnotationManager
     private var annotations: MutableList<PointAnnotation> = mutableListOf()
 
 
@@ -320,6 +329,32 @@ class MapFragment : Fragment() {
         }
     }
 
+    private fun loadMapH3() {
+        val center = mapboxMap.cameraState.center
+        val delta = 0.289855 // Rough estimation of 20 miles in lat/long
+
+        // Create a bounding box using the rough estimation
+        val ne = Point.fromLngLat(center.latitude() + delta, center.longitude() + delta)
+        val sw = Point.fromLngLat(center.latitude() - delta, center.longitude() - delta)
+        val nw = Point.fromLngLat(center.latitude() - delta, center.longitude() + delta)
+        val se = Point.fromLngLat(center.latitude() + delta, center.longitude() - delta)
+
+        //Convert camera boundaries to h3 boundaries
+        val h3Boundaries = H3Manager.getH3OverlayFromCoordinates(mutableListOf(ne, nw, sw, se), 6)
+
+        //Display h3 boundaries
+        if(!this::polygonAnnotationManager.isInitialized) {
+            val annotationApi = mapView.annotations
+            polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
+        }
+
+        val polygonOptions = PolygonAnnotationOptions()
+            .withPoints(h3Boundaries)
+            .withFillColor("#ee4e8b")
+            .withFillOpacity(0.4)
+        polygonAnnotationManager.create(polygonOptions)
+    }
+
     private fun onMapReady() {
         mapView.getMapboxMap().setCamera(
             CameraOptions.Builder()
@@ -331,6 +366,7 @@ class MapFragment : Fragment() {
         ) {
             initLocationComponent()
             setupGesturesListener()
+            loadMapH3()
         }
     }
 
