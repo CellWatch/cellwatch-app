@@ -16,11 +16,12 @@ data class ChallengeDataEntity(
     val contactName: String? = null,
     val contactEmail: String? = null,
     val contactPhone: String? = null,
+    val dataSharingAcknowledgement: Boolean? = null,
 
     val createdOn: Instant? = null,
     val updatedOn: Instant? = null
 )
 
 fun ChallengeDataEntity.asExternalModel() = ChallengeData(
-    id, submissionCategory, contactName, contactEmail, contactPhone, createdOn, updatedOn
+    id, submissionCategory, contactName, contactEmail, contactPhone, dataSharingAcknowledgement, createdOn, updatedOn
 )
