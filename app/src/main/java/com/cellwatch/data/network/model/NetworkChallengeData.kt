@@ -19,6 +19,9 @@ data class NetworkChallengeData(
     @SerialName("contact_phone")
     val contactPhone: String? = null,
 
+    @SerialName("data_sharing_acknowledgement")
+    val dataSharingAcknowledgement: Boolean? = null,
+
     @SerialName("created_on")
     val createdOn: Instant? = null,
 
