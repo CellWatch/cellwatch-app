@@ -13,15 +13,16 @@ data class ChallengeData(
     val contactName: String? = null,
     val contactEmail: String? = null,
     val contactPhone: String? = null,
+    val dataSharingAcknowledgement: Boolean? = null,
 
     val createdOn: Instant? = null,
     val updatedOn: Instant? = null
 )
 
 fun ChallengeData.asEntity() = ChallengeDataEntity(
-    id, submissionCategory, contactName, contactEmail, contactPhone, createdOn, updatedOn
+    id, submissionCategory, contactName, contactEmail, contactPhone, dataSharingAcknowledgement, createdOn, updatedOn
 )
 
 fun ChallengeData.asNetworkModel() = NetworkChallengeData(
-    id, submissionCategory, contactName, contactEmail, contactPhone, createdOn, updatedOn
+    id, submissionCategory, contactName, contactEmail, contactPhone, dataSharingAcknowledgement, createdOn, updatedOn
 )
