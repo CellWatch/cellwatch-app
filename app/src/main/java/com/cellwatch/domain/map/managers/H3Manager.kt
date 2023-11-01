@@ -75,7 +75,12 @@ object H3Manager {
         val h3Boundaries: MutableList<MutableList<Point>> = mutableListOf()
 
         h3Indexes.forEach { index ->
+            val boundaries = h3.h3ToGeoBoundary(index)
+            Log.i("H3 Mapping", "List of boundaries for $index is $boundaries")
+            val pointBoundaries = geoCoordListToMapboxPointList(h3.h3ToGeoBoundary(index))
+            Log.i ("H3 Mapping", "Point list of boundaries for $index is $pointBoundaries")
             h3Boundaries.add(geoCoordListToMapboxPointList(h3.h3ToGeoBoundary(index)))
+            Log.i("H3 Mapping", "H3Boundaries after index $index : $h3Boundaries")
         }
 
         return h3Boundaries
@@ -113,10 +118,11 @@ object H3Manager {
          */
 
          val geoListBoundaries = pointListToGeoCoordList(coordinates)
-         Log.i("H3 Mapping", geoListBoundaries.toString())
          val h3HexIndexes = h3.polyfill(geoListBoundaries, mutableListOf(), resolution)
 
          Log.i("H3 Mapping", "H3HexIndexes$h3HexIndexes")
+
+         Log.i("H3 Mapping", "H3IndexToBoundary" + h3IndexToBoundary(h3HexIndexes))
 
          return h3IndexToBoundary(h3HexIndexes)
     }
