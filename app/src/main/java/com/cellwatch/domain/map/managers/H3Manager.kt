@@ -17,15 +17,10 @@ object H3Manager {
     */
     private val TAG = this::class.simpleName
 
-    private fun getAllCoordinates(): MutableList<Coordinate> {
+    private fun getAllCoordinates(): List<Measurement> {
         val measurementRepository = CellWatchApp.measurementRepository
 
-        Log.d(TAG,"Getting stored measurements");
-        val measurements = runBlocking { measurementRepository.getMeasurementsWithData() };
-        Log.d(TAG, "*** Got ${measurements.size} measurements ***")
-
-
-        return measurementsToCoordinates(measurements)
+        return runBlocking { measurementRepository.getMeasurementsWithData() };
     }
 
     private fun measurementsToCoordinates(measurements: List<Measurement>): MutableList<Coordinate> {
@@ -108,21 +103,22 @@ object H3Manager {
          return h3IndexToBoundary(h3HexIndexes)
     }
 
-    fun getPointsAssociatedWithMapTouch(coord: Point): MutableList<Coordinate> {
+    fun getPointsAssociatedWithMapTouch(coord: Point): MutableList<Measurement> {
         /*
         Takes in a mapbox lat/long point, returns all measurements associated with the 5 res H3 hexagon that contains the point.
          */
         val h3IndexFromPoint = h3.geoToH3Address(coord.latitude(), coord.longitude(), 5)
+        val allMeasurements = getAllCoordinates()
+        val associatedMeasurementList: MutableList<Measurement> = mutableListOf()
 
-        val allPoints = getAllCoordinates()
-
-        val associatedCoordList: MutableList<Coordinate> = mutableListOf()
-
-        allPoints.forEach { point ->
-            if(h3.geoToH3Address(point.lat, point.long, 5) == h3IndexFromPoint) {
-                associatedCoordList.add(point)
+        for (measurement in allMeasurements) {
+            measurement.locations?.forEach { location ->
+                if (location.lat != null && location.lon != null && h3.geoToH3Address(location.lat, location.lon, 5) == h3IndexFromPoint) {
+                    associatedMeasurementList.add(measurement)
+                }
             }
         }
-        return associatedCoordList
+
+        return associatedMeasurementList
     }
 }
