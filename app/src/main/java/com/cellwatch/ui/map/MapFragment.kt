@@ -43,8 +43,11 @@ import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
 import com.mapbox.maps.plugin.delegates.listeners.OnCameraChangeListener
+import com.mapbox.maps.plugin.gestures.OnMapClickListener
 import com.mapbox.maps.plugin.gestures.OnMoveListener
+import com.mapbox.maps.plugin.gestures.addOnMapClickListener
 import com.mapbox.maps.plugin.gestures.gestures
+import com.mapbox.maps.plugin.gestures.removeOnMapClickListener
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorBearingChangedListener
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
 import com.mapbox.maps.plugin.locationcomponent.location
@@ -140,10 +143,12 @@ class MapFragment : Fragment() {
                 polygonAnnotationManager.deleteAll()
                 loadMapAnnotations()
                 mapboxMap.removeOnCameraChangeListener(onCameraChangeListener)
+                mapboxMap.removeOnMapClickListener(onMapClickListener)
             } else {
                 pointAnnotationManager.deleteAll()
                 loadMapH3()
                 mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
+                mapboxMap.addOnMapClickListener(onMapClickListener)
             }
         }
 
@@ -220,6 +225,15 @@ class MapFragment : Fragment() {
         polygonAnnotationManager.deleteAll()
         loadMapH3()
     }
+
+    private val onMapClickListener = OnMapClickListener {
+        val associatedMeasurements = H3Manager.getPointsAssociatedWithMapTouch(it)
+
+        Log.i("H3 Point Measurements:", "$associatedMeasurements")
+
+        return@OnMapClickListener true
+    }
+
 
     private lateinit var mapView: MapView
     private lateinit var mapboxMap : MapboxMap
@@ -377,6 +391,7 @@ class MapFragment : Fragment() {
             setupGesturesListener()
             loadMapH3()
             mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
+            mapboxMap.addOnMapClickListener(onMapClickListener)
         }
     }
 
