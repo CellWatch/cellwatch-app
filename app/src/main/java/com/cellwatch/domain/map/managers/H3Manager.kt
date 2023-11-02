@@ -24,18 +24,8 @@ object H3Manager {
         val measurements = runBlocking { measurementRepository.getMeasurementsWithData() };
         Log.d(TAG, "*** Got ${measurements.size} measurements ***")
 
-        val coords: MutableList<Coordinate> =
-            measurementsToCoordinates(measurements)
 
-        Log.d(TAG, "Got ${coords.size} measurements")
-
-        val threshold = 1.0 //in miles
-        val groupedCoordinates = MapAnnotationManager.groupCoordinates(coords, threshold)
-        for (coord in groupedCoordinates) {
-            Log.i(TAG, "coord = $coord")
-        }
-
-        return groupedCoordinates
+        return measurementsToCoordinates(measurements)
     }
 
     private fun measurementsToCoordinates(measurements: List<Measurement>): MutableList<Coordinate> {
@@ -116,5 +106,23 @@ object H3Manager {
          val h3HexIndexes = h3.polyfill(geoListBoundaries, mutableListOf(), resolution)
 
          return h3IndexToBoundary(h3HexIndexes)
+    }
+
+    fun getPointsAssociatedWithMapTouch(coord: Point): MutableList<Coordinate> {
+        /*
+        Takes in a mapbox lat/long point, returns all measurements associated with the 5 res H3 hexagon that contains the point.
+         */
+        val h3IndexFromPoint = h3.geoToH3Address(coord.latitude(), coord.longitude(), 5)
+
+        val allPoints = getAllCoordinates()
+
+        val associatedCoordList: MutableList<Coordinate> = mutableListOf()
+
+        allPoints.forEach { point ->
+            if(h3.geoToH3Address(point.lat, point.long, 5) == h3IndexFromPoint) {
+                associatedCoordList.add(point)
+            }
+        }
+        return associatedCoordList
     }
 }
