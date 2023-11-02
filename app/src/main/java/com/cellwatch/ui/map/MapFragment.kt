@@ -227,9 +227,12 @@ class MapFragment : Fragment() {
     }
 
     private val onMapClickListener = OnMapClickListener {
-        val associatedMeasurements = H3Manager.getPointsAssociatedWithMapTouch(it)
+        val associatedMeasurements = H3Manager.getMeasurementsAssociatedWithLatLong(it)
 
+
+        //TODO create bottom pop-up menu if associatedMeasurements > 0
         Log.i("H3 Point Measurements:", "$associatedMeasurements")
+        Toast.makeText(context, associatedMeasurements.toString(), Toast.LENGTH_LONG).show()
 
         return@OnMapClickListener true
     }
@@ -353,6 +356,8 @@ class MapFragment : Fragment() {
     private fun loadMapH3() {
         val center = mapboxMap.cameraState.center
         val delta = 0.1447 // Rough estimation of 10 miles in lat/long
+        //val delta = 0.218 // Rough estimateion of 15 miles in lat/long
+        //val delta = 0.289 // Rough estimation of 20 miles in lat/long
 
         // Create a bounding box using the rough estimation
         val ne = Point.fromLngLat(center.latitude() + delta, center.longitude() + delta)
@@ -361,7 +366,9 @@ class MapFragment : Fragment() {
         val se = Point.fromLngLat(center.latitude() + delta, center.longitude() - delta)
 
         //Convert camera boundaries to h3 boundaries
-        val h3Boundaries = H3Manager.getH3OverlayFromCoordinates(mutableListOf(ne, nw, sw, se), 6)
+        val h3Addresses = H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), 5)
+        val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(h3Addresses)
+
 
         //Display h3 boundaries
         if(!this::polygonAnnotationManager.isInitialized) {
@@ -376,6 +383,19 @@ class MapFragment : Fragment() {
             polygonAnnotationManager.create(polygonOptions)
         }
 
+        //Get hexagons with > 1 point within them, display an overlay that reflects this.
+        h3Addresses.forEach {address ->
+            if(H3Manager.getMeasurementsAssociatedWithH3Address(address).size > 0) {
+                //create overlay on the h3address
+                val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
+
+                val polygonOptions = PolygonAnnotationOptions()
+                    .withPoints(addressBoundary)
+                    .withFillColor("#0000FF") // Transparent fill color
+                    .withFillOutlineColor("#0000FF") // Blue outline color
+                polygonAnnotationManager.create(polygonOptions)
+            }
+        }
     }
 
     private fun onMapReady() {
