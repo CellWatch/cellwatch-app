@@ -47,13 +47,13 @@ object H3Manager {
         val h3IndexList: MutableList<String> = mutableListOf()
 
         coords.forEach { coord ->
-            h3IndexList.add(h3.geoToH3Address(coord.lat, coord.long, 5))
+            h3IndexList.add(h3.geoToH3Address(coord.lat, coord.long, 4))
         }
 
         return h3IndexList
     }
 
-    private fun h3IndexToBoundary(h3Indexes: MutableList<Long>): MutableList<MutableList<Point>> {
+    private fun h3IndexToBoundary(h3Indexes: List<Long>): MutableList<MutableList<Point>> {
         /*
         Takes in a list of h3 Indexes (longs), creates a list of lists of Mapbox point coordinates associated with each of those indexes.
          */
@@ -92,18 +92,25 @@ object H3Manager {
         return geoCoordList
     }
 
-     fun getH3OverlayFromCoordinates(coordinates: MutableList<Point>, resolution: Int): MutableList<MutableList<Point>> {
+     fun getH3OverlayAddressesFromCoordinates(coordinates: MutableList<Point>, resolution: Int): MutableList<Long> {
         /*
         Takes in a list of coordinates as a boundary (eg: the camera on a map), returns all h3 hexagon boundaries within those coordinates.
          */
 
          val geoListBoundaries = pointListToGeoCoordList(coordinates)
-         val h3HexIndexes = h3.polyfill(geoListBoundaries, mutableListOf(), resolution)
 
-         return h3IndexToBoundary(h3HexIndexes)
+         return h3.polyfill(geoListBoundaries, mutableListOf(), resolution)
     }
 
-    fun getPointsAssociatedWithMapTouch(coord: Point): MutableList<Measurement> {
+    fun getH3BoundariesFromAddressList(h3Addresses: MutableList<Long>): MutableList<MutableList<Point>> {
+        return h3IndexToBoundary(h3Addresses)
+    }
+
+    fun getH3BoundaryFromAddressSingleton(h3address: Long): MutableList<MutableList<Point>> {
+        return h3IndexToBoundary(mutableListOf(h3address))
+    }
+
+    fun getMeasurementsAssociatedWithLatLong(coord: Point): MutableList<Measurement> {
         /*
         Takes in a mapbox lat/long point, returns all measurements associated with the 5 res H3 hexagon that contains the point.
          */
@@ -113,7 +120,12 @@ object H3Manager {
 
         for (measurement in allMeasurements) {
             measurement.locations?.forEach { location ->
-                if (location.lat != null && location.lon != null && h3.geoToH3Address(location.lat, location.lon, 5) == h3IndexFromPoint) {
+                if ((location.lat != null) && (location.lon != null) && (h3.geoToH3Address(
+                        location.lat,
+                        location.lon,
+                        5
+                    ) == h3IndexFromPoint)
+                ) {
                     associatedMeasurementList.add(measurement)
                 }
             }
@@ -121,4 +133,28 @@ object H3Manager {
 
         return associatedMeasurementList
     }
+
+    fun getMeasurementsAssociatedWithH3Address(address: Long): MutableList<Measurement> {
+        /*
+        Takes in a h3 address, returns all measurements associated with the 5 res H3 hexagon that contains the point.
+         */
+        val allMeasurements = getAllCoordinates()
+        val associatedMeasurementList: MutableList<Measurement> = mutableListOf()
+
+        for (measurement in allMeasurements) {
+            measurement.locations?.forEach { location ->
+                if ((location.lat != null) && (location.lon != null) && (h3.geoToH3(
+                        location.lat,
+                        location.lon,
+                        5
+                    ) == address)
+                ) {
+                    associatedMeasurementList.add(measurement)
+                }
+            }
+        }
+
+        return associatedMeasurementList
+    }
+
 }
