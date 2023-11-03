@@ -1,17 +1,26 @@
 package com.cellwatch.data.local.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.cellwatch.data.model.FccSubmission
 import kotlinx.datetime.Instant
 import java.util.UUID
 
+//@Entity(indices = [Index(value = ["groupId"], unique = true)])
 @Entity
 data class FccSubmissionEntity(
+    // AKA groupId
     @PrimaryKey
     var id: String = UUID.randomUUID().toString(),
-    val groupId: String? = null,
+
+//    @ColumnInfo(index = true)
+//    val groupId: String? = null,
+
+    @ColumnInfo(index = true)
     val challengeDataId: String? = null,
+
     val contactName: String? = null,
     val contactEmail: String? = null,
     val contactPhone: String? = null,
@@ -27,6 +36,9 @@ data class FccSubmissionEntity(
     val netNetworkCode: String? = null,
     val inVehicle: Boolean? = null,
     val externalAntenna: Boolean? = null,
+    val submitted: Boolean? = false,
+    val submittedOn: Instant? = null,
+    val submission: String? = null,
 
     //    @ColumnInfo(name = "created_on")
     val createdOn: Instant? = null,
@@ -40,7 +52,7 @@ data class FccSubmissionEntity(
 
 fun FccSubmissionEntity.asExternalModel() = FccSubmission(
     id,
-    groupId,
+//    groupId,
     challengeDataId,
     contactName,
     contactEmail,

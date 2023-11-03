@@ -5,7 +5,7 @@ import com.cellwatch.data.network.model.NetworkFccSubmission
 
 fun NetworkFccSubmission.asEntity() = FccSubmissionEntity(
     id,
-    groupId,
+//    groupId,
     challengeDataId,
     contactName,
     contactEmail,
@@ -22,13 +22,16 @@ fun NetworkFccSubmission.asEntity() = FccSubmissionEntity(
     netNetworkCode,
     inVehicle,
     externalAntenna,
+    submitted,
+    submittedOn,
+    submission,
     createdOn,
     updatedOn
 )
 
 fun FccSubmissionEntity.asNetworkModel() = NetworkFccSubmission(
     id,
-    groupId,
+//    groupId,
     challengeDataId,
     contactName,
     contactEmail,
@@ -45,6 +48,9 @@ fun FccSubmissionEntity.asNetworkModel() = NetworkFccSubmission(
     netNetworkCode,
     inVehicle,
     externalAntenna,
+    submitted,
+    submittedOn,
+    submission,
     createdOn,
     updatedOn
 )

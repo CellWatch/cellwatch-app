@@ -32,7 +32,12 @@ import android.util.Log
 import com.cellwatch.CellWatchApp
 import com.cellwatch.core.util.PermissionManager
 import com.cellwatch.data.model.Cell
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.datetime.Clock
+import java.net.URL
 import java.util.Objects
 
 
@@ -375,4 +380,30 @@ object TelephonyInfoManager {
     fun isNetworkRoaming(): Boolean {
         return telephonyManager.isNetworkRoaming
     }
+
+    suspend fun getMyPublicIpAsync() : Deferred<String> =
+        coroutineScope {
+            async(Dispatchers.IO) {
+                var result = ""
+                result = try {
+                    val url = URL("https://api.ipify.org")
+                    val httpsURLConnection = url.openConnection()
+                    val iStream = httpsURLConnection.getInputStream()
+                    val buff = ByteArray(1024)
+                    val read = iStream.read(buff)
+                    String(buff,0, read)
+                } catch (e: Exception) {
+                    "error : $e"
+                }
+                return@async result
+            }
+        }
+
+
+//    private fun myFunction() {
+//        coroutineScope(Dispatchers.Main).launch {
+//            val myPublicIp = getMyPublicIpAsync().await()
+//            Toast.makeText(this@MainActivity, myPublicIp, Toast.LENGTH_LONG).show()
+//        }
+//    }
 }

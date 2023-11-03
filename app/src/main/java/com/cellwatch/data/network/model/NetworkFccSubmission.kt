@@ -3,13 +3,17 @@ package com.cellwatch.data.network.model
 import com.cellwatch.data.model.FccSubmission
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
+@Serializable
 data class NetworkFccSubmission(
+    // aliases to test_id when submitting to FCC
     var id: String = UUID.randomUUID().toString(),
 
-    @SerialName("group_id")
-    val groupId: String? = null,
+    // aliases to test_id when submitting to FCC
+//    @SerialName("group_id")
+//    val groupId: String? = null,
 
     @SerialName("challenge_data_id")
     val challengeDataId: String? = null,
@@ -59,6 +63,13 @@ data class NetworkFccSubmission(
     @SerialName("external_antenna")
     val externalAntenna: Boolean? = null,
 
+    val submitted: Boolean? = false,
+
+    @SerialName("submitted_on")
+    val submittedOn: Instant? = null,
+
+    val submission: String? = null,
+
     @SerialName("created_on")
     val createdOn: Instant? = null,
 
@@ -68,7 +79,7 @@ data class NetworkFccSubmission(
 
 fun NetworkFccSubmission.asExternalModel() = FccSubmission(
     id,
-    groupId,
+//    groupId,
     challengeDataId,
     contactName,
     contactEmail,
@@ -85,6 +96,9 @@ fun NetworkFccSubmission.asExternalModel() = FccSubmission(
     netNetworkCode,
     inVehicle,
     externalAntenna,
+    submitted,
+    submittedOn,
+    submission,
     createdOn,
     updatedOn
 )

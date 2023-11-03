@@ -13,7 +13,8 @@ import java.util.UUID
         ForeignKey(entity = MeasurementEntity::class,
             parentColumns = ["id"],
             childColumns = ["measurementId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE
         )
     ]
 )
@@ -21,7 +22,6 @@ data class LatencyDataEntity(
     @PrimaryKey
     var id: String = UUID.randomUUID().toString(),
 
-//    @ColumnInfo(name = "measurement_id", index = true)
     @ColumnInfo(index = true)
     var measurementId: String? = null, // UUID
 

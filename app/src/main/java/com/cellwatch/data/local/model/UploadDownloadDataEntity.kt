@@ -13,7 +13,8 @@ import java.util.UUID
         ForeignKey(entity = MeasurementEntity::class,
             parentColumns = ["id"],
             childColumns = ["measurementId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE
         )
     ]
 )
