@@ -103,7 +103,8 @@ fun Measurement.asEntityWithData() = MeasurementWithData(
         netMnc,
         extraData,
         createdOn,
-        updatedOn),
+        updatedOn
+    ),
     uploadDownloadData = uploadDownloadData?.asEntity(),
     latencyData = latencyData?.asEntity(),
     locations = locations?.map { it.asEntity() },
@@ -141,7 +142,8 @@ fun Measurement.asNetworkModel() = NetworkMeasurement(
 )
 
 fun Measurement.asNetworkModelWithData() = NetworkMeasurementWithData(
-    measurement = NetworkMeasurement(id,
+    measurement = NetworkMeasurement(
+        id,
         groupId,
         campaignId,
         sessionId,
@@ -167,7 +169,8 @@ fun Measurement.asNetworkModelWithData() = NetworkMeasurementWithData(
         netMnc,
         extraData,
         createdOn,
-        updatedOn),
+        updatedOn
+    ),
     measurementData = uploadDownloadData?.asNetworkModel(),
     latencyData = latencyData?.asNetworkModel(),
     locations = locations?.map { location -> location.asNetworkModel() },

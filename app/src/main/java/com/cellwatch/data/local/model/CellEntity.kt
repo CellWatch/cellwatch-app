@@ -1,12 +1,24 @@
 package com.cellwatch.data.local.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 import com.cellwatch.data.model.Cell
 import kotlinx.datetime.Instant
 import java.util.UUID
 
-@Entity
+@Entity(
+    foreignKeys = [
+        ForeignKey(
+            entity = MeasurementEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["measurementId"],
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE
+        )
+    ]
+)
 data class CellEntity(
     @PrimaryKey
     var id: String = UUID.randomUUID().toString(),
@@ -30,7 +42,9 @@ data class CellEntity(
     val spectrumBandwidth: Float? = null,
     val arfcn: Int? = null,
 
+    @ColumnInfo(index = true)
     var measurementId: String? = null,
+
     val createdOn: Instant? = null,
     val updatedOn: Instant? = null
 )

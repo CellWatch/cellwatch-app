@@ -53,10 +53,33 @@ object NetworkMeasurementDatasource {
     val fccSubmissionTable = supabaseClient.postgrest["fcc_submissions"]
 
     @WorkerThread
+    suspend fun insertFccSubmissions(fccSubmissions: List<FccSubmission>): List<FccSubmission>? {
+        var insertedFccSubmissions: List<FccSubmission>? = null
+
+        if (fccSubmissions.isNotEmpty()) {
+            Log.d(TAG, "insertFccSubmissions: Attempting to upload ${fccSubmissions.size} fccSubmissions")
+            // Move network IO off the Main thread
+            withContext(Dispatchers.IO) {
+                try {
+                    insertedFccSubmissions = fccSubmissions.map { fccSubmission ->
+                        Log.d(TAG, "insertFccSubmissions: $fccSubmission")
+                        insertFccSubmission(fccSubmission)!!
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in insertFccSubmissions: ${e.message}")
+                    throw e
+                }
+            }
+        }
+        
+        return insertedFccSubmissions
+    }
+    
+    @WorkerThread
     suspend fun insertFccSubmission(fccSubmission: FccSubmission): FccSubmission? {
         val insertedFccSubmission: FccSubmission?
 
-        Log.d(TAG, "Attempting to insert measurement ${fccSubmission.id} to Supabase API at $supabaseUrl")
+        Log.d(TAG, "Attempting to insert FccSubmission ${fccSubmission.id} to Supabase API at $supabaseUrl")
         try {
             insertedFccSubmission =
                 fccSubmissionTable.insert(fccSubmission.asNetworkModel()).decodeSingle<NetworkFccSubmission>().asExternalModel()
@@ -203,9 +226,9 @@ object NetworkMeasurementDatasource {
     suspend fun insertMeasurements(measurements: List<Measurement>): List<Measurement>? {
         var insertedMeasurements: List<Measurement>? = null
 
-        measurements.map { measurement ->
-            Log.d(TAG, "insertMeasurements: $measurement")
-        }
+//        measurements.map { measurement ->
+//            Log.d(TAG, "insertMeasurements: $measurement")
+//        }
 
         if (measurements.isNotEmpty()) {
             Log.d(TAG, "insertMeasurements: Attempting to upload ${measurements.size} measurements")
@@ -218,7 +241,7 @@ object NetworkMeasurementDatasource {
 //                    insertMeasurement(measurement)!!
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error in uploadMeasurementsWithData: ${e.message}")
+                    Log.e(TAG, "Error in insertMeasurementTransaction: ${e.message}")
                     throw e
                 }
             }

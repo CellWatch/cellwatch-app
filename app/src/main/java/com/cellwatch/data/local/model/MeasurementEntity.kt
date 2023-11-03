@@ -1,27 +1,38 @@
 package com.cellwatch.data.local.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 import com.cellwatch.data.model.Measurement
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import java.util.UUID
 
-@Entity
+@Entity(
+    foreignKeys = [
+        ForeignKey(entity = FccSubmissionEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["groupId"],
+            onDelete = ForeignKey.SET_NULL,
+            onUpdate = ForeignKey.CASCADE
+        )
+    ]
+)
 data class MeasurementEntity(
     @PrimaryKey
     var id: String = UUID.randomUUID().toString(),
 
-//    @ColumnInfo(name = "group_id")
-    val groupId: String? = null,
+    @ColumnInfo(index = true)
+    var groupId: String? = null,
 
-//    @ColumnInfo(name = "campaign_id")
+    @ColumnInfo(index = true)
     val campaignId: String? = null,
 
-//    @ColumnInfo(name = "session_id")
+    @ColumnInfo(index = true)
     val sessionId: String? = null,
 
-//    @ColumnInfo(name = "device_id")
+    @ColumnInfo(index = true)
     val deviceId: String? = null,
 
 //    @ColumnInfo(name = "device_manufacturer")

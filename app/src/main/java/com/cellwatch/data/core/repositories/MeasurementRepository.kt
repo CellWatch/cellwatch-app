@@ -1,7 +1,10 @@
 package com.cellwatch.data.core.repositories
 
+import android.app.Application
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.WorkerThread
+import com.cellwatch.CellWatchApp
 import com.cellwatch.data.local.model.MeasurementEntity
 import com.cellwatch.data.local.model.MeasurementWithData
 import com.cellwatch.data.local.dao.MeasurementDao
@@ -10,6 +13,7 @@ import com.cellwatch.data.model.Measurement
 import com.cellwatch.data.model.asEntity
 import com.cellwatch.data.model.asEntityWithData
 import com.cellwatch.data.network.NetworkMeasurementDatasource
+import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -86,8 +90,11 @@ class MeasurementRepository(
 
         if (measurements.isNotEmpty()) {
             Log.d(TAG, "uploadMeasurements: Attempting to upload ${measurements.size} measurements")
-            Log.d(TAG, "uploadMeasurements: measurements[0].simMnc = ${measurements[0].simMnc}")
             try {
+                // Get public ip address
+//                val myPublicIp = TelephonyInfoManager.getMyPublicIpAsync().await()
+//                Toast.makeText(CellWatchApp.applicationContext(), myPublicIp, Toast.LENGTH_LONG).show()
+
                 networkDataSource.insertMeasurements(measurements)
             } catch (e: Exception) {
                 Log.e(TAG, "Error in uploadMeasurements: ${e.message}")

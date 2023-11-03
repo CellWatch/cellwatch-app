@@ -2,18 +2,25 @@ package com.cellwatch.ui.main
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
+import com.cellwatch.CellWatchApp
 import com.cellwatch.R
 import com.cellwatch.data.datastore.LocalDataStore
 import com.cellwatch.databinding.ActivityMainBinding
+import com.cellwatch.domain.fcc.MeasurementManager
+import com.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -27,7 +34,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
 
-    val measurementRepository = com.cellwatch.CellWatchApp.measurementRepository
+    val measurementRepository = CellWatchApp.measurementRepository
+    val fccSubmissionRepository = CellWatchApp.fccSubmissionRepository
 
     private val measurementViewModel: MeasurementViewModel by viewModels() {
         MeasurementViewModelFactory(com.cellwatch.CellWatchApp.measurementRepository)
@@ -60,6 +68,12 @@ class MainActivity : AppCompatActivity() {
             var deviceId = runBlocking {
                 dataStore.getDeviceId.first()
             }
+
+            CoroutineScope(Dispatchers.Main).launch {
+                val myPublicIp = TelephonyInfoManager.getMyPublicIpAsync().await()
+                Toast.makeText(applicationContext, myPublicIp, Toast.LENGTH_LONG).show()
+            }
+
 
             // If there is no deviceId stored, assume first run of app and create a new, unique ID
             if (deviceId == "") {
@@ -108,6 +122,7 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "MainActivity.onResume: uploadMeasurements")
         val globalRoutine = GlobalScope.launch {
             try {
+                fccSubmissionRepository.uploadFccSubmissions()
                 measurementRepository.uploadMeasurements()
             } catch (err: Exception) {
                 Log.e(TAG, "Error in MainActivity.onResume: uploadMeasurement error ${err.message}")

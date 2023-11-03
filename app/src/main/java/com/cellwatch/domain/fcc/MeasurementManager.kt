@@ -1,11 +1,13 @@
 package com.cellwatch.domain.fcc
 
 import android.util.Log
+import android.widget.Toast
 import com.birjuvachhani.locus.Locus
 import com.cellwatch.BuildConfig
 import com.cellwatch.CellWatchApp
 import com.cellwatch.data.datastore.LocalDataStore
 import com.cellwatch.data.model.Cell
+import com.cellwatch.data.model.FccSubmission
 import com.cellwatch.data.model.LatencyData
 import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
@@ -27,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.security.InvalidParameterException
+import kotlinx.datetime.Clock
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -36,7 +39,8 @@ object MeasurementManager {
     private var _bytesPerSecState = MutableStateFlow(0.0)
     val bytesPerSecState: StateFlow<Double> = _bytesPerSecState
 
-    private val measurementRepository = com.cellwatch.CellWatchApp.measurementRepository
+    private val measurementRepository = CellWatchApp.measurementRepository
+    private val fccSubmissionRepository = CellWatchApp.fccSubmissionRepository
     private val TAG = this::class.simpleName
 
 //    private lateinit var telephonyInfoManager: TelephonyInfoManager
@@ -66,7 +70,19 @@ object MeasurementManager {
 
         Log.i(TAG,"RUNNING TEST SEQUENCE with measurement id $measurementId")
 
+        val myPublicIp = TelephonyInfoManager.getMyPublicIpAsync().await()
+        Toast.makeText(CellWatchApp.applicationContext(), myPublicIp, Toast.LENGTH_LONG).show()
+
         val groupId: String = UUID.randomUUID().toString()
+        val fccSubmission = FccSubmission(
+            id = groupId,
+            deviceTimestamp = Clock.System.now(),
+            sourceIp = myPublicIp,
+            inVehicle = false,
+            externalAntenna = false
+        )
+        insertFccSubmission(fccSubmission)
+
         val client = OkHttpClient.Builder().build()
 
         Log.i(TAG, "selecting server")
@@ -82,18 +98,25 @@ object MeasurementManager {
         onLatencyStart()
         val (latencyResult, latencyLocations, latencyCells) = runFullTest { runLatencyTest(client, latencyServer, measurementId) }
         onLatencyComplete(latencyResult, latencyLocations, latencyCells)
-        insertMeasurement(groupId, latencyCells, latencyLocations, "latency", null, latencyResult)
+        val latencyMeasurement = createMeasurement(groupId, latencyCells, latencyLocations, "latency", null, latencyResult)
 
         onDownloadStart()
         val (downloadResult, downloadLocations, downloadCells) = runFullTest { runThroughputTest(throughputServer, measurementId, ThroughputDirection.DOWNLOAD) }
         onDownloadComplete(downloadResult, downloadLocations, downloadCells)
-        insertMeasurement(groupId, downloadCells, downloadLocations, "download", downloadResult, null)
+        val downloadMeasurement = createMeasurement(groupId, downloadCells, downloadLocations, "download", downloadResult, null)
 
         onUploadStart()
         val (uploadResult, uploadLocations, uploadCells) = runFullTest { runThroughputTest(throughputServer, measurementId, ThroughputDirection.UPLOAD) }
         onUploadComplete(uploadResult, uploadLocations, uploadCells)
-        insertMeasurement(groupId, uploadCells, uploadLocations, "upload", uploadResult, null)
+        val uploadMeasurement = createMeasurement(groupId, uploadCells, uploadLocations, "upload", uploadResult, null)
 
+        fccSubmission.simCountryCode = latencyMeasurement.simMcc ?: downloadMeasurement.simMcc ?: uploadMeasurement.simMcc
+        fccSubmission.simNetworkCode = latencyMeasurement.simMnc ?: downloadMeasurement.simMnc ?: uploadMeasurement.simMnc
+        fccSubmission.netCountryCode = latencyMeasurement.netMcc ?: downloadMeasurement.netMcc ?: uploadMeasurement.netMcc
+        fccSubmission.netNetworkCode = latencyMeasurement.netMnc ?: downloadMeasurement.netMnc ?: uploadMeasurement.netMnc
+        updateFccSubmission(fccSubmission)
+
+        fccSubmissionRepository.uploadFccSubmissions()
         measurementRepository.uploadMeasurements()
     }
 
@@ -170,14 +193,32 @@ object MeasurementManager {
         return latencyResult
     }
 
-    suspend fun insertMeasurement(
+    suspend fun insertFccSubmission(fccSubmission: FccSubmission) {
+        try {
+            fccSubmissionRepository.insertFccSubmission(fccSubmission)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error inserting new FccSubmission in MeasurementManager: ${e.message}")
+            throw e
+        }
+    }
+
+    suspend fun updateFccSubmission(fccSubmission: FccSubmission) {
+        try {
+            fccSubmissionRepository.updateFccSubmission(fccSubmission)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating FccSubmission in MeasurementManager: ${e.message}")
+            throw e
+        }
+    }
+
+    suspend fun createMeasurement(
         groupId: String,
         cells: List<Cell>,
         locations: List<Location>,
         type: String,
         throughputResult: ThroughputResult?,
         latencyResult: LatencyResult?,
-    ) {
+    ): Measurement {
         if (throughputResult == null && latencyResult == null) {
             throw InvalidParameterException("either throughput or latency result must be provided")
         }
@@ -252,6 +293,8 @@ object MeasurementManager {
             Log.e(TAG, "Error inserting new measurement in MeasurementManager: ${e.message}")
             throw e
         }
+
+        return measurement
     }
 
     suspend fun getLocation(): Location? = suspendCoroutine { continuation ->

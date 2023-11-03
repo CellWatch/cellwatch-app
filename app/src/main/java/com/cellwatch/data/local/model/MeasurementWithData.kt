@@ -8,24 +8,28 @@ data class MeasurementWithData(
     @Embedded val measurement: MeasurementEntity,
 
     @Relation(
+        entity = UploadDownloadDataEntity::class,
         parentColumn = "id",
         entityColumn = "measurementId"
     )
     val uploadDownloadData: UploadDownloadDataEntity?, // either upload or download data
 
     @Relation(
+        entity = LatencyDataEntity::class,
         parentColumn = "id",
         entityColumn = "measurementId"
     )
     val latencyData: LatencyDataEntity?,
 
     @Relation(
+        entity = LocationEntity::class,
         parentColumn = "id",
         entityColumn = "measurementId"
     )
     val locations: List<LocationEntity>?,
 
     @Relation(
+        entity = CellEntity::class,
         parentColumn = "id",
         entityColumn = "measurementId"
     )

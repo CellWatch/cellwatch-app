@@ -2,17 +2,14 @@ package com.cellwatch
 
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.cellwatch.data.model.Cell
+import com.cellwatch.data.local.model.FccSubmissionEntity
 import com.cellwatch.data.model.ChallengeData
 import com.cellwatch.data.model.FccSubmission
-import com.cellwatch.data.model.LatencyData
-import com.cellwatch.data.model.Location
 import com.cellwatch.data.model.Measurement
-import com.cellwatch.data.model.UploadDownloadData
 import com.cellwatch.data.model.asNetworkModel
 import com.cellwatch.data.network.NetworkMeasurementDatasource
+import com.cellwatch.data.network.model.NetworkFccSubmission
 import com.cellwatch.data.network.model.NetworkMeasurement
-import com.cellwatch.data.network.model.NetworkMeasurementWithData
 import com.cellwatch.data.network.model.asExternalModel
 import com.google.gson.GsonBuilder
 import io.github.jan.supabase.SupabaseClient
@@ -23,11 +20,9 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.PostgrestBuilder
 import io.github.jan.supabase.postgrest.query.PostgrestResult
-import io.github.jan.supabase.postgrest.rpc
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
-import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,6 +34,7 @@ class NetworkMeasurementSubmissionTest {
     private lateinit var networkMeasurementDatasource: NetworkMeasurementDatasource
 
     private lateinit var supabaseClient: SupabaseClient
+    private lateinit var fccSubmissionTable: PostgrestBuilder
     private lateinit var measurementTable: PostgrestBuilder
     private lateinit var locationTable: PostgrestBuilder
     private lateinit var dataTable: PostgrestBuilder
@@ -64,6 +60,7 @@ class NetworkMeasurementSubmissionTest {
             install(Postgrest)
         }
 
+        fccSubmissionTable = supabaseClient.postgrest["fcc_submissions"]
         measurementTable = supabaseClient.postgrest["measurements"]
         locationTable = supabaseClient.postgrest["locations"]
         dataTable = supabaseClient.postgrest["upload_download_data"]
@@ -92,10 +89,60 @@ class NetworkMeasurementSubmissionTest {
             Log.d(TAG, jsonString)
         }
     }
+    
+    @Test
+    @kotlin.jvm.Throws(Exception::class)
+    fun InsertFccSubmission() {
+        var insertedFccSubmission: FccSubmission?
+        
+        val groupId = UUID.randomUUID().toString()
+        val fccSubmission = FccSubmission(
+            id = groupId,
+            contactName = "Scott Robertson",
+            contactEmail = "sr19@gatech.edu",
+            contactPhone = "404-226-2082",
+            deviceTimestamp = Clock.System.now(),
+            serverTimestamp = Clock.System.now(),
+            sourceIp = "10.0.1.2",
+            simCountryCode = "410",
+            simNetworkCode = "310",
+            netCountryCode = "410",
+            netNetworkCode = "310",
+            inVehicle = false,
+            externalAntenna = false,
+            submitted = false
+        )
+
+        try {
+            var result: PostgrestResult
+            insertedFccSubmission =
+                runBlocking {
+                    result = fccSubmissionTable.insert(fccSubmission.asNetworkModel())
+
+                    result.decodeSingle<NetworkFccSubmission>().asExternalModel()
+                }
+            Log.d(
+                TAG,
+                "*** Inserted new Measurement record: $insertedFccSubmission"
+            )
+        } catch (e: RestException) {
+            Log.e(TAG, "RestException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestTimeoutException) {
+            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+            throw e
+        } catch (e: HttpRequestException) {
+            Log.e(TAG, "HttpRequestException: ${e.message}")
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception: ${e.message}")
+            throw e
+        }
+    }
 
     @Test
     @Throws(Exception::class)
-    fun ChallangeDataInsert() {
+    fun ChallengeDataInsert() {
         val deviceId = UUID.randomUUID().toString()
         val groupId = UUID.randomUUID().toString()
         val campaignId = UUID.randomUUID().toString()
@@ -109,7 +156,7 @@ class NetworkMeasurementSubmissionTest {
         )
 
         val fccSubmission = FccSubmission(
-            groupId = groupId,
+            id = groupId,
             contactName = challengeData.contactName,
             contactPhone = challengeData.contactPhone,
             contactEmail = challengeData.contactEmail,

@@ -13,7 +13,8 @@ import java.util.UUID
         ForeignKey(entity = MeasurementEntity::class,
             parentColumns = ["id"],
             childColumns = ["measurementId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
+            onUpdate = ForeignKey.CASCADE
         )
     ]
 )
@@ -32,7 +33,6 @@ data class LocationEntity(
 
     val heading: Double? = null,
 
-//    @ColumnInfo(name = "measurement_id", index = true)
     @ColumnInfo(index = true)
     var measurementId: String? = null,
 
