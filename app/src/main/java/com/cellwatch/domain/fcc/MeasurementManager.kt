@@ -74,12 +74,23 @@ object MeasurementManager {
         Toast.makeText(CellWatchApp.applicationContext(), myPublicIp, Toast.LENGTH_LONG).show()
 
         val groupId: String = UUID.randomUUID().toString()
+        val dataStore = LocalDataStore(CellWatchApp.applicationContext())
+        val deviceId = dataStore.getDeviceId.first()
+
         val fccSubmission = FccSubmission(
             id = groupId,
+            deviceId = deviceId,
             deviceTimestamp = Clock.System.now(),
-            sourceIp = myPublicIp,
+//            sourceIp = myPublicIp,
             inVehicle = false,
-            externalAntenna = false
+            externalAntenna = false,
+            deviceType = "Android",
+            deviceManufacturer = deviceMod?.manufacturer,
+            deviceModel = deviceMod?.model,
+            deviceOsName = "Android ${deviceMod?.osVersion}",
+            appName = appMod?.appName,
+            appVersion = "1.0",
+            provider = TelephonyInfoManager.getProviderName()
         )
         insertFccSubmission(fccSubmission)
 
@@ -114,6 +125,7 @@ object MeasurementManager {
         fccSubmission.simNetworkCode = latencyMeasurement.simMnc ?: downloadMeasurement.simMnc ?: uploadMeasurement.simMnc
         fccSubmission.netCountryCode = latencyMeasurement.netMcc ?: downloadMeasurement.netMcc ?: uploadMeasurement.netMcc
         fccSubmission.netNetworkCode = latencyMeasurement.netMnc ?: downloadMeasurement.netMnc ?: uploadMeasurement.netMnc
+
         updateFccSubmission(fccSubmission)
 
         fccSubmissionRepository.uploadFccSubmissions()

@@ -39,11 +39,35 @@ data class NetworkFccSubmission(
     @SerialName("source_port")
     val sourcePort: String? = null,
 
+    @SerialName("device_id")
+    val deviceId: String? = null,
+
     @SerialName("device_imei")
     val deviceImei: String? = null,
 
     @SerialName("device_tac")
     val deviceTac: String? = null,
+
+    @SerialName("device_type")
+    val deviceType: String? = null,
+
+    @SerialName("device_manufacturer")
+    val deviceManufacturer: String? = null,
+
+    @SerialName("device_model")
+    val deviceModel: String? = null,
+
+    @SerialName("device_os")
+    val deviceOsName: String? = null,
+
+    @SerialName("app_name")
+    val appName: String? = null,
+
+    @SerialName("app_version")
+    val appVersion: String? = null,
+
+    @SerialName("provider")
+    val provider: String? = null,
 
     @SerialName("sim_country_code")
     val simCountryCode: String? = null,
@@ -88,8 +112,16 @@ fun NetworkFccSubmission.asExternalModel() = FccSubmission(
     serverTimestamp,
     sourceIp,
     sourcePort,
+    deviceId,
     deviceImei,
     deviceTac,
+    deviceType,
+    deviceManufacturer,
+    deviceModel,
+    deviceOsName,
+    appName,
+    appVersion,
+    provider,
     simCountryCode,
     simNetworkCode,
     netCountryCode,
