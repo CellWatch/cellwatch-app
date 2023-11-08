@@ -51,6 +51,7 @@ import com.mapbox.maps.plugin.gestures.removeOnMapClickListener
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorBearingChangedListener
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
 import com.mapbox.maps.plugin.locationcomponent.location
+import kotlinx.coroutines.*
 import kotlin.math.roundToInt
 
 // TODO: Rename parameter arguments, choose names that match
@@ -221,9 +222,15 @@ class MapFragment : Fragment() {
         override fun onMoveEnd(detector: MoveGestureDetector) {}
     }
 
+    private var debounceJob: Job? = null
+
     private val onCameraChangeListener = OnCameraChangeListener {
-        polygonAnnotationManager.deleteAll()
-        loadMapH3()
+        debounceJob?.cancel() // Cancel the previous job if the camera is still moving
+        debounceJob = CoroutineScope(Dispatchers.Main).launch {
+            delay(100) // Wait for 500ms of no camera movement before loading H3
+            polygonAnnotationManager.deleteAll()
+            loadMapH3()
+        }
     }
 
     private val onMapClickListener = OnMapClickListener {
@@ -355,9 +362,8 @@ class MapFragment : Fragment() {
 
     private fun loadMapH3() {
         val center = mapboxMap.cameraState.center
-        val delta = 0.1447 // Rough estimation of 10 miles in lat/long
-        //val delta = 0.218 // Rough estimateion of 15 miles in lat/long
-        //val delta = 0.289 // Rough estimation of 20 miles in lat/long
+        val scale = 1.5
+        val delta = 0.289 * scale // Rough estimation of 20 miles in lat/long
 
         // Create a bounding box using the rough estimation
         val ne = Point.fromLngLat(center.latitude() + delta, center.longitude() + delta)
@@ -369,31 +375,32 @@ class MapFragment : Fragment() {
         val h3Addresses = H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), 5)
         val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(h3Addresses)
 
-
-        //Display h3 boundaries
         if(!this::polygonAnnotationManager.isInitialized) {
             val annotationApi = mapView.annotations
             polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
         }
+
+        val reusablePolygonOptions = PolygonAnnotationOptions()
+            .withFillColor("rgba(0, 0, 0, 0)") // Transparent fill color
+            .withFillOutlineColor("#0000FF") // Blue outline color
+
+
+        // Display h3 boundaries
         h3Boundaries.forEach { boundary ->
-            val polygonOptions = PolygonAnnotationOptions()
-                .withPoints(listOf(boundary))
-                .withFillColor("rgba(0, 0, 0, 0)") // Transparent fill color
-                .withFillOutlineColor("#0000FF") // Blue outline color
-            polygonAnnotationManager.create(polygonOptions)
+            reusablePolygonOptions.withPoints(listOf(boundary))
+            polygonAnnotationManager.create(reusablePolygonOptions)
         }
 
-        //Get hexagons with > 1 point within them, display an overlay that reflects this.
-        h3Addresses.forEach {address ->
-            if(H3Manager.getMeasurementsAssociatedWithH3Address(address).size > 0) {
-                //create overlay on the h3address
+        // Display overlays on hexagons with > 1 point within them
+        h3Addresses.forEach { address ->
+            val measurements = H3Manager.getMeasurementsAssociatedWithH3Address(address)
+            if (measurements.size > 1) {
                 val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
-
-                val polygonOptions = PolygonAnnotationOptions()
+                reusablePolygonOptions
                     .withPoints(addressBoundary)
-                    .withFillColor("#0000FF") // Transparent fill color
-                    .withFillOutlineColor("#0000FF") // Blue outline color
-                polygonAnnotationManager.create(polygonOptions)
+                    .withFillColor("#00FF00") // Green fill color
+                    .withFillOpacity(.5)
+                polygonAnnotationManager.create(reusablePolygonOptions)
             }
         }
     }
