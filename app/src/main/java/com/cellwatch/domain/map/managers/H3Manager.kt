@@ -110,6 +110,14 @@ object H3Manager {
         return h3IndexToBoundary(mutableListOf(h3address))
     }
 
+    fun getH3AddressFromPointSingleton(point: Point, res: Int): Long {
+        return h3.geoToH3(point.latitude(), point.longitude(), res)
+    }
+
+    fun getRelatedH3Hex(addr: Long, childRes: Int): MutableList<Long> {
+        return h3.h3ToChildren(addr, childRes)
+    }
+
     fun getMeasurementsAssociatedWithLatLong(coord: Point): MutableList<Measurement> {
         /*
         Takes in a mapbox lat/long point, returns all measurements associated with the 5 res H3 hexagon that contains the point.
@@ -134,7 +142,7 @@ object H3Manager {
         return associatedMeasurementList
     }
 
-    fun getMeasurementsAssociatedWithH3Address(address: Long): MutableList<Measurement> {
+    fun getMeasurementsAssociatedWithH3Address(address: Long, res: Int): MutableList<Measurement> {
         /*
         Takes in a h3 address, returns all measurements associated with the 5 res H3 hexagon that contains the point.
          */
@@ -146,7 +154,7 @@ object H3Manager {
                 if ((location.lat != null) && (location.lon != null) && (h3.geoToH3(
                         location.lat,
                         location.lon,
-                        5
+                        res
                     ) == address)
                 ) {
                     associatedMeasurementList.add(measurement)
@@ -156,5 +164,24 @@ object H3Manager {
 
         return associatedMeasurementList
     }
+
+    /*
+    fun isPointInPolygon(polygon: List<List<Point>>, point: Point): Boolean {
+        var intersectCount = 0
+        for (j in polygon.indices) {
+            val current = polygon[j]
+            val next = polygon[(j + 1) % polygon.size]
+            if ((current.latitude() > point.latitude()) != (next.latitude() > point.latitude()) &&
+                (point.longitude() < (next.longitude() - current.longitude()) *
+                        (point.latitude() - current.latitude()) / (next.latitude() - current.latitude()) + current.longitude())
+            ) {
+                intersectCount++
+            }
+        }
+        // If the number of intersections is odd, the point is inside the polygon
+        return (intersectCount % 2 == 1)
+    }
+
+     */
 
 }
