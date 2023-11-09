@@ -224,7 +224,7 @@ class MapFragment : Fragment() {
                 Toast.makeText(context, associatedMeasurements.toString(), Toast.LENGTH_LONG).show()
 
                 if (associatedMeasurements.isNotEmpty()) {
-                    val bottomSheetFragment = MeasurementBottomSheetFragment.newInstance(associatedMeasurements)
+                    val bottomSheetFragment = MeasurementListBottomSheetFragment.newInstance(h3Address)
                     fragmentManager?.let { it1 -> bottomSheetFragment.show(it1, bottomSheetFragment.tag) }
                 } else {
                     Toast.makeText(context, "No measurements found.", Toast.LENGTH_LONG).show()
@@ -485,7 +485,6 @@ class MapFragment : Fragment() {
         polygonAnnotationManager.addClickListener(onPolygonClick)
         mapboxMap.removeOnMapClickListener(onMapClickListener)
     }
-
 
     private fun onMapReady() {
         mapView.getMapboxMap().setCamera(

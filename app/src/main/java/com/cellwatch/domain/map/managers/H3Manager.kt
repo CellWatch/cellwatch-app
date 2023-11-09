@@ -165,6 +165,10 @@ object H3Manager {
         return associatedMeasurementList
     }
 
+    fun getH3ResolutionFromAddress(addr: Long): Int {
+        return h3.h3GetResolution(addr)
+    }
+
     /*
     fun isPointInPolygon(polygon: List<List<Point>>, point: Point): Boolean {
         var intersectCount = 0
