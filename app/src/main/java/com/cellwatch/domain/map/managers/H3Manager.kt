@@ -114,8 +114,14 @@ object H3Manager {
         return h3.geoToH3(point.latitude(), point.longitude(), res)
     }
 
-    fun getRelatedH3Hex(addr: Long, childRes: Int): MutableList<Long> {
-        return h3.h3ToChildren(addr, childRes)
+    fun getRelatedH3Hex(addr: Long, relatedRes: Int): MutableList<Long> {
+        return if(h3.h3GetResolution(addr) < relatedRes) {
+            h3.h3ToChildren(addr, relatedRes)
+        } else if (h3.h3GetResolution(addr) > relatedRes) {
+            mutableListOf(h3.h3ToParent(addr, relatedRes))
+        } else {
+            mutableListOf(addr)
+        }
     }
 
     fun getMeasurementsAssociatedWithLatLong(coord: Point): MutableList<Measurement> {
@@ -169,8 +175,7 @@ object H3Manager {
         return h3.h3GetResolution(addr)
     }
 
-    /*
-    fun isPointInPolygon(polygon: List<List<Point>>, point: Point): Boolean {
+    fun isPointInPolygon(polygon: List<Point>, point: Point): Boolean {
         var intersectCount = 0
         for (j in polygon.indices) {
             val current = polygon[j]
@@ -185,7 +190,5 @@ object H3Manager {
         // If the number of intersections is odd, the point is inside the polygon
         return (intersectCount % 2 == 1)
     }
-
-     */
 
 }
