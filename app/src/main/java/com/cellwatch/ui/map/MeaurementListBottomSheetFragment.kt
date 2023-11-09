@@ -51,6 +51,10 @@ class MeasurementListBottomSheetFragment : BottomSheetDialogFragment() {
             this.measurements = fetchMeasurements(it)
             recyclerView.adapter = MeasurementAdapter(measurements!!)
         }
+
+        val textViewTitle: TextView = view.findViewById(R.id.tvTitle)
+        val tvTitleText = "Cell $h3Address"
+        textViewTitle.text = tvTitleText
     }
     private fun fetchMeasurements(id: Long): List<Measurement> {
         return H3Manager.getMeasurementsAssociatedWithH3Address(id, H3Manager.getH3ResolutionFromAddress(id))
@@ -69,11 +73,13 @@ class MeasurementAdapter(private val measurements: List<Measurement>) :
     override fun onBindViewHolder(holder: MeasurementViewHolder, position: Int) {
         val measurement = measurements[position]
         holder.textViewTime.text = measurement.timestamp.toString()
-        val uploadDownloadData = measurement.uploadDownloadData
+        val measurementLocation = measurement.locations
 
-        if (uploadDownloadData != null) {
-            holder.textViewUploadSpeed.text = uploadDownloadData.warmupBytes.toString() //TODO Placeholder value
-            holder.textViewDownloadSpeed.text = uploadDownloadData.warmupDuration.toString() //TODO Placeholder value
+        if (!measurementLocation.isNullOrEmpty()) {
+            holder.textViewUploadSpeed.text =
+                String.format("%.2fm/s", measurementLocation[0].speed) //TODO Placeholder value
+            holder.textViewDownloadSpeed.text =
+                String.format("%.2fm/s", measurementLocation[0].speed) //TODO Placeholder value
         }
     }
 
