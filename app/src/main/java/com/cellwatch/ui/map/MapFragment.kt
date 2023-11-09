@@ -142,9 +142,11 @@ class MapFragment : Fragment() {
         h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
             if(isChecked) {
                 polygonAnnotationManager.deleteAll()
+                lowResPolygonAnnotationManager.deleteAll()
                 loadMapAnnotations()
                 mapboxMap.removeOnCameraChangeListener(onCameraChangeListener)
                 mapboxMap.removeOnMapClickListener(onMapClickListener)
+
             } else {
                 pointAnnotationManager.deleteAll()
                 loadMapH3()
@@ -256,16 +258,7 @@ class MapFragment : Fragment() {
 
     private var debounceJob: Job? = null
 
-    private val onCameraChangeListener = OnCameraChangeListener {
-        debounceJob?.cancel() // Cancel the previous job if the camera is still moving
-        debounceJob = CoroutineScope(Dispatchers.Main).launch {
-            delay(100) // Wait for 500ms of no camera movement before loading H3
-            polygonAnnotationManager.deleteAll()
-            polygonAnnotationManager.removeClickListener(onPolygonClick)
-            mapboxMap.addOnMapClickListener(onMapClickListener)
-            loadMapH3()
-        }
-    }
+
 
     private val onMapClickListener = OnMapClickListener {
         val associatedMeasurements = H3Manager.getMeasurementsAssociatedWithLatLong(it)
@@ -281,8 +274,20 @@ class MapFragment : Fragment() {
     private lateinit var mapboxMap : MapboxMap
     private lateinit var pointAnnotationManager: PointAnnotationManager
     private lateinit var polygonAnnotationManager: PolygonAnnotationManager
+    private lateinit var lowResPolygonAnnotationManager: PolygonAnnotationManager
     private var annotations: MutableList<PointAnnotation> = mutableListOf()
 
+    private val onCameraChangeListener = OnCameraChangeListener {
+        debounceJob?.cancel() // Cancel the previous job if the camera is still moving
+        debounceJob = CoroutineScope(Dispatchers.Main).launch {
+            delay(100) // Wait for 500ms of no camera movement before loading H3
+            polygonAnnotationManager.deleteAll()
+            lowResPolygonAnnotationManager.deleteAll()
+            lowResPolygonAnnotationManager.removeClickListener(onPolygonClick)
+            mapboxMap.addOnMapClickListener(onMapClickListener)
+            loadMapH3()
+        }
+    }
 
     private fun onCameraTrackingDismissed() {
         Toast.makeText(context, "onCameraTrackingDismissed", Toast.LENGTH_SHORT).show()
@@ -411,6 +416,10 @@ class MapFragment : Fragment() {
             val annotationApi = mapView.annotations
             polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
         }
+        if(!this::lowResPolygonAnnotationManager.isInitialized) {
+            val annotationApi = mapView.annotations
+            lowResPolygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
+        }
 
         val reusablePolygonOptions = PolygonAnnotationOptions()
             .withFillColor("rgba(0, 0, 0, 0)") // Transparent fill color
@@ -443,9 +452,9 @@ class MapFragment : Fragment() {
 
         Log.i("H3 map click", "H3address: $h3Address, H3boundaries: $h3Boundaries")
 
-        if(!this::polygonAnnotationManager.isInitialized) {
+        if(!this::lowResPolygonAnnotationManager.isInitialized) {
             val annotationApi = mapView.annotations
-            polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
+            lowResPolygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
         }
 
         val reusablePolygonOptions = PolygonAnnotationOptions()
@@ -455,7 +464,7 @@ class MapFragment : Fragment() {
         // Display h3 boundaries
         h3Boundaries.forEach { boundary ->
             reusablePolygonOptions.withPoints(listOf(boundary))
-            polygonAnnotationManager.create(reusablePolygonOptions)
+            lowResPolygonAnnotationManager.create(reusablePolygonOptions)
         }
 
         // Display overlays on hexagons with > 1 point within them
@@ -474,15 +483,15 @@ class MapFragment : Fragment() {
 
             if (measurements.size > 1) {
                 reusablePolygonOptions.withFillOpacity(.5)
-                polygonAnnotationManager.create(reusablePolygonOptions)
+                lowResPolygonAnnotationManager.create(reusablePolygonOptions)
                 //TODO Add circleannotation to middle of hexagon, with number of measurements
             } else {
                 reusablePolygonOptions.withFillOpacity(0.0)
-                polygonAnnotationManager.create(reusablePolygonOptions)
+                lowResPolygonAnnotationManager.create(reusablePolygonOptions)
             }
         }
 
-        polygonAnnotationManager.addClickListener(onPolygonClick)
+        lowResPolygonAnnotationManager.addClickListener(onPolygonClick)
         mapboxMap.removeOnMapClickListener(onMapClickListener)
     }
 

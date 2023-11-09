@@ -57,24 +57,32 @@ class MeasurementListBottomSheetFragment : BottomSheetDialogFragment() {
     }
 }
 
-class MeasurementAdapter(private val measurements: List<Measurement>) : RecyclerView.Adapter<MeasurementAdapter.MeasurementViewHolder>() {
-    class MeasurementViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val textViewName: TextView = view.findViewById(R.id.textViewName)
-        val textViewValue: TextView = view.findViewById(R.id.textViewValue)
-    }
+class MeasurementAdapter(private val measurements: List<Measurement>) :
+    RecyclerView.Adapter<MeasurementAdapter.MeasurementViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MeasurementViewHolder {
-        // Create a new view, which defines the UI of the list item
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.map_bottom_sheet_measurement_item, parent, false)
-
         return MeasurementViewHolder(view)
     }
 
-    override fun getItemCount() = measurements.size
     override fun onBindViewHolder(holder: MeasurementViewHolder, position: Int) {
-        val measurement = measurements[position
-        // Set other attributes from measurement to the view holder
+        val measurement = measurements[position]
+        holder.textViewTime.text = measurement.timestamp.toString()
+        val uploadDownloadData = measurement.uploadDownloadData
+
+        if (uploadDownloadData != null) {
+            holder.textViewUploadSpeed.text = uploadDownloadData.warmupBytes.toString() //TODO Placeholder value
+            holder.textViewDownloadSpeed.text = uploadDownloadData.warmupDuration.toString() //TODO Placeholder value
+        }
+    }
+
+    override fun getItemCount() = measurements.size
+
+    class MeasurementViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val textViewTime: TextView = view.findViewById(R.id.textViewTime)
+        val textViewUploadSpeed: TextView = view.findViewById(R.id.textViewUploadSpeed)
+        val textViewDownloadSpeed: TextView = view.findViewById(R.id.textViewDownloadSpeed)
     }
 }
 

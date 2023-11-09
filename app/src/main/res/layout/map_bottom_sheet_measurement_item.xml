@@ -6,19 +6,25 @@
     android:padding="16dp">
 
     <TextView
-        android:id="@+id/textViewName"
-        android:layout_width="0dp"
+        android:id="@+id/textViewTime"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:textSize="18sp"
-        android:text="Measurement Name" />
+        android:textSize="16sp"
+        android:text="Time" />
 
     <TextView
-        android:id="@+id/textViewValue"
-        android:layout_width="wrap_content"
+        android:id="@+id/textViewUploadSpeed"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="18sp"
-        android:layout_marginStart="16dp"
-        android:text="Value" />
+        android:textSize="16sp"
+        android:text="Upload Speed"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/textViewDownloadSpeed"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="16sp"
+        android:text="Download Speed"/>
 
 </LinearLayout>
