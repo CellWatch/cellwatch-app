@@ -175,20 +175,4 @@ object H3Manager {
         return h3.h3GetResolution(addr)
     }
 
-    fun isPointInPolygon(polygon: List<Point>, point: Point): Boolean {
-        var intersectCount = 0
-        for (j in polygon.indices) {
-            val current = polygon[j]
-            val next = polygon[(j + 1) % polygon.size]
-            if ((current.latitude() > point.latitude()) != (next.latitude() > point.latitude()) &&
-                (point.longitude() < (next.longitude() - current.longitude()) *
-                        (point.latitude() - current.latitude()) / (next.latitude() - current.latitude()) + current.longitude())
-            ) {
-                intersectCount++
-            }
-        }
-        // If the number of intersections is odd, the point is inside the polygon
-        return (intersectCount % 2 == 1)
-    }
-
 }

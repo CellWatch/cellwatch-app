@@ -12,7 +12,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.GravityCompat
@@ -211,29 +210,32 @@ class MapFragment : Fragment() {
         /*
         Used when a child hexagon is clicked to display measurements associated with it.
          */
-        try {
-            val h3AddressElement = polygon.getData()?.asJsonObject?.get("h3_address")
-            val h3Address = h3AddressElement?.takeIf { it.isJsonPrimitive }?.asLong
-            val associatedMeasurements = h3Address?.let {
+        val data = polygon.getData()
+        if (data == null || data.isJsonNull || !data.isJsonObject) {
+            Log.i("H3", "Skipping annotation due to null or invalid data")
+            return@OnPolygonAnnotationClickListener false // Skip if data is null or not a JsonObject
+        }
+
+        val h3AddressElement = data.asJsonObject.get("h3_address")
+        val h3Address = h3AddressElement?.takeIf { it.isJsonPrimitive }?.asLong
+
+        if(h3Address?.let { H3Manager.getH3ResolutionFromAddress(it) } == 6) {
+            val associatedMeasurements = h3Address.let {
                 H3Manager.getMeasurementsAssociatedWithH3Address(it, 6)
             }
             Log.i("OnPolygonClick", "H3AddressElement: $h3AddressElement")
             Log.i("OnPolygonClick", "h3Address: $h3Address")
             Log.i("OnPolygonClick", "associatedMeasurements: $associatedMeasurements")
 
-            if (associatedMeasurements != null && associatedMeasurements.size > 1) {
-                Log.i("H3 Point Measurements:", "$associatedMeasurements")
-                Toast.makeText(context, associatedMeasurements.toString(), Toast.LENGTH_LONG).show()
-
-                if (associatedMeasurements.isNotEmpty()) {
-                    val bottomSheetFragment = MeasurementListBottomSheetFragment.newInstance(h3Address)
-                    fragmentManager?.let { it1 -> bottomSheetFragment.show(it1, bottomSheetFragment.tag) }
-                } else {
-                    Toast.makeText(context, "No measurements found.", Toast.LENGTH_LONG).show()
+            if (associatedMeasurements.size > 1) {
+                val bottomSheetFragment = MeasurementListBottomSheetFragment.newInstance(h3Address)
+                fragmentManager?.let { it1 ->
+                    bottomSheetFragment.show(
+                        it1,
+                        bottomSheetFragment.tag
+                    )
                 }
             }
-        } catch (e: IllegalStateException) {
-            Log.i(TAG, "Polygon Click on parent res hexagon; ignored.")
         }
 
         true
@@ -262,11 +264,32 @@ class MapFragment : Fragment() {
 
     private val onMapClickListener = OnMapClickListener {
         val associatedMeasurements = H3Manager.getMeasurementsAssociatedWithLatLong(it)
-        if(associatedMeasurements.size > 0) {
+        val h3Address = H3Manager.getH3AddressFromPointSingleton(it, 6)
+        if(H3Manager.getH3ResolutionFromAddress(h3Address) == 6 && associatedMeasurements.size > 0) {
+
+            polygonAnnotationManager.annotations.forEach { annotation ->
+                // Get the data and check if it's a JsonObject
+                val data = annotation.getData()
+                if (data == null || !data.isJsonObject) {
+                    Log.i("H3", "Skipping annotation due to null or invalid data")
+                    return@forEach // Skip if data is null or not a JsonObject
+                }
+
+                // Now we know that data is a JsonObject, we can safely call asJsonObject
+                val h3AddressElement = data.asJsonObject.get("h3_address")
+                if (h3AddressElement?.takeIf { it.isJsonPrimitive }?.asLong == h3Address) {
+                    polygonAnnotationManager.delete(annotation)
+                    Log.i("H3", "Removing res 6 hexagon from list with addr $h3Address")
+                }
+            }
+
             displayRes5Hexagons(it)
         }
 
-        return@OnMapClickListener true
+
+
+
+        true // return true to indicate the click event has been handled
     }
 
 
@@ -290,7 +313,6 @@ class MapFragment : Fragment() {
     }
 
     private fun onCameraTrackingDismissed() {
-        Toast.makeText(context, "onCameraTrackingDismissed", Toast.LENGTH_SHORT).show()
         mapView.location
             .removeOnIndicatorPositionChangedListener(onIndicatorPositionChangedListener)
         mapView.location
@@ -432,8 +454,14 @@ class MapFragment : Fragment() {
             polygonAnnotationManager.create(reusablePolygonOptions)
         }
 
+
         // Display overlays on hexagons with > 1 point within them
         h3Addresses.forEach { address ->
+            val data = JsonObject()
+            data.addProperty("h3_address", address)
+            Log.i("H3 Child Data", "$data")
+
+
             val measurements = H3Manager.getMeasurementsAssociatedWithH3Address(address, 5)
             if (measurements.size > 1) {
                 val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
@@ -441,6 +469,7 @@ class MapFragment : Fragment() {
                     .withPoints(addressBoundary)
                     .withFillColor("#00FF00") // Green fill color
                     .withFillOpacity(.5)
+                    .withData(data)
                 polygonAnnotationManager.create(reusablePolygonOptions)
             }
         }
@@ -474,11 +503,11 @@ class MapFragment : Fragment() {
             Log.i("H3 Child Data", "$data")
 
 
-            val measurements = H3Manager.getMeasurementsAssociatedWithH3Address(address, 5)
+            val measurements = H3Manager.getMeasurementsAssociatedWithH3Address(address, 6)
             val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
             reusablePolygonOptions
                 .withPoints(addressBoundary)
-                .withFillColor("#00FF00") // Green fill color
+                .withFillColor("#024B30") // Green fill color
                 .withData(data)
 
             if (measurements.size > 1) {
@@ -498,7 +527,7 @@ class MapFragment : Fragment() {
     private fun onMapReady() {
         mapView.getMapboxMap().setCamera(
             CameraOptions.Builder()
-                .zoom(14.0)
+                .zoom(9.0)
                 .build()
         )
         mapView.getMapboxMap().loadStyleUri(
