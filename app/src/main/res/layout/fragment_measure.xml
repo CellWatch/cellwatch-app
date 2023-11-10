@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/label"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_marginTop="100dp"
+            android:gravity="center_horizontal"
+            android:text="Measure"
+            android:textSize="45dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textView2"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/label"
+            android:layout_centerInParent="true"
+            android:layout_marginTop="10dp"
+            android:gravity="center_horizontal"
+            android:text="Measuring Signal"
+            android:textSize="20sp" />
+
+        <!--Add ProgressBar. Main Attribute used here are
+    style="@style/CircularDeterminateProgressBar" that
+    takes style as created in theme.xml file above and
+     android:progressDrawable="@drawable/circle" that has been
+    created in circle.xml file above.-->
+
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            style="@style/CircularDeterminateProgressBar"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:gravity="right"
+            android:indeterminateOnly="false"
+            android:progress="60"
+            android:progressDrawable="@drawable/measure_ring"
+            android:rotation="0"
+            tools:progress="60" />
+
+        <TextView
+            android:id="@+id/text_view_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large"
+            tools:text="60%" />
+
+        <!--Increment button that will decrement the progress by 10%-->
+        <Button
+            android:id="@+id/button_decr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="- 10%" />
+
+        <!--Increment button that will increment the progress by 10%-->
+        <Button
+            android:id="@+id/button_incr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+ 10%"/>
+    </LinearLayout>
+
+</FrameLayout>
