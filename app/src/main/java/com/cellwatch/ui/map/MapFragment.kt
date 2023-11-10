@@ -261,20 +261,18 @@ class MapFragment : Fragment() {
 
     private var debounceJob: Job? = null
 
-    private val onMapClickListenerH3 = OnMapClickListener {
+    private val onMapClickListenerH3 = OnMapClickListener { it ->
         val associatedMeasurements = H3Manager.getMeasurementsAssociatedWithLatLong(it)
-        val h3Address = H3Manager.getH3AddressFromPointSingleton(it, 6)
-        if(H3Manager.getH3ResolutionFromAddress(h3Address) == 6 && associatedMeasurements.size > 0) {
+        val h3Address = H3Manager.getH3AddressFromPointSingleton(it, 5)
+        if(H3Manager.getH3ResolutionFromAddress(h3Address) == 5 && associatedMeasurements.size > 0) {
 
             polygonAnnotationManager.annotations.forEach { annotation ->
-                // Get the data and check if it's a JsonObject
                 val data = annotation.getData()
                 if (data == null || !data.isJsonObject) {
                     Log.i("H3", "Skipping annotation due to null or invalid data")
-                    return@forEach // Skip if data is null or not a JsonObject
+                    return@forEach
                 }
 
-                // Now we know that data is a JsonObject, we can safely call asJsonObject
                 val h3AddressElement = data.asJsonObject.get("h3_address")
                 if (h3AddressElement?.takeIf { it.isJsonPrimitive }?.asLong == h3Address) {
                     polygonAnnotationManager.delete(annotation)
@@ -466,8 +464,15 @@ class MapFragment : Fragment() {
 
         // Display h3 boundaries
         h3Boundaries.forEach { boundary ->
+            val address =  H3Manager.getH3AddressFromPointSingleton(boundary.first(), 5)
+
+            val data = JsonObject()
+            data.addProperty("h3_address", address)
+            Log.i("H3 Child Data", "$data")
+
+
             reusablePolygonOptions.withPoints(listOf(boundary))
-            polygonAnnotationManager.create(reusablePolygonOptions)
+            polygonAnnotationManager.create(reusablePolygonOptions.withData(data))
         }
 
 
@@ -483,7 +488,7 @@ class MapFragment : Fragment() {
                 val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
                 reusablePolygonOptions
                     .withPoints(addressBoundary)
-                    .withFillColor("#00FF00") // Green fill color
+                    .withFillColor("#428755") // Green fill color
                     .withFillOpacity(.5)
                     .withData(data)
                 polygonAnnotationManager.create(reusablePolygonOptions)
@@ -523,7 +528,7 @@ class MapFragment : Fragment() {
             val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
             reusablePolygonOptions
                 .withPoints(addressBoundary)
-                .withFillColor("#024B30") // Green fill color
+                .withFillColor("#428755") // Green fill color
                 .withData(data)
 
             if (measurements.size > 1) {
