@@ -35,6 +35,7 @@ import com.mapbox.maps.Style
 import com.mapbox.maps.extension.style.expressions.dsl.generated.interpolate
 import com.mapbox.maps.plugin.LocationPuck2D
 import com.mapbox.maps.plugin.annotation.annotations
+import com.mapbox.maps.plugin.annotation.generated.OnPointAnnotationClickListener
 import com.mapbox.maps.plugin.annotation.generated.OnPolygonAnnotationClickListener
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotation
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
@@ -144,13 +145,13 @@ class MapFragment : Fragment() {
                 lowResPolygonAnnotationManager.deleteAll()
                 loadMapAnnotations()
                 mapboxMap.removeOnCameraChangeListener(onCameraChangeListener)
-                mapboxMap.removeOnMapClickListener(onMapClickListener)
+                mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
 
             } else {
                 pointAnnotationManager.deleteAll()
                 loadMapH3()
                 mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
-                mapboxMap.addOnMapClickListener(onMapClickListener)
+                mapboxMap.addOnMapClickListener(onMapClickListenerH3)
             }
         }
 
@@ -260,9 +261,7 @@ class MapFragment : Fragment() {
 
     private var debounceJob: Job? = null
 
-
-
-    private val onMapClickListener = OnMapClickListener {
+    private val onMapClickListenerH3 = OnMapClickListener {
         val associatedMeasurements = H3Manager.getMeasurementsAssociatedWithLatLong(it)
         val h3Address = H3Manager.getH3AddressFromPointSingleton(it, 6)
         if(H3Manager.getH3ResolutionFromAddress(h3Address) == 6 && associatedMeasurements.size > 0) {
@@ -292,6 +291,21 @@ class MapFragment : Fragment() {
         true // return true to indicate the click event has been handled
     }
 
+    private val onAnnotationClickListener = OnPointAnnotationClickListener { annotation ->
+        val point = annotation.geometry
+        val h3Address = H3Manager.getH3AddressFromPointSingleton(point, 5)
+
+        val bottomSheetFragment = MeasurementListBottomSheetFragment.newInstance(h3Address)
+        fragmentManager?.let { it1 ->
+            bottomSheetFragment.show(
+                it1,
+                bottomSheetFragment.tag
+            )
+        }
+
+
+        true // Return true to consume the click event
+    }
 
     private lateinit var mapView: MapView
     private lateinit var mapboxMap : MapboxMap
@@ -307,7 +321,7 @@ class MapFragment : Fragment() {
             polygonAnnotationManager.deleteAll()
             lowResPolygonAnnotationManager.deleteAll()
             lowResPolygonAnnotationManager.removeClickListener(onPolygonClick)
-            mapboxMap.addOnMapClickListener(onMapClickListener)
+            mapboxMap.addOnMapClickListener(onMapClickListenerH3)
             loadMapH3()
         }
     }
@@ -417,6 +431,8 @@ class MapFragment : Fragment() {
                 pointAnnotation.let { annotations.add(it) }
             }
         }
+
+        pointAnnotationManager.addClickListener(onAnnotationClickListener)
     }
 
     private fun loadMapH3() {
@@ -521,7 +537,7 @@ class MapFragment : Fragment() {
         }
 
         lowResPolygonAnnotationManager.addClickListener(onPolygonClick)
-        mapboxMap.removeOnMapClickListener(onMapClickListener)
+        mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
     }
 
     private fun onMapReady() {
@@ -537,7 +553,7 @@ class MapFragment : Fragment() {
             setupGesturesListener()
             loadMapH3()
             mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
-            mapboxMap.addOnMapClickListener(onMapClickListener)
+            mapboxMap.addOnMapClickListener(onMapClickListenerH3)
         }
     }
 
