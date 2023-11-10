@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:gravity="center">
+
+    <ImageView
+        android:id="@+id/imageView_circle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/map_overlay_measurement" /> <!-- Replace with your circle drawable -->
+
+    <TextView
+        android:id="@+id/textView_measurements"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:textColor="#000" /> <!-- Replace with your desired text color -->
+</RelativeLayout>

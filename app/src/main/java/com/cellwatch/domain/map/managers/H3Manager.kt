@@ -175,4 +175,8 @@ object H3Manager {
         return h3.h3GetResolution(addr)
     }
 
+    fun getH3CenterFromAddressSingleton(addr: Long): Point {
+        val centerGeo = h3.h3ToGeo(addr)
+        return Point.fromLngLat(centerGeo.lng, centerGeo.lat)
+    }
 }
