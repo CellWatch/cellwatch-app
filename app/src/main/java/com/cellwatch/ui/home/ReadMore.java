@@ -1,4 +1,4 @@
-package com.example.cellwatch;
+package com.cellwatch.ui.home;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
