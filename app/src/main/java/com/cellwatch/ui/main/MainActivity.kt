@@ -1,7 +1,10 @@
 package com.cellwatch.ui.main
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
+import android.widget.ImageButton
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
@@ -101,7 +104,12 @@ class MainActivity : AppCompatActivity() {
 //                // attempt to upload measurements
 //            }
 //        }
+        var homeButton = findViewById(R.id.homeButton) as ImageButton
+        homeButton.setOnClickListener { val intent = Intent(applicationContext, homeActivity::class.java)
+            startActivity(intent) }
+
     }
+
 
     override fun onResume() {
         super.onResume()

@@ -1,4 +1,4 @@
-package com.example.cellwatch;
+package com.cellwatch.ui.home;
 
 public class DataModel {
 
