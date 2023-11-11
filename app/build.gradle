@@ -28,8 +28,6 @@ android {
 
     buildTypes {
         debug {
-
-            ndk { abiFilters "x86_64", "arm64-v8a", "armeabi-v7a" }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
@@ -43,7 +41,6 @@ android {
             //buildConfigField("String", "MAPBOX_API_KEY", cellwatchProperties['MAPBOX_DOWNLOADS_TOKEN'])
         }
         release {
-            ndk { abiFilters "armeabi" }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
