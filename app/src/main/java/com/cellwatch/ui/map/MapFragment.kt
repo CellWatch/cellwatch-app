@@ -1,6 +1,8 @@
 package com.cellwatch.ui.map
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -15,6 +17,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.annotation.DrawableRes
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.app.ActivityCompat
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.Navigation
@@ -56,6 +59,8 @@ import com.mapbox.maps.plugin.locationcomponent.OnIndicatorBearingChangedListene
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.maps.viewannotation.ViewAnnotationManager
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.*
 import kotlin.math.roundToInt
 
@@ -125,13 +130,10 @@ class MapFragment : Fragment() {
         val measureButton = binding.measureButton //findViewById<Button>(R.id.measureButton)
         val centerButton = binding.centerUserButton //findViewById<Button>(R.id.centerUserButton)
 
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context!!)
+
         measureButton.setOnClickListener {
             Navigation.findNavController(view).navigate(R.id.navigateToMeasurementFragment)
-        }
-
-        centerButton.setOnClickListener{
-            mapView.location.addOnIndicatorPositionChangedListener(onIndicatorPositionChangedListener)
-            mapView.location.addOnIndicatorBearingChangedListener(onIndicatorBearingChangedListener)
         }
 
         hamburgerButton.setOnClickListener {
@@ -140,6 +142,10 @@ class MapFragment : Fragment() {
 
         exitButton.setOnClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
+        }
+
+        centerButton.setOnClickListener{
+            centerCameraOnUser()
         }
 
         h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -207,10 +213,6 @@ class MapFragment : Fragment() {
 //
     }
 
-    private val onIndicatorBearingChangedListener = OnIndicatorBearingChangedListener {
-//        mapView.getMapboxMap().setCamera(CameraOptions.Builder().bearing(it).build())
-//        Log.d(TAG, "Bearing changed to $it")
-    }
 
     private val onPolygonClick: OnPolygonAnnotationClickListener = OnPolygonAnnotationClickListener { polygon ->
         /*
@@ -245,23 +247,6 @@ class MapFragment : Fragment() {
         }
 
         true
-    }
-
-    private val onIndicatorPositionChangedListener = OnIndicatorPositionChangedListener {
-        mapView.getMapboxMap().setCamera(CameraOptions.Builder().center(it).build())
-        mapView.gestures.focalPoint = mapView.getMapboxMap().pixelForCoordinate(it)
-    }
-
-    private val onMoveListener = object : OnMoveListener {
-        override fun onMoveBegin(detector: MoveGestureDetector) {
-            onCameraTrackingDismissed()
-        }
-
-        override fun onMove(detector: MoveGestureDetector): Boolean {
-            return false
-        }
-
-        override fun onMoveEnd(detector: MoveGestureDetector) {}
     }
 
     private var debounceJob: Job? = null
@@ -308,6 +293,7 @@ class MapFragment : Fragment() {
     private lateinit var polygonAnnotationManager: PolygonAnnotationManager
     private lateinit var lowResPolygonAnnotationManager: PolygonAnnotationManager
     private lateinit var viewAnnotationManager: ViewAnnotationManager
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var annotations: MutableList<PointAnnotation> = mutableListOf()
 
     private val onCameraChangeListener = OnCameraChangeListener {
@@ -325,16 +311,7 @@ class MapFragment : Fragment() {
         }
     }
 
-    private fun onCameraTrackingDismissed() {
-        mapView.location
-            .removeOnIndicatorPositionChangedListener(onIndicatorPositionChangedListener)
-        mapView.location
-            .removeOnIndicatorBearingChangedListener(onIndicatorBearingChangedListener)
-        mapView.gestures.removeOnMoveListener(onMoveListener)
-    }
-    private fun setupGesturesListener() {
-        mapView.gestures.addOnMoveListener(onMoveListener)
-    }
+
     private fun bitmapFromDrawableRes(context: Context, @DrawableRes resourceId: Int, count: Int) =
         convertDrawableToBitmap(AppCompatResources.getDrawable(context, resourceId), count)
     private fun convertDrawableToBitmap(sourceDrawable: Drawable?, count: Int): Bitmap? {
@@ -582,11 +559,40 @@ class MapFragment : Fragment() {
             Style.LIGHT
         ) {
             initLocationComponent()
-            setupGesturesListener()
             loadMapH3()
             mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
             mapboxMap.addOnMapClickListener(onMapClickListenerH3)
         }
+    }
+
+    private fun centerCameraOnUser() {
+        //Permissions check required by fusedLocationClient
+        if (context?.let {
+                ActivityCompat.checkSelfPermission(
+                    it,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            } == PackageManager.PERMISSION_GRANTED && context?.let {
+                ActivityCompat.checkSelfPermission(
+                    it,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            } == PackageManager.PERMISSION_GRANTED
+        ) {
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { lastKnownLocation->
+                    if (lastKnownLocation != null) {
+                        Log.i(TAG, "centerCameraOnUser setCamera")
+                        mapView.getMapboxMap().setCamera(
+                            CameraOptions.Builder()
+                                .zoom(14.0)
+                                .center(Point.fromLngLat(lastKnownLocation.longitude, lastKnownLocation.latitude))
+                                .build()
+                        )
+                    }
+                }
+        }
+
     }
 
     private fun initLocationComponent() {
@@ -616,18 +622,6 @@ class MapFragment : Fragment() {
                 }.toJson()
             )
         }
-        Log.d(TAG, "Register map callbacks")
-        locationComponentPlugin.addOnIndicatorPositionChangedListener(onIndicatorPositionChangedListener)
-        locationComponentPlugin.addOnIndicatorBearingChangedListener(onIndicatorBearingChangedListener)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        mapView.location
-            .removeOnIndicatorBearingChangedListener(onIndicatorBearingChangedListener)
-        mapView.location
-            .removeOnIndicatorPositionChangedListener(onIndicatorPositionChangedListener)
-        mapView.gestures.removeOnMoveListener(onMoveListener)
     }
 
     companion object {
