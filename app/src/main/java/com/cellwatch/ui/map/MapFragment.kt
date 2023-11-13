@@ -150,20 +150,27 @@ class MapFragment : Fragment() {
 
         h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
             if(isChecked) {
-                polygonAnnotationManager.deleteAll()
-                lowResPolygonAnnotationManager.deleteAll()
-                viewAnnotationManager.removeAllViewAnnotations()
+                polygonAnnotationManager?.deleteAll()
+                lowResPolygonAnnotationManager?.deleteAll()
+                viewAnnotationManager?.removeAllViewAnnotations()
                 Log.i(TAG, "Removing all views")
                 loadMapAnnotations()
                 mapboxMap.removeOnCameraChangeListener(onCameraChangeListener)
                 mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
 
             } else {
-                pointAnnotationManager.deleteAll()
+                pointAnnotationManager?.deleteAll()
                 loadMapH3()
                 mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
                 mapboxMap.addOnMapClickListener(onMapClickListenerH3)
             }
+        }
+
+        // Initial switch function on start
+        if (h3ToggleSwitch.isChecked) {
+            loadMapAnnotations()
+        } else {
+            loadMapH3()
         }
 
         fun locationToString(l: Location?): String {
@@ -256,7 +263,7 @@ class MapFragment : Fragment() {
         val h3Address = H3Manager.getH3AddressFromPointSingleton(it, 5)
         if(H3Manager.getH3ResolutionFromAddress(h3Address) == 5 && associatedMeasurements.size > 0) {
 
-            polygonAnnotationManager.annotations.forEach { annotation ->
+            polygonAnnotationManager?.annotations?.forEach { annotation ->
                 val data = annotation.getData()
                 if (data == null || !data.isJsonObject) {
                     return@forEach
@@ -264,10 +271,10 @@ class MapFragment : Fragment() {
 
                 val h3AddressElement = data.asJsonObject.get("h3_address")
                 if (h3AddressElement?.takeIf { it.isJsonPrimitive }?.asLong == h3Address) {
-                    polygonAnnotationManager.delete(annotation)
+                    polygonAnnotationManager?.delete(annotation)
                 }
             }
-            viewAnnotationManager.removeAllViewAnnotations()
+            viewAnnotationManager?.removeAllViewAnnotations()
             displayRes5Hexagons(it)
         }
         true
@@ -289,10 +296,10 @@ class MapFragment : Fragment() {
 
     private lateinit var mapView: MapView
     private lateinit var mapboxMap : MapboxMap
-    private lateinit var pointAnnotationManager: PointAnnotationManager
-    private lateinit var polygonAnnotationManager: PolygonAnnotationManager
-    private lateinit var lowResPolygonAnnotationManager: PolygonAnnotationManager
-    private lateinit var viewAnnotationManager: ViewAnnotationManager
+    private var pointAnnotationManager: PointAnnotationManager? = null
+    private var polygonAnnotationManager: PolygonAnnotationManager? = null
+    private var lowResPolygonAnnotationManager: PolygonAnnotationManager? = null
+    private var viewAnnotationManager: ViewAnnotationManager? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var annotations: MutableList<PointAnnotation> = mutableListOf()
 
@@ -300,11 +307,11 @@ class MapFragment : Fragment() {
         debounceJob?.cancel() // Cancel the previous job if the camera is still moving
         debounceJob = CoroutineScope(Dispatchers.Main).launch {
             delay(100) // Wait for 500ms of no camera movement before loading H3
-            polygonAnnotationManager.deleteAll()
-            lowResPolygonAnnotationManager.deleteAll()
-            lowResPolygonAnnotationManager.removeClickListener(onPolygonClick)
+            polygonAnnotationManager?.deleteAll()
+            lowResPolygonAnnotationManager?.deleteAll()
+            lowResPolygonAnnotationManager?.removeClickListener(onPolygonClick)
 
-            viewAnnotationManager.removeAllViewAnnotations()
+            viewAnnotationManager?.removeAllViewAnnotations()
             Log.i(TAG, "Removing all views")
             mapboxMap.addOnMapClickListener(onMapClickListenerH3)
             loadMapH3()
@@ -385,7 +392,7 @@ class MapFragment : Fragment() {
     }
 
     private fun loadMapAnnotations() {
-        if(!this::pointAnnotationManager.isInitialized) {
+        if(this.pointAnnotationManager == null) {
             val annotationApi = mapView.annotations
             pointAnnotationManager = annotationApi.createPointAnnotationManager()
             Log.d(TAG, "loadMapAnnotations initialize pointAnnotationManager")
@@ -403,12 +410,16 @@ class MapFragment : Fragment() {
                 val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
                     .withPoint(Point.fromLngLat(coordinate.long, coordinate.lat))
                     .withIconImage(bitmap)
-                val pointAnnotation = pointAnnotationManager.create(pointAnnotationOptions)
-                pointAnnotation.let { annotations.add(it) }
+                val pointAnnotation = pointAnnotationManager?.create(pointAnnotationOptions)
+                pointAnnotation.let {
+                    if (it != null) {
+                        annotations.add(it)
+                    }
+                }
             }
         }
 
-        pointAnnotationManager.addClickListener(onAnnotationClickListener)
+        pointAnnotationManager?.addClickListener(onAnnotationClickListener)
     }
 
     private fun loadMapH3() {
@@ -426,15 +437,15 @@ class MapFragment : Fragment() {
         val h3Addresses = H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), 5)
         val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(h3Addresses)
 
-        if(!this::polygonAnnotationManager.isInitialized) {
+        if(polygonAnnotationManager == null) {
             val annotationApi = mapView.annotations
             polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
         }
-        if(!this::lowResPolygonAnnotationManager.isInitialized) {
+        if(lowResPolygonAnnotationManager == null) {
             val annotationApi = mapView.annotations
             lowResPolygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
         }
-        if(!this::viewAnnotationManager.isInitialized) {
+        if(viewAnnotationManager == null) {
             viewAnnotationManager = mapView.viewAnnotationManager
         }
 
@@ -454,7 +465,7 @@ class MapFragment : Fragment() {
 
 
             reusablePolygonOptions.withPoints(listOf(boundary))
-            polygonAnnotationManager.create(reusablePolygonOptions.withData(data))
+            polygonAnnotationManager?.create(reusablePolygonOptions.withData(data))
         }
 
         // Display overlays on hexagons with > 1 point within them
@@ -472,7 +483,7 @@ class MapFragment : Fragment() {
                     .withFillColor("#22B14C") // Green fill color
                     .withFillOpacity(.5)
                     .withData(data)
-                polygonAnnotationManager.create(reusablePolygonOptions)
+                polygonAnnotationManager?.create(reusablePolygonOptions)
 
                 val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
 
@@ -483,7 +494,7 @@ class MapFragment : Fragment() {
                 val viewAnnotationOptions = ViewAnnotationOptions.Builder()
                     .geometry(hexCenter)
                     .build()
-                viewAnnotationManager.addViewAnnotation(view, viewAnnotationOptions)
+                viewAnnotationManager?.addViewAnnotation(view, viewAnnotationOptions)
             }
         }
     }
@@ -494,11 +505,11 @@ class MapFragment : Fragment() {
 
         Log.i("H3 map click", "H3address: $h3Address, H3boundaries: $h3Boundaries")
 
-        if(!this::lowResPolygonAnnotationManager.isInitialized) {
+        if(lowResPolygonAnnotationManager == null) {
             val annotationApi = mapView.annotations
             lowResPolygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
         }
-        if(!this::viewAnnotationManager.isInitialized) {
+        if(viewAnnotationManager == null) {
             viewAnnotationManager = mapView.viewAnnotationManager
         }
 
@@ -509,7 +520,7 @@ class MapFragment : Fragment() {
         // Display h3 boundaries
         h3Boundaries.forEach { boundary ->
             reusablePolygonOptions.withPoints(listOf(boundary))
-            lowResPolygonAnnotationManager.create(reusablePolygonOptions)
+            lowResPolygonAnnotationManager?.create(reusablePolygonOptions)
         }
 
         // Display overlays on hexagons with > 1 point within them
@@ -528,7 +539,7 @@ class MapFragment : Fragment() {
 
             if (measurements.size > 1) {
                 reusablePolygonOptions.withFillOpacity(.5)
-                lowResPolygonAnnotationManager.create(reusablePolygonOptions)
+                lowResPolygonAnnotationManager?.create(reusablePolygonOptions)
 
                 val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
 
@@ -541,11 +552,11 @@ class MapFragment : Fragment() {
                 val viewAnnotationOptions = ViewAnnotationOptions.Builder()
                     .geometry(hexCenter)
                     .build()
-                viewAnnotationManager.addViewAnnotation(view, viewAnnotationOptions)
+                viewAnnotationManager?.addViewAnnotation(view, viewAnnotationOptions)
             }
         }
 
-        lowResPolygonAnnotationManager.addClickListener(onPolygonClick)
+        lowResPolygonAnnotationManager?.addClickListener(onPolygonClick)
         mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
     }
 
@@ -559,7 +570,6 @@ class MapFragment : Fragment() {
             Style.LIGHT
         ) {
             initLocationComponent()
-            loadMapH3()
             mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
             mapboxMap.addOnMapClickListener(onMapClickListenerH3)
         }
@@ -622,6 +632,16 @@ class MapFragment : Fragment() {
                 }.toJson()
             )
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        pointAnnotationManager?.deleteAll()
+        this.pointAnnotationManager = null
+        this.lowResPolygonAnnotationManager = null
+        this.polygonAnnotationManager = null
+        this.viewAnnotationManager = null
     }
 
     companion object {
