@@ -71,6 +71,7 @@ dependencies {
     implementation 'commons-io:commons-io:2.13.0'
     implementation 'org.conscrypt:conscrypt-android:2.5.2'
     implementation 'androidx.test.ext:junit-ktx:1.1.5'
+    implementation 'com.google.android.gms:play-services-maps:18.2.0'
     def room_version = "2.5.2"
     def lifecycle_version = "2.6.1"
     def nav_version = "2.4.2"
@@ -139,4 +140,6 @@ dependencies {
     implementation "androidx.room:room-paging:$room_version"
 
     implementation "androidx.datastore:datastore-preferences:1.0.0"
+
+    implementation "com.uber:h3:3.7.2"
 }
