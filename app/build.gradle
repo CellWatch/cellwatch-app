@@ -72,6 +72,7 @@ dependencies {
     implementation 'org.conscrypt:conscrypt-android:2.5.2'
     implementation 'androidx.test.ext:junit-ktx:1.1.5'
     implementation 'com.google.android.gms:play-services-maps:18.2.0'
+    androidTestImplementation 'com.squareup.okhttp3:mockwebserver:4.11.0'
     def room_version = "2.5.2"
     def lifecycle_version = "2.6.1"
     def nav_version = "2.4.2"
