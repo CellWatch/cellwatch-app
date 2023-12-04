@@ -34,10 +34,13 @@ import kotlin.coroutines.suspendCoroutine
 class LatencyTest(
     private val server: Server,
     client: OkHttpClient? = null,
-    measurementId: String? = null
+    measurementId: String? = null,
+    private val latencyPort: Int = BuildConfig.MSAK_LATENCY_PORT,
+    private val duration: Long = LATENCY_DURATION,
+    private val retryDelay: Long = 1000L,
+    private val retryBackoff: Long = 500L,
 ) {
     private val TAG = this::class.simpleName
-    private val latencyPort = BuildConfig.MSAK_LATENCY_PORT
     private val authorizeUrl = server.getLatencyAuthorizeUrl(measurementId)
     private val resultUrl = server.getLatencyResultUrl(measurementId)
     private val _updatesChan = Channel<LatencyUpdate>(32)
@@ -184,7 +187,7 @@ class LatencyTest(
             while (!gotOne && attemptsRemaining > 0) {
                 Log.d(TAG, "sending initial packet; ${attemptsRemaining - 1} attempt(s) remaining")
                 socket.send(initialPkt)
-                Thread.sleep(1000L + 500L * (maxAttempts - attemptsRemaining))
+                Thread.sleep(retryDelay + retryBackoff * (maxAttempts - attemptsRemaining))
                 attemptsRemaining--
             }
 
@@ -218,7 +221,7 @@ class LatencyTest(
 
             if (!gotOne) {
                 gotOne = true
-                handler.postDelayed({ finish(false) }, LATENCY_DURATION + 1000L)
+                handler.postDelayed({ finish(false) }, duration + 1000L)
             }
 
             val payload = buf.sliceArray(IntRange(0, pkt.length - 1)).toString(LATENCY_CHARSET)
