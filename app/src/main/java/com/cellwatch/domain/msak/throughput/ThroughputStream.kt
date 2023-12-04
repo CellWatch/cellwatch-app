@@ -230,7 +230,7 @@ class ThroughputStream(
                         Log.d(TAG, "scaled message size to $size bytes")
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e(TAG, "unexpected error uploading data", e)
                 finish(e)
                 webSocket.close(wsCodeInternalError, null)

@@ -102,7 +102,7 @@ class ThroughputTest(
                         }
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e(TAG, "unexpected error running stream", e)
                 finish()
             }

@@ -60,7 +60,7 @@ class LatencyTest(
                 result?.PacketsSent ?: 0,
                 result?.PacketsReceived ?: 0,
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "unexpected error running latency test", e)
             msakTest.stop()
             throw e

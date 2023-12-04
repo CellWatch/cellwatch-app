@@ -65,7 +65,7 @@ class LatencyTest(
         thread {
             try {
                 runBlocking { run() }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e(TAG, "latency test error", e)
                 error = e
             } finally {
