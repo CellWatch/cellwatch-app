@@ -79,7 +79,7 @@ class ThroughputTest(
             Log.i(TAG, "throughput test cancelled")
             msakTest.stop()
             throw c
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "unexpected error running throughput test", e)
             msakTest.stop()
             throw e
@@ -208,7 +208,7 @@ class ThroughputTest(
     private fun catchErrors(fn: () -> Unit) {
         try {
             fn()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "unexpected error running throughput test", e)
             error = e
         }
