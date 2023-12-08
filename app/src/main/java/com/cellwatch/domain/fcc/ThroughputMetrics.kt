@@ -12,7 +12,6 @@ data class ThroughputMetrics(
         fun fromMeasurement(measurement: ThroughputMeasurement): ThroughputMetrics {
             val bytesReceived = measurement.Network?.BytesReceived
                 ?: measurement.Application?.BytesReceived
-                ?: measurement.BytesReceived
                 ?: 0
 
             return ThroughputMetrics(bytesReceived, measurement.ElapsedTime)
