@@ -211,4 +211,24 @@ class LatencyTestTest {
         assertNull(test.result)
         assertNotNull(test.error)
     }
+
+    @Test
+    fun testMalformedAuthorize() {
+        setup(authResponse = MockResponse().setBody("Not JSON!"))
+        val test = LatencyTest(msakServer, latencyPort = serverPort, duration = 50)
+        test.start()
+        runBlocking { while (!test.updatesChan.receiveCatching().isClosed); }
+        assertNull(test.result)
+        assertNotNull(test.error)
+    }
+
+    @Test
+    fun testMalformedResult() {
+        setup(resultResponse = MockResponse().setBody("Not JSON!"))
+        val test = LatencyTest(msakServer, latencyPort = serverPort, duration = 50)
+        test.start()
+        runBlocking { while (!test.updatesChan.receiveCatching().isClosed); }
+        assertNull(test.result)
+        assertNotNull(test.error)
+    }
 }
