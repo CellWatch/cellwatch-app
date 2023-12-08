@@ -34,6 +34,13 @@ class ThroughputStream(
     private val num: Int,
     private val url: String,
     private val direction: ThroughputDirection,
+    private val minMessageSize: Int = THROUGHPUT_MIN_MESSAGE_SIZE,
+    private val maxMessageSize: Int = THROUGHPUT_MAX_SCALED_MESSAGE_SIZE,
+    private val messageScalingFraction: Int = THROUGHPUT_MESSAGE_SCALING_FRACTION,
+    private val queueFullDelayMillis: Long = 1,
+    avgMeasurementIntervalMillis: Long = THROUGHPUT_AVG_MEASUREMENT_INTERVAL_MILLIS,
+    maxMeasurementIntervalMillis: Long = THROUGHPUT_MAX_MEASUREMENT_INTERVAL_MILLIS,
+    minMeasurementIntervalMillis: Long = THROUGHPUT_MIN_MEASUREMENT_INTERVAL_MILLIS,
 ): WebSocketListener() {
     private val TAG = "${this::class.simpleName} $num"
     private val connectTimeoutMillis = 5000L
@@ -54,9 +61,9 @@ class ThroughputStream(
     private var endNetBytesSent: Long? = null
     private var endNetBytesReceived: Long? = null
     private val measurementTicker = MemorylessTicker(
-        THROUGHPUT_AVG_MEASUREMENT_INTERVAL_MILLIS,
-        THROUGHPUT_MAX_MEASUREMENT_INTERVAL_MILLIS,
-        THROUGHPUT_MIN_MEASUREMENT_INTERVAL_MILLIS,
+        avgMeasurementIntervalMillis,
+        maxMeasurementIntervalMillis,
+        minMeasurementIntervalMillis,
     )
 
     val updatesChan: ReceiveChannel<ThroughputUpdate> = _updatesChan
@@ -213,16 +220,16 @@ class ThroughputStream(
     private fun uploadData(webSocket: WebSocket) {
         thread {
             try {
-                var size = THROUGHPUT_MIN_MESSAGE_SIZE
+                var size = minMessageSize
                 var message = Random.nextBytes(size).toByteString()
                 while (send(webSocket, message)) {
                     Log.v(TAG, "sent $size byte message")
 
                     while (webSocket.queueSize() > 8 * size) {
-                        runBlocking { delay(1) }
+                        runBlocking { delay(queueFullDelayMillis) }
                     }
 
-                    if (size < THROUGHPUT_MAX_SCALED_MESSAGE_SIZE && size < appBytesSent.get() / THROUGHPUT_MESSAGE_SCALING_FRACTION) {
+                    if (size < maxMessageSize && size < appBytesSent.get().toDouble() / messageScalingFraction.toDouble()) {
                         size = size shl 1
                         message = Random.nextBytes(size).toByteString()
                         Log.d(TAG, "scaled message size to $size bytes")
@@ -289,27 +296,24 @@ class ThroughputStream(
     override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
         super.onClosing(webSocket, code, reason)
         Log.d(TAG, "websocket closing: $code $reason")
-        finish()
+        finish(if (isUnexpectedClose(code)) UnexpectedCloseException(code, reason) else null)
         webSocket.close(wsCodeNormalClosure, null)
     }
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
         super.onClosed(webSocket, code, reason)
         Log.d(TAG, "websocket closed: $code $reason")
-
-        finish(
-            if (code != wsCodeNormalClosure && code != wsCodeGoingAway) {
-                UnexpectedCloseException(code, reason)
-            } else {
-                null
-            }
-        )
+        finish(if (isUnexpectedClose(code)) UnexpectedCloseException(code, reason) else null)
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
         super.onFailure(webSocket, t, response)
         Log.d(TAG, "websocket failure: $response", t)
         finish(t)
+    }
+
+    private fun isUnexpectedClose(code: Int): Boolean {
+        return code != wsCodeNormalClosure && code != wsCodeGoingAway
     }
 }
 
