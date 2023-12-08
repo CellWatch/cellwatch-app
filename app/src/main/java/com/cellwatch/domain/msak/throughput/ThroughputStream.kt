@@ -181,8 +181,6 @@ class ThroughputStream(
         }
 
         return ThroughputMeasurement(
-            netCounts?.BytesSent ?: appCounts.BytesSent,
-            netCounts?.BytesReceived ?: appCounts.BytesReceived,
             netCounts,
             appCounts,
             (end - start).inWholeMicroseconds,
