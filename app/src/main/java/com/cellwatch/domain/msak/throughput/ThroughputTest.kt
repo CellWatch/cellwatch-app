@@ -21,6 +21,7 @@ class ThroughputTest(
     private val duration: Long = 10 * 1000,
     private val delay: Long = 0,
     measurementId: String? = null,
+    private val serverEndTimeGraceMillis: Long = 5000,
 ) {
     private val TAG = this::class.simpleName
     private val url = server.getThroughputUrl(direction, streams, duration, delay, measurementId)
@@ -52,7 +53,7 @@ class ThroughputTest(
             handler.postDelayed({
                 Log.w(TAG, "test not ended by server")
                 finish()
-            }, duration + 5000L)
+            }, duration + serverEndTimeGraceMillis)
         } finally {
             startStopSem.release()
         }
