@@ -22,7 +22,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-class LocateManager(client: OkHttpClient? = null) {
+class LocateManager(client: OkHttpClient? = null, private val locateUrl: String? = null) {
     private val TAG = this::class.simpleName
     private val msakServerEnv = BuildConfig.MSAK_SERVER_ENV
     private val msakLocalServerHost = BuildConfig.MSAK_LOCAL_SERVER_HOST
@@ -45,7 +45,7 @@ class LocateManager(client: OkHttpClient? = null) {
         test: String,
         server: Server? = null,
     ): List<Server> {
-        val locateUrl = locateUrls[msakServerEnv]
+        val locateUrl = this.locateUrl ?: locateUrls[msakServerEnv]
         val locatePath = when (test) {
             "throughput" -> LOCATE_THROUGHPUT_PATH
             "latency" -> LOCATE_LATENCY_PATH
@@ -78,7 +78,7 @@ class LocateManager(client: OkHttpClient? = null) {
         // The site name is embedded in the server's machine (hostname), formatted as
         // "mlab<number>-<site>.<rest of hostname>".
         val site = if (server != null) {
-            Regex("([^-]+)\\.").find(server.machine)?.groupValues?.get(1) ?: throw Throwable("not site found in machine ${server.machine}")
+            Regex("([^-.]+)\\.").find(server.machine)?.groupValues?.get(1) ?: throw Throwable("not site found in machine ${server.machine}")
         } else {
             null
         }
