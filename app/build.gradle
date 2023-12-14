@@ -4,6 +4,8 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.serialization'
     id "org.jetbrains.kotlin.kapt"
     id 'com.google.relay' version '0.3.09'
+    id 'com.google.gms.google-services'
+    id 'com.google.firebase.crashlytics'
 }
 
 def cellwatchPropertiesFile = rootProject.file("cellwatch.properties")
@@ -75,6 +77,10 @@ android {
 }
 
 dependencies {
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    implementation "com.google.firebase:firebase-crashlytics"
+    implementation "com.google.firebase:firebase-analytics"
+
     implementation 'commons-io:commons-io:2.13.0'
     implementation 'org.conscrypt:conscrypt-android:2.5.2'
     implementation 'androidx.test.ext:junit-ktx:1.1.5'
