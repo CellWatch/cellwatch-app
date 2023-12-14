@@ -11,11 +11,11 @@ def cellwatchProperties = new Properties()
 cellwatchProperties.load(new FileInputStream(cellwatchPropertiesFile))
 
 android {
-    namespace 'com.cellwatch'
+    namespace 'edu.gatech.cc.cellwatch'
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.cellwatch"
+        applicationId "edu.gatech.cc.cellwatch"
         minSdk 29
         targetSdk 33
         versionCode 1

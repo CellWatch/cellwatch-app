@@ -1,0 +1,82 @@
+package edu.gatech.cc.cellwatch.data.local
+
+import android.content.Context
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
+import edu.gatech.cc.cellwatch.core.util.SingletonHolder
+import edu.gatech.cc.cellwatch.data.local.dao.CellDao
+import edu.gatech.cc.cellwatch.data.local.dao.FccSubmissionDao
+import edu.gatech.cc.cellwatch.data.local.model.LatencyDataEntity
+import edu.gatech.cc.cellwatch.data.local.model.LocationEntity
+import edu.gatech.cc.cellwatch.data.local.model.MeasurementEntity
+import edu.gatech.cc.cellwatch.data.local.model.UploadDownloadDataEntity
+import edu.gatech.cc.cellwatch.data.local.dao.LatencyDataDao
+import edu.gatech.cc.cellwatch.data.local.dao.LocationDao
+import edu.gatech.cc.cellwatch.data.local.dao.MeasurementDao
+import edu.gatech.cc.cellwatch.data.local.dao.UploadDownloadDataDao
+import edu.gatech.cc.cellwatch.data.local.model.CellEntity
+import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
+import edu.gatech.cc.cellwatch.data.local.util.InstantConverter
+import edu.gatech.cc.cellwatch.data.local.util.ListConverter
+
+@Database(
+    entities = [
+        FccSubmissionEntity::class,
+        MeasurementEntity::class,
+        UploadDownloadDataEntity::class,
+        LatencyDataEntity::class,
+        LocationEntity::class,
+        CellEntity::class
+    ],
+    version = 13,
+    exportSchema = false,
+)
+@TypeConverters(
+    InstantConverter::class,
+    ListConverter::class
+)
+abstract class CellWatchDatabase : RoomDatabase() {
+    abstract fun fccSubmissionDao(): FccSubmissionDao
+
+    abstract fun measurementDao(): MeasurementDao
+
+    abstract fun uploadDownloadDataDao(): UploadDownloadDataDao
+
+    abstract fun latencyDataDao(): LatencyDataDao
+
+    abstract fun locationDao(): LocationDao
+
+    abstract fun cellDao(): CellDao
+
+    companion object : edu.gatech.cc.cellwatch.core.util.SingletonHolder<CellWatchDatabase, Context>({
+        Room.databaseBuilder(
+                    it.applicationContext,
+                    CellWatchDatabase::class.java,
+                    "cellwatch_database"
+                ).fallbackToDestructiveMigration().build()
+    })
+
+//    companion object {
+//        // Singleton prevents multiple instances of database opening at the
+//        // same time.
+//        @Volatile
+//        private var INSTANCE: CellWatchDatabase? = null
+//
+//        fun getDatabase(context: Context): CellWatchDatabase {
+//            // if the INSTANCE is not null, then return it,
+//            // if it is, then create the database
+//            return INSTANCE ?: synchronized(this) {
+//                val instance = Room.databaseBuilder(
+//                    context.applicationContext,
+//                    CellWatchDatabase::class.java,
+//                    "cellwatch_database"
+//                ).fallbackToDestructiveMigration().build()
+//                INSTANCE = instance
+//                // return instance
+//                instance
+//            }
+//        }
+//    }
+}
