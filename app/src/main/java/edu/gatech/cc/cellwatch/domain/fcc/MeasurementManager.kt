@@ -346,6 +346,7 @@ object MeasurementManager {
             throw Throwable("no latency servers found")
         }
 
-        return Pair(throughputServer, latencyServers[0])
+        val latencyServer = latencyServers.firstOrNull { it.machine == throughputServer.machine } ?: latencyServers[0]
+        return Pair(throughputServer, latencyServer)
     }
 }
