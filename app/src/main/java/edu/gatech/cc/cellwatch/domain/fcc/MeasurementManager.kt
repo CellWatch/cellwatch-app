@@ -70,9 +70,6 @@ object MeasurementManager {
 
         Log.i(TAG,"RUNNING TEST SEQUENCE with measurement id $measurementId")
 
-        val myPublicIp = TelephonyInfoManager.getMyPublicIpAsync().await()
-        Toast.makeText(CellWatchApp.applicationContext(), myPublicIp, Toast.LENGTH_LONG).show()
-
         val groupId: String = UUID.randomUUID().toString()
         val dataStore = LocalDataStore(CellWatchApp.applicationContext())
         val deviceId = dataStore.getDeviceId.first()
@@ -81,7 +78,6 @@ object MeasurementManager {
             id = groupId,
             deviceId = deviceId,
             deviceTimestamp = Clock.System.now(),
-//            sourceIp = myPublicIp,
             inVehicle = false,
             externalAntenna = false,
             deviceType = "Android",

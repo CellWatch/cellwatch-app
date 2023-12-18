@@ -69,12 +69,6 @@ class MainActivity : AppCompatActivity() {
                 dataStore.getDeviceId.first()
             }
 
-            CoroutineScope(Dispatchers.Main).launch {
-                val myPublicIp = TelephonyInfoManager.getMyPublicIpAsync().await()
-                Toast.makeText(applicationContext, myPublicIp, Toast.LENGTH_LONG).show()
-            }
-
-
             // If there is no deviceId stored, assume first run of app and create a new, unique ID
             if (deviceId == "") {
                 runBlocking {

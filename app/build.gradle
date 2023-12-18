@@ -32,6 +32,7 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
+            buildConfigField("String", "TCP_TUPLE_URL", cellwatchProperties['TCP_TUPLE_URL'])
             buildConfigField("String", "SUPABASE_URL", cellwatchProperties['SUPABASE_LOCAL_URL'])
             buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties['SUPABASE_LOCAL_API_KEY'])
             buildConfigField("String", "MSAK_SERVER_ENV", cellwatchProperties['MSAK_SERVER_ENV'])
@@ -45,6 +46,7 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
+            buildConfigField("String", "TCP_TUPLE_URL", cellwatchProperties['TCP_TUPLE_URL'])
             buildConfigField("String", "SUPABASE_URL", cellwatchProperties['SUPABASE_URL'])
             buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties['SUPABASE_API_KEY'])
             buildConfigField("String", "MSAK_SERVER_ENV", "\"prod\"")
