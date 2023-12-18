@@ -380,30 +380,4 @@ object TelephonyInfoManager {
     fun isNetworkRoaming(): Boolean {
         return telephonyManager.isNetworkRoaming
     }
-
-    suspend fun getMyPublicIpAsync() : Deferred<String> =
-        coroutineScope {
-            async(Dispatchers.IO) {
-                var result = ""
-                result = try {
-                    val url = URL("https://api.ipify.org")
-                    val httpsURLConnection = url.openConnection()
-                    val iStream = httpsURLConnection.getInputStream()
-                    val buff = ByteArray(1024)
-                    val read = iStream.read(buff)
-                    String(buff,0, read)
-                } catch (e: Exception) {
-                    "error : $e"
-                }
-                return@async result
-            }
-        }
-
-
-//    private fun myFunction() {
-//        coroutineScope(Dispatchers.Main).launch {
-//            val myPublicIp = getMyPublicIpAsync().await()
-//            Toast.makeText(this@MainActivity, myPublicIp, Toast.LENGTH_LONG).show()
-//        }
-//    }
 }
