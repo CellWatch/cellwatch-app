@@ -120,7 +120,7 @@ object TelephonyInfoManager {
     }
 
     fun getProviderName(): String? {
-        return telephonyManager?.networkOperatorName?.lowercase()
+        return telephonyManager?.networkOperatorName?.lowercase()?.trim()
     }
 
     fun getConnectionType(): NetworkConnectionType {
