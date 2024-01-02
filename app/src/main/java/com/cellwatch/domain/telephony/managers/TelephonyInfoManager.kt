@@ -392,6 +392,7 @@ object TelephonyInfoManager {
                     val buff = ByteArray(1024)
                     val read = iStream.read(buff)
                     String(buff,0, read)
+
                 } catch (e: Exception) {
                     "error : $e"
                 }
