@@ -1,7 +1,7 @@
 package edu.gatech.cc.cellwatch
 
 import android.content.Context
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4

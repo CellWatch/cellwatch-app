@@ -1,7 +1,7 @@
 package edu.gatech.cc.cellwatch.ui.main
 
 import android.os.Bundle
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity

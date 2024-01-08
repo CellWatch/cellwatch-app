@@ -1,6 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import com.spectrum.android.ping.Ping
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel

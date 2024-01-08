@@ -1,6 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import android.widget.Toast
 import com.birjuvachhani.locus.Locus
 import edu.gatech.cc.cellwatch.BuildConfig

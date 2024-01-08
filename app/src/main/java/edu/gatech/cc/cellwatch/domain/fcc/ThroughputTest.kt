@@ -2,7 +2,7 @@ package edu.gatech.cc.cellwatch.domain.fcc
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.domain.msak.Server
 import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputDirection
 import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputTest

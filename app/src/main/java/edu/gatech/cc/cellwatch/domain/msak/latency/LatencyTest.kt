@@ -2,7 +2,7 @@ package edu.gatech.cc.cellwatch.domain.msak.latency
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.domain.msak.LATENCY_CHARSET
 import edu.gatech.cc.cellwatch.domain.msak.LATENCY_DURATION

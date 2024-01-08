@@ -1,6 +1,6 @@
 package edu.gatech.cc.cellwatch.data.core.repositories
 
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.annotation.WorkerThread
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException

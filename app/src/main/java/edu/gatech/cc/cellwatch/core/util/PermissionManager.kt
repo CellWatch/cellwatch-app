@@ -2,7 +2,7 @@ package edu.gatech.cc.cellwatch.core.util
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.core.content.ContextCompat
 import edu.gatech.cc.cellwatch.CellWatchApp
 

@@ -2,7 +2,7 @@ package edu.gatech.cc.cellwatch.domain.msak.throughput
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.domain.msak.Server
 import io.ktor.http.Url
 import kotlinx.coroutines.channels.Channel

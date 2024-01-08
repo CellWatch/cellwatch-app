@@ -1,7 +1,7 @@
 package edu.gatech.cc.cellwatch.data.core.repositories
 
 import android.app.Application
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import android.widget.Toast
 import androidx.annotation.WorkerThread
 import edu.gatech.cc.cellwatch.CellWatchApp

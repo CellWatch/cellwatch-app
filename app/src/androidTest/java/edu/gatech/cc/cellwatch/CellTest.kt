@@ -1,6 +1,6 @@
 package edu.gatech.cc.cellwatch
 
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import org.junit.Before

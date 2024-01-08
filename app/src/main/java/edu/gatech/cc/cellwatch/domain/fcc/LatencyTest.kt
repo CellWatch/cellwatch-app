@@ -1,6 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.domain.msak.Server
 import edu.gatech.cc.cellwatch.domain.msak.latency.LatencyTest
 import kotlinx.coroutines.channels.Channel
