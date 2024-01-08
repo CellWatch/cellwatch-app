@@ -1,6 +1,6 @@
 package edu.gatech.cc.cellwatch
 
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurement
 import kotlinx.serialization.json.Json

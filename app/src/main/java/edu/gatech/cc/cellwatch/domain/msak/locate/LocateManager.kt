@@ -1,6 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.msak.locate
 
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.domain.msak.LATENCY_AUTHORIZE_PATH
 import edu.gatech.cc.cellwatch.domain.msak.LATENCY_RESULT_PATH

@@ -1,6 +1,6 @@
 package edu.gatech.cc.cellwatch.ui.measurement.viewmodels
 
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel

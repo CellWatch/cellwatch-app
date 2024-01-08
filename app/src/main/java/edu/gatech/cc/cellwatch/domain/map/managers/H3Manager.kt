@@ -1,6 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.map.managers
 
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.domain.map.model.Coordinate

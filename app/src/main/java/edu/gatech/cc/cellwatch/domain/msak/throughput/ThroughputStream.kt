@@ -1,6 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.msak.throughput
 
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MAX_SCALED_MESSAGE_SIZE
 import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MESSAGE_SCALING_FRACTION

@@ -28,7 +28,7 @@ import android.telephony.CellSignalStrengthLte
 import android.telephony.CellSignalStrengthNr
 import android.telephony.TelephonyManager
 import android.text.TextUtils
-import android.util.Log
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.PermissionManager
 import edu.gatech.cc.cellwatch.data.model.Cell
