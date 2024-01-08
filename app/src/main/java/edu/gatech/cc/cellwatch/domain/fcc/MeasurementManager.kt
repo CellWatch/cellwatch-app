@@ -92,7 +92,7 @@ object MeasurementManager {
 
         val client = OkHttpClient.Builder().build()
 
-        Log.i(TAG, "selecting server")
+        Log.d(TAG, "selecting server")
 
         onLocateStart()
         val servers = chooseMsakServers(client)
@@ -161,17 +161,13 @@ object MeasurementManager {
                 test.run()
             }
         } catch (t: Throwable) {
-            Log.d(TAG, "$dir test failed", t)
-            Log.e(TAG, "$dir test failed: ${t.localizedMessage}")
+            Log.e(TAG, "$dir test failed: $t")
             throw t
         } finally {
             updateBytesPerSec(0.0)
-            Log.d(TAG, "Done running test...")
         }
 
-        Log.i(TAG, "$dir test complete: measurementId = $measurementId")
         Log.i(TAG, "$dir test complete: $throughputTestResult")
-
         return throughputTestResult
     }
 
@@ -328,21 +324,21 @@ object MeasurementManager {
         val throughputServers = manager.locateThroughputServers()
 
         if (throughputServers.isEmpty()) {
-            Log.e(TAG, "no throughput servers")
+            Log.i(TAG, "no throughput servers")
             throw Throwable("no throughput servers found")
         }
 
         val throughputServer =  try {
             throughputServers.maxBy { ping(it.machine) }
         } catch (t: Throwable) {
-            Log.e(TAG, "pinging available servers failed", t)
+            Log.i(TAG, "pinging available servers failed", t)
             throughputServers[0]
         }
 
         val latencyServers = manager.locateLatencyServers(throughputServer)
 
         if (latencyServers.isEmpty()) {
-            Log.e(TAG, "no latency servers at matching throughput server ${throughputServer.machine}")
+            Log.i(TAG, "no latency servers at matching throughput server ${throughputServer.machine}")
             throw Throwable("no latency servers found")
         }
 

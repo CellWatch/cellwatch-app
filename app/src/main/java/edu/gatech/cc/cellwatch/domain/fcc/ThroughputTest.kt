@@ -135,7 +135,7 @@ class ThroughputTest(
                 update ?: throw NoSuchElementException("stream $i has no warmup updates")
             }
         } catch (e: NoSuchElementException) {
-            Log.d(TAG, "one or more streams had no updates during the warmup period", e)
+            Log.i(TAG, "one or more streams had no updates during the warmup period", e)
             error = e
             msakTest.stop()
         }

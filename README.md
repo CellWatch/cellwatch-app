@@ -97,7 +97,6 @@ Implemented in `*.domain.usecase` packages, extends `UseCase`.
 * All interactions outside of the domain via  interfaces
 * Interacts with data via Repository and Gateway interfaces to local storage and external systems
 * Interacts with OS services and device hardware via Gateway interfaces.
-* slf4j interface for logging (backed by a Tim
 
 **Examples**
 
@@ -287,6 +286,18 @@ Our interpretation of Clean Architecture borrows from numerous sources, includin
 * Rosie - https://github.com/Karumi/Rosie
 
 
+
+# Logging
+
+The app uses a custom logging object which delegates to Firebase Crashlytics and to the built-in Android logger for local debugging. Crashlytics records exceptions and some logs from devices running the app, grouping them into a dashboard to help debug in-the-wild issues.
+
+When adding logs, choose a log level carefully based on the purpose/audience of the log:
+
+- Error (`Log.e()`) and warn (`Log.w()`) logs are recorded as exceptions in Crashlytics and will be shown in its dashboard; these log levels should be reserved for unexpected behavior that indicates a likely bug in the app. Expected exceptions (such as a failed network call) should **not** use these log levels.
+
+- Info (`Log.i()`) logs are recorded with subsequent Crashlytics exceptions. This log level should be used to add context that may be helpful should some unexpected issue arise.
+
+- Debug (`Log.d()`) and verbose (`Log.v()`) logs are ignored by Crashlytics. These log levels should be used during local debugging.
 
 # Android msak implementation
 

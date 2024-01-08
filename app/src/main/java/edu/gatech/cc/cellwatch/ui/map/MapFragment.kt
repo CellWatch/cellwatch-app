@@ -153,7 +153,7 @@ class MapFragment : Fragment() {
                 polygonAnnotationManager?.deleteAll()
                 lowResPolygonAnnotationManager?.deleteAll()
                 viewAnnotationManager?.removeAllViewAnnotations()
-                Log.i(TAG, "Removing all views")
+                Log.d(TAG, "Removing all views")
                 loadMapAnnotations()
                 mapboxMap.removeOnCameraChangeListener(onCameraChangeListener)
                 mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
@@ -227,7 +227,7 @@ class MapFragment : Fragment() {
          */
         val data = polygon.getData()
         if (data == null || data.isJsonNull || !data.isJsonObject) {
-            Log.i("H3", "Skipping annotation due to null or invalid data")
+            Log.i("H3", "Skipping annotation due to null or invalid data: $data")
             return@OnPolygonAnnotationClickListener false // Skip if data is null or not a JsonObject
         }
 
@@ -238,9 +238,9 @@ class MapFragment : Fragment() {
             val associatedMeasurements = h3Address.let {
                 H3Manager.getMeasurementsAssociatedWithH3Address(it, 6)
             }
-            Log.i("OnPolygonClick", "H3AddressElement: $h3AddressElement")
-            Log.i("OnPolygonClick", "h3Address: $h3Address")
-            Log.i("OnPolygonClick", "associatedMeasurements: $associatedMeasurements")
+            Log.v("OnPolygonClick", "H3AddressElement: $h3AddressElement")
+            Log.v("OnPolygonClick", "h3Address: $h3Address")
+            Log.v("OnPolygonClick", "associatedMeasurements: $associatedMeasurements")
 
             if (associatedMeasurements.size > 1) {
                 val bottomSheetFragment = MeasurementListBottomSheetFragment.newInstance(h3Address)
@@ -312,7 +312,7 @@ class MapFragment : Fragment() {
             lowResPolygonAnnotationManager?.removeClickListener(onPolygonClick)
 
             viewAnnotationManager?.removeAllViewAnnotations()
-            Log.i(TAG, "Removing all views")
+            Log.d(TAG, "Removing all views")
             mapboxMap.addOnMapClickListener(onMapClickListenerH3)
             loadMapH3()
         }
@@ -375,7 +375,7 @@ class MapFragment : Fragment() {
 
                 val textSize: Float = canvas.width * 0.5f // Adjust this size accordingly
                 paint.textSize = textSize
-                Log.i("Count Draw", "Textsize: $textSize")
+                Log.v("Count Draw", "Textsize: $textSize")
 
                 // Draw the count onto the Bitmap
                 canvas.drawText(
@@ -401,7 +401,7 @@ class MapFragment : Fragment() {
         val coordinates = MapAnnotationManager.getAllCoordinates()
         Log.d(TAG, "loadMapAnnotations got ${coordinates.size} coordinates")
         for (coordinate in coordinates) {
-            Log.d(TAG, "coordinate = $coordinate")
+            Log.v(TAG, "coordinate = $coordinate")
             bitmapFromDrawableRes(
                 requireContext(),
                 R.drawable.blue_marker_transparent,
@@ -461,7 +461,7 @@ class MapFragment : Fragment() {
 
             val data = JsonObject()
             data.addProperty("h3_address", address)
-            Log.i("H3 Child Data", "$data")
+            Log.v("H3 Child Data", "$data")
 
 
             reusablePolygonOptions.withPoints(listOf(boundary))
@@ -472,7 +472,7 @@ class MapFragment : Fragment() {
         h3Addresses.forEach { address ->
             val data = JsonObject()
             data.addProperty("h3_address", address)
-            Log.i("H3 Child Data", "$data")
+            Log.v("H3 Child Data", "$data")
 
 
             val measurements = H3Manager.getMeasurementsAssociatedWithH3Address(address, 5)
@@ -503,7 +503,7 @@ class MapFragment : Fragment() {
         val h3HexChildren = H3Manager.getRelatedH3Hex(h3Address, 6)
         val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(h3HexChildren)
 
-        Log.i("H3 map click", "H3address: $h3Address, H3boundaries: $h3Boundaries")
+        Log.v("H3 map click", "H3address: $h3Address, H3boundaries: $h3Boundaries")
 
         if(lowResPolygonAnnotationManager == null) {
             val annotationApi = mapView.annotations
@@ -527,7 +527,7 @@ class MapFragment : Fragment() {
         h3HexChildren.forEach { address ->
             val data = JsonObject()
             data.addProperty("h3_address", address)
-            Log.i("H3 Child Data", "$data")
+            Log.v("H3 Child Data", "$data")
 
 
             val measurements = H3Manager.getMeasurementsAssociatedWithH3Address(address, 6)
@@ -592,7 +592,7 @@ class MapFragment : Fragment() {
             fusedLocationClient.lastLocation
                 .addOnSuccessListener { lastKnownLocation->
                     if (lastKnownLocation != null) {
-                        Log.i(TAG, "centerCameraOnUser setCamera")
+                        Log.v(TAG, "centerCameraOnUser setCamera")
                         mapView.getMapboxMap().setCamera(
                             CameraOptions.Builder()
                                 .zoom(14.0)

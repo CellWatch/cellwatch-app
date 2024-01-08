@@ -119,7 +119,7 @@ class MainActivity : AppCompatActivity() {
                 fccSubmissionRepository.uploadFccSubmissions()
                 measurementRepository.uploadMeasurements()
             } catch (err: Exception) {
-                Log.e(TAG, "Error in MainActivity.onResume: uploadMeasurement error ${err.message}")
+                Log.i(TAG, "Error in MainActivity.onResume: uploadMeasurement error ${err.message}")
             }
         }
     }

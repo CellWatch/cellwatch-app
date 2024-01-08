@@ -78,7 +78,7 @@ class NetworkMeasurementSubmissionTest {
                 networkMeasurementDatasource.getMeasurements()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error inserting measurement record", e)
+            Log.d(TAG, "Error inserting measurement record", e)
             throw e
         }
 
@@ -126,16 +126,16 @@ class NetworkMeasurementSubmissionTest {
                 "*** Inserted new Measurement record: $insertedFccSubmission"
             )
         } catch (e: RestException) {
-            Log.e(TAG, "RestException: ${e.message}")
+            Log.d(TAG, "RestException: ${e.message}")
             throw e
         } catch (e: HttpRequestTimeoutException) {
-            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+            Log.d(TAG, "HttpRequestTimeoutException: ${e.message}")
             throw e
         } catch (e: HttpRequestException) {
-            Log.e(TAG, "HttpRequestException: ${e.message}")
+            Log.d(TAG, "HttpRequestException: ${e.message}")
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}")
+            Log.d(TAG, "Exception: ${e.message}")
             throw e
         }
     }
