@@ -1,9 +1,9 @@
-# CellWatch Android App #
+# CellWatch Android App
 
 This app is a cellular data signal quality measurement tool designed to collect measurement data in
 in support of FCC cellular quality challenges.
 
-# Application Architecture #
+## Application Architecture
 
 The app is built on the concepts of [Clean Architecture](https://8thlight.com/blog/uncle-bob/2012/08/13/the-clean-architecture.html),
 originally developed by Robert C. Martin a.k.a. "Uncle Bob", which we have adapted to fit our needs. **Note: The CellWatch app currently
@@ -11,7 +11,7 @@ originally developed by Robert C. Martin a.k.a. "Uncle Bob", which we have adapt
 and managers do not yet have UseCases implemented.**
 
 
-## What is Clean Architecture? ##
+### What is Clean Architecture?
 
 > “The center of your application is not the database. Nor is it one or more of the frameworks you may be using. The center of your application is the use cases of your application" - Uncle Bob
 
@@ -31,7 +31,7 @@ And here is our version of the diagram, better reflecting where things live in t
 ![Dependency diagram for our Clean Architecture implementation](doc/images/AndroidCleanArchitecture.png)
 
 
-### Key Points of Clean Architecture ###
+#### Key Points of Clean Architecture
 
 1. **Emphasize the use cases**  
    Clean Architecture is focused first on the Use Cases, or what your application does.
@@ -69,19 +69,19 @@ And here is our version of the diagram, better reflecting where things live in t
    An application that uses Clean Architecture is inherently testable.  This is a benefit from having a domain layer
    that is written in plain Java without external dependencies.
 
-## Examples ##
+### Examples
 
 Examples given here are taken from the
 [SafeHarbor Android app-Android: Android app](https://github.gatech.edu/IMTC/SafeHarbor-Android)
 
-## Domain Layer ##
+### Domain Layer
 
 The Domain Layer implements the business requirements of the application, free of implementation details.
 
 Implemented in the `*.domain` subpackage of each feature package.
 
 
-### Use Case ###
+#### Use Case
 
 Contains the business logic for a single, specific use case.
 
@@ -106,7 +106,7 @@ Implemented in `*.domain.usecase` packages, extends `UseCase`.
 * Plain Kotlin, no Android code
 
 
-### Entity ###
+#### Entity
 
 Represents a business object that concerns the application and is the core models of the domain layer.
 Also known as a domain model.
@@ -131,7 +131,7 @@ Implemented in `*.domain.entity` packages.
 * Plain Java, no Android code
 
 
-### Gateway ###
+#### Gateway
 
 Encapsulates a service, system, device hardware or any other component that is external to the domain
 and is needed by a Use Case.
@@ -155,7 +155,7 @@ feature.
   APIs?
 
 
-### Repository ###
+#### Repository
 
 A specialized gateway that abstracts data access.  In our implementation, these are used to abstract local
 data access, while "Gateway" is used for data access on remote systems.  Many other Clean Architecture
@@ -171,7 +171,7 @@ feature.
 * `UserRepository`: Repository for local storage of User properties, implemented by `SharedPreferencesUserRepository`.
 
 
-## Presentation Layer ##
+### Presentation Layer
 
 This project uses an **MVVM (Model-View-View Model)** architecture for the presentation layer.
 
@@ -186,7 +186,7 @@ of view elements in the layout XML of an *Activity* or *Fragment*. One and two w
 to the *View* automatically updates the properties of the *View Model*.
 
 
-### View Model ###
+#### View Model
 
 Implements presentation logic by directing UI changes and handling user input. Exposes *Properties* (public data members)
 and *Commands* (public methods) to which the *View* binds using [Android's Data Binding Library](https://developer.android.com/topic/libraries/data-binding/index.html).
@@ -245,7 +245,7 @@ Implemented in the `*.presentation` subpackage of the associated feature package
   RxJava.
 
 
-### View ###
+#### View
 
 Implements the platform-specific view logic, typically as an Android `Activity`.
 
@@ -266,13 +266,13 @@ The *View* should be considered part of the outer implementation layer, specific
   another `Activity` or navigate the view hierarchy.
 
 
-### Model ###
+#### Model
 
 In our Clean Architecture implementation, the **Model** of MVVM is an **Entity** object in the domain layer.
 All operations on **Entity** objects should occur through execution of **Use Case** objects.
 
 
-## Inspiration for this architecture ##
+### Inspiration for this architecture
 
 Our interpretation of Clean Architecture borrows from numerous sources, including:
 
@@ -287,7 +287,7 @@ Our interpretation of Clean Architecture borrows from numerous sources, includin
 
 
 
-# Logging
+## Logging
 
 The app uses a custom logging object which delegates to Firebase Crashlytics and to the built-in Android logger for local debugging. Crashlytics records exceptions and some logs from devices running the app, grouping them into a dashboard to help debug in-the-wild issues.
 
@@ -299,9 +299,9 @@ When adding logs, choose a log level carefully based on the purpose/audience of 
 
 - Debug (`Log.d()`) and verbose (`Log.v()`) logs are ignored by Crashlytics. These log levels should be used during local debugging.
 
-# Android msak implementation
+## Android msak implementation
 
-## Testing with a local server
+### Testing with a local server
 
 By default, the app is set up to run against one of M-Lab's servers. If you want to run the server locally, clone and run it:
 
