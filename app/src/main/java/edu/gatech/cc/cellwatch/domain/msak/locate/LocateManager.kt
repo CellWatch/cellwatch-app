@@ -104,7 +104,7 @@ class LocateManager(client: OkHttpClient? = null, private val locateUrl: String?
             override fun onResponse(call: Call, response: Response) {
                 val body = response.body
                 if (response.code != 200 || body == null) {
-                    Log.e(TAG, "locate request $request failed: $response")
+                    Log.i(TAG, "locate request $request failed: $response")
                     continuation.resumeWithException(Throwable("locate request $request failed: $response"))
                     return
                 }

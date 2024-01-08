@@ -29,7 +29,7 @@ object MapAnnotationManager {
         val threshold = 1.0 //in miles
         val groupedCoordinates = groupCoordinates(coords, threshold)
         for (coord in groupedCoordinates) {
-            Log.i(TAG, "coord = $coord")
+            Log.d(TAG, "coord = $coord")
         }
 
         return groupedCoordinates
@@ -46,7 +46,7 @@ object MapAnnotationManager {
                     val count = max(coordinates[i].count, coordinates[j].count) + 1
 
                     coordinates[i] = Coordinate(averageLat, averageLong, count)
-                    Log.i(TAG, "Merging coordinates " + coordinates[i] + " " + coordinates[j] + " into " + averageLat + " " +averageLong)
+                    Log.d(TAG, "Merging coordinates " + coordinates[i] + " " + coordinates[j] + " into " + averageLat + " " +averageLong)
 
                     coordinates.removeAt(j)
                     i = 0  // Reset i to check previously checked coordinates with the new merged one

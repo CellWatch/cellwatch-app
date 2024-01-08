@@ -69,7 +69,7 @@ class LatencyTest(
             try {
                 runBlocking { run() }
             } catch (e: Throwable) {
-                Log.e(TAG, "latency test error", e)
+                Log.i(TAG, "latency test error", e)
                 error = e
             } finally {
                 finish()
@@ -139,7 +139,7 @@ class LatencyTest(
             override fun onResponse(call: Call, response: Response) {
                 val body = response.body
                 if (response.code != 200 || body == null) {
-                    Log.e(TAG, "authorize request $request failed: $response")
+                    Log.i(TAG, "authorize request $request failed: $response")
                     continuation.resumeWithException(Throwable("authorize request $request failed: $response"))
                     return
                 }
@@ -165,7 +165,7 @@ class LatencyTest(
            // prefer IPv4 as IPv6 connectivity is often incomplete
            return if (v4Addrs.isNotEmpty()) v4Addrs[0] else addrs[0]
        } catch (t: Throwable) {
-           Log.e(TAG, "no server addr for latency test", t)
+           Log.i(TAG, "no server addr for latency test", t)
            throw Throwable("no addr")
        }
    }
@@ -192,7 +192,7 @@ class LatencyTest(
             }
 
             if (!gotOne) {
-                Log.w(TAG, "never received next latency packet")
+                Log.i(TAG, "never received next latency packet")
                 error = Throwable("initial packet timeout")
                 finish(false)
             }
@@ -261,7 +261,7 @@ class LatencyTest(
             override fun onResponse(call: Call, response: Response) {
                 val body = response.body
                 if (response.code != 200 || body == null) {
-                    Log.e(TAG, "results request $request failed: $response")
+                    Log.i(TAG, "results request $request failed: $response")
                     continuation.resumeWithException(Throwable("results request $request failed: $response"))
                     return
                 }

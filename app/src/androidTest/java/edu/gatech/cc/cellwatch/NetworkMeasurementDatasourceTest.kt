@@ -113,16 +113,16 @@ class NetworkMeasurementDatasourceTest {
                 "*** Inserted new Measurement record: $result"
             )
         } catch (e: RestException) {
-            Log.e(TAG, "RestException: ${e.message}")
+            Log.d(TAG, "RestException: ${e.message}")
             throw e
         } catch (e: HttpRequestTimeoutException) {
-            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+            Log.d(TAG, "HttpRequestTimeoutException: ${e.message}")
             throw e
         } catch (e: HttpRequestException) {
-            Log.e(TAG, "HttpRequestException: ${e.message}")
+            Log.d(TAG, "HttpRequestException: ${e.message}")
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}")
+            Log.d(TAG, "Exception: ${e.message}")
             throw e
         }
     }
@@ -476,16 +476,16 @@ class NetworkMeasurementDatasourceTest {
                     supabaseClient.postgrest.rpc("insert_measurement", latencyMeasurementData).decodeAs<NetworkMeasurement>().asExternalModel()
                 }
         } catch (e: RestException) {
-            Log.e(TAG, "RestException: ${e.message}")
+            Log.d(TAG, "RestException: ${e.message}")
             throw e
         } catch (e: HttpRequestTimeoutException) {
-            Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+            Log.d(TAG, "HttpRequestTimeoutException: ${e.message}")
             throw e
         } catch (e: HttpRequestException) {
-            Log.e(TAG, "HttpRequestException: ${e.message}")
+            Log.d(TAG, "HttpRequestException: ${e.message}")
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}")
+            Log.d(TAG, "Exception: ${e.message}")
             throw e
         }
 //        insertedMeasurement = result.decodeAs<NetworkMeasurement>().asExternalModel()
@@ -508,7 +508,7 @@ class NetworkMeasurementDatasourceTest {
                 networkMeasurementDatasource.getMeasurements()
             }
         } catch (e: Exception) {
-            Log.e(NetworkMeasurementSubmissionTest.TAG, "Error inserting measurement record", e)
+            Log.d(NetworkMeasurementSubmissionTest.TAG, "Error inserting measurement record", e)
             throw e
         }
 
@@ -779,7 +779,7 @@ class NetworkMeasurementDatasourceTest {
                 networkMeasurementDatasource.insertMeasurement(latencyMeasurement)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error inserting measurement record", e)
+            Log.d(TAG, "Error inserting measurement record", e)
             throw e
         }
         Log.d(TAG,"*** Inserted new Latency Measurement record: $insertedMeasurement")
@@ -789,7 +789,7 @@ class NetworkMeasurementDatasourceTest {
                 networkMeasurementDatasource.insertMeasurement(uploadMeasurement)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error inserting measurement record", e)
+            Log.d(TAG, "Error inserting measurement record", e)
             throw e
         }
         Log.d(TAG,"*** Inserted new Upload Measurement record: $insertedMeasurement")
@@ -799,7 +799,7 @@ class NetworkMeasurementDatasourceTest {
                 networkMeasurementDatasource.insertMeasurement(downloadMeasurement)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error inserting measurement record", e)
+            Log.d(TAG, "Error inserting measurement record", e)
             throw e
         }
         Log.d(TAG,"*** Inserted new Download Measurement record: $insertedMeasurement")
@@ -816,7 +816,7 @@ class NetworkMeasurementDatasourceTest {
                 networkMeasurementDatasource.getMeasurements()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error inserting measurement record", e)
+            Log.d(TAG, "Error inserting measurement record", e)
             throw e
         }
 
@@ -840,7 +840,7 @@ class NetworkMeasurementDatasourceTest {
                 networkMeasurementDatasource.getMeasurementById(measurementId)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Cannot find Measurement with id = $measurementId", e)
+            Log.d(TAG, "Cannot find Measurement with id = $measurementId", e)
             throw e
         }
 
