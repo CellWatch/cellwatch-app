@@ -4,17 +4,16 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import edu.gatech.cc.cellwatch.domain.msak.Server
 import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_DOWNLOAD_PATH
 import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_UPLOAD_PATH
-import com.google.gson.Gson
 import io.mockk.every
 import io.mockk.just
-import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.runs
 import io.mockk.verify
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
-import okhttp3.WebSocket
+import kotlinx.datetime.Clock
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -93,14 +92,11 @@ class ThroughputTestTest {
         test.start()
 
         test.streams.forEachIndexed { index, stream ->
-            // sort of gross, but I can't figure out how else to trigger an update being sent
-            val ws = mockk<WebSocket>()
             val measurement = ThroughputMeasurement(null, ByteCounters(5, 0), 10)
-            stream.onMessage(ws, Gson().toJson(measurement))
-
-            val update = runBlocking { withTimeoutOrNull(10) { test.updatesChan.receive() } }
-            assertEquals(index, update?.stream)
-            assertEquals(measurement, update?.measurement)
+            val sent = ThroughputUpdate(true, index, Clock.System.now(), measurement)
+            runBlocking { (stream.updatesChan as Channel<ThroughputUpdate>).send(sent) }
+            val received = runBlocking { withTimeoutOrNull(10) { test.updatesChan.receive() } }
+            assertEquals(sent, received)
         }
     }
 
