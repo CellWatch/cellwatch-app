@@ -17,8 +17,8 @@ class LatencyTest(
     measurementId: String? = null,
 ) {
     private val TAG = this::class.simpleName
-    private val msakTest = LatencyTest(server, client, measurementId)
     private val _rttChan = Channel<Int>(32)
+    val msakTest = LatencyTest(server, client, measurementId)
 
     val rttChan: ReceiveChannel<Int> = _rttChan
 
