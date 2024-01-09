@@ -9,6 +9,7 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.datetime.Clock
 import okhttp3.OkHttpClient
 import kotlin.math.abs
+import kotlin.math.pow
 
 class LatencyTest(
     server: Server,
@@ -42,7 +43,7 @@ class LatencyTest(
             val rtts = result?.RoundTrips?.filter { !it.Lost }?.map { it.RTT }
             val meanRTT = rtts?.average()
             val variance = if (meanRTT != null) {
-                rtts.map { abs(it - meanRTT) }.sum() / rtts.size
+                rtts.sumOf { (it - meanRTT).pow(2) } / rtts.size
             } else {
                 null
             }
