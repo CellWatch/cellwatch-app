@@ -308,6 +308,48 @@ class ThroughputTestTest {
     }
 
     @Test(timeout=3000)
+    fun testNoActiveMeasurements() {
+        setup(300, 300)
+
+        runBlocking {
+            val defResult = async { test.run() }
+            withTimeout(200) { while (!test.msakTest.started) delay(10) }
+
+            sendUpdate(0, ThroughputMeasurement(
+                ByteCounters(0, 20),
+                ByteCounters(0, 10),
+                10,
+            ))
+            sendUpdate(1, ThroughputMeasurement(
+                ByteCounters(0, 21),
+                ByteCounters(0, 11),
+                11,
+            ))
+            sendUpdate(2, ThroughputMeasurement(
+                ByteCounters(0, 22),
+                ByteCounters(0, 12),
+                12,
+            ))
+
+            delay(300) // wait for warmup to end
+
+            sendUpdate(1, ThroughputMeasurement(
+                ByteCounters(0, 41),
+                ByteCounters(0, 31),
+                21,
+            ))
+            sendUpdate(2, ThroughputMeasurement(
+                ByteCounters(0, 42),
+                ByteCounters(0, 32),
+                22,
+            ))
+            (test.msakTest.updatesChan as Channel).close()
+
+            val result = defResult.await()
+            assertEquals(false, result.success)
+        }
+    }
+    @Test(timeout=3000)
     fun testUpdateFilteringDownload() {
         setup(1000)
 
