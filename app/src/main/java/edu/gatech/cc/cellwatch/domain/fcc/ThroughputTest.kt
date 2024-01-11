@@ -56,23 +56,25 @@ class ThroughputTest(
 
             val start = msakTest.startTime!! // assume set since we started the test above
             val activeStart = activeStartTime
+            val latest = latestUpdates
 
             val warmupMetrics = calcAggregateMetrics(
                 ((activeStart ?: Clock.System.now()) - start).inWholeMicroseconds,
-                lastWarmupUpdates ?: latestUpdates,
+                lastWarmupUpdates ?: latest,
             )
 
-            val activeMetrics = if (activeStart != null) {
+            val haveActiveUpdates = latest.all { it != null && it != lastWarmupUpdates?.get(it.stream) }
+            val activeMetrics = if (activeStart != null && haveActiveUpdates) {
                 calcAggregateMetrics(
                     ((msakTest.endTime ?: Clock.System.now()) - activeStart).inWholeMicroseconds,
-                    latestUpdates,
+                    latest,
                     lastWarmupUpdates,
                 )
             } else null
 
             return ThroughputResult(
                 msakTest.serverHost,
-                error == null && msakTest.streams.all { it.error == null } && activeStart != null,
+                error == null && msakTest.streams.all { it.error == null } && activeMetrics != null,
                 start,
                 warmupMetrics,
                 activeMetrics,
