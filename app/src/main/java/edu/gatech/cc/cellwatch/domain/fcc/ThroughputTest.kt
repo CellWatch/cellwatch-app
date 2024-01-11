@@ -19,11 +19,11 @@ class ThroughputTest(
     private val streams: Int,
     private val direction: ThroughputDirection,
     measurementId: String? = null,
+    private val maxWarmupTime: Long = 10000L,
+    private val maxActiveTime: Long = 10000L,
 ) {
     private val TAG = this::class.simpleName
-    private val maxWarmupTime = 10 * 1000L
-    private val maxActiveTime = 10 * 1000L
-    private val msakTest = ThroughputTest(
+    val msakTest = ThroughputTest(
         server,
         direction,
         streams,
