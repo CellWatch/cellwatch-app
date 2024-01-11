@@ -54,24 +54,26 @@ class ThroughputTest(
             handler.postDelayed({ catchErrors { startActive() } }, maxWarmupTime)
             msakTest.updatesChan.consumeEach { handleUpdate(it) }
 
-            // Assume start time was set since we started the test above.
-            val startTime = msakTest.startTime!!
+            val start = msakTest.startTime!! // assume set since we started the test above
+            val activeStart = activeStartTime
 
             val warmupMetrics = calcAggregateMetrics(
-                ((activeStartTime ?: Clock.System.now()) - startTime).inWholeMicroseconds,
+                ((activeStart ?: Clock.System.now()) - start).inWholeMicroseconds,
                 lastWarmupUpdates ?: latestUpdates,
             )
 
-            val activeMetrics = calcAggregateMetrics(
-                ((msakTest.endTime ?: Clock.System.now()) - (activeStartTime ?: startTime)).inWholeMicroseconds,
-                latestUpdates,
-                lastWarmupUpdates,
-            )
+            val activeMetrics = if (activeStart != null) {
+                calcAggregateMetrics(
+                    ((msakTest.endTime ?: Clock.System.now()) - activeStart).inWholeMicroseconds,
+                    latestUpdates,
+                    lastWarmupUpdates,
+                )
+            } else null
 
             return ThroughputResult(
                 msakTest.serverHost,
-                error == null && msakTest.streams.all { it.error == null },
-                startTime,
+                error == null && msakTest.streams.all { it.error == null } && activeStart != null,
+                start,
                 warmupMetrics,
                 activeMetrics,
             )
