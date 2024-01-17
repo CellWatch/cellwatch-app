@@ -14,6 +14,7 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import com.cellwatch.R
 import com.cellwatch.data.datastore.LocalDataStore
 import com.cellwatch.databinding.ActivityMainBinding
+import com.cellwatch.ui.home.HomeActivity
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import kotlinx.coroutines.GlobalScope
@@ -105,7 +106,7 @@ class MainActivity : AppCompatActivity() {
 //            }
 //        }
         var homeButton = findViewById(R.id.homeButton) as ImageButton
-        homeButton.setOnClickListener { val intent = Intent(applicationContext, homeActivity::class.java)
+        homeButton.setOnClickListener { val intent = Intent(applicationContext, HomeActivity::class.java)
             startActivity(intent) }
 
     }

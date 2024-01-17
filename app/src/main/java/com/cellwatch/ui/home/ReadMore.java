@@ -9,6 +9,8 @@ import android.widget.Button;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
+import com.cellwatch.R;
+
 public class ReadMore extends Fragment {
 
     Button goHomeButton;

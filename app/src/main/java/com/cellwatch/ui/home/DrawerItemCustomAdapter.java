@@ -9,6 +9,8 @@ import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.cellwatch.R;
+
 public class DrawerItemCustomAdapter extends ArrayAdapter<DataModel> {
 
     Context mContext;
