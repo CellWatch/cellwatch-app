@@ -10,6 +10,8 @@ import android.widget.TextView;
 
 import androidx.fragment.app.Fragment;
 
+import com.cellwatch.R;
+
 public class MeasureFragment extends Fragment {
     private int progress = 0;
     Button buttonIncrement;

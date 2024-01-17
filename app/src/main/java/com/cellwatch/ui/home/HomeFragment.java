@@ -11,6 +11,8 @@ import android.widget.Spinner;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
+import com.cellwatch.R;
+
 public class HomeFragment extends Fragment {
 
     String[] langArray;
