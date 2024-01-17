@@ -7,6 +7,8 @@ import android.view.ViewGroup;
 
 import androidx.fragment.app.Fragment;
 
+import com.cellwatch.R;
+
 public class ConnectFragment extends Fragment {
 
     public ConnectFragment() {
