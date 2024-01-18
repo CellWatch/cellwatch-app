@@ -59,8 +59,8 @@ class HomeActivity : AppCompatActivity() {
         mDrawerList!!.adapter = adapter
         mDrawerList!!.onItemClickListener = DrawerItemClickListener()
         mDrawerLayout = findViewById<View>(R.id.drawer_layout) as DrawerLayout
-        mDrawerLayout!!.addDrawerListener(mDrawerToggle!!)
         setupDrawerToggle()
+        mDrawerLayout!!.addDrawerListener(mDrawerToggle!!)
         val tempFragment: Fragment = HomeFragment()
         val fragmentManager = supportFragmentManager
         fragmentManager.beginTransaction().replace(R.id.content_frame, tempFragment).commit()
