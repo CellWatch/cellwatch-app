@@ -9,7 +9,12 @@ def cellwatchPropertiesFile = rootProject.file("cellwatch.properties")
 def cellwatchProperties = new Properties()
 cellwatchProperties.load(new FileInputStream(cellwatchPropertiesFile))
 
+
 android {
+
+    tasks.register('prepareKotlinBuildScriptModel') {
+
+    }
     namespace 'com.cellwatch'
     compileSdk 33
 
