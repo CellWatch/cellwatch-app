@@ -29,7 +29,7 @@ class SettingsFragment : Fragment() {
         langArray = resources.getStringArray(R.array.language_options_array)
         // assign an array to the adapter
         val langadapter: ArrayAdapter<String> =
-            ArrayAdapter(this.activity!!, R.layout.simple_list_item_1, langArray)
+            ArrayAdapter(this.activity!!, android.R.layout.simple_list_item_1, langArray)
         //set the spinners adapter to the previously created one.
         langSpinner!!.adapter = langadapter
 
@@ -39,7 +39,7 @@ class SettingsFragment : Fragment() {
         shareArray = resources.getStringArray(R.array.data_sharing_options_array)
         // assign an array to the adapter
         val shareadapter: ArrayAdapter<String> =
-            ArrayAdapter(this.activity!!, R.layout.simple_list_item_1, shareArray)
+            ArrayAdapter(this.activity!!, android.R.layout.simple_list_item_1, shareArray)
         //set the spinners adapter to the previously created one.
         shareSpinner!!.adapter = shareadapter
         editSettingsButton = rootView.findViewById<View>(R.id.settingsEditButton) as ImageButton
@@ -47,8 +47,8 @@ class SettingsFragment : Fragment() {
             //Simple navigation change instead of navgraph
             val fragmentTransaction = activity
                 ?.supportFragmentManager?.beginTransaction()
-            fragmentTransaction.replace(R.id.content_frame, SettingsEditFragment())
-            fragmentTransaction.commit()
+            fragmentTransaction?.replace(R.id.content_frame, SettingsEditFragment())
+            fragmentTransaction?.commit()
             //NK TODO: Change navigation system to Navgraph, and re-implement this
             //    NavHostFragment.findNavController(SettingsFragment.this)
             //            .navigate(R.id.action_settingsFragment_to_settingsEditFragment);

@@ -16,7 +16,7 @@ class DrawerItemCustomAdapter(
 ) : ArrayAdapter<DataModel?>(
     mContext, layoutResourceId, data!!
 ) {
-    var data: Array<DataModel>? = null
+    var data: Array<DataModel?>
 
     init {
         this.data = data
@@ -29,8 +29,8 @@ class DrawerItemCustomAdapter(
         val imageViewIcon = listItem.findViewById<View>(R.id.imageViewIcon) as ImageView
         val textViewName = listItem.findViewById<View>(R.id.textViewName) as TextView
         val folder = data!![position]
-        imageViewIcon.setImageResource(folder.icon)
-        textViewName.text = folder.name
+        folder?.icon?.let { imageViewIcon.setImageResource(it) }
+        textViewName.text = folder?.name
         return listItem
     }
 }
