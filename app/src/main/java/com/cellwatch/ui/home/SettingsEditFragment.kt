@@ -27,7 +27,7 @@ class SettingsEditFragment : Fragment() {
         langArray = resources.getStringArray(R.array.language_options_array)
         // assign an array to the adapter
         val langadapter: ArrayAdapter<String> =
-            ArrayAdapter(this.activity!!, R.layout.simple_list_item_1, langArray)
+            ArrayAdapter(this.activity!!, android.R.layout.simple_list_item_1, langArray)
         //set the spinners adapter to the previously created one.
         langSpinner!!.adapter = langadapter
 
@@ -37,7 +37,7 @@ class SettingsEditFragment : Fragment() {
         shareArray = resources.getStringArray(R.array.data_sharing_options_array)
         // assign an array to the adapter
         val shareadapter: ArrayAdapter<String> =
-            ArrayAdapter(this.activity!!, R.layout.simple_list_item_1, shareArray)
+            ArrayAdapter(this.activity!!, android.R.layout.simple_list_item_1, shareArray)
         //set the spinners adapter to the previously created one.
         shareSpinner!!.adapter = shareadapter
         return rootView
