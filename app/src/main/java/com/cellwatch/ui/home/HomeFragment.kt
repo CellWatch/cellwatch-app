@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.Spinner
@@ -11,36 +12,42 @@ import androidx.fragment.app.Fragment
 import com.cellwatch.R
 
 class HomeFragment : Fragment() {
-    private lateinit var langArray: Array<String>
-    private var langSpinner: Spinner? = null
-    private var moreInfoButton: Button? = null
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
+
+    private lateinit var langSpinner: Spinner
+    private lateinit var moreInfoButton: Button
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val rootView = inflater.inflate(R.layout.home_fragment, container, false)
 
-        //Create arrayadapter for lang array
-        //get language array and spinner
-        langSpinner = rootView.findViewById<View>(R.id.lang_spinner) as Spinner
-        langArray = resources.getStringArray(R.array.language_options_array)
-        // assign an array to the adapter
-        val langadapter: ArrayAdapter<String> =
-            ArrayAdapter(this.activity!!, android.R.layout.simple_list_item_1, langArray)
-        //set the spinners adapter to the previously created one.
-        langSpinner!!.adapter = langadapter
-        moreInfoButton = rootView.findViewById<View>(R.id.button_readmore) as Button
-        moreInfoButton!!.setOnClickListener {
-            //Simple navigation change instead of navgraph
-            val fragmentTransaction = activity
-                ?.supportFragmentManager?.beginTransaction()
-            fragmentTransaction?.replace(R.id.content_frame, ReadMoreFragment())
-            fragmentTransaction?.commit()
-            //NK TODO: Change navigation system to Navgraph, and re-implement this
-            //    NavHostFragment.findNavController(SettingsFragment.this)
-            //            .navigate(R.id.action_settingsFragment_to_settingsEditFragment);
+        // Initialize the language spinner with an ArrayAdapter
+        langSpinner = rootView.findViewById(R.id.lang_spinner)
+        val langArray = resources.getStringArray(R.array.language_options_array)
+        val langAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, langArray)
+        langAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        langSpinner.adapter = langAdapter
+
+        // Set the item selected listener
+        langSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View, position: Int, id: Long) {
+                val selectedItem = parent.getItemAtPosition(position).toString()
+                //TODO Change app language to the selected item, maybe after fragment change (confirmation)?
+            }
+
+            override fun onNothingSelected(p0: AdapterView<*>?) {}
         }
+
+        // Set up the More Info button
+        moreInfoButton = rootView.findViewById(R.id.button_readmore)
+        moreInfoButton.setOnClickListener {
+            navigateToReadMoreFragment()
+        }
+
         return rootView
+    }
+
+    private fun navigateToReadMoreFragment() {
+        activity?.supportFragmentManager?.beginTransaction()
+            ?.replace(R.id.content_frame, ReadMoreFragment())
+            ?.commit()
     }
 }
