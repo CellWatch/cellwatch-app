@@ -28,12 +28,12 @@ class WebSocketTestListener: WebSocketListener() {
     private val byteMessages = Channel<ByteString>(1024)
 
     fun send(text: String) {
-        if (!opened || closed || failed) throw Throwable("not open")
+        if (!opened || closed || failed) throw Exception("not open")
         webSocket.send(text)
     }
 
     fun send(bytes: ByteString) {
-        if (!opened || closed || failed) throw Throwable("not open")
+        if (!opened || closed || failed) throw Exception("not open")
         webSocket.send(bytes)
     }
 
@@ -73,7 +73,7 @@ class WebSocketTestListener: WebSocketListener() {
     }
 
     fun close(code: Int) {
-        if (!opened || closed || failed) throw Throwable("not open")
+        if (!opened || closed || failed) throw Exception("not open")
         webSocket.close(code, "")
     }
 

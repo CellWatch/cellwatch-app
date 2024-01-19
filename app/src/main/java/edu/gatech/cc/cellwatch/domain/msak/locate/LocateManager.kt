@@ -78,7 +78,7 @@ class LocateManager(client: OkHttpClient? = null, private val locateUrl: String?
         // The site name is embedded in the server's machine (hostname), formatted as
         // "mlab<number>-<site>.<rest of hostname>".
         val site = if (server != null) {
-            Regex("([^-.]+)\\.").find(server.machine)?.groupValues?.get(1) ?: throw Throwable("not site found in machine ${server.machine}")
+            Regex("([^-.]+)\\.").find(server.machine)?.groupValues?.get(1) ?: throw Exception("not site found in machine ${server.machine}")
         } else {
             null
         }
@@ -97,15 +97,15 @@ class LocateManager(client: OkHttpClient? = null, private val locateUrl: String?
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
+                Log.i(TAG, "locate request failure: $call", e)
                 continuation.resumeWithException(e)
-                e.printStackTrace()
             }
 
             override fun onResponse(call: Call, response: Response) {
                 val body = response.body
                 if (response.code != 200 || body == null) {
                     Log.i(TAG, "locate request $request failed: $response")
-                    continuation.resumeWithException(Throwable("locate request $request failed: $response"))
+                    continuation.resumeWithException(Exception("locate request $request failed: $response"))
                     return
                 }
 

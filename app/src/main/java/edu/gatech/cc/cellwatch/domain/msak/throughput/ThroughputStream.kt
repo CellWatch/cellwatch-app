@@ -103,7 +103,7 @@ class ThroughputStream(
 
         try {
             if (started) {
-                throw Throwable("already started")
+                throw Exception("already started")
             }
 
             // Use a new client to prevent streams from sharing TCP connections and to allow using a
@@ -176,7 +176,7 @@ class ThroughputStream(
     }
 
     private fun makeMeasurement(): ThroughputMeasurement {
-        val start = startTime ?: throw Throwable("can't make measurement before starting")
+        val start = startTime ?: throw Exception("can't make measurement before starting")
         val end = endTime ?: Clock.System.now()
         val appCounts = ByteCounters(appBytesSent.get(), appBytesReceived.get())
         val netSent = netBytesSent
@@ -317,4 +317,4 @@ class ThroughputStream(
     }
 }
 
-class NotStartedException: Throwable("not started")
+class NotStartedException: Exception("not started")

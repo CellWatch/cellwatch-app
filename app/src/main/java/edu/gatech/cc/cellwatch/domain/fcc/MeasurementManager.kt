@@ -325,7 +325,7 @@ object MeasurementManager {
 
         if (throughputServers.isEmpty()) {
             Log.i(TAG, "no throughput servers")
-            throw Throwable("no throughput servers found")
+            throw Exception("no throughput servers found")
         }
 
         val throughputServer =  try {
@@ -339,7 +339,7 @@ object MeasurementManager {
 
         if (latencyServers.isEmpty()) {
             Log.i(TAG, "no latency servers at matching throughput server ${throughputServer.machine}")
-            throw Throwable("no latency servers found")
+            throw Exception("no latency servers found")
         }
 
         val latencyServer = latencyServers.firstOrNull { it.machine == throughputServer.machine } ?: latencyServers[0]
