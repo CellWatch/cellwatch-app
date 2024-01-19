@@ -35,7 +35,7 @@ class HomeFragment : Fragment() {
             //Simple navigation change instead of navgraph
             val fragmentTransaction = activity
                 ?.supportFragmentManager?.beginTransaction()
-            fragmentTransaction?.replace(R.id.content_frame, ReadMore())
+            fragmentTransaction?.replace(R.id.content_frame, ReadMoreFragment())
             fragmentTransaction?.commit()
             //NK TODO: Change navigation system to Navgraph, and re-implement this
             //    NavHostFragment.findNavController(SettingsFragment.this)

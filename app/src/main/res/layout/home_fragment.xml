@@ -59,14 +59,14 @@
             android:textStyle="bold" />
 
         <RelativeLayout
-            android:layout_width="300sp"
+            android:layout_width="350sp"
             android:layout_height="44sp"
             android:layout_marginLeft="30sp"
             android:background="@drawable/spinner_border"
             android:orientation="horizontal">
             <Spinner
                 android:id="@+id/lang_spinner"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_centerVertical="true"
                 android:layout_gravity="center"
@@ -80,6 +80,7 @@
                 android:layout_alignParentRight="true"
                 android:layout_centerVertical="true"
                 android:layout_gravity="center"
+                app:tint="@color/mapbox_gray_dark"
                 android:src="@android:drawable/arrow_down_float" />
         </RelativeLayout>
 
