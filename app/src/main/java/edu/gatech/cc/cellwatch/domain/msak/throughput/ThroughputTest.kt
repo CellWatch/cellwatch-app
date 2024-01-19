@@ -42,7 +42,7 @@ class ThroughputTest(
 
         try {
             if (started) {
-                throw Throwable("already started")
+                throw Exception("already started")
             }
 
             startTime = Clock.System.now()
@@ -64,7 +64,7 @@ class ThroughputTest(
 
         try {
             if (!started) {
-                throw Throwable("can't stop before starting")
+                throw Exception("can't stop before starting")
             }
 
             finish()

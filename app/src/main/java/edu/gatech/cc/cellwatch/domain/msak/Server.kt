@@ -21,7 +21,7 @@ data class Server(
             ThroughputDirection.DOWNLOAD -> THROUGHPUT_DOWNLOAD_PATH
         }
 
-        val url = URLBuilder(Url(urls["wss:///$path"] ?: urls ["ws:///$path"] ?: throw Throwable("no URL found")))
+        val url = URLBuilder(Url(urls["wss:///$path"] ?: urls ["ws:///$path"] ?: throw Exception("no URL found")))
 
         url.parameters["streams"] = "$streams"
         url.parameters["duration"] = "$duration"
@@ -45,7 +45,7 @@ data class Server(
         path: String,
         measurementId: String?,
     ): String {
-        val url = URLBuilder(Url(urls["https:///$path"] ?: urls ["http:///$path"] ?: throw Throwable("no URL found")))
+        val url = URLBuilder(Url(urls["https:///$path"] ?: urls ["http:///$path"] ?: throw Exception("no URL found")))
 
         if (measurementId != null) {
             url.parameters["mid"] = measurementId
