@@ -136,7 +136,7 @@ class FccSubmissionRepository(
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                e.printStackTrace()
+                Log.i(TAG, "tcp tuple request failure: $call", e)
                 continuation.resumeWithException(e)
             }
 

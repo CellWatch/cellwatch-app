@@ -132,7 +132,7 @@ class LatencyTest(
 
         client.newCall(request).enqueue(object: Callback {
             override fun onFailure(call: Call, e: IOException) {
-                e.printStackTrace()
+                Log.i(TAG, "authorize request failure: $call", e)
                 continuation.resumeWithException(e)
             }
 
@@ -254,7 +254,7 @@ class LatencyTest(
 
         client.newCall(request).enqueue(object: Callback {
             override fun onFailure(call: Call, e: IOException) {
-                e.printStackTrace()
+                Log.i(TAG, "results request failure: $call", e)
                 continuation.resumeWithException(e)
             }
 
