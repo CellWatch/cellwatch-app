@@ -18,6 +18,7 @@ import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputDirection
 import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
+import io.ktor.http.Url
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.coroutineScope
@@ -30,6 +31,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.security.InvalidParameterException
 import kotlinx.datetime.Clock
+import java.io.IOException
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -142,6 +144,10 @@ object MeasurementManager {
         measurementId: String?,
         direction: ThroughputDirection,
     ): ThroughputResult {
+        if (server is UnreachableServer) {
+            return ThroughputResult(server.machine, false, Clock.System.now(), null, null)
+        }
+
         val dir = if (direction == ThroughputDirection.DOWNLOAD) "download" else "upload"
         Log.i(TAG, "running $dir test")
 
@@ -176,6 +182,10 @@ object MeasurementManager {
         server: Server,
         measurementId: String?,
     ): LatencyResult {
+        if (server is UnreachableServer) {
+            return LatencyResult(server.machine, false, Clock.System.now(), 0, 0, 0, 0, 0)
+        }
+
         val latencyResult = try {
             val test = LatencyTest(server, client, measurementId)
 
@@ -321,28 +331,35 @@ object MeasurementManager {
 
     suspend fun chooseMsakServers(client: OkHttpClient? = null): Pair<Server, Server> {
         val manager = LocateManager(client)
-        val throughputServers = manager.locateThroughputServers()
+        try {
+            val throughputServers = manager.locateThroughputServers()
 
-        if (throughputServers.isEmpty()) {
-            Log.i(TAG, "no throughput servers")
-            throw Exception("no throughput servers found")
+            if (throughputServers.isEmpty()) {
+                Log.i(TAG, "no throughput servers")
+                throw Exception("no throughput servers found")
+            }
+
+            val throughputServer = try {
+                throughputServers.maxBy { ping(it.machine) }
+            } catch (t: Throwable) {
+                Log.i(TAG, "pinging available servers failed", t)
+                throughputServers[0]
+            }
+
+            val latencyServers = manager.locateLatencyServers(throughputServer)
+
+            if (latencyServers.isEmpty()) {
+                Log.i(TAG, "no latency servers at matching throughput server ${throughputServer.machine}")
+                throw Exception("no latency servers found")
+            }
+
+            val latencyServer = latencyServers.firstOrNull { it.machine == throughputServer.machine } ?: latencyServers[0]
+            return Pair(throughputServer, latencyServer)
+        } catch (e: IOException) {
+            val server = UnreachableServer(Url(manager.locateUrl).host)
+            return Pair(server, server)
         }
-
-        val throughputServer =  try {
-            throughputServers.maxBy { ping(it.machine) }
-        } catch (t: Throwable) {
-            Log.i(TAG, "pinging available servers failed", t)
-            throughputServers[0]
-        }
-
-        val latencyServers = manager.locateLatencyServers(throughputServer)
-
-        if (latencyServers.isEmpty()) {
-            Log.i(TAG, "no latency servers at matching throughput server ${throughputServer.machine}")
-            throw Exception("no latency servers found")
-        }
-
-        val latencyServer = latencyServers.firstOrNull { it.machine == throughputServer.machine } ?: latencyServers[0]
-        return Pair(throughputServer, latencyServer)
     }
+
+    private class UnreachableServer(host: String): Server(host, null, emptyMap())
 }

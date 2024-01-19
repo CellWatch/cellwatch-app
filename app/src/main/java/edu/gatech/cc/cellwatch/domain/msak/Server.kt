@@ -4,7 +4,7 @@ import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputDirection
 import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 
-data class Server(
+open class Server(
     val machine: String,
     val location: ServerLocation?,
     val urls: Map<String, String>,
@@ -52,5 +52,14 @@ data class Server(
         }
 
         return url.buildString()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is Server) return false
+        return other.machine == machine && other.location == location && other.urls == urls
+    }
+
+    override fun toString(): String {
+        return "${this::class.simpleName}(machine=$machine, location=$location, urls=$urls)"
     }
 }
