@@ -22,7 +22,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-class LocateManager(client: OkHttpClient? = null, private val locateUrl: String? = null) {
+class LocateManager(client: OkHttpClient? = null, locateUrl: String? = null) {
     private val TAG = this::class.simpleName
     private val msakServerEnv = BuildConfig.MSAK_SERVER_ENV
     private val msakLocalServerHost = BuildConfig.MSAK_LOCAL_SERVER_HOST
@@ -32,6 +32,7 @@ class LocateManager(client: OkHttpClient? = null, private val locateUrl: String?
         "staging" to "https://locate-dot-mlab-staging.appspot.com/v2/nearest/"
     )
     private val client = client ?: OkHttpClient.Builder().build()
+    var locateUrl: String = locateUrl ?: locateUrls[msakServerEnv] ?: ""
 
     suspend fun locateThroughputServers(server: Server? = null): List<Server> {
         return locateServers("throughput", server)
@@ -45,7 +46,6 @@ class LocateManager(client: OkHttpClient? = null, private val locateUrl: String?
         test: String,
         server: Server? = null,
     ): List<Server> {
-        val locateUrl = this.locateUrl ?: locateUrls[msakServerEnv]
         val locatePath = when (test) {
             "throughput" -> LOCATE_THROUGHPUT_PATH
             "latency" -> LOCATE_LATENCY_PATH
@@ -53,7 +53,7 @@ class LocateManager(client: OkHttpClient? = null, private val locateUrl: String?
         }
 
         // No locate URL for the given environment means we should use the local MSAK server.
-        if (locateUrl == null) {
+        if (locateUrl == "") {
             val urls = when (test) {
                 "throughput" -> {
                     val proto = "ws${if (msakLocalServerSecure) { "s" } else { "" }}"
@@ -87,11 +87,11 @@ class LocateManager(client: OkHttpClient? = null, private val locateUrl: String?
     }
 
     private suspend fun requestServers(
-        locateUrl: String,
+        fullLocateUrl: String,
         site: String? = null,
     ): List<Server> = suspendCoroutine { continuation ->
         val request = Request.Builder()
-            .url("${locateUrl}${if (site != null) { "?site=$site" } else { "" }}")
+            .url("${fullLocateUrl}${if (site != null) { "?site=$site" } else { "" }}")
             .header("User-Agent", BuildConfig.USER_AGENT)
             .build()
 
