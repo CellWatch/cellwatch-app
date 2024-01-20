@@ -19,24 +19,22 @@ class HomeFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val rootView = inflater.inflate(R.layout.home_fragment, container, false)
 
-        // Initialize the language spinner with an ArrayAdapter
         langSpinner = rootView.findViewById(R.id.lang_spinner)
         val langArray = resources.getStringArray(R.array.language_options_array)
         val langAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, langArray)
         langAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         langSpinner.adapter = langAdapter
 
-        // Set the item selected listener
         langSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View, position: Int, id: Long) {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 val selectedItem = parent.getItemAtPosition(position).toString()
-                //TODO Change app language to the selected item, maybe after fragment change (confirmation)?
+                // TODO Change app language to the selected item
             }
 
-            override fun onNothingSelected(p0: AdapterView<*>?) {}
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        // Set up the More Info button
+
         moreInfoButton = rootView.findViewById(R.id.button_readmore)
         moreInfoButton.setOnClickListener {
             navigateToReadMoreFragment()
