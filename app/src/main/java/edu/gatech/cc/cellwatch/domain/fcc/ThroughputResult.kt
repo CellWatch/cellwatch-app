@@ -8,6 +8,6 @@ data class ThroughputResult(
     val targetHost: String,
     val success: Boolean,
     val start: Instant,
-    val warmupMetrics: ThroughputMetrics?,
-    val activeMetrics: ThroughputMetrics?,
+    val warmupMetrics: ThroughputMetrics,
+    val activeMetrics: ThroughputMetrics,
 )

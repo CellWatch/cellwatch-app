@@ -145,7 +145,7 @@ object MeasurementManager {
         direction: ThroughputDirection,
     ): ThroughputResult {
         if (server is UnreachableServer) {
-            return ThroughputResult(server.machine, false, Clock.System.now(), null, null)
+            return ThroughputResult(server.machine, false, Clock.System.now(), ThroughputMetrics(0, 0), ThroughputMetrics(0, 0))
         }
 
         val dir = if (direction == ThroughputDirection.DOWNLOAD) "download" else "upload"
