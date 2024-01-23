@@ -119,8 +119,8 @@ object TelephonyInfoManager {
         return mnc;
     }
 
-    fun getProviderName(): String? {
-        return telephonyManager?.networkOperatorName?.lowercase()?.trim()
+    fun getProviderName(): String {
+        return telephonyManager?.networkOperatorName?.lowercase()?.trim() ?: "unknown"
     }
 
     fun getConnectionType(): NetworkConnectionType {
