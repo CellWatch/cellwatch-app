@@ -70,7 +70,7 @@ class ThroughputTest(
                     latest,
                     lastWarmupUpdates,
                 )
-            } else null
+            } else ThroughputMetrics(0, 0)
 
             return ThroughputResult(
                 msakTest.serverHost,
