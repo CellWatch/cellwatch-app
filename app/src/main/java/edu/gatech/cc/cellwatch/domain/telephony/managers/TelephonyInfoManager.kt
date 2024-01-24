@@ -7,6 +7,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
+import android.os.SystemClock
 import android.telephony.CellIdentityGsm
 import android.telephony.CellIdentityLte
 import android.telephony.CellIdentityNr
@@ -37,6 +38,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.datetime.Clock
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.Instant
+import kotlinx.datetime.minus
 import java.net.URL
 import java.util.Objects
 
@@ -205,7 +209,6 @@ object TelephonyInfoManager {
         val activeNetworkSubtype = getActiveNetworkSubType(cellInfoList)
         Log.d(TAG, "cellInfoList length = ${cellInfoList.size}")
         val cells = mutableListOf<Cell>()
-        val timestamp = Clock.System.now()
 
         for (cellInfo in cellInfoList) {
             val cellSignalStrength = when (cellInfo) {
@@ -334,8 +337,16 @@ object TelephonyInfoManager {
                 else -> null
             }
 
+            val nowInstant = Clock.System.now()
+            val nowNanos = SystemClock.elapsedRealtimeNanos()
+            val timestampNanos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                cellInfo.timestampMillis * 1000000L
+            } else {
+                cellInfo.timeStamp
+            }
+
             val cell = Cell(
-                timestamp = timestamp,
+                timestamp = nowInstant.minus(nowNanos - timestampNanos, DateTimeUnit.NANOSECOND),
                 cellId = if (cellId == UNAVAILABLE || cellId == UNAVAILABLE_LONG) null else cellId?.toLong(),
                 physicalCellId = if (cellId == UNAVAILABLE) null else physicalCellId,
                 cellConnection = if (cellInfo.cellConnectionStatus == CONNECTION_UNKNOWN) null else cellInfo.cellConnectionStatus,
