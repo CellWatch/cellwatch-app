@@ -1,10 +1,11 @@
-package com.cellwatch.ui.main
+package com.cellwatch.ui
 
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
+import android.view.View
 import android.widget.ImageButton
+import android.widget.ImageView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
@@ -14,7 +15,6 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import com.cellwatch.R
 import com.cellwatch.data.datastore.LocalDataStore
 import com.cellwatch.databinding.ActivityMainBinding
-import com.cellwatch.ui.home.HomeActivity
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import kotlinx.coroutines.GlobalScope
@@ -25,6 +25,9 @@ import org.conscrypt.Conscrypt
 import java.security.Security
 import java.util.UUID
 
+/*
+Landing page if the user has been onboarded.
+ */
 class MainActivity : AppCompatActivity() {
     private val TAG = "MainActivity"
 
@@ -75,12 +78,6 @@ class MainActivity : AppCompatActivity() {
 
             binding = ActivityMainBinding.inflate(layoutInflater)
             setContentView(binding.root)
-
-            setSupportActionBar(binding.toolbar)
-
-            val navController = findNavController(R.id.nav_host_fragment_content_main)
-            appBarConfiguration = AppBarConfiguration(navController.graph)
-            setupActionBarWithNavController(navController, appBarConfiguration)
         } catch (e: Exception) {
             Log.e(TAG, "onCreate exception:", e)
             throw e
@@ -105,9 +102,6 @@ class MainActivity : AppCompatActivity() {
 //                // attempt to upload measurements
 //            }
 //        }
-        var homeButton = findViewById(R.id.homeButton) as ImageButton
-        homeButton.setOnClickListener { val intent = Intent(applicationContext, HomeActivity::class.java)
-            startActivity(intent) }
 
     }
 
@@ -124,9 +118,5 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onSupportNavigateUp(): Boolean {
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
-        return navController.navigateUp(appBarConfiguration)
-                || super.onSupportNavigateUp()
-    }
+
 }

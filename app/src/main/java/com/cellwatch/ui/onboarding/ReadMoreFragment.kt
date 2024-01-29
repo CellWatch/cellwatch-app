@@ -1,4 +1,4 @@
-package com.cellwatch.ui.home
+package com.cellwatch.ui.onboarding
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -19,21 +19,22 @@ class ReadMoreFragment : Fragment() {
         val rootView = inflater.inflate(R.layout.fragment_readmore, container, false)
         goHomeButtonBottom = rootView.findViewById<View>(R.id.exitButtonBottom) as Button
         goHomeButtonBottom!!.setOnClickListener { //Simple navigation change instead of navgraph
-            val fragmentTransaction = activity
-                ?.supportFragmentManager?.beginTransaction()
-            fragmentTransaction?.replace(R.id.content_frame, HomeFragment())
-            fragmentTransaction?.commit()
+            returnToHome()
         }
 
         goHomeButtonTop = rootView.findViewById<View>(R.id.buttonExitTop) as Button
         goHomeButtonTop!!.setOnClickListener { //Simple navigation change instead of navgraph
-            val fragmentTransaction = activity
-                ?.supportFragmentManager?.beginTransaction()
-            fragmentTransaction?.replace(R.id.content_frame, HomeFragment())
-            fragmentTransaction?.commit()
+            returnToHome()
         }
 
-
         return rootView
+    }
+
+
+    private fun returnToHome() {
+        val fragmentTransaction = activity
+            ?.supportFragmentManager?.beginTransaction()
+        fragmentTransaction?.replace(R.id.content_frame, HomeFragment())
+        fragmentTransaction?.commit()
     }
 }
