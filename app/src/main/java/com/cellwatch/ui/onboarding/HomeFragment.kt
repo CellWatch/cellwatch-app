@@ -1,4 +1,4 @@
-package com.cellwatch.ui.home
+package com.cellwatch.ui.onboarding
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -12,6 +12,10 @@ import androidx.fragment.app.Fragment
 import com.cellwatch.R
 
 class HomeFragment : Fragment() {
+
+    interface OnMoreInfoSelectedListener {
+        fun onMoreInfoSelected(visible: Boolean)
+    }
 
     private lateinit var langSpinner: Spinner
     private lateinit var moreInfoButton: Button
@@ -44,8 +48,14 @@ class HomeFragment : Fragment() {
     }
 
     private fun navigateToReadMoreFragment() {
+        (activity as? OnMoreInfoSelectedListener)?.onMoreInfoSelected(false)
         activity?.supportFragmentManager?.beginTransaction()
             ?.replace(R.id.content_frame, ReadMoreFragment())
             ?.commit()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        (activity as? OnMoreInfoSelectedListener)?.onMoreInfoSelected(true)
     }
 }

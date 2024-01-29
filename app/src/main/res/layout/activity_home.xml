@@ -2,15 +2,11 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Rest of your layout -->
-
-    <!-- Container for the content -->
     <FrameLayout
         android:id="@+id/content_frame"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Navigation bar at the bottom -->
     <LinearLayout
         android:id="@+id/navigation_bar"
         android:layout_width="match_parent"
@@ -20,20 +16,17 @@
         android:gravity="center"
         android:padding="16dp">
 
-        <!-- Back arrow -->
         <ImageView
             android:id="@+id/back_arrow"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:src="@drawable/ic_arrow_back"  />
 
-        <!-- Space to push arrows to sides -->
         <Space
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"/>
 
-        <!-- Forward arrow -->
         <ImageView
             android:id="@+id/forward_arrow"
             android:layout_width="wrap_content"

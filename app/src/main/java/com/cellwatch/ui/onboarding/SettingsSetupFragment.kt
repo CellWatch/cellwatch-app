@@ -1,6 +1,9 @@
+package com.cellwatch.ui.onboarding
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,9 +11,13 @@ import android.widget.Button
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.cellwatch.R
-import com.cellwatch.ui.home.MapFragment
+import com.cellwatch.ui.map.MapFragment
 
 class SettingsSetupFragment : Fragment() {
+
+    interface OnPermissionsHandledListener {
+        fun onPermissionsHandled()
+    }
 
     companion object {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1
@@ -42,19 +49,13 @@ class SettingsSetupFragment : Fragment() {
             )
         } else {
             // Permission has already been granted, load the MapFragment
-            loadMapFragment()
+            Log.i("SettingsSetupFragment", "onPermissionsHandledListener:" + (activity as? OnPermissionsHandledListener))
+            (activity as? OnPermissionsHandledListener)?.onPermissionsHandled()
+            Log.i("SettingsSetupFragment", "after OnPermissionsHandled")
         }
     }
 
 
-    private fun loadMapFragment() {
-        // Replace the current fragment with the MapFragment
-        fragmentManager?.beginTransaction()?.apply {
-            (view?.parent as? ViewGroup)?.id?.let { replace(it, MapFragment()) }
-            addToBackStack(null) // if you want to add the transaction to the back stack
-            commit()
-        }
-    }
 
 
     override fun onRequestPermissionsResult(
@@ -65,9 +66,12 @@ class SettingsSetupFragment : Fragment() {
         when (requestCode) {
             LOCATION_PERMISSION_REQUEST_CODE -> {
                 if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                    loadMapFragment()
+                    // Permissions granted, load the MapFragment and notify the activity
+                    Log.i("SettingsSetupFragment", "onPermissionsHandledListener:" + (activity as? OnPermissionsHandledListener))
+                    (activity as? OnPermissionsHandledListener)?.onPermissionsHandled()
+                    Log.i("SettingsSetupFragment", "after OnPermissionsHandled")
                 } else {
-                    // Permission was denied. Handle the functionality that cannot proceed without the permission.
+                    //TODO on location permission denied
                 }
             }
             else -> super.onRequestPermissionsResult(requestCode, permissions, grantResults)
