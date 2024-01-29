@@ -140,7 +140,7 @@ class ThroughputTest(
             }
         } catch (e: NoSuchElementException) {
             Log.i(TAG, "one or more streams had no updates during the warmup period", e)
-            error = e
+            error = MissingWarmupUpdateException()
             msakTest.stop()
         }
     }
@@ -217,4 +217,6 @@ class ThroughputTest(
             error = e
         }
     }
+
+    private class MissingWarmupUpdateException: Exception("one or more streams had no updates in warmup period")
 }

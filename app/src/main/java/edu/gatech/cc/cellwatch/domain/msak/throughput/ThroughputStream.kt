@@ -237,7 +237,7 @@ class ThroughputStream(
                 }
             } catch (e: Throwable) {
                 Log.e(TAG, "unexpected error uploading data", e)
-                finish(e)
+                finish(UploadDataException())
                 webSocket.close(wsCodeInternalError, null)
             }
         }
@@ -309,12 +309,18 @@ class ThroughputStream(
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
         super.onFailure(webSocket, t, response)
         Log.d(TAG, "websocket failure: $response", t)
-        finish(t)
+        finish(FailureException())
     }
 
     private fun isUnexpectedClose(code: Int): Boolean {
         return code != wsCodeNormalClosure && code != wsCodeGoingAway
     }
-}
 
-class NotStartedException: Exception("not started")
+    class NotStartedException: Exception("not started")
+    class UploadDataException: Exception("error uploading data")
+    class UnexpectedCloseException(
+        code: Int,
+        reason: String?,
+    ): Exception("websocket closed with unexpected code: $code $reason")
+    class FailureException(): Exception("websocket failure")
+}

@@ -133,14 +133,14 @@ class LatencyTest(
         client.newCall(request).enqueue(object: Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.i(TAG, "authorize request failure: $call", e)
-                continuation.resumeWithException(e)
+                continuation.resumeWithException(AuthorizeFailureExecption())
             }
 
             override fun onResponse(call: Call, response: Response) {
                 val body = response.body
                 if (response.code != 200 || body == null) {
                     Log.i(TAG, "authorize request $request failed: $response")
-                    continuation.resumeWithException(Exception("authorize request $request failed: $response"))
+                    continuation.resumeWithException(UnauthorizedException())
                     return
                 }
 
@@ -166,7 +166,7 @@ class LatencyTest(
            return if (v4Addrs.isNotEmpty()) v4Addrs[0] else addrs[0]
        } catch (t: Throwable) {
            Log.i(TAG, "no server addr for latency test", t)
-           throw Exception("no addr")
+           throw NoAddrException()
        }
    }
 
@@ -193,7 +193,7 @@ class LatencyTest(
 
             if (!gotOne) {
                 Log.i(TAG, "never received next latency packet")
-                error = Exception("initial packet timeout")
+                error = InitialPacketTimeoutException()
                 finish(false)
             }
         }
@@ -255,14 +255,14 @@ class LatencyTest(
         client.newCall(request).enqueue(object: Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.i(TAG, "results request failure: $call", e)
-                continuation.resumeWithException(e)
+                continuation.resumeWithException(ResultFailureException())
             }
 
             override fun onResponse(call: Call, response: Response) {
                 val body = response.body
                 if (response.code != 200 || body == null) {
                     Log.i(TAG, "results request $request failed: $response")
-                    continuation.resumeWithException(Exception("results request $request failed: $response"))
+                    continuation.resumeWithException(NoResultException())
                     return
                 }
 
@@ -279,4 +279,11 @@ class LatencyTest(
             }
         })
     }
+
+    class AuthorizeFailureExecption: Exception("authorize call failed")
+    class UnauthorizedException: Exception("authorize call returned bad response")
+    class ResultFailureException: Exception("result call failed")
+    class NoResultException: Exception("result call returned bad response")
+    class InitialPacketTimeoutException: Exception("initial packet timeout")
+    class NoAddrException: Exception("could not resolve server addr")
 }
