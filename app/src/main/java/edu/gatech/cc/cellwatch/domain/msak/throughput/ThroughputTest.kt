@@ -81,7 +81,7 @@ class ThroughputTest(
         for (stream in streams) {
             try {
                 stream.stop()
-            } catch (n: NotStartedException) {
+            } catch (n: ThroughputStream.NotStartedException) {
                 // ignore
             }
         }
