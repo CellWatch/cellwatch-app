@@ -34,7 +34,7 @@ class LatencyTestTest {
             "http:///$LATENCY_RESULT_PATH" to "http://0.0.0.0/$LATENCY_RESULT_PATH",
         ))
 
-        test = LatencyTest(server)
+        test = LatencyTest(server, groupId = "")
         mockkObject(test.msakTest)
         every { test.msakTest.start() } just runs
     }
@@ -63,8 +63,8 @@ class LatencyTestTest {
 
         (test.msakTest.updatesChan as Channel<LatencyUpdate>).close()
         val result = runBlocking { test.run() }
-        assertEquals(6, result.meanRtt)
-        assertEquals(8, result.jitter)
+        assertEquals(6, result.latencyData?.rtt)
+        assertEquals(8, result.latencyData?.jitter)
     }
 
     @Test

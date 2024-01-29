@@ -58,11 +58,11 @@ object MeasurementManager {
         onLocateStart: () -> Unit,
         onLocateComplete: (r: String) -> Unit,
         onLatencyStart: () -> Unit,
-        onLatencyComplete: (r: LatencyResult, l: List<Location>, c: List<Cell>) -> Unit,
+        onLatencyComplete: (m: Measurement) -> Unit,
         onDownloadStart: () -> Unit,
-        onDownloadComplete: (r: ThroughputResult, l: List<Location>, c: List<Cell>) -> Unit,
+        onDownloadComplete: (m: Measurement) -> Unit,
         onUploadStart: () -> Unit,
-        onUploadComplete: (r: ThroughputResult, l: List<Location>, c: List<Cell>) -> Unit,
+        onUploadComplete: (m: Measurement) -> Unit,
     ) {
         val measurementId: String? = if (BuildConfig.MSAK_SERVER_ENV == "local") {
             UUID.randomUUID().toString()
@@ -105,19 +105,19 @@ object MeasurementManager {
         Log.i(TAG, "selected servers $throughputServer $latencyServer")
 
         onLatencyStart()
-        val (latencyResult, latencyLocations, latencyCells) = runFullTest { runLatencyTest(client, latencyServer, measurementId) }
-        onLatencyComplete(latencyResult, latencyLocations, latencyCells)
-        val latencyMeasurement = createMeasurement(groupId, latencyCells, latencyLocations, "latency", null, latencyResult)
+        val latencyMeasurement = runLatencyTest(client, latencyServer, groupId, measurementId)
+        insertMeasurement(latencyMeasurement)
+        onLatencyComplete(latencyMeasurement)
 
         onDownloadStart()
-        val (downloadResult, downloadLocations, downloadCells) = runFullTest { runThroughputTest(throughputServer, measurementId, ThroughputDirection.DOWNLOAD) }
-        onDownloadComplete(downloadResult, downloadLocations, downloadCells)
-        val downloadMeasurement = createMeasurement(groupId, downloadCells, downloadLocations, "download", downloadResult, null)
+        val downloadMeasurement = runThroughputTest(throughputServer, ThroughputDirection.DOWNLOAD, groupId, measurementId)
+        insertMeasurement(downloadMeasurement)
+        onDownloadComplete(downloadMeasurement)
 
         onUploadStart()
-        val (uploadResult, uploadLocations, uploadCells) = runFullTest { runThroughputTest(throughputServer, measurementId, ThroughputDirection.UPLOAD) }
-        onUploadComplete(uploadResult, uploadLocations, uploadCells)
-        val uploadMeasurement = createMeasurement(groupId, uploadCells, uploadLocations, "upload", uploadResult, null)
+        val uploadMeasurement = runThroughputTest(throughputServer, ThroughputDirection.UPLOAD, groupId, measurementId)
+        insertMeasurement(uploadMeasurement)
+        onUploadComplete(uploadMeasurement)
 
         fccSubmission.simCountryCode = latencyMeasurement.simMcc ?: downloadMeasurement.simMcc ?: uploadMeasurement.simMcc
         fccSubmission.simNetworkCode = latencyMeasurement.simMnc ?: downloadMeasurement.simMnc ?: uploadMeasurement.simMnc
@@ -130,29 +130,17 @@ object MeasurementManager {
         measurementRepository.uploadMeasurements()
     }
 
-    suspend fun <T> runFullTest(testFn: suspend () -> T): Triple<T, List<Location>, List<Cell>> {
-        val beginLocation: Location? = getLocation()
-        val cells = TelephonyInfoManager.getCells()
-        val testResult = testFn()
-        val endLocation: Location? = getLocation()
-
-        return Triple(testResult, listOfNotNull(beginLocation, endLocation), cells ?: listOf())
-    }
-
     suspend fun runThroughputTest(
         server: Server,
-        measurementId: String?,
         direction: ThroughputDirection,
-    ): ThroughputResult {
-        if (server is UnreachableServer) {
-            return ThroughputResult(server.machine, false, Clock.System.now(), ThroughputMetrics(0, 0), ThroughputMetrics(0, 0))
-        }
-
+        groupId: String,
+        measurementId: String?,
+    ): Measurement {
         val dir = if (direction == ThroughputDirection.DOWNLOAD) "download" else "upload"
         Log.i(TAG, "running $dir test")
 
-        val throughputTestResult = try {
-            val test = ThroughputTest(server, 3, direction, measurementId)
+        val measurement = try {
+            val test = ThroughputTest(server, 3, direction, groupId, measurementId)
 
             coroutineScope {
                 launch {
@@ -173,21 +161,18 @@ object MeasurementManager {
             updateBytesPerSec(0.0)
         }
 
-        Log.i(TAG, "$dir test complete: $throughputTestResult")
-        return throughputTestResult
+        Log.i(TAG, "$dir test complete: $measurement")
+        return measurement
     }
 
     suspend fun runLatencyTest(
         client: OkHttpClient,
         server: Server,
+        groupId: String,
         measurementId: String?,
-    ): LatencyResult {
-        if (server is UnreachableServer) {
-            return LatencyResult(server.machine, false, Clock.System.now(), 0, 0, 0, 0, 0)
-        }
-
-        val latencyResult = try {
-            val test = LatencyTest(server, client, measurementId)
+    ): Measurement {
+        val measurement = try {
+            val test = LatencyTest(server, client, groupId, measurementId)
 
             coroutineScope {
                 launch {
@@ -203,8 +188,8 @@ object MeasurementManager {
             throw t
         }
 
-        Log.d(TAG, "got latency result: $latencyResult")
-        return latencyResult
+        Log.d(TAG, "got latency result: $measurement")
+        return measurement
     }
 
     suspend fun insertFccSubmission(fccSubmission: FccSubmission) {
@@ -225,107 +210,12 @@ object MeasurementManager {
         }
     }
 
-    suspend fun createMeasurement(
-        groupId: String,
-        cells: List<Cell>,
-        locations: List<Location>,
-        type: String,
-        throughputResult: ThroughputResult?,
-        latencyResult: LatencyResult?,
-    ): Measurement {
-        if (throughputResult == null && latencyResult == null) {
-            throw InvalidParameterException("either throughput or latency result must be provided")
-        }
-
-        val context = CellWatchApp.applicationContext()
-        val dataStore = LocalDataStore(context)
-        val deviceId = dataStore.getDeviceId.first()
-
-        val duration = if (throughputResult != null) {
-            (throughputResult.activeMetrics?.usecs ?: 0) + (throughputResult.warmupMetrics?.usecs ?: 0)
-        } else {
-            latencyResult?.usecs
-        }
-
-        val latencyData = if (latencyResult != null) {
-            LatencyData(
-                rtt = latencyResult.meanRtt,
-                jitter = latencyResult.jitter,
-                sent = latencyResult.packetsSent,
-                received = latencyResult.packetsReceived,
-                servers = listOf(latencyResult.targetHost),
-            )
-        } else {
-            null
-        }
-
-        val uploadDownloadData = if (throughputResult != null) {
-            UploadDownloadData(
-                warmupDuration = throughputResult.warmupMetrics?.usecs,
-                warmupBytes = throughputResult.warmupMetrics?.bytes,
-                duration = throughputResult.activeMetrics?.usecs,
-                bytes = throughputResult.activeMetrics?.bytes,
-                servers = listOf(throughputResult.targetHost),
-            )
-        } else {
-            null
-        }
-
-        val measurement = Measurement(
-            groupId = groupId,
-            deviceId = deviceId,
-            deviceManufacturer = deviceMod?.manufacturer,
-            deviceModel = deviceMod?.model,
-            deviceOsName = "Android",
-            deviceOsVersion = deviceMod?.osVersion,
-            appName = appMod?.appName,
-            provider = TelephonyInfoManager.getProviderName(),
-            type = type,
-            timestamp = throughputResult?.start ?: latencyResult?.start,
-            duration = duration,
-            scheduled = false,
-            success = throughputResult?.success ?: latencyResult?.success,
-            carrierAggregation = TelephonyInfoManager.isUsingCarrierAggregation(cells),
-            networkAvailable = TelephonyInfoManager.isNetworkAvailable(),
-            networkConnected = TelephonyInfoManager.isNetworkConnected(),
-            networkRoaming = TelephonyInfoManager.isNetworkRoaming(),
-            uploadDownloadData = uploadDownloadData,
-            latencyData = latencyData,
-            cells = cells,
-            locations = locations,
-            simMcc = TelephonyInfoManager.getSimMobileCountryCode(),
-            simMnc = TelephonyInfoManager.getSimMobileNetworkCode(),
-            netMcc = TelephonyInfoManager.getNetworkMobileCountryCode(),
-            netMnc = TelephonyInfoManager.getNetworkMobileNetworkCode(),
-        )
-
-        Log.d(TAG, "Insert ${measurement.type} measurement with id = ${measurement.id}")
-
+    suspend fun insertMeasurement(m: Measurement) {
         try {
-            measurementRepository.insertMeasurement(measurement)
+            measurementRepository.insertMeasurement(m)
         } catch (e: Exception) {
             Log.e(TAG, "Error inserting new measurement in MeasurementManager: ${e.message}")
             throw e
-        }
-
-        return measurement
-    }
-
-    suspend fun getLocation(): Location? = suspendCoroutine { continuation ->
-        val context = CellWatchApp.applicationContext()
-        var location: Location? = null //android.location.Location? = null
-
-        Locus.getCurrentLocation(context) { locationResult ->
-            locationResult.location?.let { /* Received location update */
-                location = Location.fromAndroidLocation(locationResult.location)
-                Log.d(TAG,"lat/lon: ${location?.lat} / ${location?.lon}")
-                Log.d(TAG,"accuracy: ${location?.accuracy}")
-                Log.d(TAG,"heading: ${location?.heading}")
-            }
-            locationResult.error?.let { /* Received error! */
-                Log.e(TAG,"Got a location services error!!! ${it.message}")
-            }
-            continuation.resume(location)
         }
     }
 
@@ -360,6 +250,4 @@ object MeasurementManager {
             return Pair(server, server)
         }
     }
-
-    private class UnreachableServer(host: String): Server(host, null, emptyMap())
 }

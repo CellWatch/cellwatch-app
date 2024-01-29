@@ -12,20 +12,25 @@ import kotlin.math.abs
 import kotlin.math.pow
 
 class LatencyTest(
-    server: Server,
+    private val server: Server,
     client: OkHttpClient? = null,
+    groupId: String,
     measurementId: String? = null,
-) {
+): MeasurementTest<LatencyResult>(groupId, "latency") {
     private val TAG = this::class.simpleName
     private val _rttChan = Channel<Int>(32)
     val msakTest = LatencyTest(server, client, measurementId)
 
     val rttChan: ReceiveChannel<Int> = _rttChan
 
-    suspend fun run(): LatencyResult {
+    override suspend fun measure(): LatencyResult {
         val fallbackStartTime = Clock.System.now()
 
         try {
+            if (server is UnreachableServer) {
+                return LatencyResult(server.machine, false, Clock.System.now(), 0, 0, 0, 0, 0)
+            }
+
             msakTest.start()
 
             msakTest.updatesChan.consumeEach {
