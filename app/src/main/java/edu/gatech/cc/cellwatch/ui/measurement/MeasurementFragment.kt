@@ -26,6 +26,8 @@ import edu.gatech.cc.cellwatch.domain.fcc.ThroughputResult
 import edu.gatech.cc.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import edu.gatech.cc.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import com.github.anastr.speedviewlib.SpeedView
+import edu.gatech.cc.cellwatch.data.model.Measurement
+import edu.gatech.cc.cellwatch.domain.fcc.ThroughputMetrics
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -120,11 +122,11 @@ class MeasurementFragment : Fragment() {
                         { binding.locateStatus.text = "finding server..." },
                         {r -> binding.locateStatus.text = "found server $r"},
                         { handleLatencyStart() },
-                        {r, l, c -> handleLatencyComplete(r, l, c)},
+                        { handleLatencyComplete(it) },
                         { handleDownloadStart() },
-                        {r, l, c -> handleThroughputComplete(binding.downloadContent, binding.downloadDetails, r, l, c)},
+                        { handleThroughputComplete(binding.downloadContent, binding.downloadDetails, it) },
                         { handleUploadStart() },
-                        {r, l, c -> handleThroughputComplete(binding.uploadContent, binding.uploadDetails, r, l, c)},
+                        { handleThroughputComplete(binding.uploadContent, binding.uploadDetails, it) },
                     )
                 } catch (e: Exception) {
                     Log.e(TAG, "unexpected error running test sequence", e)
@@ -268,22 +270,17 @@ class MeasurementFragment : Fragment() {
         binding.latencyContent.text = "running..."
     }
 
-    fun handleLatencyComplete(r: LatencyResult, l: List<Location>, c: List<Cell>) {
-        if (!r.success) {
-            binding.latencyContent.text = "failed"
-            return
-        }
-
-        binding.latencyContent.text = "success"
-        val mean = "Mean RTT: ${r.meanRtt / 1e3}ms"
-        val jitter = "Jitter: ${r.jitter / 1e3}ms"
-        val received = "Received: ${r.packetsReceived}/${r.packetsSent}"
-        val start = "Start time: ${r.start}"
-        val duration = "Duration: ${r.usecs / 1e6}s"
-        val target = "Target host: ${r.targetHost}"
-        val startLoc = "Start location: ${locationToString(l.getOrNull(0))}"
-        val endLoc = "End location: ${locationToString(l.getOrNull(1))}"
-        val cells = "Cells: ${c}"
+    fun handleLatencyComplete(m: Measurement) {
+        binding.latencyContent.text = if (m.success == true) "success" else "failed"
+        val mean = "Mean RTT: ${(m.latencyData?.rtt ?: 0) / 1e3}ms"
+        val jitter = "Jitter: ${(m.latencyData?.jitter ?: 0) / 1e3}ms"
+        val received = "Received: ${m.latencyData?.received}/${m.latencyData?.sent}"
+        val start = "Start time: ${m.timestamp}"
+        val duration = "Duration: ${(m.duration ?: 0) / 1e6}s"
+        val target = "Target host: ${m.latencyData?.servers}"
+        val startLoc = "Start location: ${locationToString(m.locations?.getOrNull(0))}"
+        val endLoc = "End location: ${locationToString(m.locations?.getOrNull(1))}"
+        val cells = "Cells: ${m.cells}"
         binding.latencyDetails.text = "$mean\n$jitter\n$received\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells"
     }
 
@@ -295,20 +292,16 @@ class MeasurementFragment : Fragment() {
         binding.uploadContent.text = "running..."
     }
 
-    fun handleThroughputComplete(content: TextView, details: TextView, r: ThroughputResult, l: List<Location>, c: List<Cell>) {
-        if (!r.success || r.activeMetrics == null) {
-            content.text = "failed"
-            return
-        }
-
-        content.text = "success"
-        val speed = "Speed: ${(r.activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()} Mbps"
-        val start = "Start time: ${r.start}"
-        val duration = "Duration: ${(r.activeMetrics.usecs + (r.warmupMetrics?.usecs ?: 0)) / 1e6}s"
-        val target = "Target host: ${r.targetHost}"
-        val startLoc = "Start location: ${locationToString(l.getOrNull(0))}"
-        val endLoc = "End location: ${locationToString(l.getOrNull(1))}"
-        val cells = "Cells: ${c}"
+    fun handleThroughputComplete(content: TextView, details: TextView, m: Measurement) {
+        content.text = if (m.success == true) "success" else "failed"
+        val activeMetrics = ThroughputMetrics(m.uploadDownloadData?.bytes ?: 0, m.uploadDownloadData?.duration ?: 0)
+        val speed = "Speed: ${(activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()} Mbps"
+        val start = "Start time: ${m.timestamp}"
+        val duration = "Duration: ${(m.duration ?: 0) / 1e6}s"
+        val target = "Target host: ${m.uploadDownloadData?.servers}"
+        val startLoc = "Start location: ${locationToString(m.locations?.getOrNull(0))}"
+        val endLoc = "End location: ${locationToString(m.locations?.getOrNull(1))}"
+        val cells = "Cells: ${m.cells}"
         details.text = "$speed\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells"
     }
 

@@ -15,12 +15,16 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
 class ThroughputTest(
-    server: Server,
+    private val server: Server,
     private val streams: Int,
     private val direction: ThroughputDirection,
+    groupId: String,
     measurementId: String? = null,
     private val maxWarmupTime: Long = 10000L,
     private val maxActiveTime: Long = 10000L,
+): MeasurementTest<ThroughputResult>(
+    groupId,
+    if (direction == ThroughputDirection.DOWNLOAD) "download" else "upload",
 ) {
     private val TAG = this::class.simpleName
     val msakTest = ThroughputTest(
@@ -48,8 +52,12 @@ class ThroughputTest(
 
     val metricsChan: ReceiveChannel<ThroughputMetrics> = _metricsChan
 
-    suspend fun run(): ThroughputResult {
+    override suspend fun measure(): ThroughputResult {
         try {
+            if (server is UnreachableServer) {
+                return ThroughputResult(server.machine, false, Clock.System.now(), ThroughputMetrics(0, 0), ThroughputMetrics(0, 0))
+            }
+
             msakTest.start()
             handler.postDelayed({ catchErrors { startActive() } }, maxWarmupTime)
             msakTest.updatesChan.consumeEach { handleUpdate(it) }

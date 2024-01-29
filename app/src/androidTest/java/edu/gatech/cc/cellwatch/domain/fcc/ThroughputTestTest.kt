@@ -35,7 +35,7 @@ class ThroughputTestTest {
             "ws:///$THROUGHPUT_UPLOAD_PATH" to "ws://0.0.0.0/$THROUGHPUT_UPLOAD_PATH",
         ))
 
-        test = ThroughputTest(server, 3, direction, maxWarmupTime = maxWarmupTime, maxActiveTime = maxActiveTime)
+        test = ThroughputTest(server, 3, direction, "", maxWarmupTime = maxWarmupTime, maxActiveTime = maxActiveTime)
         mockkObject(test.msakTest)
         test.msakTest.streams.forEach {
             mockkObject(it)
@@ -104,13 +104,13 @@ class ThroughputTestTest {
             ))
 
             val result = withTimeout(500) { defResult.await() }
-            assertEquals("0.0.0.0", result.targetHost)
+            assertEquals("0.0.0.0", result?.uploadDownloadData?.servers?.getOrNull(0))
             assertEquals(true, result.success)
-            assertEquals(true, result.start > preStart && result.start < postStart)
-            assertEquals(63L, result.warmupMetrics?.bytes)
-            assertBetween(175000, 225000, result.warmupMetrics?.usecs ?: 0)
-            assertEquals(300L, result.activeMetrics?.bytes)
-            assertBetween(275000, 325000, result.activeMetrics?.usecs ?: 0)
+            assertEquals(true, result.timestamp!! > preStart && result.timestamp!! < postStart)
+            assertEquals(63L, result.uploadDownloadData?.warmupBytes)
+            assertBetween(175000, 225000, result.uploadDownloadData?.warmupDuration ?: 0)
+            assertEquals(300L, result.uploadDownloadData?.bytes)
+            assertBetween(275000, 325000, result.uploadDownloadData?.duration ?: 0)
         }
     }
 
@@ -245,11 +245,11 @@ class ThroughputTestTest {
             ), waitForReceive = true)
 
             val result = defResult.await()
-            assertEquals(883L, result.warmupMetrics?.bytes)
-            assertEquals(500L, result.activeMetrics?.bytes)
+            assertEquals(883L, result.uploadDownloadData?.warmupBytes)
+            assertEquals(500L, result.uploadDownloadData?.bytes)
 
             // make sure warmup wasn't ended by its max duration
-            assertLessThan(1000000, result.warmupMetrics?.usecs ?: 1000000)
+            assertLessThan(1000000, result.uploadDownloadData?.warmupDuration ?: 1000000)
         }
     }
 
@@ -449,9 +449,9 @@ class ThroughputTestTest {
             ), waitForReceive = true)
 
             val result = defResult.await()
-            assertEquals(663L, result.warmupMetrics?.bytes)
-            assertLessThan(1000000, result.warmupMetrics?.usecs ?: 1000000)
-            assertEquals(600L, result.activeMetrics?.bytes)
+            assertEquals(663L, result.uploadDownloadData?.warmupBytes)
+            assertLessThan(1000000, result.uploadDownloadData?.warmupDuration ?: 1000000)
+            assertEquals(600L, result.uploadDownloadData?.bytes)
         }
     }
 
@@ -555,9 +555,9 @@ class ThroughputTestTest {
             ), fromServer = true, waitForReceive = true)
 
             val result = defResult.await()
-            assertEquals(663L, result.warmupMetrics?.bytes)
-            assertLessThan(1000000, result.warmupMetrics?.usecs ?: 1000000)
-            assertEquals(600L, result.activeMetrics?.bytes)
+            assertEquals(663L, result.uploadDownloadData?.warmupBytes)
+            assertLessThan(1000000, result.uploadDownloadData?.warmupDuration ?: 1000000)
+            assertEquals(600L, result.uploadDownloadData?.bytes)
         }
     }
 }
