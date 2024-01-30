@@ -26,8 +26,9 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
 
     suspend fun run(): Measurement {
         val beginLocation = getLocation()
-        val cells = TelephonyInfoManager.getCells()
-        val result = measure()
+        val cells = mutableListOf(*(TelephonyInfoManager.getCells()?.toTypedArray() ?: arrayOf()))
+        val stopWatching = TelephonyInfoManager.watchCells { cells.addAll(it) }
+        val result = try { measure() } finally { stopWatching() }
         val endLocation = getLocation()
 
         if (type == "latency" && result !is LatencyResult) {
