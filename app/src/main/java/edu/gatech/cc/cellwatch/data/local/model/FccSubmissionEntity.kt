@@ -2,13 +2,13 @@ package edu.gatech.cc.cellwatch.data.local.model
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import kotlinx.datetime.Instant
 import java.util.UUID
 
-//@Entity(indices = [Index(value = ["groupId"], unique = true)])
 @Entity
 data class FccSubmissionEntity(
     // AKA groupId

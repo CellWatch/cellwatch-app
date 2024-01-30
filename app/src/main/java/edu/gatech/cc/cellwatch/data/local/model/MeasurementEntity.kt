@@ -9,16 +9,7 @@ import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import java.util.UUID
 
-@Entity(
-    foreignKeys = [
-        ForeignKey(entity = FccSubmissionEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["groupId"],
-            onDelete = ForeignKey.SET_NULL,
-            onUpdate = ForeignKey.CASCADE
-        )
-    ]
-)
+@Entity
 data class MeasurementEntity(
     @PrimaryKey
     var id: String = UUID.randomUUID().toString(),
