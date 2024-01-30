@@ -17,7 +17,6 @@ import edu.gatech.cc.cellwatch.domain.msak.locate.LocateManager
 import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputDirection
 import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
-import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
 import io.ktor.http.Url
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.consumeEach
@@ -47,8 +46,7 @@ object MeasurementManager {
 
 //    private lateinit var telephonyInfoManager: TelephonyInfoManager
 
-    private var deviceMod: EasyDeviceMod? = EasyDeviceMod(CellWatchApp.applicationContext())
-    private var appMod: EasyAppMod? = EasyAppMod(CellWatchApp.applicationContext())
+    private var appMod: EasyAppMod = EasyAppMod(CellWatchApp.applicationContext())
 
     fun updateBytesPerSec(newBytesPerSec: Double) {
         _bytesPerSecState.update { newBytesPerSec }
@@ -75,22 +73,6 @@ object MeasurementManager {
         val groupId: String = UUID.randomUUID().toString()
         val dataStore = LocalDataStore(CellWatchApp.applicationContext())
         val deviceId = dataStore.getDeviceId.first()
-
-        val fccSubmission = FccSubmission(
-            id = groupId,
-            deviceId = deviceId,
-            deviceTimestamp = Clock.System.now(),
-            inVehicle = false,
-            externalAntenna = false,
-            deviceType = "Android",
-            deviceManufacturer = deviceMod?.manufacturer,
-            deviceModel = deviceMod?.model,
-            deviceOsName = "Android ${deviceMod?.osVersion}",
-            appName = appMod?.appName,
-            appVersion = "1.0",
-            provider = TelephonyInfoManager.getProviderName()
-        )
-        insertFccSubmission(fccSubmission)
 
         val client = OkHttpClient.Builder().build()
 
@@ -119,15 +101,28 @@ object MeasurementManager {
         insertMeasurement(uploadMeasurement)
         onUploadComplete(uploadMeasurement)
 
-        fccSubmission.simCountryCode = latencyMeasurement.simMcc ?: downloadMeasurement.simMcc ?: uploadMeasurement.simMcc
-        fccSubmission.simNetworkCode = latencyMeasurement.simMnc ?: downloadMeasurement.simMnc ?: uploadMeasurement.simMnc
-        fccSubmission.netCountryCode = latencyMeasurement.netMcc ?: downloadMeasurement.netMcc ?: uploadMeasurement.netMcc
-        fccSubmission.netNetworkCode = latencyMeasurement.netMnc ?: downloadMeasurement.netMnc ?: uploadMeasurement.netMnc
+        val fccSubmission = FccSubmission(
+            id = groupId,
+            deviceId = latencyMeasurement.deviceId ?: downloadMeasurement.deviceId ?: uploadMeasurement.deviceId,
+            deviceTimestamp = Clock.System.now(),
+            inVehicle = false,
+            externalAntenna = false,
+            deviceType = "Android",
+            deviceManufacturer = latencyMeasurement.deviceManufacturer ?: downloadMeasurement.deviceManufacturer ?: uploadMeasurement.deviceManufacturer,
+            deviceModel = latencyMeasurement.deviceModel ?: downloadMeasurement.deviceModel ?: uploadMeasurement.deviceModel,
+            deviceOsName = "Android ${latencyMeasurement.deviceOsVersion ?: downloadMeasurement.deviceOsVersion ?: uploadMeasurement.deviceOsVersion}",
+            appName = latencyMeasurement.appName ?: downloadMeasurement.appName ?: uploadMeasurement.appName,
+            appVersion = appMod.appVersion,
+            provider = TelephonyInfoManager.getProviderName(),
+            simCountryCode = latencyMeasurement.simMcc ?: downloadMeasurement.simMcc ?: uploadMeasurement.simMcc,
+            simNetworkCode = latencyMeasurement.simMnc ?: downloadMeasurement.simMnc ?: uploadMeasurement.simMnc,
+            netCountryCode = latencyMeasurement.netMcc ?: downloadMeasurement.netMcc ?: uploadMeasurement.netMcc,
+            netNetworkCode = latencyMeasurement.netMnc ?: downloadMeasurement.netMnc ?: uploadMeasurement.netMnc,
+        )
+        insertFccSubmission(fccSubmission)
 
-        updateFccSubmission(fccSubmission)
-
-        fccSubmissionRepository.uploadFccSubmissions()
         measurementRepository.uploadMeasurements()
+        fccSubmissionRepository.uploadFccSubmissions()
     }
 
     suspend fun runThroughputTest(
@@ -197,15 +192,6 @@ object MeasurementManager {
             fccSubmissionRepository.insertFccSubmission(fccSubmission)
         } catch (e: Exception) {
             Log.e(TAG, "Error inserting new FccSubmission in MeasurementManager: ${e.message}")
-            throw e
-        }
-    }
-
-    suspend fun updateFccSubmission(fccSubmission: FccSubmission) {
-        try {
-            fccSubmissionRepository.updateFccSubmission(fccSubmission)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating FccSubmission in MeasurementManager: ${e.message}")
             throw e
         }
     }
