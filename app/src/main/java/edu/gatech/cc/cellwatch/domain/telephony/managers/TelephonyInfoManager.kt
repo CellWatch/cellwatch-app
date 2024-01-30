@@ -159,40 +159,70 @@ object TelephonyInfoManager {
         return result
     }
 
-    fun getActiveNetworkSubType(cells: List<CellInfo>): String? {
+    fun getCellularDataNetworkType(): Int? {
         if (!PermissionManager.checkPermission()) return null
 
-        // ConnectionManager instance
         val connectivityManager = appContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         val currentNetwork = connectivityManager.activeNetwork
         val networkCapabilities = connectivityManager.getNetworkCapabilities(currentNetwork)
 
-        if (networkCapabilities!!.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
-            // must be one of 1X, EVDO, WCDMA, GSM, HSPA, HSPA+, LTE, NRSA, NRNSA
-            return when (Objects.requireNonNull(telephonyManager).dataNetworkType) {
-                TelephonyManager.NETWORK_TYPE_1xRTT -> "1X"
-                TelephonyManager.NETWORK_TYPE_EHRPD -> "EVDO"
-                TelephonyManager.NETWORK_TYPE_EVDO_0 -> "EVDO"
-                TelephonyManager.NETWORK_TYPE_EVDO_A -> "EVDO"
-                TelephonyManager.NETWORK_TYPE_EVDO_B -> "EVDO"
-                TelephonyManager.NETWORK_TYPE_CDMA -> "EVDO"
-                TelephonyManager.NETWORK_TYPE_UMTS -> "WCDMA"
-                TelephonyManager.NETWORK_TYPE_GPRS -> "GSM"
-                TelephonyManager.NETWORK_TYPE_EDGE -> "GSM"
-                TelephonyManager.NETWORK_TYPE_TD_SCDMA -> "GSM"
-                TelephonyManager.NETWORK_TYPE_GSM -> "GSM"
-                TelephonyManager.NETWORK_TYPE_HSDPA -> "HSPA"
-                TelephonyManager.NETWORK_TYPE_HSUPA -> "HSPA"
-                TelephonyManager.NETWORK_TYPE_HSPA -> "HSPA"
-                TelephonyManager.NETWORK_TYPE_HSPAP -> "HSPA+"
-                TelephonyManager.NETWORK_TYPE_LTE -> "LTE"
-                TelephonyManager.NETWORK_TYPE_NR -> if (isNRNonStandAlone(cells)) "NRNSA" else "NRSA"
-                TelephonyManager.NETWORK_TYPE_IWLAN -> null
-                TelephonyManager.NETWORK_TYPE_IDEN -> null
-                else -> null
-            }
+        if (networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) != true) {
+            return null
         }
-        return null
+
+        return telephonyManager.dataNetworkType
+    }
+
+    fun getActiveNetworkSubType(cells: List<CellInfo>): String? {
+        // must be one of 1X, EVDO, WCDMA, GSM, HSPA, HSPA+, LTE, NRSA, NRNSA
+        return when (getCellularDataNetworkType()) {
+            TelephonyManager.NETWORK_TYPE_1xRTT -> "1X"
+            TelephonyManager.NETWORK_TYPE_EHRPD -> "EVDO"
+            TelephonyManager.NETWORK_TYPE_EVDO_0 -> "EVDO"
+            TelephonyManager.NETWORK_TYPE_EVDO_A -> "EVDO"
+            TelephonyManager.NETWORK_TYPE_EVDO_B -> "EVDO"
+            TelephonyManager.NETWORK_TYPE_CDMA -> "EVDO"
+            TelephonyManager.NETWORK_TYPE_UMTS -> "WCDMA"
+            TelephonyManager.NETWORK_TYPE_GPRS -> "GSM"
+            TelephonyManager.NETWORK_TYPE_EDGE -> "GSM"
+            TelephonyManager.NETWORK_TYPE_TD_SCDMA -> "GSM"
+            TelephonyManager.NETWORK_TYPE_GSM -> "GSM"
+            TelephonyManager.NETWORK_TYPE_HSDPA -> "HSPA"
+            TelephonyManager.NETWORK_TYPE_HSUPA -> "HSPA"
+            TelephonyManager.NETWORK_TYPE_HSPA -> "HSPA"
+            TelephonyManager.NETWORK_TYPE_HSPAP -> "HSPA+"
+            TelephonyManager.NETWORK_TYPE_LTE -> "LTE"
+            TelephonyManager.NETWORK_TYPE_NR -> if (isNRNonStandAlone(cells)) "NRNSA" else "NRSA"
+            TelephonyManager.NETWORK_TYPE_IWLAN -> null
+            TelephonyManager.NETWORK_TYPE_IDEN -> null
+            else -> null
+        }
+    }
+
+    fun getActiveNetworkGeneration(): String? {
+        // based on https://stackoverflow.com/questions/9283765/how-to-determine-if-network-type-is-2g-3g-or-4g
+        return when (getCellularDataNetworkType()) {
+            TelephonyManager.NETWORK_TYPE_GPRS,
+            TelephonyManager.NETWORK_TYPE_EDGE,
+            TelephonyManager.NETWORK_TYPE_CDMA,
+            TelephonyManager.NETWORK_TYPE_1xRTT,
+            TelephonyManager.NETWORK_TYPE_IDEN,
+            TelephonyManager.NETWORK_TYPE_GSM -> "2G"
+            TelephonyManager.NETWORK_TYPE_UMTS,
+            TelephonyManager.NETWORK_TYPE_EVDO_0,
+            TelephonyManager.NETWORK_TYPE_EVDO_A,
+            TelephonyManager.NETWORK_TYPE_HSDPA,
+            TelephonyManager.NETWORK_TYPE_HSUPA,
+            TelephonyManager.NETWORK_TYPE_HSPA,
+            TelephonyManager.NETWORK_TYPE_EVDO_B,
+            TelephonyManager.NETWORK_TYPE_EHRPD,
+            TelephonyManager.NETWORK_TYPE_HSPAP,
+            TelephonyManager.NETWORK_TYPE_TD_SCDMA -> "3G"
+            TelephonyManager.NETWORK_TYPE_LTE -> "4G"
+            TelephonyManager.NETWORK_TYPE_NR -> "5G"
+            null -> null
+            else -> return "Unknown"
+        }
     }
 
     fun isNRNonStandAlone(cells: List<CellInfo>): Boolean {

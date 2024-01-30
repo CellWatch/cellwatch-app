@@ -27,7 +27,11 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
     suspend fun run(): Measurement {
         val beginLocation = getLocation()
         val cells = mutableListOf(*(TelephonyInfoManager.getCells()?.toTypedArray() ?: arrayOf()))
-        val stopWatching = TelephonyInfoManager.watchCells { cells.addAll(it) }
+        val generations = mutableListOf(TelephonyInfoManager.getActiveNetworkGeneration())
+        val stopWatching = TelephonyInfoManager.watchCells {
+            cells.addAll(it)
+            generations.add(TelephonyInfoManager.getActiveNetworkGeneration())
+        }
         val result = try { measure() } finally { stopWatching() }
         val endLocation = getLocation()
 
@@ -42,6 +46,18 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
         val context = CellWatchApp.applicationContext()
         val deviceMod = EasyDeviceMod(context)
         val appMod = EasyAppMod(context)
+
+        val resultSuccess = when (result) {
+            is ThroughputResult -> result.success
+            is LatencyResult -> result.success
+            else -> null
+        }
+
+        // The FCC requires the test to stay on the same technology generation to be successful.
+        val success = when {
+            !generations.all { it == generations.first() } -> false
+            else -> resultSuccess
+        }
 
         return Measurement(
             groupId = groupId,
@@ -74,11 +90,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
                 is LatencyResult -> result.usecs
                 else -> null
             },
-            success = when (result) {
-                is ThroughputResult -> result.success
-                is LatencyResult -> result.success
-                else -> null
-            },
+            success = success,
             uploadDownloadData = if (result is ThroughputResult) {
                 UploadDownloadData(
                     warmupDuration = result.warmupMetrics.usecs,
