@@ -27,21 +27,17 @@ import android.telephony.CellSignalStrengthCdma
 import android.telephony.CellSignalStrengthGsm
 import android.telephony.CellSignalStrengthLte
 import android.telephony.CellSignalStrengthNr
+import android.telephony.PhoneStateListener
+import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.text.TextUtils
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.PermissionManager
 import edu.gatech.cc.cellwatch.data.model.Cell
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
 import kotlinx.datetime.minus
-import java.net.URL
 import java.util.Objects
 
 
@@ -211,11 +207,16 @@ object TelephonyInfoManager {
         if (!PermissionManager.checkPermission()) return null
 
         val cellInfoList: List<CellInfo> = Objects.requireNonNull(telephonyManager).allCellInfo
-        val activeNetworkSubtype = getActiveNetworkSubType(cellInfoList)
         Log.d(TAG, "cellInfoList length = ${cellInfoList.size}")
+
+        return getCells(cellInfoList)
+    }
+
+    fun getCells(cellInfos: List<CellInfo>): List<Cell> {
+        val activeNetworkSubtype = getActiveNetworkSubType(cellInfos)
         val cells = mutableListOf<Cell>()
 
-        for (cellInfo in cellInfoList) {
+        for (cellInfo in cellInfos) {
             val cellSignalStrength = when (cellInfo) {
                 is CellInfoCdma -> cellInfo.cellSignalStrength
                 is CellInfoGsm -> cellInfo.cellSignalStrength
@@ -254,7 +255,7 @@ object TelephonyInfoManager {
                     is CellInfoWcdma -> "WCDMA"
                     is CellInfoGsm -> "GSM"
                     is CellInfoLte -> "LTE"
-                    is CellInfoNr -> if (isNRNonStandAlone(cellInfoList)) "NRNSA" else "NRSA"
+                    is CellInfoNr -> if (isNRNonStandAlone(cellInfos)) "NRNSA" else "NRSA"
                     else -> null
                 }
             }
@@ -395,5 +396,29 @@ object TelephonyInfoManager {
 
     fun isNetworkRoaming(): Boolean {
         return telephonyManager.isNetworkRoaming
+    }
+
+    // returns function to stop watching
+    fun watchCells(onChange: (List<Cell>) -> Unit): () -> Unit {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val callback = object: TelephonyCallback(), TelephonyCallback.CellInfoListener {
+                override fun onCellInfoChanged(cellInfos: MutableList<CellInfo>) {
+                    onChange(getCells(cellInfos))
+                }
+            }
+
+            telephonyManager.registerTelephonyCallback(appContext.mainExecutor, callback)
+            return fun() { telephonyManager.unregisterTelephonyCallback(callback) }
+        } else {
+            val listener = object: PhoneStateListener() {
+                override fun onCellInfoChanged(cellInfos: MutableList<CellInfo>) {
+                    if (!PermissionManager.checkPermission()) return
+                    super.onCellInfoChanged(cellInfos)
+                    onChange(getCells(cellInfos))
+                }
+            }
+            telephonyManager.listen(listener, PhoneStateListener.LISTEN_CELL_INFO)
+            return fun() { telephonyManager.listen(listener, PhoneStateListener.LISTEN_NONE) }
+        }
     }
 }
