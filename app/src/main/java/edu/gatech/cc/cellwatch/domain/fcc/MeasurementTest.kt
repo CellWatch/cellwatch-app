@@ -27,6 +27,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
     suspend fun run(): Measurement {
         val beginLocation = getLocation()
         val connectionType = TelephonyInfoManager.getConnectionType()
+        val cellularDataEnabled = TelephonyInfoManager.isCellularDataEnabled()
         val cells = mutableListOf(*(TelephonyInfoManager.getCells()?.toTypedArray() ?: arrayOf()))
         val generations = mutableListOf(TelephonyInfoManager.getActiveNetworkGeneration())
         val stopWatching = TelephonyInfoManager.watchCells {
@@ -111,6 +112,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
                 )
             } else null,
             connectionType = connectionType,
+            cellularDataEnabled = cellularDataEnabled,
         )
     }
 

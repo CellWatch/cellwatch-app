@@ -69,4 +69,5 @@ fun MeasurementWithData.asExternalModel() = Measurement(
     cells = cells?.map(CellEntity::asExternalModel),
     locations = locations?.map(LocationEntity::asExternalModel),
     connectionType = measurement.connectionType,
+    cellularDataEnabled = measurement.cellularDataEnabled,
 )

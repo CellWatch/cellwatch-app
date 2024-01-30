@@ -448,4 +448,9 @@ object TelephonyInfoManager {
             return fun() { telephonyManager.listen(listener, PhoneStateListener.LISTEN_NONE) }
         }
     }
+
+    fun isCellularDataEnabled(): Boolean? {
+        if (!PermissionManager.checkPermission()) return null
+        return telephonyManager.isDataEnabled
+    }
 }

@@ -80,6 +80,9 @@ data class NetworkMeasurement(
     @SerialName("connection_type")
     val connectionType: NetworkConnectionType?,
 
+    @SerialName("cellular_data_enabled")
+    val cellularDataEnabled: Boolean?,
+
     @SerialName("extra_data")
     val extraData: String? = null,
 
@@ -150,4 +153,5 @@ fun NetworkMeasurement.asExternalModel() = Measurement(
     locations?.map { location -> location.asExternalModel() },
     cells?.map { cell -> cell.asExternalModel() },
     connectionType,
+    cellularDataEnabled,
 )
