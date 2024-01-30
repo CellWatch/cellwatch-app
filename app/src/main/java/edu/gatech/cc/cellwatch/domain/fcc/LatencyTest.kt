@@ -42,8 +42,18 @@ class LatencyTest(
                 }
             }
 
-            val result = msakTest.result
             val error = msakTest.error
+            val result = when (error) {
+                null,
+                is LatencyTest.AuthorizeFailureExecption,
+                is LatencyTest.ResultFailureException,
+                is LatencyTest.NoAddrException,
+                is LatencyTest.InitialPacketTimeoutException -> msakTest.result
+
+                // Throw non-network related errors. These indicate that something went wrong that
+                // invalidates the test.
+                else -> throw error
+            }
 
             val rtts = result?.RoundTrips?.filter { !it.Lost }?.map { it.RTT }
             val meanRTT = rtts?.average()
@@ -56,9 +66,14 @@ class LatencyTest(
             val startTime = msakTest.startTime ?: fallbackStartTime
             val endTime = msakTest.endTime ?: Clock.System.now()
 
+            // According to the FCC, a test is successful if it transmitted/received >0 packets,
+            // even if it ends prematurely, for example because of a network error. We already
+            // threw non-network errors above.
+            val success = (result?.PacketsReceived ?: 0) > 0
+
             return LatencyResult(
                 msakTest.serverHost,
-                error == null,
+                success,
                 startTime,
                 (endTime - startTime).inWholeMicroseconds,
                 meanRTT?.toInt() ?: 0,

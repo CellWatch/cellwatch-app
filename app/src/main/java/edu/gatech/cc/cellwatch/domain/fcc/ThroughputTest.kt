@@ -5,6 +5,7 @@ import android.os.Looper
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.domain.msak.Server
 import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputDirection
+import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputStream
 import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputTest
 import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputUpdate
 import kotlinx.coroutines.CancellationException
@@ -80,13 +81,24 @@ class ThroughputTest(
                 )
             } else ThroughputMetrics(0, 0)
 
-            return ThroughputResult(
-                msakTest.serverHost,
-                error == null && msakTest.streams.all { it.error == null } && activeMetrics != null,
-                start,
-                warmupMetrics,
-                activeMetrics,
-            )
+            // According to the FCC, a test is successful if it transmitted >0 bytes of data, even
+            // if it ends prematurely, for example because of a network error. Throw non-network
+            // related errors; these indicate that something went wrong that invalidates the test.
+            val success = when(val error = error) {
+                null -> true
+                is MissingWarmupUpdateException -> false
+                else -> throw error
+            } && msakTest.streams.all {
+                when (val error = it.error) {
+                    null -> true
+                    is ThroughputStream.UploadDataException,
+                    is ThroughputStream.UnexpectedCloseException,
+                    is ThroughputStream.FailureException -> true
+                    else -> throw error
+                }
+            } && activeMetrics.bytesPerSec > 0
+
+            return ThroughputResult(msakTest.serverHost, success, start, warmupMetrics, activeMetrics)
         } catch (c: CancellationException) {
             Log.i(TAG, "throughput test cancelled")
             msakTest.stop()
