@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/beige"
     >
 
 
@@ -12,8 +9,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingLeft="15sp"
-        android:paddingRight="15sp">
+        android:paddingLeft="20sp"
+        android:paddingRight="30sp">
 
         <TextView
             android:id="@+id/label"
@@ -26,12 +23,15 @@
             android:textColor="@color/cwheaderblue"
             android:textSize="45dp"
             android:textStyle="bold" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="horizontal"
-            android:paddingTop="15sp">
+            android:paddingTop="15sp"
+            android:paddingBottom="15sp">
+
             <TextView
                 android:id="@+id/textView3"
                 android:layout_width="wrap_content"
@@ -44,63 +44,81 @@
 
             <ImageButton
                 android:id="@+id/settingsEditButton"
-                android:layout_width="wrap_content"
+                android:layout_width="54dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="@color/beige"
                 android:layout_gravity="right|bottom"
-                app:srcCompat="@drawable/edit" />
+                android:layout_weight="1"
+                android:background="@color/white"
+                android:src="@drawable/edit" />
 
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:orientation="horizontal"
             android:paddingTop="15sp">
 
             <TextView
-                android:id="@+id/textView4"
+                android:id="@+id/nameTV"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/name"
+                android:layout_gravity="bottom"
+                android:text="Name"
                 android:textColor="@color/cwheaderblue"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/textView5"
-                android:layout_width="wrap_content"
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="250dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="TextView" />
+                android:layout_gravity="right|bottom"
+                android:layout_weight="1">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/nameEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@color/white"
+                    android:enabled="false"
+                    />
+            </com.google.android.material.textfield.TextInputLayout>
+
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:orientation="horizontal"
             android:paddingTop="15sp">
 
             <TextView
-                android:id="@+id/textView12"
+                android:id="@+id/emailTV"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/email"
+                android:layout_gravity="bottom"
+                android:text="Email"
                 android:textColor="@color/cwheaderblue"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/textView13"
-                android:layout_width="wrap_content"
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="250dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="TextView" />
+                android:layout_gravity="right|bottom"
+                android:layout_weight="1">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/emailEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@color/white"
+                    android:enabled="false"
+                    />
+            </com.google.android.material.textfield.TextInputLayout>
+
         </LinearLayout>
 
         <LinearLayout
@@ -110,37 +128,68 @@
             android:paddingTop="15sp">
 
             <TextView
-                android:id="@+id/textView14"
+                android:id="@+id/phoneTV"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_gravity="bottom"
                 android:text="@string/phone"
                 android:textColor="@color/cwheaderblue"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/textView15"
-                android:layout_width="wrap_content"
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="250dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="TextView" />
+                android:layout_gravity="right|bottom"
+                android:layout_weight="1">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/phoneEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@color/white"
+                    android:enabled="false"
+                     />
+            </com.google.android.material.textfield.TextInputLayout>
+
         </LinearLayout>
 
         <TextView
             android:id="@+id/textView6"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:paddingTop="25sp"
             android:text="@string/lang"
             android:textColor="@color/cwheaderblue"
             android:textSize="20sp"
-            android:textStyle="bold"
-            android:paddingTop="25sp"/>
+            android:textStyle="bold" />
 
-        <Spinner
-            android:id="@+id/lang_spinner"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="30sp"
+            android:layout_weight="1"
+            android:background="@drawable/spinner_border"
+            android:orientation="horizontal">
+            <Spinner
+                android:id="@+id/lang_spinner"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center"
+                android:background="@android:color/white"
+                android:gravity="center"
+                android:spinnerMode="dropdown" />
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentRight="true"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center"
+                android:src="@android:drawable/arrow_down_float"
+                />
+        </RelativeLayout>
 
         <TextView
             android:id="@+id/textView7"
@@ -151,10 +200,44 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
-        <Spinner
-            android:id="@+id/data_share_spinner"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-    </LinearLayout>
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="30sp"
+            android:layout_weight="1"
+            android:background="@drawable/spinner_border"
+            android:orientation="horizontal"
+            >
 
+            <Spinner
+                android:id="@+id/data_share_spinner"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center"
+                android:background="@android:color/white"
+                android:gravity="center"
+                android:spinnerMode="dropdown" />
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentRight="true"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center"
+                android:src="@android:drawable/arrow_down_float"
+                />
+        </RelativeLayout>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/submit_edit"
+            android:layout_width="238dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="40sp"
+            android:background="@color/cwbuttongreen"
+            android:text="Apply Changes"
+            android:textColor="@color/white"
+            android:textSize="20sp"
+            android:visibility="gone"/>
+    </LinearLayout>
 </FrameLayout>

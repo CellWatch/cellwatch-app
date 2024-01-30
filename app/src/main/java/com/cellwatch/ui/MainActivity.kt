@@ -1,122 +1,89 @@
 package com.cellwatch.ui
 
-import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.view.View
+import android.widget.Button
 import android.widget.ImageButton
-import android.widget.ImageView
-import androidx.activity.viewModels
+import android.widget.Toolbar
 import androidx.appcompat.app.AppCompatActivity
-import androidx.navigation.findNavController
-import androidx.navigation.ui.AppBarConfiguration
-import androidx.navigation.ui.navigateUp
-import androidx.navigation.ui.setupActionBarWithNavController
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.core.view.GravityCompat
+import androidx.fragment.app.Fragment
 import com.cellwatch.R
-import com.cellwatch.data.datastore.LocalDataStore
-import com.cellwatch.databinding.ActivityMainBinding
-import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
-import com.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import org.conscrypt.Conscrypt
-import java.security.Security
-import java.util.UUID
+import com.cellwatch.ui.map.*
 
-/*
-Landing page if the user has been onboarded.
- */
 class MainActivity : AppCompatActivity() {
-    private val TAG = "MainActivity"
-
-    private lateinit var appBarConfiguration: AppBarConfiguration
-    private lateinit var binding: ActivityMainBinding
-
-    val measurementRepository = com.cellwatch.CellWatchApp.measurementRepository
-
-    private val measurementViewModel: MeasurementViewModel by viewModels() {
-        MeasurementViewModelFactory(com.cellwatch.CellWatchApp.measurementRepository)
-    }
-//    private lateinit var measurementViewModel: MeasurementViewModel
-//    private lateinit var measurementViewModelFactory: MeasurementViewModelFactory
-
-//    private val measurementViewModel: MeasurementViewModel by viewModels<MeasurementViewModel> {
-//        MeasurementViewModel.Factory
-//    }
-//    private val measurementViewModel: MeasurementViewModel by viewModels {
-//        MeasurementViewModelFactory(CellWatchApp.measurementRepository)
-////        MeasurementViewModelFactory((application as CellWatchApp).measurementRepository)
-//    }
-    
+    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-        try {
-            // Using Conscrypt somehow makes the CountableSocket work with TLS sockets --
-            // it doesn't otherwise. I found a project on GitHub trying to count socket bytes
-            // (https://github.com/dave-r12/okhttp-byte-counter) and then found a linked
-            // issue (https://github.com/google/conscrypt/issues/65) that suggests Conscrypt
-            // might eventually solve the problem but hasn't yet. I guess it has now...
-            Security.insertProviderAt(Conscrypt.newProvider(), 1)
-
-            val dataStore = LocalDataStore(this)
-
-            // Create new deviceId on first run of app
-            var deviceId = runBlocking {
-                dataStore.getDeviceId.first()
-            }
-
-            // If there is no deviceId stored, assume first run of app and create a new, unique ID
-            if (deviceId == "") {
-                runBlocking {
-                    deviceId = UUID.randomUUID().toString()
-                    dataStore.saveDeviceId(deviceId)
-                }
-            }
-
-            binding = ActivityMainBinding.inflate(layoutInflater)
-            setContentView(binding.root)
-        } catch (e: Exception) {
-            Log.e(TAG, "onCreate exception:", e)
-            throw e
-        }
-
-//        val connectionType = TelephonyInfoManager.getConnectionType()
-//        run {
-//            Toast.makeText(applicationContext, "Connection type is ${connectionType.toString()}",
-//                Toast.LENGTH_SHORT).show()
-//        }
-
-//        measurementViewModelFactory = MeasurementViewModelFactory(CellWatchApp.measurementRepository)
-//        measurementViewModelFactory = MeasurementViewModelFactory((application as CellWatchApp).measurementRepository)
-//        measurementViewModel = ViewModelProvider(this, measurementViewModelFactory).get(MeasurementViewModel::class.java)
-
-        // Add an observer on the LiveData returned by getMeasurementsFlow.
-        // The onChanged() method fires when the observed data changes and the activity is
-        // in the foreground.
-//        measurementViewModel.allMeasurements.observe(this) { measurements ->
-//            // Update the cached copy of the measurements in the adapter.
-//            measurements.let {
-//                // attempt to upload measurements
-//            }
-//        }
-
+        toolbar = findViewById(R.id.toolbar)
+        createDrawerLayout();
     }
 
 
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "MainActivity.onResume: uploadMeasurements")
-        val globalRoutine = GlobalScope.launch {
-            try {
-                measurementRepository.uploadMeasurements()
-            } catch (err: Exception) {
-                Log.e(TAG, "Error in MainActivity.onResume: uploadMeasurement error ${err.message}")
+    private fun createDrawerLayout() {
+        drawerLayout = findViewById(R.id.drawer_layout)
+
+        // Hamburger Button functionality
+        val hamburgerButton: ImageButton = findViewById(R.id.sideMenuButton)
+        hamburgerButton.setOnClickListener {
+            if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                drawerLayout.closeDrawer(GravityCompat.START)
+            } else {
+                drawerLayout.openDrawer(GravityCompat.START)
             }
+        }
+
+        // Exit button functionality
+        val exitButton: ImageButton = findViewById(R.id.menuCloseButton)
+        exitButton.setOnClickListener {
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+
+        // Map button functionality
+        val mapButton: Button = findViewById(R.id.mapButton)
+        mapButton.setOnClickListener {
+            replaceFragment(MapFragment())
+        }
+
+        // Measure button functionality
+        val measureButton: Button = findViewById(R.id.menuMeasureButton)
+        measureButton.setOnClickListener {
+            replaceFragment(MeasureFragment())
+        }
+
+        // Measurement History button functionality
+        val historyButton: Button = findViewById(R.id.historyButton)
+        historyButton.setOnClickListener {
+            replaceFragment(MeasureHistoryFragment())
+        }
+
+        // Settings button functionality
+        val settingsButton: Button = findViewById(R.id.settingsButton)
+        settingsButton.setOnClickListener {
+            replaceFragment(SettingsFragment())
+        }
+
+        // Help button functionality
+        val helpButton: Button = findViewById(R.id.helpButton)
+        helpButton.setOnClickListener {
+            //TODO redirect to a web page
         }
     }
 
+    private fun replaceFragment(fragment: Fragment) {
+        if (fragment is MapFragment) {
+            toolbar.visibility = View.GONE
+        } else {
+            toolbar.visibility = View.VISIBLE
+        }
 
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .commit()
+        drawerLayout.closeDrawer(GravityCompat.START)
+    }
 }

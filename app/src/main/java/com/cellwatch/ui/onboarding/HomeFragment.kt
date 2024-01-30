@@ -21,7 +21,7 @@ class HomeFragment : Fragment() {
     private lateinit var moreInfoButton: Button
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        val rootView = inflater.inflate(R.layout.home_fragment, container, false)
+        val rootView = inflater.inflate(R.layout.fragment_home, container, false)
 
         langSpinner = rootView.findViewById(R.id.lang_spinner)
         val langArray = resources.getStringArray(R.array.language_options_array)

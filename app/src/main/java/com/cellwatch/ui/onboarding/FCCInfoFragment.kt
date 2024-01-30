@@ -58,6 +58,7 @@ class FCCInfoFragment : Fragment() {
     }
 
     private fun validateInputs(): Boolean {
+        //TODO Needed?
         val name = etName.text.toString()
         val phone = etPhone.text.toString()
         val email = etEmail.text.toString()
