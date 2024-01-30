@@ -45,6 +45,7 @@ data class Measurement(
     var locations: List<Location>? = null,
     var cells: List<Cell>? = null,
     val connectionType: NetworkConnectionType?,
+    val cellularDataEnabled: Boolean?,
 )
 
 fun Measurement.asEntity() = MeasurementEntity(
@@ -73,6 +74,7 @@ fun Measurement.asEntity() = MeasurementEntity(
     netMcc,
     netMnc,
     connectionType,
+    cellularDataEnabled,
     extraData,
     createdOn,
     updatedOn
@@ -105,6 +107,7 @@ fun Measurement.asEntityWithData() = MeasurementWithData(
         netMcc,
         netMnc,
         connectionType,
+        cellularDataEnabled,
         extraData,
         createdOn,
         updatedOn
@@ -141,6 +144,7 @@ fun Measurement.asNetworkModel() = NetworkMeasurement(
     netMcc,
     netMnc,
     connectionType,
+    cellularDataEnabled,
     extraData,
     createdOn,
     updatedOn
@@ -173,6 +177,7 @@ fun Measurement.asNetworkModelWithData() = NetworkMeasurementWithData(
         netMcc,
         netMnc,
         connectionType,
+        cellularDataEnabled,
         extraData,
         createdOn,
         updatedOn

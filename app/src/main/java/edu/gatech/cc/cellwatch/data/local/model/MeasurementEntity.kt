@@ -76,6 +76,7 @@ data class MeasurementEntity(
     val netMnc: String? = null,
 
     val connectionType: NetworkConnectionType?,
+    val cellularDataEnabled: Boolean?,
 
 //    @SerialName("data_id")
 //    @ColumnInfo(name = "data_id")
@@ -127,4 +128,5 @@ fun MeasurementEntity.asExternalModel() = Measurement(
     createdOn,
     updatedOn,
     connectionType = connectionType,
+    cellularDataEnabled = cellularDataEnabled,
 )
