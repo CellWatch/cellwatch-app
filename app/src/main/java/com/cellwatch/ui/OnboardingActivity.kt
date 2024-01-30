@@ -30,7 +30,6 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_home)
-        Log.i("HomeActivity", "onCreate")
 
         supportFragmentManager.beginTransaction()
             .replace(R.id.content_frame, fragments.first())
