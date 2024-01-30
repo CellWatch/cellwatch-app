@@ -237,9 +237,10 @@ object TelephonyInfoManager {
                 else -> null
             }
 
+            // based on https://stackoverflow.com/questions/9283765/how-to-determine-if-network-type-is-2g-3g-or-4g
             val networkGeneration = when (cellInfo) {
-                is CellInfoCdma, is CellInfoTdscdma, is CellInfoWcdma -> "3G"
-                is CellInfoGsm -> "2G"
+                is CellInfoCdma, is CellInfoGsm -> "2G"
+                is CellInfoTdscdma, is CellInfoWcdma -> "3G"
                 is CellInfoLte -> "4G"
                 is CellInfoNr -> "5G"
                 else -> "Other"
