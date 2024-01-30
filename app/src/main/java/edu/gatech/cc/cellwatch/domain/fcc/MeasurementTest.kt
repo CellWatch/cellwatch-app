@@ -26,6 +26,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
 
     suspend fun run(): Measurement {
         val beginLocation = getLocation()
+        val connectionType = TelephonyInfoManager.getConnectionType()
         val cells = mutableListOf(*(TelephonyInfoManager.getCells()?.toTypedArray() ?: arrayOf()))
         val generations = mutableListOf(TelephonyInfoManager.getActiveNetworkGeneration())
         val stopWatching = TelephonyInfoManager.watchCells {
@@ -109,6 +110,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
                     servers = listOf(result.targetHost),
                 )
             } else null,
+            connectionType = connectionType,
         )
     }
 

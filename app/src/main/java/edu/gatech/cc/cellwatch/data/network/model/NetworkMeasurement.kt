@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.data.network.model
 
 import edu.gatech.cc.cellwatch.data.model.Measurement
+import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -76,6 +77,9 @@ data class NetworkMeasurement(
     @SerialName("net_mobile_network_code")
     val netMnc: String? = null,
 
+    @SerialName("connection_type")
+    val connectionType: NetworkConnectionType?,
+
     @SerialName("extra_data")
     val extraData: String? = null,
 
@@ -144,5 +148,6 @@ fun NetworkMeasurement.asExternalModel() = Measurement(
     uploadDownloadData?.asExternalModel(),
     latencyData?.asExternalModel(),
     locations?.map { location -> location.asExternalModel() },
-    cells?.map { cell -> cell.asExternalModel() }
+    cells?.map { cell -> cell.asExternalModel() },
+    connectionType,
 )

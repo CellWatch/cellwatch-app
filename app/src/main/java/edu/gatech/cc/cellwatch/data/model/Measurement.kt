@@ -5,6 +5,7 @@ import edu.gatech.cc.cellwatch.data.local.model.MeasurementWithData
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurement
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurementWithData
 import edu.gatech.cc.cellwatch.data.network.model.NetworkUploadDownloadData
+import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import kotlinx.datetime.Instant
 import java.util.UUID
 
@@ -42,7 +43,8 @@ data class Measurement(
     var uploadDownloadData: UploadDownloadData? = null,
     var latencyData: LatencyData? = null,
     var locations: List<Location>? = null,
-    var cells: List<Cell>? = null
+    var cells: List<Cell>? = null,
+    val connectionType: NetworkConnectionType?,
 )
 
 fun Measurement.asEntity() = MeasurementEntity(
@@ -70,6 +72,7 @@ fun Measurement.asEntity() = MeasurementEntity(
     simMnc,
     netMcc,
     netMnc,
+    connectionType,
     extraData,
     createdOn,
     updatedOn
@@ -101,6 +104,7 @@ fun Measurement.asEntityWithData() = MeasurementWithData(
         simMnc,
         netMcc,
         netMnc,
+        connectionType,
         extraData,
         createdOn,
         updatedOn
@@ -136,6 +140,7 @@ fun Measurement.asNetworkModel() = NetworkMeasurement(
     simMnc,
     netMcc,
     netMnc,
+    connectionType,
     extraData,
     createdOn,
     updatedOn
@@ -167,6 +172,7 @@ fun Measurement.asNetworkModelWithData() = NetworkMeasurementWithData(
         simMnc,
         netMcc,
         netMnc,
+        connectionType,
         extraData,
         createdOn,
         updatedOn

@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 import edu.gatech.cc.cellwatch.data.model.Measurement
+import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import java.util.UUID
@@ -74,6 +75,8 @@ data class MeasurementEntity(
 
     val netMnc: String? = null,
 
+    val connectionType: NetworkConnectionType?,
+
 //    @SerialName("data_id")
 //    @ColumnInfo(name = "data_id")
 //    var dataId: String? = null,
@@ -122,5 +125,6 @@ fun MeasurementEntity.asExternalModel() = Measurement(
     netMnc,
     extraData,
     createdOn,
-    updatedOn
+    updatedOn,
+    connectionType = connectionType,
 )
