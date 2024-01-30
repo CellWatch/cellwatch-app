@@ -13,10 +13,7 @@ import com.cellwatch.ui.onboarding.DataUseFragment
 import com.cellwatch.ui.onboarding.FCCInfoFragment
 import com.cellwatch.ui.onboarding.HomeFragment
 
-/*
-Landing page if the user hasn't been onboarded.
- */
-class HomeActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedListener, SettingsSetupFragment.OnPermissionsHandledListener  {
+class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedListener, SettingsSetupFragment.OnPermissionsHandledListener  {
 
     private var currentPosition = 0
     private val fragments = listOf(

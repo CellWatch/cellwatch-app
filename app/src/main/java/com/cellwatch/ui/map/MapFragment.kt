@@ -45,11 +45,6 @@ import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListen
 import com.mapbox.maps.plugin.locationcomponent.location
 import kotlin.math.roundToInt
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-//private const val ARG_PARAM1 = "param1"
-//private const val ARG_PARAM2 = "param2"
-
 /**
  * A simple [Fragment] subclass.
  * Use the [MapFragment.newInstance] factory method to
@@ -106,7 +101,6 @@ class MapFragment : Fragment() {
 
         val drawerLayout = binding.drawerLayout //findViewById<DrawerLayout>(R.id.drawerLayout)
         val hamburgerButton = binding.sideMenuButton //findViewById<ImageButton>(R.id.sideMenuButton)
-        val exitButton = binding.menuCloseButton //findViewById<ImageButton>(R.id.menuCloseButton)
         val h3ToggleSwitch = binding.h3ToggleSwitch //findViewById<SwitchCompat>(R.id.h3ToggleSwitch)
         val measureButton = binding.measureButton //findViewById<Button>(R.id.measureButton)
         val centerButton = binding.centerUserButton //findViewById<Button>(R.id.centerUserButton)
@@ -122,10 +116,6 @@ class MapFragment : Fragment() {
 
         hamburgerButton.setOnClickListener {
             drawerLayout.openDrawer(GravityCompat.START)
-        }
-
-        exitButton.setOnClickListener {
-            drawerLayout.closeDrawer(GravityCompat.START)
         }
 
         h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->

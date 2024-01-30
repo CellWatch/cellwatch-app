@@ -55,9 +55,6 @@ class SettingsSetupFragment : Fragment() {
         }
     }
 
-
-
-
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -66,10 +63,7 @@ class SettingsSetupFragment : Fragment() {
         when (requestCode) {
             LOCATION_PERMISSION_REQUEST_CODE -> {
                 if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                    // Permissions granted, load the MapFragment and notify the activity
-                    Log.i("SettingsSetupFragment", "onPermissionsHandledListener:" + (activity as? OnPermissionsHandledListener))
                     (activity as? OnPermissionsHandledListener)?.onPermissionsHandled()
-                    Log.i("SettingsSetupFragment", "after OnPermissionsHandled")
                 } else {
                     //TODO on location permission denied
                 }
