@@ -67,5 +67,6 @@ fun MeasurementWithData.asExternalModel() = Measurement(
     uploadDownloadData = uploadDownloadData?.asExternalModel(),
     latencyData = latencyData?.asExternalModel(),
     cells = cells?.map(CellEntity::asExternalModel),
-    locations = locations?.map(LocationEntity::asExternalModel)
+    locations = locations?.map(LocationEntity::asExternalModel),
+    connectionType = measurement.connectionType,
 )
