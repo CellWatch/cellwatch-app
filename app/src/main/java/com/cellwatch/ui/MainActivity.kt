@@ -12,7 +12,7 @@ import androidx.fragment.app.Fragment
 import com.cellwatch.R
 import com.cellwatch.ui.map.*
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), MapFragment.DrawerToggleListener {
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,5 +85,13 @@ class MainActivity : AppCompatActivity() {
             .replace(R.id.fragment_container, fragment)
             .commit()
         drawerLayout.closeDrawer(GravityCompat.START)
+    }
+
+    override fun toggleDrawer() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START)
+        } else {
+            drawerLayout.openDrawer(GravityCompat.START)
+        }
     }
 }

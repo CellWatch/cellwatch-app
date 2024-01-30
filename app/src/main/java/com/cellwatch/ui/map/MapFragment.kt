@@ -9,7 +9,6 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.util.Log
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,6 +16,7 @@ import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.GravityCompat
+import androidx.fragment.app.Fragment
 import androidx.navigation.Navigation
 import com.cellwatch.R
 import com.cellwatch.data.model.Cell
@@ -45,6 +45,7 @@ import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListen
 import com.mapbox.maps.plugin.locationcomponent.location
 import kotlin.math.roundToInt
 
+
 /**
  * A simple [Fragment] subclass.
  * Use the [MapFragment.newInstance] factory method to
@@ -53,6 +54,11 @@ import kotlin.math.roundToInt
 class MapFragment : Fragment() {
     private val TAG = this::class.simpleName
     private var _binding: FragmentMapBinding? = null
+    private var drawerToggleListener: DrawerToggleListener? = null
+
+    interface DrawerToggleListener {
+        fun toggleDrawer()
+    }
 
     // TODO: Rename and change types of parameters
 //    private var param1: String? = null
@@ -99,7 +105,6 @@ class MapFragment : Fragment() {
         mapboxMap.loadStyleUri(Style.LIGHT)
         onMapReady()
 
-        val drawerLayout = binding.drawerLayout //findViewById<DrawerLayout>(R.id.drawerLayout)
         val hamburgerButton = binding.sideMenuButton //findViewById<ImageButton>(R.id.sideMenuButton)
         val h3ToggleSwitch = binding.h3ToggleSwitch //findViewById<SwitchCompat>(R.id.h3ToggleSwitch)
         val measureButton = binding.measureButton //findViewById<Button>(R.id.measureButton)
@@ -115,7 +120,7 @@ class MapFragment : Fragment() {
         }
 
         hamburgerButton.setOnClickListener {
-            drawerLayout.openDrawer(GravityCompat.START)
+            drawerToggleListener?.toggleDrawer()
         }
 
         h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -363,6 +368,12 @@ class MapFragment : Fragment() {
         mapView.location
             .removeOnIndicatorPositionChangedListener(onIndicatorPositionChangedListener)
         mapView.gestures.removeOnMoveListener(onMoveListener)
+    }
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        drawerToggleListener = context as? DrawerToggleListener
+            ?: throw ClassCastException("$context must implement DrawerToggleListener")
     }
 
     companion object {
