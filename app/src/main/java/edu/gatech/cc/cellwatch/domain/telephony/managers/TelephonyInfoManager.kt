@@ -57,7 +57,6 @@ object TelephonyInfoManager {
     init {
         connectivityManager.registerNetworkCallback(
             NetworkRequest.Builder()
-                .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
                 .build(),
