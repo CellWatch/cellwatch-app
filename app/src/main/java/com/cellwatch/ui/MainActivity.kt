@@ -21,6 +21,8 @@ class MainActivity : AppCompatActivity(), MapFragment.DrawerToggleListener {
 
         toolbar = findViewById(R.id.toolbar)
         createDrawerLayout();
+
+        replaceFragment(MapFragment())
     }
 
 
