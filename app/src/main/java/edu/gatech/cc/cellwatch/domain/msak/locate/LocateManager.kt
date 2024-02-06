@@ -90,8 +90,9 @@ class LocateManager(client: OkHttpClient? = null, locateUrl: String? = null) {
         fullLocateUrl: String,
         site: String? = null,
     ): List<Server> = suspendCoroutine { continuation ->
+        val params = "country=US&strict=true${if (site != null) "&site=$site" else ""}"
         val request = Request.Builder()
-            .url("${fullLocateUrl}${if (site != null) { "?site=$site" } else { "" }}")
+            .url("$fullLocateUrl?$params")
             .header("User-Agent", BuildConfig.USER_AGENT)
             .build()
 
