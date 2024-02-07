@@ -7,4 +7,71 @@
     <string name="mapbox_access_token">pk.eyJ1IjoiZHBlZWxlciIsImEiOiJjbG1yczNsbDQwODF2MmpucG9rajZqb21mIn0.ImMYfjW1aQ3KtioSRUS_Dg</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
+
+    <string name="nav_open">Open</string>
+    <string name="nav_close">Close</string>
+
+    <string name="menu_home">Home</string>
+    <string name="menu_measure">Measure</string>
+    <string name="menu_settings">Settings</string>
+    <string name="edit_settings">Edit Settings</string>
+    <string name="cw_map_header">CellWatch Mapping</string>
+
+    <!-- Strings for the Welcome 1st screen -->
+    <string name="welcome">Welcome to CellWatch</string>
+    <string name="welcome_description">CellWatch is a FCC Challenge app. You can collect measurements to send to the FCC to show that your coverage doesn’t meet the minimum standards, or take measurements to test speeds for yourself.</string>
+    <string name="language_select">Language / idioma</string>
+
+    <!--Strings for the settings screen-->
+    <string name="p_info">Personal Information</string>
+    <string name="name">Name</string>
+    <string name="email">Email </string>
+    <string name="phone">Phone</string>
+    <string name="lang">Language</string>
+    <string name="data_share">Data Sharing</string>
+
+    <!--These are used in the header of the page when the fragment loads-->
+    <string-array name="navigation_drawer_items_array">
+        <item>Map</item>
+        <item>Measure</item>
+        <item>Measurement History</item>
+        <item>Settings</item>
+        <item>Help</item>
+        <item>CellWatch</item>
+    </string-array>
+
+    <string-array name="language_options_array">
+        <item>English</item>
+        <item>Spanish</item>
+    </string-array>
+
+    <string-array name="data_sharing_options_array">
+        <item>FCC and CellWatch</item>
+        <item>CellWatch Only</item>
+        <item>Personal Only</item>
+    </string-array>
+
+    <string name="action_settings">Settings</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">First Fragment</string>
+    <string name="second_fragment_label">Second Fragment</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+    <string name="cell_watch">CellWatch</string>
+    <string name="submit">Submit Data</string>
+    <string name="close">Close</string>
+
+    <string name="nav_header_title">CellWatch</string>
+
+    <string name="home_fragment">Home</string>
+
+    <string name="hello_first_fragment">Placeholder Launch Screen</string>
+    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+
+    <string name="readmore"><u>Read More</u></string>
+    <string name="rm1">To formally challenge a provider’s performance claims, you need to take several measurements within a geographic area and submit them to the FCC, the U.S. government agency that regulates telecommunications.</string>
+    <string name="rm1b">Our app helps consumers take these measurements and automatically submits them to the FCC.</string>
+    <string name="rm2">A challenge to a provider’s coverage claims is specific to a geographic area. The FCC has used a hexagonal tiling system to define regions. By collecting several measurements within one hexagonal region, a consumer can prove that the region does not have good mobile Internet performance, despite what their cell carrier may claim.</string>
+    <string name="rm3">Our app shows two layers of hexagonal regions: a larger hexagonal region which contains seven (7) child hexagons.</string>
+    <string name="rm3b">Challenges are for the larger hexagons, and you must take measurements within a specific number of child hexagons to count as a challenge.</string>
 </resources>

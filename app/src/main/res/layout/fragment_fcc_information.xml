@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#FFFFFF"
+    android:gravity="center|top">
+
+    <TextView
+        android:id="@+id/tvFCCInformationHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="FCC Information"
+        android:textColor="@color/cwheaderblue"
+        android:textSize="50sp"
+        android:textStyle="bold"
+        android:gravity="center_horizontal"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/tvFCCInformationDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="If you would like to work toward an official FCC challenge, this information is required to be submitted to the FCC with your measurements."
+        android:textSize="16sp"
+        android:textColor="#666666"
+        android:layout_marginBottom="8dp"
+        android:gravity="center"/>
+
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/LLReadPrivacyPolicy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        android:clickable="true">
+
+        <!-- Icon to the left of the text -->
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_user_lock" /> <!-- Replace with your actual drawable resource name -->
+
+        <!-- Text with hyperlink styling -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Read our Privacy Policy"
+            android:textSize="14sp"
+            android:textColor="@color/black"
+            android:drawablePadding="4dp"
+            android:paddingLeft="8dp"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvLabelName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Name"
+        android:textSize="20sp"
+        android:textColor="@color/cwnavblue"
+        android:layout_marginBottom="4dp" />
+
+    <EditText
+        android:id="@+id/etName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="textPersonName"
+        android:hint="Name"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/phoneLabelName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Phone"
+        android:textSize="20sp"
+        android:textColor="@color/cwnavblue"
+        android:layout_marginBottom="4dp" />
+
+    <EditText
+        android:id="@+id/etPhone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="555-555-5555"
+        android:inputType="phone"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/emailLabelName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Email"
+        android:textSize="20sp"
+        android:textColor="@color/cwnavblue"
+        android:layout_marginBottom="4dp" />
+
+    <EditText
+        android:id="@+id/etEmail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="email@email.com"
+        android:inputType="textEmailAddress"
+        android:layout_marginBottom="24dp" />
+
+    <CheckBox
+        android:id="@+id/cbAcknowledgement"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="I acknowledge that my service provider may share necessary customer-specific information with the FCC (such as IP address and service plan details)"
+        android:textSize="16sp"
+        android:textColor="#666666"
+        android:padding="16dp" />
+</LinearLayout>
