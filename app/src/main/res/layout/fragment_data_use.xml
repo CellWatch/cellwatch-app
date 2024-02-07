@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center_horizontal"
+    android:background="#FFFFFF">
+
+    <TextView
+        android:id="@+id/tvDataUseTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:gravity="center"
+        android:text="Data Use"
+        android:textColor="@color/cwheaderblue"
+        android:textSize="50sp"
+        android:textStyle="bold" />
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_data_use"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="24dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="The data you collect with CellWatch will be shared with the public, including the general location and time of your measurements."
+        android:textSize="20sp"
+        android:textColor="#666666"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Your CellWatch data may also be used for research purposes."
+        android:textSize="20sp"
+        android:textColor="#666666"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Please read our privacy policy for details."
+        android:textSize="20sp"
+        android:textColor="#666666"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"/>
+
+    <LinearLayout
+        android:id="@+id/LLReadPrivacyPolicy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        android:clickable="true"
+        android:layout_marginTop="20dp">
+
+        <!-- Icon to the left of the text -->
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_user_lock" /> <!-- Replace with your actual drawable resource name -->
+
+        <!-- Text with hyperlink styling -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:drawablePadding="4dp"
+            android:gravity="center"
+            android:paddingLeft="8dp"
+            android:text="Read our Privacy Policy"
+            android:textColor="#000000"
+            android:textSize="20sp" />
+    </LinearLayout>
+</LinearLayout>

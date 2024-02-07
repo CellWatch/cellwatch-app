@@ -7,5 +7,13 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="green">#008000</color>
+
+    <color name="cwgrey">#F2F2F2</color>
+    <color name="cwbuttongreen">#1E5638</color>
+    <color name="cwheaderblue">#07416B</color>
+    <color name="cwnavblue">#07416B</color>
+    <color name="highlightblue">#5E8BAB</color>
+    <color name="beige">#F2F2F2</color>
+    <color name="green">#91C799</color>
+    <color name="progressgreen">#1E5638</color>
 </resources>
