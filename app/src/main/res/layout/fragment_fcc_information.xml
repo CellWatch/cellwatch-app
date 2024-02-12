@@ -71,6 +71,7 @@
         android:layout_height="wrap_content"
         android:inputType="textPersonName"
         android:hint="Name"
+        android:textColor="@color/black"
         android:layout_marginBottom="8dp" />
 
     <TextView
@@ -88,6 +89,7 @@
         android:layout_height="wrap_content"
         android:hint="555-555-5555"
         android:inputType="phone"
+        android:textColor="@color/black"
         android:layout_marginBottom="8dp" />
 
     <TextView
@@ -104,6 +106,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="email@email.com"
+        android:textColor="@color/black"
         android:inputType="textEmailAddress"
         android:layout_marginBottom="24dp" />
 
