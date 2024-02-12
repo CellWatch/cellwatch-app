@@ -21,7 +21,7 @@ class MeasureFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val rootView = inflater.inflate(R.layout.fragment_measure, container, false)
+        val rootView = inflater.inflate(R.layout.fragment_measurement, container, false)
         buttonDecrement = rootView.findViewById<View>(R.id.button_decr) as Button
         buttonIncrement = rootView.findViewById<View>(R.id.button_incr) as Button
         progressBar = rootView.findViewById<View>(R.id.progress_bar) as ProgressBar
