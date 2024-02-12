@@ -58,6 +58,12 @@ class MapFragment : Fragment() {
     interface DrawerToggleListener {
         fun toggleDrawer()
     }
+    interface OnMapFragmentInteractionListener {
+        fun onMeasureButtonPressed()
+    }
+
+    private var listener: OnMapFragmentInteractionListener? = null
+
 
     // TODO: Rename and change types of parameters
 //    private var param1: String? = null
@@ -99,6 +105,12 @@ class MapFragment : Fragment() {
 
         Log.d(TAG, "onViewCreated!")
 
+        if (context is OnMapFragmentInteractionListener) {
+            listener = context as OnMapFragmentInteractionListener
+        } else {
+            throw RuntimeException("$context must implement OnMapFragmentInteractionListener")
+        }
+
         mapView = binding.mapView //findViewById(R.id.mapView)
         mapboxMap = mapView.getMapboxMap()
         mapboxMap.loadStyleUri(Style.LIGHT)
@@ -110,7 +122,7 @@ class MapFragment : Fragment() {
         val centerButton = binding.centerUserButton //findViewById<Button>(R.id.centerUserButton)
 
         measureButton.setOnClickListener {
-            Navigation.findNavController(view).navigate(R.id.navigateToMeasurementFragment)
+            listener?.onMeasureButtonPressed()
         }
 
         centerButton.setOnClickListener{

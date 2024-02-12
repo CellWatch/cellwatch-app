@@ -16,7 +16,7 @@ import edu.gatech.cc.cellwatch.ui.map.MeasureFragment
 import edu.gatech.cc.cellwatch.ui.map.MeasureHistoryFragment
 import edu.gatech.cc.cellwatch.ui.map.SettingsFragment
 
-class MainActivity : AppCompatActivity(), MapFragment.DrawerToggleListener {
+class MainActivity : AppCompatActivity(), MapFragment.DrawerToggleListener, MapFragment.OnMapFragmentInteractionListener {
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,5 +99,13 @@ class MainActivity : AppCompatActivity(), MapFragment.DrawerToggleListener {
         } else {
             drawerLayout.openDrawer(GravityCompat.START)
         }
+    }
+
+    override fun onMeasureButtonPressed() {
+        val transaction = supportFragmentManager.beginTransaction()
+        val newFragment = MeasureFragment()
+        transaction.replace(R.id.fragment_container, newFragment)
+        transaction.addToBackStack(null)
+        transaction.commit()
     }
 }
