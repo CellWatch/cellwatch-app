@@ -3,7 +3,6 @@ package edu.gatech.cc.cellwatch.ui.onboarding
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,7 +10,6 @@ import android.widget.Button
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import edu.gatech.cc.cellwatch.R
-import edu.gatech.cc.cellwatch.ui.map.MapFragment
 
 class SettingsSetupFragment : Fragment() {
 
@@ -48,10 +46,7 @@ class SettingsSetupFragment : Fragment() {
                 LOCATION_PERMISSION_REQUEST_CODE
             )
         } else {
-            // Permission has already been granted, load the MapFragment
-            Log.i("SettingsSetupFragment", "onPermissionsHandledListener:" + (activity as? OnPermissionsHandledListener))
             (activity as? OnPermissionsHandledListener)?.onPermissionsHandled()
-            Log.i("SettingsSetupFragment", "after OnPermissionsHandled")
         }
     }
 

@@ -4,7 +4,6 @@ import android.content.Intent
 import edu.gatech.cc.cellwatch.ui.onboarding.SettingsSetupFragment
 import edu.gatech.cc.cellwatch.R
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
