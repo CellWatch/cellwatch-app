@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#FFFFFF"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:id="@+id/tvCollectionModeTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Collection Mode"
+        android:layout_marginTop="32dp"
+        android:gravity="center"
+        android:textColor="@color/cwheaderblue"
+        android:textSize="50sp"
+        android:textStyle="bold"/>
+
+    <TextView
+        android:id="@+id/tvCollectionModeDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Would you like to work towards a formal FCC challenge? You can update this later in the app settings."
+        android:textSize="16sp"
+        android:textColor="#666666"
+        android:layout_marginTop="16dp"
+        android:gravity="center"/>
+
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/LLReadPrivacyPolicy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        android:clickable="true">
+
+        <!-- Icon to the left of the text -->
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_user_lock" /> <!-- Replace with your actual drawable resource name -->
+
+        <!-- Text with hyperlink styling -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Read our Privacy Policy"
+            android:textSize="14sp"
+            android:textColor="@color/black"
+            android:drawablePadding="4dp"
+            android:paddingLeft="8dp"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <!-- FCC Challenge Mode Box -->
+    <FrameLayout
+        android:id="@+id/flFCCChallengeMode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/fragment_collection_mode_selectable_background"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tvFCCChallengeModeHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="FCC Challenge Mode"
+                android:textSize="18sp"
+                android:textColor="@color/cwbuttongreen"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/tvFCCChallengeModeDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Measurements will be sent to the FCC as challenge data. The FCC may make public your exact GPS location, provider, and other relevant details. Data will also be shared with CellWatch."
+                android:textSize="16sp"
+                android:textColor="#666666"
+                android:layout_marginTop="8dp"/>
+        </LinearLayout>
+
+    </FrameLayout>
+
+    <!-- Testing Mode Box -->
+    <FrameLayout
+        android:id="@+id/flTestingMode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/fragment_collection_mode_selectable_background"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tvTestingModeHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Testing Mode"
+                android:textSize="18sp"
+                android:textColor="@color/cwbuttongreen"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/tvTestingModeDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Measurements will not be sent to the FCC but will shared with CellWatch."
+                android:textSize="16sp"
+                android:textColor="#666666"
+                android:layout_marginTop="8dp"/>
+        </LinearLayout>
+
+    </FrameLayout>
+
+</LinearLayout>

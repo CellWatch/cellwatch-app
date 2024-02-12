@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp"
+    android:background="#FFFFFF">
+
+    <TextView
+        android:id="@+id/tvAllowSettingsHeader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Allow Settings"
+        android:textColor="@color/cwheaderblue"
+        android:textSize="50sp"
+        android:textStyle="bold"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="16dp"/>
+
+
+    <TextView
+        android:id="@+id/tvSettingsDescription"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvAllowSettingsHeader"
+        android:layout_marginTop="84dp"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:text="In order to take measurements, we need access to:\n1. Your device's location to gather location information, and\n2. Manage phone calls to gather service information."
+        android:textColor="#000000"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/tvAllowPrompt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvSettingsDescription"
+        android:layout_marginTop="55dp"
+        android:gravity="center"
+        android:text="When ready, click 'Allow' when prompted. You can update this later in your device's settings."
+        android:textColor="@color/cwheaderblue"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <Button
+        android:id="@+id/btnReady"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ready"
+        android:textColor="#FFFFFF"
+        android:background="@android:color/holo_green_dark"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="100dp"/>
+
+</RelativeLayout>

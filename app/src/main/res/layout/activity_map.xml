@@ -21,7 +21,7 @@
             android:layout_height="match_parent"
             app:mapbox_cameraTargetLat="40.7128"
             app:mapbox_cameraTargetLng="-74.0060"
-            app:mapbox_cameraZoom="15.0"
+            app:mapbox_cameraZoom="9.0"
             app:layout_editor_absoluteX="-16dp"
             app:layout_editor_absoluteY="16dp" >
         </com.mapbox.maps.MapView>
