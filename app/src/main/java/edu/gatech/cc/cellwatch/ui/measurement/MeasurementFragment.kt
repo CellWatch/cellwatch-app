@@ -69,8 +69,8 @@ class MeasurementFragment : Fragment() {
     private val binding get() = _binding!!
 
     override fun onCreateView(
-            inflater: LayoutInflater, container: ViewGroup?,
-            savedInstanceState: Bundle?
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
     ): View? {
         try {
             _binding = FragmentMeasurementBinding.inflate(inflater, container, false)
