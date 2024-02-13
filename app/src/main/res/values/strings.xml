@@ -1,82 +1,103 @@
 <resources>
     <string name="app_name">CellWatch</string>
-<!--    <string name="hello_first_fragment">Hello first fragment</string>-->
-<!--    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>-->
     <string name="mapbox_access_token">pk.eyJ1IjoiZHBlZWxlciIsImEiOiJjbG1yczNsbDQwODF2MmpucG9rajZqb21mIn0.ImMYfjW1aQ3KtioSRUS_Dg</string>
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
 
-    <string name="nav_open">Open</string>
-    <string name="nav_close">Close</string>
-
-    <string name="menu_home">Home</string>
-    <string name="menu_measure">Measure</string>
-    <string name="menu_settings">Settings</string>
-    <string name="edit_settings">Edit Settings</string>
-    <string name="cw_map_header">CellWatch Mapping</string>
-
-    <!-- Strings for the Welcome 1st screen -->
+    <!-- welcome -->
     <string name="welcome">Welcome to CellWatch</string>
     <string name="welcome_description">CellWatch is a FCC Challenge app. You can collect measurements to send to the FCC to show that your coverage doesn’t meet the minimum standards, or take measurements to test speeds for yourself.</string>
     <string name="language_select">Language / idioma</string>
-
-    <!--Strings for the settings screen-->
-    <string name="p_info">Personal Information</string>
-    <string name="name">Name</string>
-    <string name="email">Email </string>
-    <string name="phone">Phone</string>
-    <string name="lang">Language</string>
-    <string name="data_share">Data Sharing</string>
-
-    <!--These are used in the header of the page when the fragment loads-->
-    <string-array name="navigation_drawer_items_array">
-        <item>Map</item>
-        <item>Measure</item>
-        <item>Measurement History</item>
-        <item>Settings</item>
-        <item>Help</item>
-        <item>CellWatch</item>
-    </string-array>
-
     <string-array name="language_options_array">
         <item>English</item>
         <item>Spanish</item>
     </string-array>
 
-    <string-array name="data_sharing_options_array">
-        <item>FCC and CellWatch</item>
-        <item>CellWatch Only</item>
-        <item>Personal Only</item>
-    </string-array>
-
-    <string name="action_settings">Settings</string>
-    <!-- Strings used for fragments for navigation -->
-    <string name="first_fragment_label">First Fragment</string>
-    <string name="second_fragment_label">Second Fragment</string>
-    <string name="next">Next</string>
-    <string name="previous">Previous</string>
-    <string name="cell_watch">CellWatch</string>
-    <string name="submit">Submit Data</string>
-    <string name="close">Close</string>
-
-    <string name="nav_header_title">CellWatch</string>
-
-    <string name="home_fragment">Home</string>
-
-    <string name="hello_first_fragment">Placeholder Launch Screen</string>
-    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
-
-    <string name="readmore"><u>Read More</u></string>
+    <!-- read more -->
+    <string name="read_more">Read More</string>
     <string name="rm1">To formally challenge a provider’s performance claims, you need to take several measurements within a geographic area and submit them to the FCC, the U.S. government agency that regulates telecommunications.</string>
     <string name="rm1b">Our app helps consumers take these measurements and automatically submits them to the FCC.</string>
     <string name="rm2">A challenge to a provider’s coverage claims is specific to a geographic area. The FCC has used a hexagonal tiling system to define regions. By collecting several measurements within one hexagonal region, a consumer can prove that the region does not have good mobile Internet performance, despite what their cell carrier may claim.</string>
     <string name="rm3">Our app shows two layers of hexagonal regions: a larger hexagonal region which contains seven (7) child hexagons.</string>
     <string name="rm3b">Challenges are for the larger hexagons, and you must take measurements within a specific number of child hexagons to count as a challenge.</string>
+    <string name="close">Close</string>
 
-    <!-- measurement strings -->
+    <!-- data use -->
+    <string name="data_use">Data Use</string>
+    <string name="data_use_p1">The data you collect with CellWatch will be shared with the public, including the general location and time of your measurements.</string>
+    <string name="data_use_p2">Your CellWatch data may also be used for research purposes.</string>
+    <string name="data_use_p3">Please read our privacy policy for details.</string>
+    <string name="read_privacy_policy">Read our Privacy Policy</string>
+
+    <!-- collection mode -->
+    <string name="collection_mode">Collection Mode</string>
+    <string name="collection_mode_description">Would you like to work towards a formal FCC challenge? You can update this later in the app settings.</string>
+    <string name="fcc_challenge_mode">FCC Challenge Mode</string>
+    <string name="fcc_challenge_mode_description">Measurements will be sent to the FCC as challenge data. The FCC may make public your exact GPS location, provider, and other relevant details. Data will also be shared with CellWatch.</string>
+    <string name="testing_mode">Testing Mode</string>
+    <string name="testing_mode_description">Measurements will not be sent to the FCC but will be shared with CellWatch.</string>
+
+    <!-- fcc info -->
+    <string name="fcc_info">FCC Information</string>
+    <string name="fcc_info_description">If you would like to work toward an official FCC challenge, this information must be submitted to the FCC with your measurements.</string>
+    <string name="name">Name</string>
+    <string name="email">Email </string>
+    <string name="phone">Phone</string>
+    <string name="fcc_acknowledgement">I acknowledge that my service provider may share necessary customer-specific information with the FCC (such as IP address and service plan details).</string>
+
+    <!-- allow permissions -->
+    <string name="allow_permissions">Allow Permissions</string>
+    <string name="allow_permissions_description">In order to take measurements, we need the following permissions:\n1. Location, to know where measurements are taken.\n2. Phone calls, to gather information about your cellular connection. We will never make phone calls.</string>
+    <string name="allow_ready">When ready, click "Allow" when prompted. You can update these permissions later in your device\'s settings.</string>
+    <string name="ready">Ready</string>
+
+    <!-- map -->
+    <string name="map">Map</string>
+    <string name="cell">Cell</string>
+    <string name="add_measurement">+ Measure</string>
+    <string name="search_map">Search Map</string>
+
+    <!-- measure -->
     <string name="measure">Measure</string>
     <string name="measuring">Measuring</string>
+    <string name="latency">Latency</string>
+    <string name="download">Download</string>
+    <string name="upload">Upload</string>
+    <string name="finding_server">finding server</string>
+    <string name="found_server">found server</string>
+    <string name="measurement_complete">measurement complete</string>
+    <string name="failed_find_server">failed to find server</string>
+    <string name="error_running_measurement">error running measurement</string>
+    <string name="measuring_latency">measuring latency</string>
+    <string name="measuring_download">measuring download speed</string>
+    <string name="measuring_upload">measuring upload speed</string>
+    <string name="running">running</string>
+    <string name="failed">failed</string>
+    <string name="speed_mbps">%1$d Mbps</string>
+    <string name="latency_ms">%1$d ms</string>
+    <string name="not_on_cellular">not on cellular</string>
     <string name="not_cellular_warning">It looks like you are connected to WiFi or have cellular data disabled. If you proceed, your measurement may not be submitted to the FCC.</string>
     <string name="not_cellular_proceed">Measure anyway</string>
     <string name="not_cellular_abort">Cancel</string>
+
+    <!-- measurement history -->
+    <string name="measurement_history">Measurement History</string>
+    <string name="datetime">Date/Time</string>
+    <string name="location">Location</string>
+    <string name="carrier">Carrier</string>
+    <string name="type">Type</string>
+    <string name="technology">Technology</string>
+    <string name="roaming">Roaming</string>
+
+    <!-- settings -->
+    <string name="settings">Settings</string>
+    <string name="p_info">Personal Information</string>
+    <string name="lang">Language</string>
+    <string name="data_share">Data Sharing</string>
+    <string name="apply_changes">Apply Changes</string>
+    <string-array name="data_sharing_options_array">
+        <item>FCC and CellWatch</item>
+        <item>CellWatch only</item>
+    </string-array>
+
+    <!-- help -->
+    <string name="help">Help</string>
 </resources>

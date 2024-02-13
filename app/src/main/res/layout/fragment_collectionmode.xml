@@ -11,7 +11,7 @@
         android:id="@+id/tvCollectionModeTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Collection Mode"
+        android:text="@string/collection_mode"
         android:layout_marginTop="32dp"
         android:gravity="center"
         android:textColor="@color/cwheaderblue"
@@ -22,7 +22,7 @@
         android:id="@+id/tvCollectionModeDescription"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Would you like to work towards a formal FCC challenge? You can update this later in the app settings."
+        android:text="@string/collection_mode_description"
         android:textSize="16sp"
         android:textColor="#666666"
         android:layout_marginTop="16dp"
@@ -48,7 +48,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Read our Privacy Policy"
+            android:text="@string/read_privacy_policy"
             android:textSize="14sp"
             android:textColor="@color/black"
             android:drawablePadding="4dp"
@@ -76,7 +76,7 @@
                 android:id="@+id/tvFCCChallengeModeHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="FCC Challenge Mode"
+                android:text="@string/fcc_challenge_mode"
                 android:textSize="18sp"
                 android:textColor="@color/cwbuttongreen"
                 android:textStyle="bold"/>
@@ -85,7 +85,7 @@
                 android:id="@+id/tvFCCChallengeModeDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Measurements will be sent to the FCC as challenge data. The FCC may make public your exact GPS location, provider, and other relevant details. Data will also be shared with CellWatch."
+                android:text="@string/fcc_challenge_mode_description"
                 android:textSize="16sp"
                 android:textColor="#666666"
                 android:layout_marginTop="8dp"/>
@@ -113,7 +113,7 @@
                 android:id="@+id/tvTestingModeHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Testing Mode"
+                android:text="@string/testing_mode"
                 android:textSize="18sp"
                 android:textColor="@color/cwbuttongreen"
                 android:textStyle="bold"/>
@@ -122,7 +122,7 @@
                 android:id="@+id/tvTestingModeDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Measurements will not be sent to the FCC but will shared with CellWatch."
+                android:text="@string/testing_mode_description"
                 android:textSize="16sp"
                 android:textColor="#666666"
                 android:layout_marginTop="8dp"/>

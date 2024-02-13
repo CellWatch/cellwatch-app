@@ -5,11 +5,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.ImageButton
 import androidx.fragment.app.Fragment
 import edu.gatech.cc.cellwatch.R
 
 class ReadMoreFragment : Fragment() {
-    private var goHomeButtonTop: Button? = null
+    private var goHomeButtonTop: ImageButton? = null
     private var goHomeButtonBottom: Button? = null
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -17,12 +18,12 @@ class ReadMoreFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         val rootView = inflater.inflate(R.layout.fragment_readmore, container, false)
-        goHomeButtonBottom = rootView.findViewById<View>(R.id.exitButtonBottom) as Button
+        goHomeButtonBottom = rootView.findViewById(R.id.exitButtonBottom)
         goHomeButtonBottom!!.setOnClickListener { //Simple navigation change instead of navgraph
             returnToHome()
         }
 
-        goHomeButtonTop = rootView.findViewById<View>(R.id.buttonExitTop) as Button
+        goHomeButtonTop = rootView.findViewById(R.id.buttonExitTop)
         goHomeButtonTop!!.setOnClickListener { //Simple navigation change instead of navgraph
             returnToHome()
         }
