@@ -21,7 +21,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Date/Time"
+            android:text="@string/datetime"
             android:textColor="@android:color/black"
             android:textStyle="bold" />
 
@@ -31,7 +31,7 @@
             android:layout_height="wrap_content"
             android:drawableStart="@android:drawable/stat_sys_upload"
             android:drawablePadding="8dp"
-            android:text="Upload"
+            android:text="@string/upload"
             android:gravity="center"
             android:textColor="@android:color/black" />
 
@@ -41,7 +41,7 @@
             android:layout_height="wrap_content"
             android:drawableStart="@android:drawable/stat_sys_download"
             android:drawablePadding="8dp"
-            android:text="Download"
+            android:text="@string/download"
             android:gravity="center"
             android:textColor="@android:color/black" />
     </LinearLayout>
@@ -59,42 +59,42 @@
             android:id="@+id/locationTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Location"
+            android:text="@string/location"
             android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
 
         <TextView
             android:id="@+id/carrierTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Carrier"
+            android:text="@string/carrier"
             android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
 
         <TextView
             android:id="@+id/typeTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Type"
+            android:text="@string/type"
             android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
 
         <TextView
             android:id="@+id/technologyTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Technology"
+            android:text="@string/technology"
             android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
 
         <TextView
             android:id="@+id/latencyTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Latency"
+            android:text="@string/latency"
             android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
 
         <TextView
             android:id="@+id/roamingTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Roaming"
+            android:text="@string/roaming"
             android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
     </LinearLayout>
 

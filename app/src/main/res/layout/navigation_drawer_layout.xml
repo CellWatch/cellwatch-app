@@ -55,7 +55,7 @@
                 android:gravity="start|center_vertical"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
-                android:text="Map" />
+                android:text="@string/map" />
         </LinearLayout>
 
         <LinearLayout
@@ -84,7 +84,7 @@
                 android:gravity="start|center_vertical"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
-                android:text="Measure" />
+                android:text="@string/measure" />
         </LinearLayout>
 
         <LinearLayout
@@ -110,7 +110,7 @@
                 android:gravity="start|center_vertical"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
-                android:text="Measurement History" />
+                android:text="@string/measurement_history" />
         </LinearLayout>
 
         <LinearLayout
@@ -136,7 +136,7 @@
                 android:gravity="start|center_vertical"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
-                android:text="Settings" />
+                android:text="@string/settings" />
         </LinearLayout>
 
         <LinearLayout
@@ -162,7 +162,7 @@
                 android:gravity="start|center_vertical"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
-                android:text="Help" />
+                android:text="@string/help" />
         </LinearLayout>
     </LinearLayout>
 

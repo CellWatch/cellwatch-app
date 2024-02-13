@@ -42,7 +42,7 @@
             android:textColor="@color/black"
             android:layout_gravity="center"
             android:layout_marginTop="20sp"
-            android:text="@string/readmore" />
+            android:text="@string/read_more" />
 
         <TextView
             android:id="@+id/textview_second"

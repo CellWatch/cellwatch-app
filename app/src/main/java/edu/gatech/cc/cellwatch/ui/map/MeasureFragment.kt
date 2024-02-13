@@ -23,6 +23,10 @@ class MeasureFragment : Fragment() {
     private val TAG = this::class.simpleName
     private var progress = 0
     private lateinit var binding: FragmentMeasureBinding
+    private var locateComplete = false
+    private var latencyComplete = false
+    private var downloadComplete = false
+    private var uploadComplete = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -65,14 +69,18 @@ class MeasureFragment : Fragment() {
 
     private fun runTestSequence(failIfNotOnCellular: Boolean = true) {
         viewLifecycleOwner.lifecycleScope.launch {
+            locateComplete = false
+            latencyComplete = false
+            downloadComplete = false
+            uploadComplete = false
             binding.latencyContent.text = ""
             binding.downloadContent.text = ""
             binding.uploadContent.text = ""
 
             try {
                 MeasurementManager.runTestSequence(
-                    { binding.textStatus.text = "finding server..." },
-                    { r -> binding.textStatus.text = "found server $r" },
+                    { handleLocateStart() },
+                    { handleLocateComplete() },
                     { handleLatencyStart() },
                     { handleLatencyComplete(it) },
                     { handleDownloadStart() },
@@ -81,61 +89,78 @@ class MeasureFragment : Fragment() {
                     { handleThroughputComplete(binding.uploadContent, it) },
                     failIfNotOnCellular = failIfNotOnCellular,
                 )
-                binding.textStatus.text = "measurement complete"
+                binding.textStatus.setText(R.string.measurement_complete)
             } catch (e: MeasurementManager.NotOnCellularException) {
                 handleNotOnCellular()
             } catch (e: Exception) {
                 Log.e(TAG, "unexpected error running test sequence", e)
 
-                if (binding.textStatus.text == "" || binding.textStatus.text == "finding server...") {
-                    binding.textStatus.text == "failed to find server"
+                if (locateComplete) {
+                    binding.textStatus.setText(R.string.error_running_measurement)
                 } else {
-                    binding.textStatus.text == "error running measurement"
+                    binding.textStatus.setText(R.string.failed_find_server)
                 }
 
-                if (binding.latencyContent.text == "" || binding.latencyContent.text == "running...") {
-                    binding.latencyContent.text = "failed"
+                if (!latencyComplete) {
+                    binding.latencyContent.setText(R.string.failed)
                 }
 
-                if (binding.downloadContent.text == "" || binding.downloadContent.text == "running...") {
-                    binding.downloadContent.text = "failed"
+                if (!downloadComplete) {
+                    binding.downloadContent.setText(R.string.failed)
                 }
 
-                if (binding.uploadContent.text == "" || binding.uploadContent.text == "running...") {
-                    binding.uploadContent.text = "failed"
+                if (!uploadComplete) {
+                    binding.uploadContent.setText(R.string.failed)
                 }
             }
         }
     }
 
+    private fun handleLocateStart() {
+       binding.textStatus.setText(R.string.finding_server)
+    }
+
+    private fun handleLocateComplete() {
+        locateComplete = true
+        binding.textStatus.setText(R.string.found_server)
+    }
+
     private fun handleLatencyStart() {
-        binding.textStatus.text = "measuring latency"
-        binding.latencyContent.text = "running..."
+        binding.textStatus.setText(R.string.measuring_latency)
+        binding.latencyContent.setText(R.string.running)
     }
 
     private fun handleLatencyComplete(m: Measurement) {
-        val rttMillis = (m.latencyData?.rtt ?: 0) / 1e3
-        binding.latencyContent.text = if (m.success == true) "$rttMillis ms" else "failed"
+        val rttMillis = ((m.latencyData?.rtt ?: 0) / 1e3).roundToInt()
+        if (m.success == true) {
+            binding.latencyContent.text = getString(R.string.latency_ms, rttMillis)
+        } else {
+            binding.latencyContent.setText(R.string.failed)
+        }
     }
 
     private fun handleDownloadStart() {
-        binding.textStatus.text = "measuring download speed"
-        binding.downloadContent.text = "running..."
+        binding.textStatus.setText(R.string.measuring_download)
+        binding.downloadContent.setText(R.string.running)
     }
 
     private fun handleUploadStart() {
-        binding.textStatus.text = "measuring upload speed"
-        binding.uploadContent.text = "running..."
+        binding.textStatus.setText(R.string.measuring_upload)
+        binding.uploadContent.setText(R.string.running)
     }
 
     private fun handleThroughputComplete(content: TextView, m: Measurement) {
         val activeMetrics = ThroughputMetrics(m.uploadDownloadData?.bytes ?: 0, m.uploadDownloadData?.duration ?: 0)
         val speedMbps = (activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()
-        content.text = if (m.success == true) "$speedMbps Mbps" else "failed"
+        if (m.success == true) {
+            content.text = getString(R.string.speed_mbps, speedMbps)
+        } else {
+            content.setText(R.string.failed)
+        }
     }
 
     private fun handleNotOnCellular() {
-        binding.textStatus.text = "not on cellular"
+        binding.textStatus.setText(R.string.not_on_cellular)
 
         AlertDialog.Builder(context)
             .setMessage(R.string.not_cellular_warning)

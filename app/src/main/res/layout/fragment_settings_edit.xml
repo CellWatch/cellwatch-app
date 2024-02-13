@@ -20,7 +20,7 @@
             android:layout_alignParentTop="true"
             android:layout_marginTop="100dp"
             android:gravity="center_horizontal"
-            android:text="@string/menu_settings"
+            android:text="@string/settings"
             android:textColor="@color/cwheaderblue"
             android:textSize="45dp"
             android:textStyle="bold" />
@@ -221,7 +221,7 @@
             android:layout_gravity="center"
             android:layout_marginTop="40sp"
             android:background="@color/cwbuttongreen"
-            android:text="Apply Changes"
+            android:text="@string/apply_changes"
             android:textColor="@color/white"
             android:textSize="20sp" />
 

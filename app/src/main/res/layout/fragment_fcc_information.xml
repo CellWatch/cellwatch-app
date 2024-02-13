@@ -11,7 +11,7 @@
         android:id="@+id/tvFCCInformationHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="FCC Information"
+        android:text="@string/fcc_info"
         android:textColor="@color/cwheaderblue"
         android:textSize="50sp"
         android:textStyle="bold"
@@ -22,7 +22,7 @@
         android:id="@+id/tvFCCInformationDescription"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="If you would like to work toward an official FCC challenge, this information is required to be submitted to the FCC with your measurements."
+        android:text="@string/fcc_info_description"
         android:textSize="16sp"
         android:textColor="#666666"
         android:layout_marginBottom="8dp"
@@ -48,7 +48,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Read our Privacy Policy"
+            android:text="@string/read_privacy_policy"
             android:textSize="14sp"
             android:textColor="@color/black"
             android:drawablePadding="4dp"
@@ -60,7 +60,7 @@
         android:id="@+id/tvLabelName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Name"
+        android:text="@string/name"
         android:textSize="20sp"
         android:textColor="@color/cwnavblue"
         android:layout_marginBottom="4dp" />
@@ -78,7 +78,7 @@
         android:id="@+id/phoneLabelName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Phone"
+        android:text="@string/phone"
         android:textSize="20sp"
         android:textColor="@color/cwnavblue"
         android:layout_marginBottom="4dp" />
@@ -96,7 +96,7 @@
         android:id="@+id/emailLabelName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Email"
+        android:text="@string/email"
         android:textSize="20sp"
         android:textColor="@color/cwnavblue"
         android:layout_marginBottom="4dp" />
@@ -114,7 +114,7 @@
         android:id="@+id/cbAcknowledgement"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="I acknowledge that my service provider may share necessary customer-specific information with the FCC (such as IP address and service plan details)"
+        android:text="@string/fcc_acknowledgement"
         android:textSize="16sp"
         android:textColor="#666666"
         android:padding="16dp" />

@@ -14,12 +14,12 @@
         android:orientation="vertical"
         tools:context=".ReadMore">
 
-        <Button
+        <ImageButton
             android:id="@+id/buttonExitTop"
             android:layout_width="55dp"
             android:layout_height="60dp"
             android:background="@drawable/exit_button_background"
-            android:text="X"
+            android:src="@drawable/ic_close"
             android:textColor="@color/cwheaderblue"
             android:textSize="22dp" />
 
@@ -42,7 +42,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
 
-                    android:text="@string/readmore"
+                    android:text="@string/read_more"
                     android:textAlignment="center"
                     android:textColor="@color/cwheaderblue"
                     android:textSize="40sp"
