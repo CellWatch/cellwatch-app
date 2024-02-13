@@ -1,7 +1,5 @@
 <resources>
     <string name="app_name">CellWatch</string>
-    <string name="measure">Measure</string>
-    <string name="measuring">Measuring</string>
 <!--    <string name="hello_first_fragment">Hello first fragment</string>-->
 <!--    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>-->
     <string name="mapbox_access_token">pk.eyJ1IjoiZHBlZWxlciIsImEiOiJjbG1yczNsbDQwODF2MmpucG9rajZqb21mIn0.ImMYfjW1aQ3KtioSRUS_Dg</string>
@@ -74,4 +72,11 @@
     <string name="rm2">A challenge to a provider’s coverage claims is specific to a geographic area. The FCC has used a hexagonal tiling system to define regions. By collecting several measurements within one hexagonal region, a consumer can prove that the region does not have good mobile Internet performance, despite what their cell carrier may claim.</string>
     <string name="rm3">Our app shows two layers of hexagonal regions: a larger hexagonal region which contains seven (7) child hexagons.</string>
     <string name="rm3b">Challenges are for the larger hexagons, and you must take measurements within a specific number of child hexagons to count as a challenge.</string>
+
+    <!-- measurement strings -->
+    <string name="measure">Measure</string>
+    <string name="measuring">Measuring</string>
+    <string name="not_cellular_warning">It looks like you are connected to WiFi or have cellular data disabled. If you proceed, your measurement may not be submitted to the FCC.</string>
+    <string name="not_cellular_proceed">Measure anyway</string>
+    <string name="not_cellular_abort">Cancel</string>
 </resources>
