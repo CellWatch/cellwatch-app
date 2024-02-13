@@ -143,8 +143,12 @@ object MeasurementManager {
             // TODO: inform user somehow
         }
 
-        measurementRepository.uploadMeasurements()
-        fccSubmissionRepository.uploadFccSubmissions()
+        try {
+            measurementRepository.uploadMeasurements()
+            fccSubmissionRepository.uploadFccSubmissions()
+        } catch (e: Exception) {
+            Log.d(TAG, "failed to upload measurements and submission", e)
+        }
     }
 
     suspend fun runThroughputTest(
