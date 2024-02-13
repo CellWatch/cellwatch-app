@@ -1,5 +1,6 @@
 package edu.gatech.cc.cellwatch.ui.map
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -62,7 +63,7 @@ class MeasureFragment : Fragment() {
         binding.textViewProgress.text = progress.toString()
     }
 
-    private fun runTestSequence() {
+    private fun runTestSequence(failIfNotOnCellular: Boolean = true) {
         viewLifecycleOwner.lifecycleScope.launch {
             binding.latencyContent.text = ""
             binding.downloadContent.text = ""
@@ -78,8 +79,11 @@ class MeasureFragment : Fragment() {
                     { handleThroughputComplete(binding.downloadContent, it) },
                     { handleUploadStart() },
                     { handleThroughputComplete(binding.uploadContent, it) },
+                    failIfNotOnCellular = failIfNotOnCellular,
                 )
                 binding.textStatus.text = "measurement complete"
+            } catch (e: MeasurementManager.NotOnCellularException) {
+                handleNotOnCellular()
             } catch (e: Exception) {
                 Log.e(TAG, "unexpected error running test sequence", e)
 
@@ -128,5 +132,18 @@ class MeasureFragment : Fragment() {
         val activeMetrics = ThroughputMetrics(m.uploadDownloadData?.bytes ?: 0, m.uploadDownloadData?.duration ?: 0)
         val speedMbps = (activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()
         content.text = if (m.success == true) "$speedMbps Mbps" else "failed"
+    }
+
+    private fun handleNotOnCellular() {
+        binding.textStatus.text = "not on cellular"
+
+        AlertDialog.Builder(context)
+            .setMessage(R.string.not_cellular_warning)
+            .setPositiveButton(R.string.not_cellular_proceed) { dialog, _ ->
+                dialog.dismiss()
+                runTestSequence(false)
+            }
+            .setNegativeButton(R.string.not_cellular_abort) { dialog, _ -> dialog.dismiss()}
+            .show()
     }
 }

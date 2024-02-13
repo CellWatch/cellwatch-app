@@ -15,6 +15,7 @@ import edu.gatech.cc.cellwatch.data.model.UploadDownloadData
 import edu.gatech.cc.cellwatch.domain.msak.Server
 import edu.gatech.cc.cellwatch.domain.msak.locate.LocateManager
 import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputDirection
+import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import io.ktor.http.Url
@@ -61,7 +62,15 @@ object MeasurementManager {
         onDownloadComplete: (m: Measurement) -> Unit,
         onUploadStart: () -> Unit,
         onUploadComplete: (m: Measurement) -> Unit,
+        failIfNotOnCellular: Boolean = true,
     ) {
+        if (failIfNotOnCellular && (
+                    TelephonyInfoManager.getConnectionType() == NetworkConnectionType.WIFI ||
+                    TelephonyInfoManager.isCellularDataEnabled() == false
+        )) {
+            throw NotOnCellularException()
+        }
+
         val measurementId: String? = if (BuildConfig.MSAK_SERVER_ENV == "local") {
             UUID.randomUUID().toString()
         } else {
@@ -101,25 +110,38 @@ object MeasurementManager {
         insertMeasurement(uploadMeasurement)
         onUploadComplete(uploadMeasurement)
 
-        val fccSubmission = FccSubmission(
-            id = groupId,
-            deviceId = latencyMeasurement.deviceId ?: downloadMeasurement.deviceId ?: uploadMeasurement.deviceId,
-            deviceTimestamp = Clock.System.now(),
-            inVehicle = false,
-            externalAntenna = false,
-            deviceType = "Android",
-            deviceManufacturer = latencyMeasurement.deviceManufacturer ?: downloadMeasurement.deviceManufacturer ?: uploadMeasurement.deviceManufacturer,
-            deviceModel = latencyMeasurement.deviceModel ?: downloadMeasurement.deviceModel ?: uploadMeasurement.deviceModel,
-            deviceOsName = "Android ${latencyMeasurement.deviceOsVersion ?: downloadMeasurement.deviceOsVersion ?: uploadMeasurement.deviceOsVersion}",
-            appName = latencyMeasurement.appName ?: downloadMeasurement.appName ?: uploadMeasurement.appName,
-            appVersion = appMod.appVersion,
-            provider = TelephonyInfoManager.getProviderName(),
-            simCountryCode = latencyMeasurement.simMcc ?: downloadMeasurement.simMcc ?: uploadMeasurement.simMcc,
-            simNetworkCode = latencyMeasurement.simMnc ?: downloadMeasurement.simMnc ?: uploadMeasurement.simMnc,
-            netCountryCode = latencyMeasurement.netMcc ?: downloadMeasurement.netMcc ?: uploadMeasurement.netMcc,
-            netNetworkCode = latencyMeasurement.netMnc ?: downloadMeasurement.netMnc ?: uploadMeasurement.netMnc,
-        )
-        insertFccSubmission(fccSubmission)
+        if (
+            latencyMeasurement.connectionType != NetworkConnectionType.WIFI &&
+            downloadMeasurement.connectionType != NetworkConnectionType.WIFI &&
+            uploadMeasurement.connectionType != NetworkConnectionType.WIFI &&
+            latencyMeasurement.cellularDataEnabled != false &&
+            downloadMeasurement.cellularDataEnabled != false &&
+            uploadMeasurement.cellularDataEnabled != false
+        ) {
+            val fccSubmission = FccSubmission(
+                id = groupId,
+                deviceId = latencyMeasurement.deviceId ?: downloadMeasurement.deviceId ?: uploadMeasurement.deviceId,
+                deviceTimestamp = Clock.System.now(),
+                inVehicle = false,
+                externalAntenna = false,
+                deviceType = "Android",
+                deviceManufacturer = latencyMeasurement.deviceManufacturer ?: downloadMeasurement.deviceManufacturer ?: uploadMeasurement.deviceManufacturer,
+                deviceModel = latencyMeasurement.deviceModel ?: downloadMeasurement.deviceModel ?: uploadMeasurement.deviceModel,
+                deviceOsName = "Android ${latencyMeasurement.deviceOsVersion ?: downloadMeasurement.deviceOsVersion ?: uploadMeasurement.deviceOsVersion}",
+                appName = latencyMeasurement.appName ?: downloadMeasurement.appName ?: uploadMeasurement.appName,
+                appVersion = appMod.appVersion,
+                provider = TelephonyInfoManager.getProviderName(),
+                simCountryCode = latencyMeasurement.simMcc ?: downloadMeasurement.simMcc ?: uploadMeasurement.simMcc,
+                simNetworkCode = latencyMeasurement.simMnc ?: downloadMeasurement.simMnc ?: uploadMeasurement.simMnc,
+                netCountryCode = latencyMeasurement.netMcc ?: downloadMeasurement.netMcc ?: uploadMeasurement.netMcc,
+                netNetworkCode = latencyMeasurement.netMnc ?: downloadMeasurement.netMnc ?: uploadMeasurement.netMnc,
+            )
+
+            insertFccSubmission(fccSubmission)
+        } else {
+            Log.i(TAG, "skipping fcc submission insertion for group $groupId")
+            // TODO: inform user somehow
+        }
 
         measurementRepository.uploadMeasurements()
         fccSubmissionRepository.uploadFccSubmissions()
@@ -236,4 +258,6 @@ object MeasurementManager {
             return Pair(server, server)
         }
     }
+
+    class NotOnCellularException: Exception()
 }
