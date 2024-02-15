@@ -17,27 +17,10 @@ class HomeFragment : Fragment() {
         fun onMoreInfoSelected(visible: Boolean)
     }
 
-    private lateinit var langSpinner: Spinner
     private lateinit var moreInfoButton: Button
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val rootView = inflater.inflate(R.layout.fragment_home, container, false)
-
-        langSpinner = rootView.findViewById(R.id.lang_spinner)
-        val langArray = resources.getStringArray(R.array.language_options_array)
-        val langAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, langArray)
-        langAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        langSpinner.adapter = langAdapter
-
-        langSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                val selectedItem = parent.getItemAtPosition(position).toString()
-                // TODO Change app language to the selected item
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
 
         moreInfoButton = rootView.findViewById(R.id.button_readmore)
         moreInfoButton.setOnClickListener {

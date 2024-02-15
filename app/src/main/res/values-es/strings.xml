@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This FCC page, available in both English and Spanish, helps with some terms:
+
+    https://help.bdc.fcc.gov/hc/en-us/articles/9535926296603-Mobile-Wireless-Broadband-Availability-Challenge-Process-for-Governmental-Entities-and-Third-Parties
+    https://help.bdc.fcc.gov/hc/es/articles/9535926296603-Proceso-de-impugnaci%C3%B3n-de-la-Disponibilidad-de-Banda-Ancha-M%C3%B3vil-Inal%C3%A1mbrica-para-entidades-Gubernamentales-y-Terceros
+-->
+<resources>
+    <string name="app_name">CellWatch</string>
+
+    <!-- welcome -->
+    <string name="welcome">Bienvenido a CellWatch</string>
+    <string name="welcome_description">CellWatch es una aplicación de impugnación aprobada por la FCC. Se puede recopilar mediciones y enviarlas a la FCC para demostrar que su cobertura no alcance el nivel requerido, o se puede probar velocidades para sí mismo.</string>
+    <string name="other_language_available">Do you prefer English? You can change the language in the device settings.</string>
+
+    <!-- read more -->
+    <string name="read_more">Leer más</string>
+    <string name="rm1">Para impugnar las afirmaciones de rendimiento de un proveedor, se tiene que hacer varias mediciones dentro de una región geográfica y enviarlas a la FCC, la agencia gubernamental de los EE. UU. que regula la telecomunicación.</string>
+    <string name="rm1b">Nuestra aplicación ayuda a los consumidores a hacer estas mediciones y las envía automáticamente a la FCC.</string>
+    <string name="rm2">Una impugnación a las afirmaciones de cobertura de un proveedor se aplica a una región geográfica específica. La FCC ha utilizado un sistema de tejados hexagonales para delimitar las regiones. Al hacer varias mediciones dentro de una región hexagonal, se puede comprobar que el Internet celular no funciona bien en esa región.</string>
+    <string name="rm3">Nuestra aplicación muestra dos estratos de hexágonos: cada región hexagonal grande contiene siete (7) hexágonos descendientes.</string>
+    <string name="rm3b">Las impugnaciones se aplican a los hexágonos grandes y se tiene que hacer mediciones dentro de varios hexágonos descendientes para que se cuente como una impugnación.</string>
+    <string name="close">Cerrar</string>
+
+    <!-- data use -->
+    <string name="data_use">Uso de datos</string>
+    <string name="data_use_p1">Los datos que usted recopila con CellWatch se comparte con el público, incluso la ubicación y hora generales de sus mediciones.</string>
+    <string name="data_use_p2">Sus datos de CellWatch también se pueden utilizar para fines de investigación.</string>
+    <string name="data_use_p3">Por favor lea nuestra política de privacidad para los detalles.</string>
+    <string name="read_privacy_policy">Leer nuestra política de privacidad</string>
+
+    <!-- collection mode -->
+    <string name="collection_mode">Modo de recopilación</string>
+    <string name="collection_mode_description">¿Le gustaría trabajar para una impugnación oficial con la FCC? Esto se puede cambiar luego en los ajustes de la aplicación.</string>
+    <string name="fcc_challenge_mode">Modo de impugnación FCC</string>
+    <string name="fcc_challenge_mode_description">Las mediciones se enviarán a la FCC como datos de impugnación. Puede que la FCC haga público la ubicación exacta del GPS, el proveedor y otros detalles pertinentes. Los datos también se compartirán con CellWatch.</string>
+    <string name="testing_mode">Modo de prueba</string>
+    <string name="testing_mode_description">Las mediciones no se enviarán a la FCC pero sí se compartirán con CellWatch.</string>
+
+    <!-- fcc info -->
+    <string name="fcc_info">Información para la FCC</string>
+    <string name="fcc_info_description">Si desea trabajar para una impugnación con la FCC, esta información se debe enviar a la FCC con sus mediciones.</string>
+    <string name="name">Nombre</string>
+    <string name="email">Correo electrónico</string>
+    <string name="phone">Número de teléfono</string>
+    <string name="fcc_acknowledgement">Reconozco que mi proveedor de servicio puede compartir la información necesaria, específica al cliente, con la FCC (tal como la dirección IP y los detalles del plan de servicio).</string>
+
+    <!-- allow permissions -->
+    <string name="allow_permissions">Dar permisos</string>
+    <string name="allow_permissions_description">Para hacer mediciones, se necesitan los permisos siguientes:\n1. Ubicación, para saber dónde se hacen las mediciones.\n2. Llamadas telefónicas, para recopilar información acerca de su conexión celular. Nunca realizaremos llamadas.</string>
+    <string name="allow_ready">Cuando esté listo, haga clic en \"Permitir\" en el mensaje. Se pueden cambiar estos permisos luego en los ajustes del dispositivo.</string>
+    <string name="ready">Listo</string>
+
+    <!-- map -->
+    <string name="map">Mapa</string>
+    <string name="cell">Celda</string>
+    <string name="add_measurement">+ Medir</string>
+    <string name="search_map">Buscar en el mapa</string>
+
+    <!-- measure -->
+    <string name="measure">Medir</string>
+    <string name="latency">Latencia</string>
+    <string name="download">Descarga</string>
+    <string name="upload">Subida</string>
+    <string name="finding_server">encontrando servidor</string>
+    <string name="found_server">encontró servidor</string>
+    <string name="measurement_complete">medición acabada</string>
+    <string name="failed_find_server">falló encontrar servidor</string>
+    <string name="error_running_measurement">error durante medición</string>
+    <string name="measuring_latency">midiendo latencia</string>
+    <string name="measuring_download">midiendo velocidad de descarga</string>
+    <string name="measuring_upload">midiendo velocidad de subida</string>
+    <string name="running">en curso</string>
+    <string name="failed">fallido</string>
+    <string name="speed_mbps">%1$d Mbps</string>
+    <string name="latency_ms">%1$d ms</string>
+    <string name="not_on_cellular">no utilizando datos celulares</string>
+    <string name="not_cellular_warning">Parece que está conectado al WiFi o se apagaron los datos celulares. Si continúa, puede que la medición no se envíe a la FCC.</string>
+    <string name="not_cellular_proceed">Medir de todas maneras</string>
+    <string name="not_cellular_abort">Cancelar</string>
+
+    <!-- measurement history -->
+    <string name="measurement_history">Historial de medición</string>
+    <string name="datetime">Fecha/hora</string>
+    <string name="location">Ubicación</string>
+    <string name="carrier">Proveedor</string>
+    <string name="type">Tipo</string>
+    <string name="technology">Tecnología</string>
+    <string name="roaming">Roaming de datos</string>
+
+    <!-- settings -->
+    <string name="settings">Ajustes</string>
+    <string name="p_info">Información personal</string>
+    <string name="data_share">Compartimiento de datos</string>
+    <string name="apply_changes">Aplicar cambios</string>
+    <string-array name="data_sharing_options_array">
+        <item>FCC y CellWatch</item>
+        <item>solo CellWatch</item>
+    </string-array>
+
+    <!-- help -->
+    <string name="help">Ayuda</string>
+</resources>

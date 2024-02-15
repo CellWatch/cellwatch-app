@@ -15,19 +15,13 @@ import edu.gatech.cc.cellwatch.R
 import com.google.android.material.textfield.TextInputEditText
 
 class SettingsFragment : Fragment() {
-    private lateinit var langArray: Array<String>
     private lateinit var shareArray: Array<String>
-    private var langSpinner: Spinner? = null
     private var shareSpinner: Spinner? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val rootView = inflater.inflate(R.layout.fragment_settings, container, false)
-
-        langSpinner = rootView.findViewById(R.id.lang_spinner)
-        langArray = resources.getStringArray(R.array.language_options_array)
-        langSpinner?.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, langArray)
 
         shareSpinner = rootView.findViewById(R.id.data_share_spinner)
         shareArray = resources.getStringArray(R.array.data_sharing_options_array)

@@ -1,22 +1,18 @@
 <resources>
     <string name="app_name">CellWatch</string>
-    <string name="mapbox_access_token">pk.eyJ1IjoiZHBlZWxlciIsImEiOiJjbG1yczNsbDQwODF2MmpucG9rajZqb21mIn0.ImMYfjW1aQ3KtioSRUS_Dg</string>
+    <string name="mapbox_access_token" translatable="false">pk.eyJ1IjoiZHBlZWxlciIsImEiOiJjbG1yczNsbDQwODF2MmpucG9rajZqb21mIn0.ImMYfjW1aQ3KtioSRUS_Dg</string>
 
     <!-- welcome -->
     <string name="welcome">Welcome to CellWatch</string>
     <string name="welcome_description">CellWatch is a FCC Challenge app. You can collect measurements to send to the FCC to show that your coverage doesn’t meet the minimum standards, or take measurements to test speeds for yourself.</string>
-    <string name="language_select">Language / idioma</string>
-    <string-array name="language_options_array">
-        <item>English</item>
-        <item>Spanish</item>
-    </string-array>
+    <string name="other_language_available">¿Prefiere español? Se puede cambiar el idioma en los ajustes del dispositivo.</string>
 
     <!-- read more -->
     <string name="read_more">Read More</string>
     <string name="rm1">To formally challenge a provider’s performance claims, you need to take several measurements within a geographic area and submit them to the FCC, the U.S. government agency that regulates telecommunications.</string>
     <string name="rm1b">Our app helps consumers take these measurements and automatically submits them to the FCC.</string>
     <string name="rm2">A challenge to a provider’s coverage claims is specific to a geographic area. The FCC has used a hexagonal tiling system to define regions. By collecting several measurements within one hexagonal region, a consumer can prove that the region does not have good mobile Internet performance, despite what their cell carrier may claim.</string>
-    <string name="rm3">Our app shows two layers of hexagonal regions: a larger hexagonal region which contains seven (7) child hexagons.</string>
+    <string name="rm3">Our app shows two layers of hexagonal regions: each large hexagonal region contains seven (7) child hexagons.</string>
     <string name="rm3b">Challenges are for the larger hexagons, and you must take measurements within a specific number of child hexagons to count as a challenge.</string>
     <string name="close">Close</string>
 
@@ -46,7 +42,7 @@
     <!-- allow permissions -->
     <string name="allow_permissions">Allow Permissions</string>
     <string name="allow_permissions_description">In order to take measurements, we need the following permissions:\n1. Location, to know where measurements are taken.\n2. Phone calls, to gather information about your cellular connection. We will never make phone calls.</string>
-    <string name="allow_ready">When ready, click "Allow" when prompted. You can update these permissions later in your device\'s settings.</string>
+    <string name="allow_ready">When ready, click \"Allow\" when prompted. You can update these permissions later in your device\'s settings.</string>
     <string name="ready">Ready</string>
 
     <!-- map -->
@@ -57,7 +53,6 @@
 
     <!-- measure -->
     <string name="measure">Measure</string>
-    <string name="measuring">Measuring</string>
     <string name="latency">Latency</string>
     <string name="download">Download</string>
     <string name="upload">Upload</string>
@@ -90,7 +85,6 @@
     <!-- settings -->
     <string name="settings">Settings</string>
     <string name="p_info">Personal Information</string>
-    <string name="lang">Language</string>
     <string name="data_share">Data Sharing</string>
     <string name="apply_changes">Apply Changes</string>
     <string-array name="data_sharing_options_array">
