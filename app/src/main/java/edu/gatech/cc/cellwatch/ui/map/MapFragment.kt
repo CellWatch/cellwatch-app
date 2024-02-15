@@ -128,12 +128,17 @@ class MapFragment : Fragment() {
 
         Log.d(TAG, "onViewCreated!")
 
+        if (context is DrawerToggleListener) {
+            drawerToggleListener = context as DrawerToggleListener
+        } else {
+            throw RuntimeException(context.toString() + " must implement DrawerToggleListener")
+        }
+
         mapView = binding.mapView //findViewById(R.id.mapView)
         mapboxMap = mapView.getMapboxMap()
         mapboxMap.loadStyleUri(Style.LIGHT)
         onMapReady()
 
-        val drawerLayout = binding.drawerLayout //findViewById<DrawerLayout>(R.id.drawerLayout)
         val hamburgerButton = binding.sideMenuButton //findViewById<ImageButton>(R.id.sideMenuButton)
         val h3ToggleSwitch = binding.h3ToggleSwitch //findViewById<SwitchCompat>(R.id.h3ToggleSwitch)
         val measureButton = binding.measureButton //findViewById<Button>(R.id.measureButton)
@@ -143,10 +148,6 @@ class MapFragment : Fragment() {
 
         measureButton.setOnClickListener {
             Navigation.findNavController(view).navigate(R.id.navigateToMeasurementFragment)
-        }
-
-        hamburgerButton.setOnClickListener {
-            drawerLayout.openDrawer(GravityCompat.START)
         }
 
         centerButton.setOnClickListener{
@@ -169,6 +170,11 @@ class MapFragment : Fragment() {
                 mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
                 mapboxMap.addOnMapClickListener(onMapClickListenerH3)
             }
+        }
+
+        hamburgerButton.setOnClickListener {
+            drawerToggleListener?.toggleDrawer()
+            Log.i("MapFragment", "toggleDrawer")
         }
 
         // Initial switch function on start
