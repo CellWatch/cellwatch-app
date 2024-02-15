@@ -51,7 +51,14 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
         }
 
         nextButton.setOnClickListener {
-            if (currentPosition < fragments.size - 1) {
+            val currentFragment = supportFragmentManager.findFragmentById(R.id.content_frame)
+            val isValidated = if (currentFragment is FCCInfoFragment) {
+                currentFragment.validateInputs()
+            } else {
+                true
+            }
+
+            if (isValidated && currentPosition < fragments.size - 1) {
                 currentPosition++
                 supportFragmentManager.beginTransaction()
                     .replace(R.id.content_frame, fragments[currentPosition])
@@ -59,6 +66,7 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
                 updateArrowVisibility()
             }
         }
+
     }
 
     private fun updateArrowVisibility(visible: Boolean = true) {
