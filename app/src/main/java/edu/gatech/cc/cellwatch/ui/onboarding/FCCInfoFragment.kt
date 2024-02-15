@@ -5,6 +5,7 @@ import android.util.Patterns
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
@@ -16,6 +17,7 @@ class FCCInfoFragment : Fragment() {
     private lateinit var etName: EditText
     private lateinit var etPhone: EditText
     private lateinit var etEmail: EditText
+    private lateinit var awkCheckbox: CheckBox
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -26,6 +28,7 @@ class FCCInfoFragment : Fragment() {
         etName = view.findViewById(R.id.etName)
         etPhone = view.findViewById(R.id.etPhone)
         etEmail = view.findViewById(R.id.etEmail)
+        awkCheckbox = view.findViewById(R.id.cbAcknowledgement)
         return view
     }
 
@@ -57,8 +60,7 @@ class FCCInfoFragment : Fragment() {
         val email = etEmail.text.toString()
     }
 
-    private fun validateInputs(): Boolean {
-        //TODO Needed?
+    fun validateInputs(): Boolean {
         val name = etName.text.toString()
         val phone = etPhone.text.toString()
         val email = etEmail.text.toString()
@@ -77,6 +79,12 @@ class FCCInfoFragment : Fragment() {
             etEmail.error = "Invalid email address"
             return false
         }
+
+        if (!awkCheckbox.isChecked) {
+            Toast.makeText(context, "Please acknowledge the bottom statement.", Toast.LENGTH_LONG).show()
+            return false
+        }
+
         return true
     }
 }
