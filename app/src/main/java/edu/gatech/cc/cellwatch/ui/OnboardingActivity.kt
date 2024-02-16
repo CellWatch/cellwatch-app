@@ -58,13 +58,28 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
                 true
             }
 
-            if (isValidated && currentPosition < fragments.size - 1) {
-                currentPosition++
-                supportFragmentManager.beginTransaction()
-                    .replace(R.id.content_frame, fragments[currentPosition])
-                    .commit()
-                updateArrowVisibility()
+
+            if (currentFragment is CollectionModeFragment) {
+                if(currentFragment.retrieveSelection()) {
+                    currentPosition+=2
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.content_frame, fragments[currentPosition])
+                        .commit()
+                } else {
+                    currentPosition++
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.content_frame, fragments[currentPosition])
+                        .commit()
+                }
+            } else {
+                if (isValidated && currentPosition < fragments.size - 1) {
+                    currentPosition++
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.content_frame, fragments[currentPosition])
+                        .commit()
+                }
             }
+            updateArrowVisibility()
         }
 
     }

@@ -13,6 +13,7 @@ import edu.gatech.cc.cellwatch.R
 class CollectionModeFragment : Fragment() {
     private lateinit var flFCCChallengeMode: FrameLayout
     private lateinit var flTestingMode: FrameLayout
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -28,6 +29,8 @@ class CollectionModeFragment : Fragment() {
         tvReadPrivacyPolicy.setOnClickListener {
             showPrivacyPolicyText()
         }
+
+
 
         flFCCChallengeMode = view.findViewById(R.id.flFCCChallengeMode)
         flFCCChallengeMode.isSelected = true
@@ -52,6 +55,21 @@ class CollectionModeFragment : Fragment() {
             "Placeholder text.",
             Toast.LENGTH_LONG
         ).show()
+    }
+
+    fun retrieveSelection(): Boolean {
+        //True for flTestingMode, False for flFCCChallengeMode and invalid states
+        return when {
+            flFCCChallengeMode.isSelected -> {
+                false
+            }
+            flTestingMode.isSelected -> {
+                true
+            }
+            else -> {
+                false
+            }
+        }
     }
 
     private fun storeSelection() {
