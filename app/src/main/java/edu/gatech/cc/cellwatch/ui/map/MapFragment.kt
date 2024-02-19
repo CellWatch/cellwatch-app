@@ -86,7 +86,7 @@ class MapFragment : Fragment() {
         fun onMeasureButtonPressed()
     }
 
-    private var listener: OnMapFragmentInteractionListener? = null
+    private var measurementButtonListener: OnMapFragmentInteractionListener? = null
 
     // TODO: Rename and change types of parameters
 //    private var param1: String? = null
@@ -134,6 +134,13 @@ class MapFragment : Fragment() {
             throw RuntimeException(context.toString() + " must implement DrawerToggleListener")
         }
 
+        if (context is OnMapFragmentInteractionListener) {
+            measurementButtonListener = context as OnMapFragmentInteractionListener
+        } else {
+            throw RuntimeException(context.toString() + " must implement OnMapFragmentInteractionListener")
+        }
+
+
         mapView = binding.mapView //findViewById(R.id.mapView)
         mapboxMap = mapView.getMapboxMap()
         mapboxMap.loadStyleUri(Style.LIGHT)
@@ -147,7 +154,7 @@ class MapFragment : Fragment() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context!!)
 
         measureButton.setOnClickListener {
-            Navigation.findNavController(view).navigate(R.id.navigateToMeasurementFragment)
+            measurementButtonListener?.onMeasureButtonPressed()
         }
 
         centerButton.setOnClickListener{
