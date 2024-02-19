@@ -102,10 +102,6 @@ class MainActivity : AppCompatActivity(), MapFragment.DrawerToggleListener, MapF
     }
 
     override fun onMeasureButtonPressed() {
-        val transaction = supportFragmentManager.beginTransaction()
-        val newFragment = MeasureFragment()
-        transaction.replace(R.id.fragment_container, newFragment)
-        transaction.addToBackStack(null)
-        transaction.commit()
+        replaceFragment(MeasureFragment())
     }
 }
