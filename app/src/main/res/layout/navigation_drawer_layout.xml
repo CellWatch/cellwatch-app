@@ -55,7 +55,8 @@
                 android:gravity="start|center_vertical"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
-                android:text="@string/map" />
+                android:text="@string/map"
+                android:textColor="#FFFFFF" />
         </LinearLayout>
 
         <LinearLayout
@@ -84,7 +85,8 @@
                 android:gravity="start|center_vertical"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
-                android:text="@string/measure" />
+                android:text="@string/measure"
+                android:textColor="#FFFFFF" />
         </LinearLayout>
 
         <LinearLayout
@@ -110,7 +112,8 @@
                 android:gravity="start|center_vertical"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
-                android:text="@string/measurement_history" />
+                android:text="@string/measurement_history"
+                android:textColor="#FFFFFF" />
         </LinearLayout>
 
         <LinearLayout
@@ -136,7 +139,8 @@
                 android:gravity="start|center_vertical"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
-                android:text="@string/settings" />
+                android:text="@string/settings"
+                android:textColor="#FFFFFF" />
         </LinearLayout>
 
         <LinearLayout
@@ -162,7 +166,8 @@
                 android:gravity="start|center_vertical"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp"
-                android:text="@string/help" />
+                android:text="@string/help"
+                android:textColor="#FFFFFF" />
         </LinearLayout>
     </LinearLayout>
 

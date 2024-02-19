@@ -65,14 +65,20 @@
         android:textColor="@color/cwnavblue"
         android:layout_marginBottom="4dp" />
 
-    <EditText
-        android:id="@+id/etName"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:inputType="textPersonName"
-        android:hint="Name"
-        android:textColor="@color/black"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="24dp"
+        style="@style/CustomInputTextFilledBox">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPersonName"
+            android:textColor="@color/black"
+            android:background="@color/white"
+            android:enabled="true" />
+    </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
         android:id="@+id/phoneLabelName"
@@ -80,17 +86,22 @@
         android:layout_height="wrap_content"
         android:text="@string/phone"
         android:textSize="20sp"
-        android:textColor="@color/cwnavblue"
-        android:layout_marginBottom="4dp" />
+        android:textColor="@color/cwnavblue" />
 
-    <EditText
-        android:id="@+id/etPhone"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="555-555-5555"
-        android:inputType="phone"
-        android:textColor="@color/black"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="24dp"
+        style="@style/CustomInputTextFilledBox">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etPhone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="phone"
+            android:textColor="@color/black"
+            android:background="@color/white"
+            android:enabled="true"/>
+    </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
         android:id="@+id/emailLabelName"
@@ -98,17 +109,23 @@
         android:layout_height="wrap_content"
         android:text="@string/email"
         android:textSize="20sp"
-        android:textColor="@color/cwnavblue"
-        android:layout_marginBottom="4dp" />
+        android:textColor="@color/cwnavblue" />
 
-    <EditText
-        android:id="@+id/etEmail"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="email@email.com"
-        android:textColor="@color/black"
-        android:inputType="textEmailAddress"
-        android:layout_marginBottom="24dp" />
+        android:layout_marginBottom="24dp"
+        android:background="@color/white"
+        style="@style/CustomInputTextFilledBox">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etEmail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/black"
+            android:background="@color/white"
+            android:inputType="textEmailAddress"
+            android:enabled="true" />
+    </com.google.android.material.textfield.TextInputLayout>
 
     <CheckBox
         android:id="@+id/cbAcknowledgement"

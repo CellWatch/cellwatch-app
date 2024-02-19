@@ -9,4 +9,8 @@
         <item name="colorOnSurface">@color/white</item>
         <item name="colorSecondary">@color/green</item>
     </style>
+
+    <style name="CustomInputTextFilledBox" parent="@style/Widget.MaterialComponents.TextInputLayout.FilledBox">
+        <item name="boxStrokeColor">@color/black</item>
+    </style>
 </resources>

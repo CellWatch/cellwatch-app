@@ -35,7 +35,13 @@ class SettingsFragment : Fragment() {
         val emailEditText = rootView.findViewById<TextInputEditText>(R.id.emailEditText)
         val phoneEditText = rootView.findViewById<TextInputEditText>(R.id.phoneEditText)
 
-        //TODO Load user name/email/phone on fragment start
+        //TODO Load user name/email/phone/FCC Data Collection on fragment start
+        /*
+        nameEditText.setText()
+        emailEditText.setText()
+        phoneEditText.setText()
+        shareSpinner?.setSelection(0)
+         */
 
         settingsEditButton.setOnClickListener {
             saveButton.visibility = View.VISIBLE
