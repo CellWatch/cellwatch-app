@@ -10,13 +10,14 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import com.google.android.material.textfield.TextInputEditText
 import edu.gatech.cc.cellwatch.R
 
 
 class FCCInfoFragment : Fragment() {
-    private lateinit var etName: EditText
-    private lateinit var etPhone: EditText
-    private lateinit var etEmail: EditText
+    private lateinit var etName: TextInputEditText
+    private lateinit var etPhone: TextInputEditText
+    private lateinit var etEmail: TextInputEditText
     private lateinit var awkCheckbox: CheckBox
 
     override fun onCreateView(

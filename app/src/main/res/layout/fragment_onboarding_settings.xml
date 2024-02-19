@@ -9,12 +9,13 @@
         android:id="@+id/tvAllowSettingsHeader"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
         android:text="@string/allow_permissions"
         android:textColor="@color/cwheaderblue"
         android:textSize="50sp"
-        android:textStyle="bold"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="16dp"/>
+        android:textStyle="bold" />
 
 
     <TextView
@@ -34,21 +35,21 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@id/tvSettingsDescription"
-        android:layout_marginTop="55dp"
+        android:layout_marginTop="30dp"
         android:gravity="center"
         android:text="@string/allow_ready"
         android:textColor="@color/cwheaderblue"
         android:textSize="24sp"
         android:textStyle="bold" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnReady"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/ready"
-        android:textColor="#FFFFFF"
-        android:background="@android:color/holo_green_dark"
+        android:layout_width="360dp"
+        android:layout_height="70dp"
         android:layout_alignParentBottom="true"
-        android:layout_marginBottom="100dp"/>
+        android:layout_marginBottom="78dp"
+        android:backgroundTint="@color/progressgreen"
+        android:text="@string/ready"
+        android:textColor="#FFFFFF" />
 
 </RelativeLayout>
