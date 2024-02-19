@@ -34,6 +34,7 @@ class MeasureFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         binding = FragmentMeasureBinding.inflate(inflater, container, false)
+        //val rootView = inflater.inflate(R.layout.fragment_measure, container, false)
 
         // when clicked on buttonIncrement progress is increased by 10%
         binding.buttonIncr.setOnClickListener { // if progress is less than or equal
@@ -57,6 +58,7 @@ class MeasureFragment : Fragment() {
             runTestSequence()
         }
 
+        //return rootView
         return binding.root
     }
 
