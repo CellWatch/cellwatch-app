@@ -13,6 +13,7 @@ class LocalDataStore(private val context: Context) {
     companion object {
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("data_store")
         private val DEVICE_ID = stringPreferencesKey("device_id")
+        private val COLLECTION_MODE = stringPreferencesKey("collection_mode")
     }
 
     val getDeviceId: Flow<String> = context.dataStore.data.map { preferences ->
@@ -22,6 +23,16 @@ class LocalDataStore(private val context: Context) {
     suspend fun saveDeviceId(deviceId: String) {
         context.dataStore.edit { preferences ->
             preferences[DEVICE_ID] = deviceId
+        }
+    }
+
+    val getCollectionMode: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[COLLECTION_MODE] ?: ""
+    }
+
+    suspend fun saveCollectionMode(collectionMode: String) {
+        context.dataStore.edit { preferences ->
+            preferences[COLLECTION_MODE] = collectionMode
         }
     }
 }
