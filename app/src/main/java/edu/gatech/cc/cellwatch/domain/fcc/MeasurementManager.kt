@@ -71,7 +71,8 @@ object MeasurementManager {
         Log.i(TAG,"RUNNING TEST SEQUENCE with measurement id $measurementId")
 
         val groupId: String = UUID.randomUUID().toString()
-        val dataStore = LocalDataStore(CellWatchApp.applicationContext())
+        val dataStore = CellWatchApp.localDataStore
+//        val dataStore = LocalDataStore(CellWatchApp.applicationContext())
         val deviceId = dataStore.getDeviceId.first()
 
         val client = OkHttpClient.Builder().build()

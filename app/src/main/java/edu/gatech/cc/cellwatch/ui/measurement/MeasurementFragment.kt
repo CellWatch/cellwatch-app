@@ -26,6 +26,7 @@ import edu.gatech.cc.cellwatch.domain.fcc.ThroughputResult
 import edu.gatech.cc.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import edu.gatech.cc.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import com.github.anastr.speedviewlib.SpeedView
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.domain.fcc.ThroughputMetrics
 import kotlinx.coroutines.delay
@@ -40,7 +41,7 @@ class MeasurementFragment : Fragment() {
     private var _binding: FragmentMeasurementBinding? = null
 
     private val measurementViewModel: MeasurementViewModel by activityViewModels() {
-        MeasurementViewModelFactory(edu.gatech.cc.cellwatch.CellWatchApp.measurementRepository)
+        MeasurementViewModelFactory(CellWatchApp.measurementRepository)
     }
 
     private val standardPermissions = arrayOf(

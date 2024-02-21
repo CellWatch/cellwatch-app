@@ -9,23 +9,33 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.core.util.Log
 
 class MeasureFragment : Fragment() {
     private var progress = 0
     var buttonIncrement: Button? = null
     var buttonDecrement: Button? = null
+    var buttonMeasure: Button? = null
     var progressBar: ProgressBar? = null
     var textView: TextView? = null
+
+    private val TAG = this::class.simpleName
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         val rootView = inflater.inflate(R.layout.fragment_measurement, container, false)
+        buttonMeasure = rootView.findViewById<View>(R.id.button_measure) as Button
         buttonDecrement = rootView.findViewById<View>(R.id.button_decr) as Button
         buttonIncrement = rootView.findViewById<View>(R.id.button_incr) as Button
         progressBar = rootView.findViewById<View>(R.id.progress_bar) as ProgressBar
         textView = rootView.findViewById<View>(R.id.text_view_progress) as TextView
+
+        buttonMeasure!!.setOnClickListener {
+            Log.d(TAG, "Measure!!")
+        }
 
         // when clicked on buttonIncrement progress is increased by 10%
         buttonIncrement!!.setOnClickListener { // if progress is less than or equal
