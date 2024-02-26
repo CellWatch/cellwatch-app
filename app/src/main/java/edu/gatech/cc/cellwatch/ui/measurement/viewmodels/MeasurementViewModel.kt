@@ -5,12 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
+import edu.gatech.cc.cellwatch.data.core.repositories.MeasurementRepository
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementManager
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class MeasurementViewModel(private val repository: edu.gatech.cc.cellwatch.data.core.repositories.MeasurementRepository) : ViewModel() {
+class MeasurementViewModel(private val repository: MeasurementRepository) : ViewModel() {
     private val TAG = this::class.simpleName
     val allMeasurements: LiveData<List<Measurement>> = repository.allMeasurements.asLiveData()
 
@@ -41,7 +42,7 @@ class MeasurementViewModel(private val repository: edu.gatech.cc.cellwatch.data.
     }
 }
 
-class MeasurementViewModelFactory(private val repository: edu.gatech.cc.cellwatch.data.core.repositories.MeasurementRepository) : ViewModelProvider.Factory {
+class MeasurementViewModelFactory(private val repository: MeasurementRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MeasurementViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
