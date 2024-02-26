@@ -5,6 +5,7 @@ import android.content.Context
 import edu.gatech.cc.cellwatch.data.core.repositories.FccSubmissionRepository
 import edu.gatech.cc.cellwatch.data.local.CellWatchDatabase
 import edu.gatech.cc.cellwatch.data.core.repositories.MeasurementRepository
+import edu.gatech.cc.cellwatch.data.datastore.LocalDataStore
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
 
 class CellWatchApp : Application() {
@@ -32,6 +33,9 @@ class CellWatchApp : Application() {
                 database.measurementDao(),
                 NetworkMeasurementDatasource
             )
+        }
+        val localDataStore by lazy {
+            LocalDataStore(applicationContext())
         }
     }
 }

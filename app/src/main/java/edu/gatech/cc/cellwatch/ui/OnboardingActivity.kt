@@ -6,13 +6,24 @@ import edu.gatech.cc.cellwatch.R
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
+import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.ui.onboarding.CollectionModeFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.DataUseFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.FCCInfoFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.HomeFragment
+import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModel
+import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModelFactory
 
 class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedListener, SettingsSetupFragment.OnPermissionsHandledListener  {
+    private val TAG = this::class.simpleName
+
+    private val model: OnboardingViewModel by viewModels() {
+        OnboardingViewModelFactory(CellWatchApp.localDataStore)
+    }
 
     private var currentPosition = 0
     private val fragments = listOf(
@@ -47,6 +58,7 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
                     .replace(R.id.content_frame, fragments[currentPosition])
                     .commit()
                 updateArrowVisibility()
+                Log.d(TAG, "Previous fragment is ${currentPosition}")
             }
         }
 
@@ -82,6 +94,16 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
             updateArrowVisibility()
         }
 
+//        model.generateDeviceId()
+
+        observeDeviceId()
+    }
+
+    private fun observeDeviceId() {
+        model.getDeviceId().observe(this) { deviceId ->
+            Log.d(TAG, "deviceId = $deviceId")
+            Toast.makeText(this, "Your deviceId is: $deviceId", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun updateArrowVisibility(visible: Boolean = true) {
