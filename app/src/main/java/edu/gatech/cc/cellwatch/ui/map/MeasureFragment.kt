@@ -32,38 +32,14 @@ class MeasureFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         binding = FragmentMeasureBinding.inflate(inflater, container, false)
-        //val rootView = inflater.inflate(R.layout.fragment_measure, container, false)
-
-        // when clicked on buttonIncrement progress is increased by 10%
-        binding.buttonIncr.setOnClickListener { // if progress is less than or equal
-            // to 90% then only it can be increased
-            if (progress <= 90) {
-                progress += 10
-                updateProgressBar()
-            }
-        }
-
-        // when clicked on buttonIncrement progress is decreased by 10%
-        binding.buttonDecr.setOnClickListener { // If progress is greater than
-            // 10% then only it can be decreased
-            if (progress >= 10) {
-                progress -= 10
-                updateProgressBar()
-            }
-        }
-
-        val inVehicle = arguments?.getBoolean("inVehicle") ?: throw RuntimeException("missing inVehicle arg")
-        binding.buttonMeasure.setOnClickListener { runTestSequence(inVehicle) }
-
-        //return rootView
+        binding.progressBar.visibility = View.INVISIBLE
         return binding.root
     }
 
-    // updateProgressBar() method sets
-    // the progress of ProgressBar in text
-    private fun updateProgressBar() {
-        binding.progressBar.progress = progress
-        binding.textViewProgress.text = progress.toString()
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val inVehicle = arguments?.getBoolean("inVehicle") ?: throw RuntimeException("missing inVehicle arg")
+        runTestSequence(inVehicle)
     }
 
     private fun runTestSequence(inVehicle: Boolean, failIfNotOnCellular: Boolean = true) {
@@ -72,9 +48,10 @@ class MeasureFragment : Fragment() {
             latencyComplete = false
             downloadComplete = false
             uploadComplete = false
-            binding.latencyContent.text = ""
-            binding.downloadContent.text = ""
-            binding.uploadContent.text = ""
+            binding.latencyResult.text = ""
+            binding.downloadResult.text = ""
+            binding.uploadResult.text = ""
+            binding.progressBar.visibility = View.VISIBLE
 
             try {
                 MeasurementManager.runTestSequence(
@@ -84,69 +61,65 @@ class MeasureFragment : Fragment() {
                     { handleLatencyStart() },
                     { handleLatencyComplete(it) },
                     { handleDownloadStart() },
-                    { handleThroughputComplete(binding.downloadContent, it) },
+                    { handleThroughputComplete(binding.downloadResult, it) },
                     { handleUploadStart() },
-                    { handleThroughputComplete(binding.uploadContent, it) },
+                    { handleThroughputComplete(binding.uploadResult, it) },
                     failIfNotOnCellular = failIfNotOnCellular,
                 )
-                binding.textStatus.setText(R.string.measurement_complete)
+                binding.header.text = "Measurement complete" // TODO: move to post-measurement screen
             } catch (e: MeasurementManager.NotOnCellularException) {
                 handleNotOnCellular(inVehicle)
             } catch (e: Exception) {
                 Log.e(TAG, "unexpected error running test sequence", e)
-
-                if (locateComplete) {
-                    binding.textStatus.setText(R.string.error_running_measurement)
-                } else {
-                    binding.textStatus.setText(R.string.failed_find_server)
-                }
+                binding.header.text = "Error!" // TODO: move to post-measurement screen
 
                 if (!latencyComplete) {
-                    binding.latencyContent.setText(R.string.failed)
+                    binding.latencyResult.setText(R.string.failed)
                 }
 
                 if (!downloadComplete) {
-                    binding.downloadContent.setText(R.string.failed)
+                    binding.downloadResult.setText(R.string.failed)
                 }
 
                 if (!uploadComplete) {
-                    binding.uploadContent.setText(R.string.failed)
+                    binding.uploadResult.setText(R.string.failed)
                 }
+            } finally {
+                binding.progressBar.visibility = View.INVISIBLE
             }
         }
     }
 
     private fun handleLocateStart() {
-       binding.textStatus.setText(R.string.finding_server)
+       binding.header.setText(R.string.finding_server)
     }
 
     private fun handleLocateComplete() {
         locateComplete = true
-        binding.textStatus.setText(R.string.found_server)
     }
 
     private fun handleLatencyStart() {
-        binding.textStatus.setText(R.string.measuring_latency)
-        binding.latencyContent.setText(R.string.running)
+        binding.header.setText(R.string.measuring_latency)
+        binding.latencyResult.setText(R.string.running)
     }
 
     private fun handleLatencyComplete(m: Measurement) {
         val rttMillis = ((m.latencyData?.rtt ?: 0) / 1e3).roundToInt()
         if (m.success == true) {
-            binding.latencyContent.text = getString(R.string.latency_ms, rttMillis)
+            binding.latencyResult.text = getString(R.string.latency_ms, rttMillis)
         } else {
-            binding.latencyContent.setText(R.string.failed)
+            binding.latencyResult.setText(R.string.failed)
         }
     }
 
     private fun handleDownloadStart() {
-        binding.textStatus.setText(R.string.measuring_download)
-        binding.downloadContent.setText(R.string.running)
+        binding.header.setText(R.string.measuring_download)
+        binding.downloadResult.setText(R.string.running)
     }
 
     private fun handleUploadStart() {
-        binding.textStatus.setText(R.string.measuring_upload)
-        binding.uploadContent.setText(R.string.running)
+        binding.header.setText(R.string.measuring_upload)
+        binding.uploadResult.setText(R.string.running)
     }
 
     private fun handleThroughputComplete(content: TextView, m: Measurement) {
@@ -160,8 +133,6 @@ class MeasureFragment : Fragment() {
     }
 
     private fun handleNotOnCellular(inVehicle: Boolean) {
-        binding.textStatus.setText(R.string.not_on_cellular)
-
         AlertDialog.Builder(context)
             .setMessage(R.string.not_cellular_warning)
             .setPositiveButton(R.string.not_cellular_proceed) { dialog, _ ->
