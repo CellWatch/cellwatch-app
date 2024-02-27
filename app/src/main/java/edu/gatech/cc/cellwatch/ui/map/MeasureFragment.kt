@@ -5,8 +5,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -54,9 +52,8 @@ class MeasureFragment : Fragment() {
             }
         }
 
-        binding.buttonMeasure.setOnClickListener {
-            runTestSequence()
-        }
+        val inVehicle = arguments?.getBoolean("inVehicle") ?: throw RuntimeException("missing inVehicle arg")
+        binding.buttonMeasure.setOnClickListener { runTestSequence(inVehicle) }
 
         //return rootView
         return binding.root
@@ -69,7 +66,7 @@ class MeasureFragment : Fragment() {
         binding.textViewProgress.text = progress.toString()
     }
 
-    private fun runTestSequence(failIfNotOnCellular: Boolean = true) {
+    private fun runTestSequence(inVehicle: Boolean, failIfNotOnCellular: Boolean = true) {
         viewLifecycleOwner.lifecycleScope.launch {
             locateComplete = false
             latencyComplete = false
@@ -81,6 +78,7 @@ class MeasureFragment : Fragment() {
 
             try {
                 MeasurementManager.runTestSequence(
+                    inVehicle,
                     { handleLocateStart() },
                     { handleLocateComplete() },
                     { handleLatencyStart() },
@@ -93,7 +91,7 @@ class MeasureFragment : Fragment() {
                 )
                 binding.textStatus.setText(R.string.measurement_complete)
             } catch (e: MeasurementManager.NotOnCellularException) {
-                handleNotOnCellular()
+                handleNotOnCellular(inVehicle)
             } catch (e: Exception) {
                 Log.e(TAG, "unexpected error running test sequence", e)
 
@@ -161,14 +159,14 @@ class MeasureFragment : Fragment() {
         }
     }
 
-    private fun handleNotOnCellular() {
+    private fun handleNotOnCellular(inVehicle: Boolean) {
         binding.textStatus.setText(R.string.not_on_cellular)
 
         AlertDialog.Builder(context)
             .setMessage(R.string.not_cellular_warning)
             .setPositiveButton(R.string.not_cellular_proceed) { dialog, _ ->
                 dialog.dismiss()
-                runTestSequence(false)
+                runTestSequence(inVehicle, false)
             }
             .setNegativeButton(R.string.not_cellular_abort) { dialog, _ -> dialog.dismiss()}
             .show()

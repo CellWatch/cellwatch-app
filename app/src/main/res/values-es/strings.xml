@@ -57,6 +57,18 @@
     <string name="add_measurement">+ Medir</string>
     <string name="search_map">Buscar en el mapa</string>
 
+    <!-- pre-measure -->
+    <string name="stationary_or_moving">¿Está parado al aire libre o en un vehículo en movimiento?</string>
+    <string name="stationary_outdoors">Parado al aire libre</string>
+    <string name="moving_vehicle">En un vehículo en movimiento</string>
+    <string name="certification_intro">Al hacer clic en Empezar, declaro que según mi conocimiento:</string>
+    <string name="certify_subscriber">Soy suscriptor del proveedor al cual se impugna</string>
+    <string name="certify_outdoors">Estoy al aire libre</string>
+    <string name="certify_phone_working">Mi teléfono funciona</string>
+    <string name="certify_statements">Todas las declaraciones en este envío son verdaderas y correctas</string>
+    <string name="data_reminder">Los datos se guardan y se usan según nuestra política de privacidad.</string>
+    <string name="go">Empezar</string>
+
     <!-- measure -->
     <string name="measure">Medir</string>
     <string name="latency">Latencia</string>
