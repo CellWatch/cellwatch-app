@@ -65,22 +65,17 @@
 
     <!-- measure -->
     <string name="measure">Measure</string>
+    <string name="finding_server">Finding server</string>
+    <string name="measuring_latency">Measuring latency</string>
+    <string name="measuring_download">Measuring download speed</string>
+    <string name="measuring_upload">Measuring upload speed</string>
     <string name="latency">Latency</string>
     <string name="download">Download</string>
     <string name="upload">Upload</string>
-    <string name="finding_server">finding server</string>
-    <string name="found_server">found server</string>
-    <string name="measurement_complete">measurement complete</string>
-    <string name="failed_find_server">failed to find server</string>
-    <string name="error_running_measurement">error running measurement</string>
-    <string name="measuring_latency">measuring latency</string>
-    <string name="measuring_download">measuring download speed</string>
-    <string name="measuring_upload">measuring upload speed</string>
     <string name="running">running</string>
     <string name="failed">failed</string>
     <string name="speed_mbps">%1$d Mbps</string>
     <string name="latency_ms">%1$d ms</string>
-    <string name="not_on_cellular">not on cellular</string>
     <string name="not_cellular_warning">It looks like you are connected to WiFi or have cellular data disabled. If you proceed, your measurement may not be submitted to the FCC.</string>
     <string name="not_cellular_proceed">Measure anyway</string>
     <string name="not_cellular_abort">Cancel</string>

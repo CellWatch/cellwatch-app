@@ -70,23 +70,18 @@
     <string name="go">Empezar</string>
 
     <!-- measure -->
-    <string name="measure">Medir</string>
+    <string name="measure">Measure</string>
+    <string name="finding_server">Encontrando servidor</string>
+    <string name="measuring_latency">Midiendo latencia</string>
+    <string name="measuring_download">Midiendo velocidad de descarga</string>
+    <string name="measuring_upload">Midiendo velocidad de subida</string>
     <string name="latency">Latencia</string>
     <string name="download">Descarga</string>
     <string name="upload">Subida</string>
-    <string name="finding_server">encontrando servidor</string>
-    <string name="found_server">encontró servidor</string>
-    <string name="measurement_complete">medición acabada</string>
-    <string name="failed_find_server">falló encontrar servidor</string>
-    <string name="error_running_measurement">error durante medición</string>
-    <string name="measuring_latency">midiendo latencia</string>
-    <string name="measuring_download">midiendo velocidad de descarga</string>
-    <string name="measuring_upload">midiendo velocidad de subida</string>
     <string name="running">en curso</string>
     <string name="failed">fallido</string>
     <string name="speed_mbps">%1$d Mbps</string>
     <string name="latency_ms">%1$d ms</string>
-    <string name="not_on_cellular">no utilizando datos celulares</string>
     <string name="not_cellular_warning">Parece que está conectado al WiFi o se apagaron los datos celulares. Si continúa, puede que la medición no se envíe a la FCC.</string>
     <string name="not_cellular_proceed">Medir de todas maneras</string>
     <string name="not_cellular_abort">Cancelar</string>
