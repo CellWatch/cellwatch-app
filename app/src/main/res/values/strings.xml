@@ -51,6 +51,18 @@
     <string name="add_measurement">+ Measure</string>
     <string name="search_map">Search Map</string>
 
+    <!-- pre-measure -->
+    <string name="stationary_or_moving">Are you standing outdoors or in a moving vehicle?</string>
+    <string name="stationary_outdoors">Standing Outdoors</string>
+    <string name="moving_vehicle">In Moving Vehicle</string>
+    <string name="certification_intro">By clicking "Go", I certify to the best of my ability that:</string>
+    <string name="certify_subscriber">I am a subscriber of the provider being challenged</string>
+    <string name="certify_outdoors">I am outdoors</string>
+    <string name="certify_phone_working">My phone is in working order</string>
+    <string name="certify_statements">All statements in this submission are true and correct</string>
+    <string name="data_reminder">All data will be stored and used consistent with our privacy policy.</string>
+    <string name="go">Go</string>
+
     <!-- measure -->
     <string name="measure">Measure</string>
     <string name="latency">Latency</string>

@@ -16,7 +16,11 @@ import edu.gatech.cc.cellwatch.ui.map.MeasureFragment
 import edu.gatech.cc.cellwatch.ui.map.MeasureHistoryFragment
 import edu.gatech.cc.cellwatch.ui.map.SettingsFragment
 
-class MainActivity : AppCompatActivity(), MapFragment.DrawerToggleListener, MapFragment.OnMapFragmentInteractionListener {
+class MainActivity : AppCompatActivity(),
+    MapFragment.DrawerToggleListener,
+    MapFragment.OnMapFragmentInteractionListener,
+    PreMeasureFragment.PreMeasureFragmentInteractionListener {
+
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,7 +62,7 @@ class MainActivity : AppCompatActivity(), MapFragment.DrawerToggleListener, MapF
         // Measure button functionality
         val measureButton: Button = findViewById(R.id.menuMeasureButton)
         measureButton.setOnClickListener {
-            replaceFragment(MeasureFragment())
+            replaceFragment(PreMeasureFragment())
         }
 
         // Measurement History button functionality
@@ -102,6 +106,14 @@ class MainActivity : AppCompatActivity(), MapFragment.DrawerToggleListener, MapF
     }
 
     override fun onMeasureButtonPressed() {
-        replaceFragment(MeasureFragment())
+        replaceFragment(PreMeasureFragment())
+    }
+
+    override fun onGoButtonPressed(inVehicle: Boolean) {
+        val f = MeasureFragment()
+        val b = Bundle()
+        b.putBoolean("inVehicle", inVehicle)
+        f.arguments = b
+        replaceFragment(f)
     }
 }

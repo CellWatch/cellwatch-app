@@ -54,6 +54,7 @@ object MeasurementManager {
     }
 
     suspend fun runTestSequence(
+        inVehicle: Boolean,
         onLocateStart: () -> Unit,
         onLocateComplete: (r: String) -> Unit,
         onLatencyStart: () -> Unit,
@@ -122,7 +123,7 @@ object MeasurementManager {
                 id = groupId,
                 deviceId = latencyMeasurement.deviceId ?: downloadMeasurement.deviceId ?: uploadMeasurement.deviceId,
                 deviceTimestamp = Clock.System.now(),
-                inVehicle = false,
+                inVehicle = inVehicle,
                 externalAntenna = false,
                 deviceType = "Android",
                 deviceManufacturer = latencyMeasurement.deviceManufacturer ?: downloadMeasurement.deviceManufacturer ?: uploadMeasurement.deviceManufacturer,
