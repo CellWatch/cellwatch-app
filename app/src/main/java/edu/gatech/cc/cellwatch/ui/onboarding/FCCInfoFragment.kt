@@ -6,19 +6,30 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import com.google.android.material.textfield.TextInputEditText
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModel
+import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModelFactory
+import kotlinx.coroutines.flow.first
 
 
 class FCCInfoFragment : Fragment() {
+    private val TAG = this::class.simpleName
+
     private lateinit var etName: TextInputEditText
     private lateinit var etPhone: TextInputEditText
     private lateinit var etEmail: TextInputEditText
     private lateinit var awkCheckbox: CheckBox
+
+    private val viewModel: OnboardingViewModel by activityViewModels<OnboardingViewModel> {
+        OnboardingViewModelFactory(CellWatchApp.localDataStore)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -30,6 +41,11 @@ class FCCInfoFragment : Fragment() {
         etPhone = view.findViewById(R.id.etPhone)
         etEmail = view.findViewById(R.id.etEmail)
         awkCheckbox = view.findViewById(R.id.cbAcknowledgement)
+
+//        etName.setText(CellWatchApp.localDataStore.getUserName.first())
+
+        observeFccInfo()
+
         return view
     }
 
@@ -40,6 +56,28 @@ class FCCInfoFragment : Fragment() {
         val tvReadPrivacyPolicy = view.findViewById<LinearLayout>(R.id.LLReadPrivacyPolicy)
         tvReadPrivacyPolicy.setOnClickListener {
             showPrivacyPolicyText()
+        }
+    }
+
+    private fun observeFccInfo() {
+        viewModel.getUserName().observe(this) { userName ->
+            Log.d(TAG, "userName = $userName")
+            etName.setText(userName)
+        }
+
+        viewModel.getPhoneNumber().observe(this) { phoneNumber ->
+            Log.d(TAG, "phoneNumber = $phoneNumber")
+            etPhone.setText(phoneNumber)
+        }
+
+        viewModel.getEmail().observe(this) { email ->
+            Log.d(TAG, "email = $email")
+            etEmail.setText(email)
+        }
+
+        viewModel.getFccPolicyAgreed().observe(this) { fccPolicyAgreed ->
+            Log.d(TAG, "fccPolicyAgreed = $fccPolicyAgreed")
+            awkCheckbox.isChecked = fccPolicyAgreed
         }
     }
 
@@ -59,6 +97,12 @@ class FCCInfoFragment : Fragment() {
         val name = etName.text.toString()
         val phone = etPhone.text.toString()
         val email = etEmail.text.toString()
+        val fccPolicyAgreed = awkCheckbox.isChecked
+
+        viewModel.setUserName(name)
+        viewModel.setPhoneNumber(phone)
+        viewModel.setEmail(email)
+        viewModel.agreeToFccPolicy(fccPolicyAgreed)
     }
 
     fun validateInputs(): Boolean {
@@ -85,6 +129,8 @@ class FCCInfoFragment : Fragment() {
             Toast.makeText(context, "Please acknowledge the bottom statement.", Toast.LENGTH_LONG).show()
             return false
         }
+
+        storeData()
 
         return true
     }

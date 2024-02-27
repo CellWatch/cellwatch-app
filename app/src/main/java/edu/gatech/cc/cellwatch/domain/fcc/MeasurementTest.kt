@@ -63,7 +63,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
 
         return Measurement(
             groupId = groupId,
-            deviceId = LocalDataStore(context).getDeviceId.first(),
+            deviceId = CellWatchApp.localDataStore.getDeviceId.first(), //LocalDataStore(context).getDeviceId.first(),
             deviceManufacturer = deviceMod.manufacturer,
             deviceModel = deviceMod.model,
             deviceOsName = "Android",

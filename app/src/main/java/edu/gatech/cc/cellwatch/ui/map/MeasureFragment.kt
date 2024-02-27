@@ -9,13 +9,17 @@ import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.databinding.FragmentMeasureBinding
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementManager
 import edu.gatech.cc.cellwatch.domain.fcc.ThroughputMetrics
+import edu.gatech.cc.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
+import edu.gatech.cc.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -27,6 +31,10 @@ class MeasureFragment : Fragment() {
     private var latencyComplete = false
     private var downloadComplete = false
     private var uploadComplete = false
+
+    private val measurementViewModel: MeasurementViewModel by activityViewModels() {
+        MeasurementViewModelFactory(CellWatchApp.measurementRepository)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,

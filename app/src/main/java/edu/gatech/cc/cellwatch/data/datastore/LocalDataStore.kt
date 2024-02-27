@@ -3,6 +3,7 @@ package edu.gatech.cc.cellwatch.data.datastore
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -14,6 +15,10 @@ class LocalDataStore(private val context: Context) {
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("data_store")
         private val DEVICE_ID = stringPreferencesKey("device_id")
         private val COLLECTION_MODE = stringPreferencesKey("collection_mode")
+        private val FCC_POLICY_AGREED = booleanPreferencesKey("fcc_policy_agreed")
+        private val USER_NAME = stringPreferencesKey("user_name")
+        private val PHONE_NUMBER = stringPreferencesKey("phone_number")
+        private val EMAIL = stringPreferencesKey("email")
     }
 
     val getDeviceId: Flow<String> = context.dataStore.data.map { preferences ->
@@ -30,9 +35,49 @@ class LocalDataStore(private val context: Context) {
         preferences[COLLECTION_MODE] ?: ""
     }
 
+    suspend fun saveFccPolicyAgreed(fccPolicyAgreed: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[FCC_POLICY_AGREED] = fccPolicyAgreed
+        }
+    }
+
+    val getFccPolicyAgreed: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[FCC_POLICY_AGREED] ?: false
+    }
+
     suspend fun saveCollectionMode(collectionMode: String) {
         context.dataStore.edit { preferences ->
             preferences[COLLECTION_MODE] = collectionMode
+        }
+    }
+
+    val getUserName: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[USER_NAME] ?: ""
+    }
+
+    suspend fun saveUserName(userName: String) {
+        context.dataStore.edit { preferences ->
+            preferences[USER_NAME] = userName
+        }
+    }
+
+    val getPhoneNumber: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PHONE_NUMBER] ?: ""
+    }
+
+    suspend fun savePhoneNumber(phoneNumber: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PHONE_NUMBER] = phoneNumber
+        }
+    }
+
+    val getEmail: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[EMAIL] ?: ""
+    }
+
+    suspend fun saveEmail(email: String) {
+        context.dataStore.edit { preferences ->
+            preferences[EMAIL] = email
         }
     }
 }
