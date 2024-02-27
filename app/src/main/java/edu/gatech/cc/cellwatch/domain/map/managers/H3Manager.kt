@@ -1,9 +1,10 @@
 package edu.gatech.cc.cellwatch.domain.map.managers
 
-import edu.gatech.cc.cellwatch.CellWatchApp
 import com.mapbox.geojson.Point
 import com.uber.h3core.H3Core
 import com.uber.h3core.util.GeoCoord
+import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 
 object H3Manager {
@@ -25,6 +26,7 @@ object H3Manager {
         val h3Boundaries: MutableList<MutableList<Point>> = mutableListOf()
 
         h3Indexes.forEach { index ->
+            Log.i("H3Manager", getH3ResolutionFromAddress(index).toString())
             h3Boundaries.add(geoCoordListToMapboxPointList(h3.h3ToGeoBoundary(index)))
         }
 
@@ -91,8 +93,8 @@ object H3Manager {
 
     suspend fun getMeasurementGroupsAssociatedWithLatLong(coord: Point): MutableList<MeasurementGroup> {
         return getMeasurementGroupsAssociatedWithH3Address(
-            h3.geoToH3(coord.latitude(), coord.longitude(), 5),
-            5,
+            h3.geoToH3(coord.latitude(), coord.longitude(), 8),
+            8,
         )
     }
 
