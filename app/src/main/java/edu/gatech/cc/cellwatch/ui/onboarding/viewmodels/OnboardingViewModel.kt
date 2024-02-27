@@ -4,21 +4,24 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import edu.gatech.cc.cellwatch.data.datastore.LocalDataStore
-import edu.gatech.cc.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.UUID
 
 class OnboardingViewModel(private val localDataStore: LocalDataStore) : ViewModel() {
     private var deviceId = MutableLiveData<String>()
-    private val privacyAgreed = MutableLiveData<Boolean>()
+    private val fccPolicyAgreed = MutableLiveData<Boolean>()
     private val collectionMode = MutableLiveData<String>()
+    private val userName = MutableLiveData<String>()
+    private val phoneNumber = MutableLiveData<String>()
+    private val email = MutableLiveData<String>()
 
     fun getDeviceId(): LiveData<String> {
-        viewModelScope.launch {
+//        viewModelScope.launch {
+        runBlocking {
             deviceId.value = localDataStore.getDeviceId.first()
             if (deviceId.value == "") {
                 val newDeviceId = UUID.randomUUID().toString()
@@ -30,13 +33,44 @@ class OnboardingViewModel(private val localDataStore: LocalDataStore) : ViewMode
     }
 
     fun getCollectionMode(): LiveData<String> {
+//        viewModelScope.launch {
+        runBlocking {
+          collectionMode.value = localDataStore.getCollectionMode.first()
+        }
         return collectionMode
     }
 
-    fun getPrivacyAgreed(): LiveData<Boolean> {
-        return privacyAgreed
+    fun getFccPolicyAgreed(): LiveData<Boolean> {
+//        viewModelScope.launch {
+        runBlocking {
+          fccPolicyAgreed.value = localDataStore.getFccPolicyAgreed.first()
+        }
+        return fccPolicyAgreed
     }
 
+    fun getUserName(): LiveData<String> {
+//        viewModelScope.launch {
+        runBlocking {
+            userName.value = localDataStore.getUserName.first()
+        }
+        return userName
+    }
+
+    fun getPhoneNumber(): LiveData<String> {
+//        viewModelScope.launch {
+        runBlocking {
+            phoneNumber.value = localDataStore.getPhoneNumber.first()
+        }
+        return phoneNumber
+    }
+
+    fun getEmail(): LiveData<String> {
+        viewModelScope.launch {
+            email.value = localDataStore.getEmail.first()
+        }
+        return email
+    }
+    
     /**
      * Generate a new deviceId on first launch of app
      */
@@ -48,12 +82,39 @@ class OnboardingViewModel(private val localDataStore: LocalDataStore) : ViewMode
         return newDeviceId
     }
 
-    fun collectionMode(mode: String) {
+    fun setCollectionMode(mode: String) {
         collectionMode.value = mode
+        viewModelScope.launch {
+            localDataStore.saveCollectionMode(mode)
+        }
     }
 
-    fun agreeToPrivacy(agreed: Boolean) {
-        privacyAgreed.value = agreed
+    fun agreeToFccPolicy(agreed: Boolean) {
+        fccPolicyAgreed.value = agreed
+        viewModelScope.launch {
+            localDataStore.saveFccPolicyAgreed(agreed)
+        }
+    }
+
+    fun setUserName(mode: String) {
+        userName.value = mode
+        viewModelScope.launch {
+            localDataStore.saveUserName(mode)
+        }
+    }
+
+    fun setPhoneNumber(mode: String) {
+        phoneNumber.value = mode
+        viewModelScope.launch {
+            localDataStore.savePhoneNumber(mode)
+        }
+    }
+
+    fun setEmail(mode: String) {
+        email.value = mode
+        viewModelScope.launch {
+            localDataStore.saveEmail(mode)
+        }
     }
 }
 
