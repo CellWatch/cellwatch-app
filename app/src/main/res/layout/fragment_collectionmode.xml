@@ -62,7 +62,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:background="@drawable/fragment_collection_mode_selectable_background"
+        android:background="@drawable/selectable_button_bg"
         android:clickable="true"
         android:focusable="true">
 
@@ -99,7 +99,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:background="@drawable/fragment_collection_mode_selectable_background"
+        android:background="@drawable/selectable_button_bg"
         android:clickable="true"
         android:focusable="true">
 

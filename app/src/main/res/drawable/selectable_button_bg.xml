@@ -3,15 +3,17 @@
     <!-- When selected -->
     <item android:state_selected="true">
         <shape android:shape="rectangle">
-            <solid android:color="#90EE90"/> <!-- light green background -->
-            <stroke android:width="2dp" android:color="#006400"/> <!-- dark green border -->
+            <corners android:radius="3dp" />
+            <solid android:color="@color/cwbuttongreenlight"/>
+            <stroke android:width="5dp" android:color="@color/cwbuttongreen"/>
         </shape>
     </item>
     <!-- Default -->
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="#FFFFFF"/> <!-- Default background color -->
-            <stroke android:width="2dp" android:color="#006400"/> <!-- dark green border -->
+            <corners android:radius="3dp" />
+            <solid android:color="@color/white"/>
+            <stroke android:width="2dp" android:color="#777777"/>
         </shape>
     </item>
 </selector>
