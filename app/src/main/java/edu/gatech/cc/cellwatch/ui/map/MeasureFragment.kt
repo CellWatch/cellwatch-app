@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TableRow
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -34,6 +35,9 @@ class MeasureFragment : Fragment() {
     ): View? {
         binding = FragmentMeasureBinding.inflate(inflater, container, false)
         binding.progressBar.visibility = View.INVISIBLE
+        binding.latencyRow.visibility = View.INVISIBLE
+        binding.downloadRow.visibility = View.INVISIBLE
+        binding.uploadRow.visibility = View.INVISIBLE
         model = ViewModelProvider(requireActivity())[MeasurementViewModel::class.java]
         return binding.root
     }
@@ -61,9 +65,9 @@ class MeasureFragment : Fragment() {
                     { handleLatencyStart() },
                     { handleLatencyComplete(it) },
                     { handleDownloadStart() },
-                    { handleThroughputComplete(binding.downloadResult, it) },
+                    { handleThroughputComplete(binding.downloadRow, binding.downloadResult, it) },
                     { handleUploadStart() },
-                    { handleThroughputComplete(binding.uploadResult, it) },
+                    { handleThroughputComplete(binding.uploadRow, binding.uploadResult, it) },
                     failIfNotOnCellular = failIfNotOnCellular,
                 )
                 handleMeasurementComplete()
@@ -88,7 +92,6 @@ class MeasureFragment : Fragment() {
 
     private fun handleLatencyStart() {
         binding.header.setText(R.string.measuring_latency)
-        binding.latencyResult.setText(R.string.running)
     }
 
     private fun handleLatencyComplete(m: Measurement) {
@@ -99,19 +102,18 @@ class MeasureFragment : Fragment() {
         } else {
             binding.latencyResult.setText(R.string.failed)
         }
+        binding.latencyRow.visibility = View.VISIBLE
     }
 
     private fun handleDownloadStart() {
         binding.header.setText(R.string.measuring_download)
-        binding.downloadResult.setText(R.string.running)
     }
 
     private fun handleUploadStart() {
         binding.header.setText(R.string.measuring_upload)
-        binding.uploadResult.setText(R.string.running)
     }
 
-    private fun handleThroughputComplete(content: TextView, m: Measurement) {
+    private fun handleThroughputComplete(row: TableRow, content: TextView, m: Measurement) {
         when (m.type) {
             "download" -> model.downloadResult = m
             "upload" -> model.uploadResult = m
@@ -124,6 +126,8 @@ class MeasureFragment : Fragment() {
         } else {
             content.setText(R.string.failed)
         }
+
+        row.visibility = View.VISIBLE
     }
 
     private fun handleNotOnCellular() {

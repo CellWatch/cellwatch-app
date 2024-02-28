@@ -35,15 +35,25 @@
         android:id="@+id/results"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:stretchColumns="1"
+        android:stretchColumns="2"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" >
 
         <TableRow
+            android:id="@+id/latencyRow"
             android:layout_marginVertical="8dp"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="center"
+                android:paddingEnd="10dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/fa_stopwatch"
+                app:tint="@color/black" />
 
             <TextView
                 android:text="@string/latency"
@@ -58,9 +68,19 @@
         </TableRow>
 
         <TableRow
+            android:id="@+id/downloadRow"
             android:layout_marginVertical="8dp"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="center"
+                android:paddingEnd="10dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/fa_download"
+                app:tint="@color/black" />
 
             <TextView
                 android:text="@string/download"
@@ -75,9 +95,19 @@
         </TableRow>
 
         <TableRow
+            android:id="@+id/uploadRow"
             android:layout_marginVertical="8dp"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="center"
+                android:paddingEnd="10dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/fa_upload"
+                app:tint="@color/black" />
 
             <TextView
                 android:text="@string/upload"
