@@ -87,7 +87,7 @@ class MainActivity : AppCompatActivity(),
     }
 
     private fun replaceFragment(fragment: Fragment) {
-        if (fragment is MapFragment) {
+        if (fragment is MapFragment || fragment is MeasureFragment) {
             toolbar.visibility = View.GONE
         } else {
             toolbar.visibility = View.VISIBLE
