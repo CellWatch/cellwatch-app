@@ -7,31 +7,24 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.databinding.FragmentMeasureBinding
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementManager
 import edu.gatech.cc.cellwatch.domain.fcc.ThroughputMetrics
-import edu.gatech.cc.cellwatch.ui.measurement.viewmodels.MeasurementViewModel
-import edu.gatech.cc.cellwatch.ui.measurement.viewmodels.MeasurementViewModelFactory
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 class MeasureFragment : Fragment() {
     private val TAG = this::class.simpleName
-    private var progress = 0
     private lateinit var binding: FragmentMeasureBinding
-    private var locateComplete = false
-    private var latencyComplete = false
-    private var downloadComplete = false
-    private var uploadComplete = false
+    private lateinit var model: MeasurementViewModel
 
-    private val measurementViewModel: MeasurementViewModel by activityViewModels() {
-        MeasurementViewModelFactory(CellWatchApp.measurementRepository)
+    interface MeasureFragmentInteractionListener {
+        fun onMeasurementComplete()
     }
 
     override fun onCreateView(
@@ -41,21 +34,20 @@ class MeasureFragment : Fragment() {
     ): View? {
         binding = FragmentMeasureBinding.inflate(inflater, container, false)
         binding.progressBar.visibility = View.INVISIBLE
+        model = ViewModelProvider(requireActivity())[MeasurementViewModel::class.java]
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val inVehicle = arguments?.getBoolean("inVehicle") ?: throw RuntimeException("missing inVehicle arg")
-        runTestSequence(inVehicle)
+        runTestSequence()
     }
 
-    private fun runTestSequence(inVehicle: Boolean, failIfNotOnCellular: Boolean = true) {
+    private fun runTestSequence(failIfNotOnCellular: Boolean = true) {
         viewLifecycleOwner.lifecycleScope.launch {
-            locateComplete = false
-            latencyComplete = false
-            downloadComplete = false
-            uploadComplete = false
+            model.latencyResult = null
+            model.downloadResult = null
+            model.uploadResult = null
             binding.latencyResult.text = ""
             binding.downloadResult.text = ""
             binding.uploadResult.text = ""
@@ -63,7 +55,7 @@ class MeasureFragment : Fragment() {
 
             try {
                 MeasurementManager.runTestSequence(
-                    inVehicle,
+                    model.inVehicle,
                     { handleLocateStart() },
                     { handleLocateComplete() },
                     { handleLatencyStart() },
@@ -74,24 +66,12 @@ class MeasureFragment : Fragment() {
                     { handleThroughputComplete(binding.uploadResult, it) },
                     failIfNotOnCellular = failIfNotOnCellular,
                 )
-                binding.header.text = "Measurement complete" // TODO: move to post-measurement screen
+                handleMeasurementComplete()
             } catch (e: MeasurementManager.NotOnCellularException) {
-                handleNotOnCellular(inVehicle)
+                handleNotOnCellular()
             } catch (e: Exception) {
                 Log.e(TAG, "unexpected error running test sequence", e)
-                binding.header.text = "Error!" // TODO: move to post-measurement screen
-
-                if (!latencyComplete) {
-                    binding.latencyResult.setText(R.string.failed)
-                }
-
-                if (!downloadComplete) {
-                    binding.downloadResult.setText(R.string.failed)
-                }
-
-                if (!uploadComplete) {
-                    binding.uploadResult.setText(R.string.failed)
-                }
+                handleMeasurementComplete()
             } finally {
                 binding.progressBar.visibility = View.INVISIBLE
             }
@@ -103,7 +83,7 @@ class MeasureFragment : Fragment() {
     }
 
     private fun handleLocateComplete() {
-        locateComplete = true
+        // do nothing
     }
 
     private fun handleLatencyStart() {
@@ -112,6 +92,7 @@ class MeasureFragment : Fragment() {
     }
 
     private fun handleLatencyComplete(m: Measurement) {
+        model.latencyResult = m
         val rttMillis = ((m.latencyData?.rtt ?: 0) / 1e3).roundToInt()
         if (m.success == true) {
             binding.latencyResult.text = getString(R.string.latency_ms, rttMillis)
@@ -131,6 +112,11 @@ class MeasureFragment : Fragment() {
     }
 
     private fun handleThroughputComplete(content: TextView, m: Measurement) {
+        when (m.type) {
+            "download" -> model.downloadResult = m
+            "upload" -> model.uploadResult = m
+            else -> throw RuntimeException("unexpected measurement type ${m.type}")
+        }
         val activeMetrics = ThroughputMetrics(m.uploadDownloadData?.bytes ?: 0, m.uploadDownloadData?.duration ?: 0)
         val speedMbps = (activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()
         if (m.success == true) {
@@ -140,14 +126,24 @@ class MeasureFragment : Fragment() {
         }
     }
 
-    private fun handleNotOnCellular(inVehicle: Boolean) {
+    private fun handleNotOnCellular() {
         AlertDialog.Builder(context)
             .setMessage(R.string.not_cellular_warning)
             .setPositiveButton(R.string.not_cellular_proceed) { dialog, _ ->
                 dialog.dismiss()
-                runTestSequence(inVehicle, false)
+                runTestSequence(false)
             }
             .setNegativeButton(R.string.not_cellular_abort) { dialog, _ -> dialog.dismiss()}
             .show()
+    }
+
+    private fun handleMeasurementComplete() {
+        val interactionListener = if (context is MeasureFragmentInteractionListener) {
+            context as MeasureFragmentInteractionListener
+        } else {
+            throw RuntimeException(context.toString() + " must implement MeasureFragmentInteractionListener")
+        }
+
+        interactionListener.onMeasurementComplete()
     }
 }
