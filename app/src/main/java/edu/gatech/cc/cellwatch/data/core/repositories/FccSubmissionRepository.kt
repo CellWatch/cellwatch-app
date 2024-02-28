@@ -15,6 +15,7 @@ import edu.gatech.cc.cellwatch.data.model.asEntity
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import okhttp3.Call
 import okhttp3.Callback
@@ -89,7 +90,7 @@ class FccSubmissionRepository(
      * the network database (Supabase). Clear local database if successful.
      */
     @WorkerThread
-    suspend fun uploadFccSubmissions() {
+    suspend fun uploadFccSubmissions(): Instant? {
         val fccSubmissions = getUnsynchronizedFccSubmissions()
 //        val fccSubmissions = getUnsynchronizedFccSubmissionsWithMeasurements()
 
@@ -111,17 +112,21 @@ class FccSubmissionRepository(
             }
 
             Log.d(TAG, "Update ${fccSubmissions.size} FccSubmissions as synchronized")
+            val uploadTime = Clock.System.now()
 
             fccSubmissions.forEach { FccSubmission ->
                 val FccSubmissionEntity = FccSubmission.asEntity()
-                FccSubmissionEntity.isSynchronized = true
+                FccSubmissionEntity.uploadTime = uploadTime
                 FccSubmissionEntity.sourceIp = FccSubmission.sourceIp
                 FccSubmissionEntity.sourcePort = FccSubmission.sourcePort
                 FccSubmissionEntity.serverTimestamp = FccSubmission.serverTimestamp
                 fccSubmissionDao.updateFccSubmission(FccSubmissionEntity)
             }
+
+            return uploadTime
         } else {
             Log.d(TAG, "No FccSubmissions to upload !!!")
+            return null
         }
     }
 

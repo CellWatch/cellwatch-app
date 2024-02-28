@@ -95,8 +95,8 @@ data class MeasurementEntity(
 //    @ColumnInfo(name = "updated_on")
     val updatedOn: Instant? = null,
 
-    // Has this record been pushed to cloud storage?
-    var isSynchronized: Boolean = false
+    // When was this record pushed to cloud storage?
+    var uploadTime: Instant? = null,
 )
 
 fun MeasurementEntity.asExternalModel() = Measurement(

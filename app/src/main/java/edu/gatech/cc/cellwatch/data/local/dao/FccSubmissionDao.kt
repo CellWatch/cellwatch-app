@@ -51,10 +51,10 @@ abstract class FccSubmissionDao {
     abstract suspend fun getFccSubmissions(): List<FccSubmissionEntity>
 
     @Transaction
-    @Query("SELECT * FROM FccSubmissionEntity WHERE isSynchronized = 0 ORDER BY id")
+    @Query("SELECT * FROM FccSubmissionEntity WHERE uploadTime IS NULL ORDER BY id")
     abstract suspend fun getUnsynchronizedFccSubmissionsWithMeasurements(): List<FccSubmissionWithMeasurements>
 
-    @Query("SELECT * FROM FccSubmissionEntity WHERE isSynchronized = 0")
+    @Query("SELECT * FROM FccSubmissionEntity WHERE uploadTime IS NULL")
     abstract suspend fun getUnsynchronizedFccSubmissions(): List<FccSubmissionEntity>
 
     @Query("SELECT * FROM FccSubmissionEntity")
@@ -74,7 +74,7 @@ abstract class FccSubmissionDao {
 //    abstract suspend fun getFccSubmissionsWithMeasurements(): List<FccSubmissionWithMeasurements>
 //
 //    @Transaction
-//    @Query("SELECT * FROM FccSubmissionEntity WHERE isSynchronized = 0")
+//    @Query("SELECT * FROM FccSubmissionEntity WHERE uploadTime IS NULL")
 //    abstract suspend fun getUnsynchronizedFccSubmissionsWithMeasurements(): List<FccSubmissionWithMeasurements>
 //
 //    @Transaction

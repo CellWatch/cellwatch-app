@@ -105,7 +105,7 @@ abstract class MeasurementDao {
     @Query("SELECT * FROM MeasurementEntity")
     abstract suspend fun getMeasurements(): List<MeasurementEntity>
 
-    @Query("SELECT * FROM MeasurementEntity WHERE isSynchronized = 0")
+    @Query("SELECT * FROM MeasurementEntity WHERE uploadTime IS NULL")
     abstract suspend fun getUnsynchronizedMeasurements(): List<MeasurementEntity>
 
     @Query("SELECT * FROM MeasurementEntity")
@@ -116,7 +116,7 @@ abstract class MeasurementDao {
     abstract suspend fun getMeasurementsWithData(): List<MeasurementWithData>
 
     @Transaction
-    @Query("SELECT * FROM MeasurementEntity WHERE isSynchronized = 0")
+    @Query("SELECT * FROM MeasurementEntity WHERE uploadTime IS NULL")
     abstract suspend fun getUnsynchronizedMeasurementsWithData(): List<MeasurementWithData>
 
     @Transaction
