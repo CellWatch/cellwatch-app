@@ -19,7 +19,9 @@ import edu.gatech.cc.cellwatch.ui.map.SettingsFragment
 class MainActivity : AppCompatActivity(),
     MapFragment.DrawerToggleListener,
     MapFragment.OnMapFragmentInteractionListener,
-    PreMeasureFragment.PreMeasureFragmentInteractionListener {
+    PreMeasureFragment.PreMeasureFragmentInteractionListener,
+    MeasureFragment.MeasureFragmentInteractionListener,
+    PostMeasureFragment.PostMeasureFragmentInteractionListener {
 
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
@@ -109,11 +111,19 @@ class MainActivity : AppCompatActivity(),
         replaceFragment(PreMeasureFragment())
     }
 
-    override fun onGoButtonPressed(inVehicle: Boolean) {
-        val f = MeasureFragment()
-        val b = Bundle()
-        b.putBoolean("inVehicle", inVehicle)
-        f.arguments = b
-        replaceFragment(f)
+    override fun onGoButtonPressed() {
+        replaceFragment(MeasureFragment())
+    }
+
+    override fun onMeasurementComplete() {
+        replaceFragment(PostMeasureFragment())
+    }
+
+    override fun onTakeAnotherMeasurementPressed() {
+        replaceFragment(PreMeasureFragment())
+    }
+
+    override fun onBackToMapPressed() {
+        replaceFragment(MapFragment())
     }
 }

@@ -86,6 +86,14 @@
     <string name="not_cellular_proceed">Medir de todas maneras</string>
     <string name="not_cellular_abort">Cancelar</string>
 
+    <!-- post measure -->
+    <string name="results">Resultados</string>
+    <string name="cell_index">Celda %1$s</string>
+    <string name="no">No</string>
+    <string name="yes">Sí</string>
+    <string name="pending">Pendiente</string>
+    <string name="wifi">WiFi</string>
+
     <!-- measurement history -->
     <string name="measurement_history">Historial de medición</string>
     <string name="datetime">Fecha/hora</string>
@@ -94,6 +102,7 @@
     <string name="type">Tipo</string>
     <string name="technology">Tecnología</string>
     <string name="roaming">Roaming de datos</string>
+    <string name="uploaded">Subido</string>
 
     <!-- settings -->
     <string name="settings">Ajustes</string>

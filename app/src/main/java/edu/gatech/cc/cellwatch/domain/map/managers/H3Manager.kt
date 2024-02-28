@@ -179,4 +179,8 @@ object H3Manager {
         val centerGeo = h3.h3ToGeo(addr)
         return Point.fromLngLat(centerGeo.lng, centerGeo.lat)
     }
+
+    fun getH3Index(lat: Double, lon: Double, res: Int = 8): String {
+        return h3.geoToH3Address(lat, lon, res)
+    }
 }

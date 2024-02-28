@@ -14,6 +14,8 @@ import android.telephony.CellIdentityNr
 import android.telephony.CellIdentityTdscdma
 import android.telephony.CellIdentityWcdma
 import android.telephony.CellInfo
+import android.telephony.CellInfo.CONNECTION_PRIMARY_SERVING
+import android.telephony.CellInfo.CONNECTION_SECONDARY_SERVING
 import android.telephony.CellInfo.CONNECTION_UNKNOWN
 import android.telephony.CellInfo.UNAVAILABLE
 import android.telephony.CellInfo.UNAVAILABLE_LONG
@@ -451,5 +453,21 @@ object TelephonyInfoManager {
     fun isCellularDataEnabled(): Boolean? {
         if (!PermissionManager.checkPermission()) return null
         return telephonyManager.isDataEnabled
+    }
+
+    fun getDisplayGeneration(cells: List<Cell>): String {
+        return when {
+            cells.find {
+                it.networkGeneration == "5G" && it.cellConnection == CONNECTION_PRIMARY_SERVING
+            } != null -> "5G"
+            cells.find {
+                it.networkGeneration == "5G" && it.cellConnection == CONNECTION_SECONDARY_SERVING
+            } != null -> "4G/5G"
+            else -> {
+                val cell = cells.find { it.cellConnection == CONNECTION_PRIMARY_SERVING }
+                    ?: cells.getOrNull(0)
+                cell?.networkGeneration ?: ""
+            }
+        }
     }
 }

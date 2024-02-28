@@ -80,6 +80,14 @@
     <string name="not_cellular_proceed">Measure anyway</string>
     <string name="not_cellular_abort">Cancel</string>
 
+    <!-- post measure -->
+    <string name="results">Results</string>
+    <string name="cell_index">Cell %1$s</string>
+    <string name="no">No</string>
+    <string name="yes">Yes</string>
+    <string name="pending">Pending</string>
+    <string name="wifi">WiFi</string>
+
     <!-- measurement history -->
     <string name="measurement_history">Measurement History</string>
     <string name="datetime">Date/Time</string>
@@ -88,6 +96,7 @@
     <string name="type">Type</string>
     <string name="technology">Technology</string>
     <string name="roaming">Roaming</string>
+    <string name="uploaded">Uploaded</string>
 
     <!-- settings -->
     <string name="settings">Settings</string>
