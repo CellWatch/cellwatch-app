@@ -16,6 +16,8 @@ import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
 import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 class MeasurementRepository(
     private val measurementDao: MeasurementDao,
@@ -85,7 +87,7 @@ class MeasurementRepository(
      * the network database (Supabase). Clear local database if successful.
      */
     @WorkerThread
-    suspend fun uploadMeasurements() {
+    suspend fun uploadMeasurements(): Instant? {
         val measurements = getUnsynchronizedMeasurementsWithData()
 
         if (measurements.isNotEmpty()) {
@@ -102,25 +104,18 @@ class MeasurementRepository(
             }
 
             Log.d(TAG, "Update ${measurements.size} measurements as synchronized")
+            val uploadTime = Clock.System.now()
 
             measurements.forEach { measurement ->
                 val measurementEntity = measurement.asEntity()
-                measurementEntity.isSynchronized = true
+                measurementEntity.uploadTime = uploadTime
                 measurementDao.updateMeasurement(measurementEntity)
             }
 
-//            measurements.forEach { measurement ->
-//                try {
-//                    networkDataSource.insertMeasurement(measurement)
-////                    deleteAllMeasurements()
-//                } catch (e: Exception) {
-//                    Log.e(TAG, "Error in uploadMeasurementsWithData: ${e.message}")
-//                    throw e
-//                }
-//
-//            }
+            return uploadTime
         } else {
             Log.d(TAG, "No measurements to upload !!!")
+            return null
         }
     }
 }

@@ -144,13 +144,6 @@ object MeasurementManager {
             Log.i(TAG, "skipping fcc submission insertion for group $groupId")
             // TODO: inform user somehow
         }
-
-        try {
-            measurementRepository.uploadMeasurements()
-            fccSubmissionRepository.uploadFccSubmissions()
-        } catch (e: Exception) {
-            Log.d(TAG, "failed to upload measurements and submission", e)
-        }
     }
 
     suspend fun runThroughputTest(

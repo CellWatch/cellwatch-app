@@ -7,18 +7,26 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.databinding.FragmentPostMeasureBinding
 import edu.gatech.cc.cellwatch.domain.fcc.ThroughputMetrics
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
+import kotlinx.coroutines.launch
+import kotlinx.datetime.Instant
 import kotlin.math.roundToInt
 
 class PostMeasureFragment: Fragment() {
+    private val TAG = this::class.simpleName
     private lateinit var binding: FragmentPostMeasureBinding
     private lateinit var model: MeasurementViewModel
+    private val measurementRepository = CellWatchApp.measurementRepository
+    private val fccSubmissionRepository = CellWatchApp.fccSubmissionRepository
 
     interface PostMeasureFragmentInteractionListener {
         fun onTakeAnotherMeasurementPressed()
@@ -52,6 +60,19 @@ class PostMeasureFragment: Fragment() {
 
         binding.takeAnotherButton.setOnClickListener { interactionListener.onTakeAnotherMeasurementPressed() }
         binding.backToMapButton.setOnClickListener { interactionListener.onBackToMapPressed() }
+
+        binding.uploadedText.text = getString(R.string.pending)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val uploadTime = uploadMeasurements()
+            if (uploadTime != null) {
+                try {
+                    binding.uploadedText.text =
+                        DateFormat.format("d MMM yyyy h:mm:ss a", uploadTime.toEpochMilliseconds())
+                } catch (t: Throwable) {
+                    Log.e(TAG, "failed to set uploaded text", t)
+                }
+            }
+        }
 
         return binding.root
     }
@@ -151,11 +172,21 @@ class PostMeasureFragment: Fragment() {
 
     private fun displayUploaded() {
         // TODO: display upload time
-        binding.uploadedText.text = getString(R.string.pending)
     }
 
     private fun getSpeedMbps(m: Measurement): Int {
         val activeMetrics = ThroughputMetrics(m.uploadDownloadData?.bytes ?: 0, m.uploadDownloadData?.duration ?: 0)
         return (activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()
+    }
+
+    private suspend fun uploadMeasurements(): Instant? {
+        try {
+            val uploadTime = measurementRepository.uploadMeasurements()
+            fccSubmissionRepository.uploadFccSubmissions()
+            return uploadTime
+        } catch (e: Exception) {
+            Log.d(TAG, "failed to upload measurements and submission", e)
+            return null
+        }
     }
 }
