@@ -148,7 +148,7 @@ class NetworkMeasurementSubmissionTest {
         val campaignId = UUID.randomUUID().toString()
         val sessionId = UUID.randomUUID().toString()
 
-        val challengeData: ChallengeData = ChallengeData(
+        val challengeData = ChallengeData(
             submissionCategory = "Consumer Challenge",
             contactName = "George Burdell",
             contactEmail = "gburdell@gatech.edu",

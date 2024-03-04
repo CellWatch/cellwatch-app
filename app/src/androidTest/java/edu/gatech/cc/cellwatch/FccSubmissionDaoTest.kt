@@ -21,6 +21,7 @@ import edu.gatech.cc.cellwatch.data.local.model.CellEntity
 import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -87,7 +88,9 @@ class FccSubmissionDaoTest {
             carrierAggregation = false,
             networkAvailable = true,
             networkConnected = true,
-            networkRoaming = false
+            networkRoaming = false,
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR
         )
         val measurementJson: String = gson.toJson(measurement)
         Log.d("CellWatchTest","**** Measurement JSON = $measurementJson")
@@ -153,7 +156,9 @@ class FccSubmissionDaoTest {
             simMcc = "310",
             simMnc = "410",
             netMcc = "310",
-            netMnc = "410"
+            netMnc = "410",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR
         )
         val uploadMeasurement = MeasurementEntity(
             groupId = groupId,
@@ -166,7 +171,9 @@ class FccSubmissionDaoTest {
             simMcc = "310",
             simMnc = "410",
             netMcc = "310",
-            netMnc = "410"
+            netMnc = "410",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR
         )
         val latencyMeasurement = MeasurementEntity(
             groupId = groupId,
@@ -174,7 +181,9 @@ class FccSubmissionDaoTest {
             type = "latency",
             appName = "CellWatch",
             deviceManufacturer = "Google",
-            deviceModel = "Pixel"
+            deviceModel = "Pixel",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR
         )
         val locationEntity = LocationEntity(
 //            measurementId = downloadMeasurement.id,
@@ -445,7 +454,9 @@ class FccSubmissionDaoTest {
             simMcc = "310",
             simMnc = "310",
             netMcc = "410",
-            netMnc = "410"
+            netMnc = "410",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR
         )
         val measurementJson: String = gsonPretty.toJson(measurement)
         println("**** Measurement JSON = $measurementJson")
@@ -483,7 +494,9 @@ class FccSubmissionDaoTest {
             simMcc = "310",
             simMnc = "410",
             netMcc = "310",
-            netMnc = "410"
+            netMnc = "410",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR
         )
         val uploadMeasurement = MeasurementEntity(
             groupId = groupId,
@@ -496,7 +509,9 @@ class FccSubmissionDaoTest {
             simMcc = "310",
             simMnc = "410",
             netMcc = "310",
-            netMnc = "410"
+            netMnc = "410",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR
         )
         val latencyMeasurement = MeasurementEntity(
             groupId = groupId,
@@ -504,7 +519,9 @@ class FccSubmissionDaoTest {
             type = "latency",
             appName = "CellWatch",
             deviceManufacturer = "Google",
-            deviceModel = "Pixel"
+            deviceModel = "Pixel",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR
         )
         val locationEntity = LocationEntity(
 //            measurementId = downloadMeasurement.id,
@@ -777,7 +794,9 @@ class FccSubmissionDaoTest {
                 appName = "CellWatch",
                 deviceManufacturer = "Samsung",
                 deviceModel = "Galaxy",
-                deviceId = "myID00"
+                deviceId = "myID00",
+                cellularDataEnabled = true,
+                connectionType = NetworkConnectionType.CELLULAR
             )
             measurementDao.insertMeasurement(measurement)
             val measurement2 = MeasurementEntity(
@@ -785,7 +804,9 @@ class FccSubmissionDaoTest {
                 appName = "CellWatch",
                 deviceManufacturer = "Google",
                 deviceModel = "Pixel",
-                deviceId = "myID01"
+                deviceId = "myID01",
+                cellularDataEnabled = true,
+                connectionType = NetworkConnectionType.CELLULAR
             )
             measurementDao.insertMeasurement(measurement2)
             measurementDao.deleteAllMeasurements()

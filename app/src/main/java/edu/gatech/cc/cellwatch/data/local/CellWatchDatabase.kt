@@ -30,7 +30,7 @@ import edu.gatech.cc.cellwatch.data.local.util.ListConverter
         LocationEntity::class,
         CellEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false,
 )
 @TypeConverters(
