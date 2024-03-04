@@ -7,6 +7,7 @@ import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.data.datastore.LocalDataStore
 import edu.gatech.cc.cellwatch.data.model.Cell
+import edu.gatech.cc.cellwatch.data.model.ChallengeData
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.LatencyData
 import edu.gatech.cc.cellwatch.data.model.Location
@@ -120,6 +121,12 @@ object MeasurementManager {
             downloadMeasurement.cellularDataEnabled != false &&
             uploadMeasurement.cellularDataEnabled != false
         ) {
+//            val challengeData = ChallengeData(
+//                submissionCategory = "Consumer Challenge",
+//                contactName = CellWatchApp.localDataStore.getUserName.first(),
+//                contactEmail = CellWatchApp.localDataStore.getEmail.first(),
+//                contactPhone = CellWatchApp.localDataStore.getPhoneNumber.first()
+//            )
             val fccSubmission = FccSubmission(
                 id = groupId,
                 deviceId = latencyMeasurement.deviceId ?: downloadMeasurement.deviceId ?: uploadMeasurement.deviceId,
@@ -137,6 +144,9 @@ object MeasurementManager {
                 simNetworkCode = latencyMeasurement.simMnc ?: downloadMeasurement.simMnc ?: uploadMeasurement.simMnc,
                 netCountryCode = latencyMeasurement.netMcc ?: downloadMeasurement.netMcc ?: uploadMeasurement.netMcc,
                 netNetworkCode = latencyMeasurement.netMnc ?: downloadMeasurement.netMnc ?: uploadMeasurement.netMnc,
+                contactName = CellWatchApp.localDataStore.getUserName.first(),
+                contactEmail = CellWatchApp.localDataStore.getEmail.first(),
+                contactPhone = CellWatchApp.localDataStore.getPhoneNumber.first()
             )
 
             insertFccSubmission(fccSubmission)
