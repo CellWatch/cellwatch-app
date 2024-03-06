@@ -72,7 +72,6 @@
     <string name="latency">Latency</string>
     <string name="download">Download</string>
     <string name="upload">Upload</string>
-    <string name="running">running</string>
     <string name="failed">failed</string>
     <string name="speed_mbps">%1$d Mbps</string>
     <string name="latency_ms">%1$d ms</string>
@@ -93,7 +92,6 @@
 
     <!-- measurement history -->
     <string name="measurement_history">Measurement History</string>
-    <string name="datetime">Date/Time</string>
     <string name="location">Location</string>
     <string name="carrier">Carrier</string>
     <string name="type">Type</string>

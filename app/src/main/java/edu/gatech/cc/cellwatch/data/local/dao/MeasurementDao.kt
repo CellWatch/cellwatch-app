@@ -68,12 +68,6 @@ abstract class MeasurementDao {
     abstract suspend fun getMeasurementById(id: String): MeasurementEntity
 
     @Query("SELECT * FROM MeasurementEntity")
-    abstract suspend fun getMeasurements(): List<MeasurementEntity>
-
-    @Query("SELECT * FROM MeasurementEntity WHERE uploadTime IS NULL")
-    abstract suspend fun getUnsynchronizedMeasurements(): List<MeasurementEntity>
-
-    @Query("SELECT * FROM MeasurementEntity")
     abstract fun getMeasurementsFlow(): Flow<List<MeasurementEntity>>
 
     @Transaction

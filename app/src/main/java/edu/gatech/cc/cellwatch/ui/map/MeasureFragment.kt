@@ -32,7 +32,7 @@ class MeasureFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         binding = FragmentMeasureBinding.inflate(inflater, container, false)
         binding.progressBar.visibility = View.INVISIBLE
         binding.latencyRow.visibility = View.INVISIBLE
@@ -59,7 +59,7 @@ class MeasureFragment : Fragment() {
                 model.group = MeasurementManager.runTestSequence(
                     model.inVehicle,
                     { handleLocateStart() },
-                    { handleLocateComplete() },
+                    { },
                     { handleLatencyStart() },
                     { handleLatencyComplete(it) },
                     { handleDownloadStart() },
@@ -82,10 +82,6 @@ class MeasureFragment : Fragment() {
 
     private fun handleLocateStart() {
        binding.header.setText(R.string.finding_server)
-    }
-
-    private fun handleLocateComplete() {
-        // do nothing
     }
 
     private fun handleLatencyStart() {

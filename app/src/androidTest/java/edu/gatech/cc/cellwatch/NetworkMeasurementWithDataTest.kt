@@ -1,15 +1,13 @@
 package edu.gatech.cc.cellwatch
 
+import com.google.gson.GsonBuilder
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.Cell
-import edu.gatech.cc.cellwatch.data.model.LatencyData
 import edu.gatech.cc.cellwatch.data.model.Location
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.UploadDownloadData
-import edu.gatech.cc.cellwatch.data.model.asNetworkModel
 import edu.gatech.cc.cellwatch.data.model.asNetworkModelWithData
-import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurementWithData
-import com.google.gson.GsonBuilder
+import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import kotlinx.datetime.Clock
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -24,7 +22,7 @@ class NetworkMeasurementWithDataTest {
         val campaignId = UUID.randomUUID().toString()
         val sessionId = UUID.randomUUID().toString()
 
-        val downloadLocations = listOf<Location>(
+        val downloadLocations = listOf(
             Location(
                 timestamp = Clock.System.now(),
                 lat = 33.87297,
@@ -60,7 +58,7 @@ class NetworkMeasurementWithDataTest {
             servers = listOf("server1", "server2")
         )
 
-        val downloadCells = listOf<Cell>(
+        val downloadCells = listOf(
             Cell(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -127,7 +125,9 @@ class NetworkMeasurementWithDataTest {
             extraData = "extraData",
             uploadDownloadData = downloadData,
             locations = downloadLocations,
-            cells = downloadCells
+            cells = downloadCells,
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
         val networkDownloadMeasurement = downloadMeasurement.asNetworkModelWithData()
 

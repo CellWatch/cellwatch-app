@@ -21,7 +21,7 @@ import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModelFacto
 class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedListener, SettingsSetupFragment.OnPermissionsHandledListener  {
     private val TAG = this::class.simpleName
 
-    private val model: OnboardingViewModel by viewModels() {
+    private val model: OnboardingViewModel by viewModels {
         OnboardingViewModelFactory(CellWatchApp.localDataStore)
     }
 
@@ -58,7 +58,7 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
                     .replace(R.id.content_frame, fragments[currentPosition])
                     .commit()
                 updateArrowVisibility()
-                Log.d(TAG, "Previous fragment is ${currentPosition}")
+                Log.d(TAG, "Previous fragment is $currentPosition")
             }
         }
 

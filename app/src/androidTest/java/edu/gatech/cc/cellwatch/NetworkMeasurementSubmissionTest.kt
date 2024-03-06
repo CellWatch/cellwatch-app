@@ -1,17 +1,15 @@
 package edu.gatech.cc.cellwatch
 
-import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
+import com.google.gson.GsonBuilder
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.ChallengeData
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.asNetworkModel
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
 import edu.gatech.cc.cellwatch.data.network.model.NetworkFccSubmission
-import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurement
 import edu.gatech.cc.cellwatch.data.network.model.asExternalModel
-import com.google.gson.GsonBuilder
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.exceptions.HttpRequestException
@@ -44,8 +42,6 @@ class NetworkMeasurementSubmissionTest {
         const val TAG = "NetworkMeasurementSubmissionTest"
     }
 
-    private val groupId = UUID.randomUUID().toString()
-
     @Before
     fun createMeasurementNetworkDatasource() {
         val supabaseUrl = BuildConfig.SUPABASE_URL
@@ -70,7 +66,7 @@ class NetworkMeasurementSubmissionTest {
     @Test
     @Throws(Exception::class)
     fun GetMeasurementsByGroupId() {
-        var measurements: List<Measurement>?
+        val measurements: List<Measurement>?
         val gson = GsonBuilder().setPrettyPrinting().create()
 
         try {
@@ -82,9 +78,9 @@ class NetworkMeasurementSubmissionTest {
             throw e
         }
 
-        Log.d(TAG, "*** Got all Measurements: ${measurements?.count()}")
+        Log.d(TAG, "*** Got all Measurements: ${measurements.count()}")
 
-        measurements?.forEach { measurement ->
+        measurements.forEach { measurement ->
             val jsonString = gson.toJson(measurement.asNetworkModel())
             Log.d(TAG, jsonString)
         }
@@ -93,7 +89,7 @@ class NetworkMeasurementSubmissionTest {
     @Test
     @kotlin.jvm.Throws(Exception::class)
     fun InsertFccSubmission() {
-        var insertedFccSubmission: FccSubmission?
+        val insertedFccSubmission: FccSubmission?
         
         val groupId = UUID.randomUUID().toString()
         val fccSubmission = FccSubmission(

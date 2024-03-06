@@ -77,7 +77,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
             simMnc = TelephonyInfoManager.getSimMobileNetworkCode(),
             netMcc = TelephonyInfoManager.getNetworkMobileCountryCode(),
             netMnc = TelephonyInfoManager.getNetworkMobileNetworkCode(),
-            carrierAggregation = TelephonyInfoManager.isUsingCarrierAggregation(cells ?: listOf()),
+            carrierAggregation = TelephonyInfoManager.isUsingCarrierAggregation(cells),
             networkAvailable = TelephonyInfoManager.isNetworkAvailable(),
             networkConnected = TelephonyInfoManager.isNetworkConnected(),
             networkRoaming = TelephonyInfoManager.isNetworkRoaming(),

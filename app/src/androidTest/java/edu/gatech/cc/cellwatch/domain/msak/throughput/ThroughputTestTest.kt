@@ -24,7 +24,7 @@ import org.junit.runner.RunWith
 class ThroughputTestTest {
     lateinit var test: ThroughputTest
 
-    fun setup(duration: Long = 1000, delay: Long = 0, serverEndTimeGraceMillis: Long = 5000) {
+    private fun setup(duration: Long = 1000, delay: Long = 0, serverEndTimeGraceMillis: Long = 5000) {
         test = ThroughputTest(
             Server("localhost", null, mapOf(
                 "ws:///$THROUGHPUT_DOWNLOAD_PATH" to "ws://localhost/download",

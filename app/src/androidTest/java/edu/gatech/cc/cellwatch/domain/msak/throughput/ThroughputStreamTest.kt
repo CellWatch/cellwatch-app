@@ -14,8 +14,8 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ThroughputStreamTest {
-    lateinit var server: MockWebServer
-    lateinit var listener: WebSocketTestListener
+    private lateinit var server: MockWebServer
+    private lateinit var listener: WebSocketTestListener
 
     @Before
     fun setup() {
@@ -25,7 +25,7 @@ class ThroughputStreamTest {
     }
 
     private fun assertGreater(greater: Long, less: Long) {
-        assertTrue("expected ${greater} > ${less}", greater > less)
+        assertTrue("expected $greater > $less", greater > less)
     }
 
     @Test
@@ -113,7 +113,7 @@ class ThroughputStreamTest {
             // after sending 32 more times, double (2 < (1*65 + 2*32)/64)
             var lastBytes = bytes1!!
             for (i in 1..100) {
-                var bytes = listener.takeByteMessage(100)
+                val bytes = listener.takeByteMessage(100)
                 if (i == 65 || i == 97) {
                     assertEquals(lastBytes.size * 2, bytes?.size)
                 } else {

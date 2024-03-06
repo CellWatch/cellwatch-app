@@ -29,7 +29,7 @@ import org.junit.runner.RunWith
 class ThroughputTestTest {
     lateinit var test: ThroughputTest
 
-    fun setup(maxWarmupTime: Long = 100, maxActiveTime: Long = 100, direction: ThroughputDirection = ThroughputDirection.DOWNLOAD) {
+    private fun setup(maxWarmupTime: Long = 100, maxActiveTime: Long = 100, direction: ThroughputDirection = ThroughputDirection.DOWNLOAD) {
         val server = Server("test", null, mapOf(
             "ws:///$THROUGHPUT_DOWNLOAD_PATH" to "ws://0.0.0.0/$THROUGHPUT_DOWNLOAD_PATH",
             "ws:///$THROUGHPUT_UPLOAD_PATH" to "ws://0.0.0.0/$THROUGHPUT_UPLOAD_PATH",
@@ -43,18 +43,18 @@ class ThroughputTestTest {
         }
     }
 
-    suspend fun sendUpdate(stream: Int, measurement: ThroughputMeasurement, fromServer: Boolean = false, waitForReceive: Boolean = false) {
+    private suspend fun sendUpdate(stream: Int, measurement: ThroughputMeasurement, fromServer: Boolean = false, waitForReceive: Boolean = false) {
         val update = ThroughputUpdate(fromServer, stream, Clock.System.now(), measurement)
         (test.msakTest.streams[stream].updates as ArrayList).add(update)
         (test.msakTest.updatesChan as Channel).send(update)
         if (waitForReceive) test.metricsChan.receive()
     }
 
-    fun assertBetween(min: Long, max: Long, actual: Long) {
+    private fun assertBetween(min: Long, max: Long, actual: Long) {
         assertEquals("expected number between $min and $max, got $actual", true, actual in min..max)
     }
 
-    fun assertLessThan(max: Long, actual: Long) {
+    private fun assertLessThan(max: Long, actual: Long) {
         assertEquals("expected $actual to be < $max", true, actual < max)
     }
 
@@ -104,7 +104,7 @@ class ThroughputTestTest {
             ))
 
             val result = withTimeout(500) { defResult.await() }
-            assertEquals("0.0.0.0", result?.uploadDownloadData?.servers?.getOrNull(0))
+            assertEquals("0.0.0.0", result.uploadDownloadData?.servers?.getOrNull(0))
             assertEquals(true, result.success)
             assertEquals(true, result.timestamp!! > preStart && result.timestamp!! < postStart)
             assertEquals(63L, result.uploadDownloadData?.warmupBytes)

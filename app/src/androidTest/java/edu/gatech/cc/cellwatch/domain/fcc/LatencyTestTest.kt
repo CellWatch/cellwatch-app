@@ -10,13 +10,11 @@ import edu.gatech.cc.cellwatch.domain.msak.latency.LatencyRoundTrip
 import edu.gatech.cc.cellwatch.domain.msak.latency.LatencyUpdate
 import io.mockk.every
 import io.mockk.just
-import io.mockk.mockkConstructor
 import io.mockk.mockkObject
 import io.mockk.runs
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Clock
 import org.junit.Assert.assertEquals
 import org.junit.Before

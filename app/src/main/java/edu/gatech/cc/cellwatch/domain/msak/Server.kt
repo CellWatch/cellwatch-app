@@ -62,4 +62,11 @@ open class Server(
     override fun toString(): String {
         return "${this::class.simpleName}(machine=$machine, location=$location, urls=$urls)"
     }
+
+    override fun hashCode(): Int {
+        var result = machine.hashCode()
+        result = 31 * result + (location?.hashCode() ?: 0)
+        result = 31 * result + urls.hashCode()
+        return result
+    }
 }

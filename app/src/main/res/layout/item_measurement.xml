@@ -40,7 +40,7 @@
 
             <TextView
                 android:id="@+id/timeText"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="08:19:54"
@@ -139,7 +139,7 @@
 
             <TextView
                 android:id="@+id/locationText"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Cell 100abcdef"
@@ -164,7 +164,7 @@
 
             <TextView
                 android:id="@+id/carrierText"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="AT&amp;T"
@@ -189,7 +189,7 @@
 
             <TextView
                 android:id="@+id/typeText"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="FCC Challenge (Stationary)"

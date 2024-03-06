@@ -8,7 +8,6 @@
     android:gravity="center_horizontal">
 
     <TextView
-        android:id="@+id/tvCollectionModeTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/collection_mode"
@@ -19,7 +18,6 @@
         android:textStyle="bold"/>
 
     <TextView
-        android:id="@+id/tvCollectionModeDescription"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/collection_mode_description"
@@ -29,7 +27,6 @@
         android:gravity="center"/>
 
     <LinearLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
         android:id="@+id/LLReadPrivacyPolicy"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -52,7 +49,7 @@
             android:textSize="14sp"
             android:textColor="@color/black"
             android:drawablePadding="4dp"
-            android:paddingLeft="8dp"
+            android:paddingStart="8dp"
             android:gravity="center" />
     </LinearLayout>
 
@@ -73,7 +70,6 @@
             android:padding="16dp">
 
             <TextView
-                android:id="@+id/tvFCCChallengeModeHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/fcc_challenge_mode"
@@ -82,7 +78,6 @@
                 android:textStyle="bold"/>
 
             <TextView
-                android:id="@+id/tvFCCChallengeModeDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/fcc_challenge_mode_description"
@@ -110,7 +105,6 @@
             android:padding="16dp">
 
             <TextView
-                android:id="@+id/tvTestingModeHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/testing_mode"
@@ -119,7 +113,6 @@
                 android:textStyle="bold"/>
 
             <TextView
-                android:id="@+id/tvTestingModeDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/testing_mode_description"

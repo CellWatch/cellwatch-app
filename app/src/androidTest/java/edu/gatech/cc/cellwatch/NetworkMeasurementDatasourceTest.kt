@@ -1,7 +1,8 @@
 package edu.gatech.cc.cellwatch
 
-import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.google.gson.GsonBuilder
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.Cell
 import edu.gatech.cc.cellwatch.data.model.LatencyData
 import edu.gatech.cc.cellwatch.data.model.Location
@@ -12,7 +13,7 @@ import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurement
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurementWithData
 import edu.gatech.cc.cellwatch.data.network.model.asExternalModel
-import com.google.gson.GsonBuilder
+import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.exceptions.HttpRequestException
@@ -97,7 +98,9 @@ class NetworkMeasurementDatasourceTest {
             simMnc = "310",
             netMcc = "410",
             netMnc = "410",
-            extraData = "extraData"
+            extraData = "extraData",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
 
         try {
@@ -130,14 +133,14 @@ class NetworkMeasurementDatasourceTest {
     @Test
     @Throws(Exception::class)
     fun InsertMeasurementAndDataTransaction() {
-        var insertedDownloadMeasurement: Measurement?
-        var insertedUploadMeasurement: Measurement?
-        var insertedLatencyMeasurement: Measurement?
+        val insertedDownloadMeasurement: Measurement?
+        val insertedUploadMeasurement: Measurement?
+        val insertedLatencyMeasurement: Measurement?
 
         val deviceId = UUID.randomUUID().toString()
 //        val groupId = UUID.randomUUID().toString()
 
-        val downloadLocations = listOf<Location>(
+        val downloadLocations = listOf(
             Location(
                 timestamp = Clock.System.now(),
                 lat = 33.87297,
@@ -156,7 +159,7 @@ class NetworkMeasurementDatasourceTest {
             )
         )
 
-        val uploadLocations = listOf<Location>(
+        val uploadLocations = listOf(
             Location(
                 timestamp = Clock.System.now(),
                 lat = 33.297,
@@ -175,7 +178,7 @@ class NetworkMeasurementDatasourceTest {
             )
         )
 
-        val uploadCells = listOf<Cell>(
+        val uploadCells = listOf(
             Cell(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -218,7 +221,7 @@ class NetworkMeasurementDatasourceTest {
             )
         )
 
-        val downloadCells = listOf<Cell>(
+        val downloadCells = listOf(
             Cell(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -261,7 +264,7 @@ class NetworkMeasurementDatasourceTest {
             )
         )
 
-        val latencyCells = listOf<Cell>(
+        val latencyCells = listOf(
             Cell(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -304,7 +307,7 @@ class NetworkMeasurementDatasourceTest {
             )
         )
 
-        val latencyLocations = listOf<Location>(
+        val latencyLocations = listOf(
             Location(
                 timestamp = Clock.System.now(),
                 lat = 33.297,
@@ -374,7 +377,9 @@ class NetworkMeasurementDatasourceTest {
             simMnc = "310",
             netMcc = "410",
             netMnc = "410",
-            extraData = "extraData"
+            extraData = "extraData",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
 
         val uploadMeasurement = Measurement(
@@ -403,6 +408,8 @@ class NetworkMeasurementDatasourceTest {
             netMcc = "410",
             netMnc = "410",
             extraData = "extraData",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
 
         val latencyMeasurement = Measurement(
@@ -431,6 +438,8 @@ class NetworkMeasurementDatasourceTest {
             netMcc = "410",
             netMnc = "410",
             extraData = "extraData",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
 
         val uploadMeasurementData = NetworkMeasurementWithData(
@@ -490,7 +499,7 @@ class NetworkMeasurementDatasourceTest {
         }
 //        insertedMeasurement = result.decodeAs<NetworkMeasurement>().asExternalModel()
 
-        assertEquals(insertedUploadMeasurement.groupId, groupId);
+        assertEquals(insertedUploadMeasurement.groupId, groupId)
 
         Log.d(TAG, "*** Inserted Upload Measurement: $insertedUploadMeasurement")
         Log.d(TAG, "*** Inserted Download Measurement: $insertedDownloadMeasurement")
@@ -500,7 +509,7 @@ class NetworkMeasurementDatasourceTest {
     @Test
     @Throws(Exception::class)
     fun GetMeasurementsByGroupId() {
-        var measurements: List<Measurement>?
+        val measurements: List<Measurement>?
         val gson = GsonBuilder().setPrettyPrinting().create()
 
         try {
@@ -512,9 +521,9 @@ class NetworkMeasurementDatasourceTest {
             throw e
         }
 
-        Log.d(NetworkMeasurementSubmissionTest.TAG, "*** Got all Measurements: ${measurements?.count()}")
+        Log.d(NetworkMeasurementSubmissionTest.TAG, "*** Got all Measurements: ${measurements.count()}")
 
-        measurements?.forEach { measurement ->
+        measurements.forEach { measurement ->
             val jsonString = gson.toJson(measurement.asNetworkModel())
             Log.d(NetworkMeasurementSubmissionTest.TAG, jsonString)
         }
@@ -528,7 +537,7 @@ class NetworkMeasurementDatasourceTest {
         val campaignId = UUID.randomUUID().toString()
         val sessionId = UUID.randomUUID().toString()
 
-        val downloadLocations = listOf<Location>(
+        val downloadLocations = listOf(
             Location(
                 timestamp = Clock.System.now(),
                 lat = 33.87297,
@@ -555,7 +564,7 @@ class NetworkMeasurementDatasourceTest {
             )
         )
 
-        val uploadLocations = listOf<Location>(
+        val uploadLocations = listOf(
             Location(
                 timestamp = Clock.System.now(),
                 lat = 33.297,
@@ -582,7 +591,7 @@ class NetworkMeasurementDatasourceTest {
             )
         )
 
-        val latencyLocations = listOf<Location>(
+        val latencyLocations = listOf(
             Location(
                 timestamp = Clock.System.now(),
                 lat = 33.297,
@@ -635,7 +644,7 @@ class NetworkMeasurementDatasourceTest {
             servers = listOf("server1", "server2")
         )
 
-        val downloadCells = listOf<Cell>(
+        val downloadCells = listOf(
             Cell(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -705,7 +714,9 @@ class NetworkMeasurementDatasourceTest {
             netMnc = "410",
             extraData = "extraData",
             latencyData = latencyData,
-            locations = latencyLocations
+            locations = latencyLocations,
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
 
         val downloadMeasurement = Measurement(
@@ -736,7 +747,9 @@ class NetworkMeasurementDatasourceTest {
             extraData = "extraData",
             uploadDownloadData = downloadData,
             cells = downloadCells,
-            locations = downloadLocations
+            locations = downloadLocations,
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
 
         val uploadMeasurement = Measurement(
@@ -766,7 +779,9 @@ class NetworkMeasurementDatasourceTest {
             netMnc = "410",
             extraData = "extraData",
             uploadDownloadData = uploadData,
-            locations = uploadLocations
+            locations = uploadLocations,
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
 
         var insertedMeasurement: Measurement? = null
@@ -808,7 +823,7 @@ class NetworkMeasurementDatasourceTest {
     @Test
     @Throws(Exception::class)
     fun GetMeasurements() {
-        var measurements: List<Measurement>?
+        val measurements: List<Measurement>?
         val gson = GsonBuilder().setPrettyPrinting().create()
 
         try {
@@ -820,9 +835,9 @@ class NetworkMeasurementDatasourceTest {
             throw e
         }
 
-        Log.d(TAG, "*** Got all Measurements: ${measurements?.count()}")
+        Log.d(TAG, "*** Got all Measurements: ${measurements.count()}")
 
-        measurements?.forEach { measurement ->
+        measurements.forEach { measurement ->
             val jsonString = gson.toJson(measurement.asNetworkModel())
             Log.d(TAG, jsonString)
         }
@@ -831,7 +846,7 @@ class NetworkMeasurementDatasourceTest {
     @Test
     @Throws(Exception::class)
     fun GetMeasurementById() {
-        var measurement: Measurement?
+        val measurement: Measurement?
         val measurementId = "0f65833e-5c3f-4738-8005-8b294ccf074d"
         val gson = GsonBuilder().setPrettyPrinting().create()
 
