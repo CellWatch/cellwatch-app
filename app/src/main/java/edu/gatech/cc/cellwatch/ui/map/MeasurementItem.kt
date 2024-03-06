@@ -88,13 +88,13 @@ class MeasurementItem(
 
         binding.carrierText.text = carrier ?: ""
 
-        val inVehicle = group.submission?.inVehicle
-        binding.typeText.text = if (inVehicle == null) {
-            "-"
-        } else if (inVehicle) {
-            context.getString(R.string.moving_vehicle)
+        val submission = group.submission
+        binding.typeText.text = if (submission == null) {
+            context.getString(R.string.testing)
+        } else if (submission.inVehicle == true) {
+            context.getString(R.string.fcc_challenge_vehicle)
         } else {
-            context.getString(R.string.stationary_outdoors)
+            context.getString(R.string.fcc_challenge_stationary)
         }
 
         val latencyResult = group.latency
