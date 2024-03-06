@@ -48,47 +48,13 @@ class MeasurementListBottomSheetFragment : BottomSheetDialogFragment() {
 
         h3Address?.let {
             // Use the measurementId to fetch the associated measurements
-            this.measurements = fetchMeasurements(it)
-            recyclerView.adapter = MeasurementAdapter(measurements!!)
+            recyclerView.adapter = MeasurementAdapter(viewLifecycleOwner) {
+                H3Manager.getMeasurementGroupsAssociatedWithH3Address(it, H3Manager.getH3ResolutionFromAddress(it))
+            }
         }
 
         val textViewTitle: TextView = view.findViewById(R.id.tvTitle)
         val tvTitleText = "Cell $h3Address"
         textViewTitle.text = tvTitleText
     }
-    private fun fetchMeasurements(id: Long): List<Measurement> {
-        return H3Manager.getMeasurementsAssociatedWithH3Address(id, H3Manager.getH3ResolutionFromAddress(id))
-    }
 }
-
-class MeasurementAdapter(private val measurements: List<Measurement>) :
-    RecyclerView.Adapter<MeasurementAdapter.MeasurementViewHolder>() {
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MeasurementViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.map_bottom_sheet_measurement_item, parent, false)
-        return MeasurementViewHolder(view)
-    }
-
-    override fun onBindViewHolder(holder: MeasurementViewHolder, position: Int) {
-        val measurement = measurements[position]
-        holder.textViewTime.text = measurement.timestamp.toString()
-        val measurementLocation = measurement.locations
-
-        if (!measurementLocation.isNullOrEmpty()) {
-            holder.textViewUploadSpeed.text =
-                String.format("%.2fm/s", measurementLocation[0].speed) //TODO Placeholder value
-            holder.textViewDownloadSpeed.text =
-                String.format("%.2fm/s", measurementLocation[0].speed) //TODO Placeholder value
-        }
-    }
-
-    override fun getItemCount() = measurements.size
-
-    class MeasurementViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val textViewTime: TextView = view.findViewById(R.id.textViewTime)
-        val textViewUploadSpeed: TextView = view.findViewById(R.id.textViewUploadSpeed)
-        val textViewDownloadSpeed: TextView = view.findViewById(R.id.textViewDownloadSpeed)
-    }
-}
-
