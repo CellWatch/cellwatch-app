@@ -1,6 +1,5 @@
 package edu.gatech.cc.cellwatch.ui.map
 
-import android.graphics.PorterDuff
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -44,7 +43,7 @@ class PreMeasureFragment: Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         binding = FragmentPreMeasureBinding.inflate(inflater, container, false)
         model = ViewModelProvider(requireActivity())[MeasurementViewModel::class.java]
 

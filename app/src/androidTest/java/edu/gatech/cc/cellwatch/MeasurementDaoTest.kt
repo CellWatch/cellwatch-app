@@ -1,24 +1,25 @@
 package edu.gatech.cc.cellwatch
 
 import android.content.Context
-import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.local.CellWatchDatabase
 import edu.gatech.cc.cellwatch.data.local.dao.CellDao
-import edu.gatech.cc.cellwatch.data.local.model.LatencyDataEntity
-import edu.gatech.cc.cellwatch.data.local.model.LocationEntity
-import edu.gatech.cc.cellwatch.data.local.model.MeasurementEntity
-import edu.gatech.cc.cellwatch.data.local.model.MeasurementWithData
-import edu.gatech.cc.cellwatch.data.local.model.UploadDownloadDataEntity
 import edu.gatech.cc.cellwatch.data.local.dao.LatencyDataDao
 import edu.gatech.cc.cellwatch.data.local.dao.LocationDao
 import edu.gatech.cc.cellwatch.data.local.dao.MeasurementDao
 import edu.gatech.cc.cellwatch.data.local.dao.UploadDownloadDataDao
 import edu.gatech.cc.cellwatch.data.local.model.CellEntity
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
+import edu.gatech.cc.cellwatch.data.local.model.LatencyDataEntity
+import edu.gatech.cc.cellwatch.data.local.model.LocationEntity
+import edu.gatech.cc.cellwatch.data.local.model.MeasurementEntity
+import edu.gatech.cc.cellwatch.data.local.model.MeasurementWithData
+import edu.gatech.cc.cellwatch.data.local.model.UploadDownloadDataEntity
+import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -83,7 +84,9 @@ class MeasurementDaoTest {
             carrierAggregation = false,
             networkAvailable = true,
             networkConnected = true,
-            networkRoaming = false
+            networkRoaming = false,
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
         val measurementJson: String = gson.toJson(measurement)
         Log.d("CellWatchTest","**** Measurement JSON = $measurementJson")
@@ -112,7 +115,9 @@ class MeasurementDaoTest {
             simMcc = "310",
             simMnc = "310",
             netMcc = "410",
-            netMnc = "410"
+            netMnc = "410",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
         val measurementJson: String = gsonPretty.toJson(measurement)
         println("**** Measurement JSON = $measurementJson")
@@ -150,7 +155,9 @@ class MeasurementDaoTest {
             simMcc = "310",
             simMnc = "410",
             netMcc = "310",
-            netMnc = "410"
+            netMnc = "410",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
         val uploadMeasurement = MeasurementEntity(
             groupId = groupId,
@@ -163,7 +170,9 @@ class MeasurementDaoTest {
             simMcc = "310",
             simMnc = "410",
             netMcc = "310",
-            netMnc = "410"
+            netMnc = "410",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
         val latencyMeasurement = MeasurementEntity(
             groupId = groupId,
@@ -171,7 +180,9 @@ class MeasurementDaoTest {
             type = "latency",
             appName = "CellWatch",
             deviceManufacturer = "Google",
-            deviceModel = "Pixel"
+            deviceModel = "Pixel",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
         )
         val locationEntity = LocationEntity(
 //            measurementId = downloadMeasurement.id,
@@ -226,7 +237,7 @@ class MeasurementDaoTest {
             received = 779927,
             servers = listOf("server1", "server2")
         )
-        val downloadCells = listOf<CellEntity>(
+        val downloadCells = listOf(
             CellEntity(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -268,7 +279,7 @@ class MeasurementDaoTest {
                 arfcn = 528000
             )
         )
-        val uploadCells = listOf<CellEntity>(
+        val uploadCells = listOf(
             CellEntity(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -310,7 +321,7 @@ class MeasurementDaoTest {
                 arfcn = 528000
             )
         )
-        val latencyCells = listOf<CellEntity>(
+        val latencyCells = listOf(
             CellEntity(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -364,7 +375,7 @@ class MeasurementDaoTest {
                 downloadMeasurement,
                 downloadData,
                 null,
-                listOf<LocationEntity>(locationEntity),
+                listOf(locationEntity),
                 downloadCells
             )
             measurementDao.insertMeasurementWithData(
@@ -374,7 +385,7 @@ class MeasurementDaoTest {
                 uploadMeasurement,
                 uploadData,
                 null,
-                listOf<LocationEntity>(locationEntity2),
+                listOf(locationEntity2),
                 uploadCells
             )
             measurementDao.insertMeasurementWithData(
@@ -384,7 +395,7 @@ class MeasurementDaoTest {
                 latencyMeasurement,
                 null,
                 latencyDataEntity,
-                listOf<LocationEntity>(locationEntity3),
+                listOf(locationEntity3),
                 latencyCells
             )
             measurementDao.insertMeasurementWithData(
@@ -412,7 +423,7 @@ class MeasurementDaoTest {
                 }
                 cells?.forEach {
                     assertEquals(it.arfcn, 528000)
-                    Log.d(TAG, "cell = ${it}")
+                    Log.d(TAG, "cell = $it")
                 }
             }
 
@@ -444,7 +455,9 @@ class MeasurementDaoTest {
                 appName = "CellWatch",
                 deviceManufacturer = "Samsung",
                 deviceModel = "Galaxy",
-                deviceId = "myID00"
+                deviceId = "myID00",
+                cellularDataEnabled = true,
+                connectionType = NetworkConnectionType.CELLULAR,
             )
             measurementDao.insertMeasurement(measurement)
             val measurement2 = MeasurementEntity(
@@ -452,7 +465,9 @@ class MeasurementDaoTest {
                 appName = "CellWatch",
                 deviceManufacturer = "Google",
                 deviceModel = "Pixel",
-                deviceId = "myID01"
+                deviceId = "myID01",
+                cellularDataEnabled = true,
+                connectionType = NetworkConnectionType.CELLULAR,
             )
             measurementDao.insertMeasurement(measurement2)
             measurementDao.deleteAllMeasurements()

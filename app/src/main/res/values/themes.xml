@@ -18,6 +18,4 @@
         <item name="windowNoTitle">true</item>
     </style>
 
-    <style name="Theme.CellWatch.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
-    <style name="Theme.CellWatch.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
 </resources>

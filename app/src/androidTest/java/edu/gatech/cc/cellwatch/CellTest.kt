@@ -24,15 +24,15 @@ class CellTest {
     @Throws(Exception::class)
     fun getMobileCountryCode() {
         Log.d(TAG, "Starting getMobileCountryCode test ********")
-        val simMCC = TelephonyInfoManager.getSimMobileCountryCode();
-        val netMCC = TelephonyInfoManager.getNetworkMobileCountryCode();
-        val simMNC = TelephonyInfoManager.getSimMobileNetworkCode();
-        val netMNC = TelephonyInfoManager.getNetworkMobileNetworkCode();
+        val simMCC = TelephonyInfoManager.getSimMobileCountryCode()
+        val netMCC = TelephonyInfoManager.getNetworkMobileCountryCode()
+        val simMNC = TelephonyInfoManager.getSimMobileNetworkCode()
+        val netMNC = TelephonyInfoManager.getNetworkMobileNetworkCode()
 
-        Log.d(TAG, "sim_mcc = ${simMCC}");
-        Log.d(TAG, "net_mcc = ${netMCC}");
-        Log.d(TAG, "sim_mnc = ${simMNC}");
-        Log.d(TAG, "net_mnc = ${netMNC}");
+        Log.d(TAG, "sim_mcc = $simMCC")
+        Log.d(TAG, "net_mcc = $netMCC")
+        Log.d(TAG, "sim_mnc = $simMNC")
+        Log.d(TAG, "net_mnc = $netMNC")
     }
 
     @Test
@@ -42,7 +42,7 @@ class CellTest {
         val cells = telephonyInfoManager.getCells()
 
         cells?.forEach { cell ->
-            Log.d(TAG, "${cell.toString()}")
+            Log.d(TAG, "$cell")
         }
     }
 }

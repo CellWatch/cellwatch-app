@@ -33,8 +33,8 @@ import kotlinx.coroutines.withContext
 object NetworkMeasurementDatasource {
     private val TAG = this::class.simpleName
 
-    private val supabaseUrl = BuildConfig.SUPABASE_URL
-    private val supabaseApiKey = BuildConfig.SUPABASE_API_KEY
+    private const val supabaseUrl = BuildConfig.SUPABASE_URL
+    private const val supabaseApiKey = BuildConfig.SUPABASE_API_KEY
 
     private val supabaseClient = createSupabaseClient(
             supabaseUrl = supabaseUrl, //"https://xepxxvpbexkyxrwtrgqv.supabase.co",
@@ -43,12 +43,12 @@ object NetworkMeasurementDatasource {
             install(Postgrest)
         }
 
-    val measurementTable = supabaseClient.postgrest["measurements"]
-    val locationTable = supabaseClient.postgrest["locations"]
-    val dataTable = supabaseClient.postgrest["upload_download_data"]
-    val latencyTable = supabaseClient.postgrest["latency_data"]
-    val cellTable = supabaseClient.postgrest["cells"]
-    val fccSubmissionTable = supabaseClient.postgrest["fcc_submissions"]
+    private val measurementTable = supabaseClient.postgrest["measurements"]
+    private val locationTable = supabaseClient.postgrest["locations"]
+    private val dataTable = supabaseClient.postgrest["upload_download_data"]
+    private val latencyTable = supabaseClient.postgrest["latency_data"]
+    private val cellTable = supabaseClient.postgrest["cells"]
+    private val fccSubmissionTable = supabaseClient.postgrest["fcc_submissions"]
 
     @WorkerThread
     suspend fun insertFccSubmissions(fccSubmissions: List<FccSubmission>): List<FccSubmission>? {
@@ -61,7 +61,7 @@ object NetworkMeasurementDatasource {
                 try {
                     insertedFccSubmissions = fccSubmissions.map { fccSubmission ->
                         Log.d(TAG, "insertFccSubmissions: $fccSubmission")
-                        insertFccSubmission(fccSubmission)!!
+                        insertFccSubmission(fccSubmission)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in insertFccSubmissions: ${e.message}")
@@ -74,7 +74,7 @@ object NetworkMeasurementDatasource {
     }
     
     @WorkerThread
-    suspend fun insertFccSubmission(fccSubmission: FccSubmission): FccSubmission? {
+    suspend fun insertFccSubmission(fccSubmission: FccSubmission): FccSubmission {
         val insertedFccSubmission: FccSubmission?
 
         Log.d(TAG, "Attempting to insert FccSubmission ${fccSubmission.id} to Supabase API at $supabaseUrl")
@@ -107,7 +107,7 @@ object NetworkMeasurementDatasource {
      * Insert a measurement record and any associated data and locations
      */
     @WorkerThread
-    suspend fun insertMeasurement(measurement: Measurement): Measurement? {
+    suspend fun insertMeasurement(measurement: Measurement): Measurement {
         val insertedMeasurement: Measurement?
 
         Log.d(TAG, "Attempting to insert measurement ${measurement.id} to Supabase API at $supabaseUrl")
@@ -173,10 +173,10 @@ object NetworkMeasurementDatasource {
      * Insert a measurement record and any associated data and locations
      */
     @WorkerThread
-    suspend fun insertMeasurementTransaction(measurement: Measurement): Measurement? {
-        var insertedMeasurement: Measurement? = null
+    suspend fun insertMeasurementTransaction(measurement: Measurement): Measurement {
+        val insertedMeasurement: Measurement?
 
-        Log.d(TAG, "Attempting to insert measurement ${measurement.id} to Supabase API at ${supabaseUrl}")
+        Log.d(TAG, "Attempting to insert measurement ${measurement.id} to Supabase API at $supabaseUrl")
 
         if (measurement.cells == null) {
             Log.e(TAG, "Error in insertMeasurementTransaction: measurement.cells is null!!!")
@@ -226,7 +226,7 @@ object NetworkMeasurementDatasource {
                 try {
                     insertedMeasurements = measurements.map { measurement ->
                         Log.d(TAG, "insertMeasurements: $measurement")
-                        insertMeasurementTransaction(measurement)!!
+                        insertMeasurementTransaction(measurement)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in insertMeasurementTransaction: ${e.message}")
@@ -242,7 +242,7 @@ object NetworkMeasurementDatasource {
     suspend fun insertLatencyData(latencyData: LatencyData): LatencyData? {
         var insertedLatencyData: LatencyData? = null
 
-        Log.d(TAG, "insertLatencyData: ${latencyData}")
+        Log.d(TAG, "insertLatencyData: $latencyData")
 
         // Move network IO off the Main thread
         withContext(Dispatchers.IO) {
@@ -420,7 +420,7 @@ object NetworkMeasurementDatasource {
     }
 
     @WorkerThread
-    suspend fun getMeasurements(): List<Measurement>? {
+    suspend fun getMeasurements(): List<Measurement> {
         var measurements: List<Measurement>
 
         // Move network IO off the Main thread
@@ -477,6 +477,6 @@ object NetworkMeasurementDatasource {
             }
         }
 
-        return null;
+        return null
     }
 }

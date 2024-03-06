@@ -1,8 +1,8 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
-import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
@@ -21,8 +21,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import kotlinx.datetime.Clock
+import okhttp3.OkHttpClient
 import java.io.IOException
 import java.util.UUID
 
@@ -33,9 +33,7 @@ object MeasurementManager {
     private val fccSubmissionRepository = CellWatchApp.fccSubmissionRepository
     private val TAG = this::class.simpleName
 
-    private var appMod: EasyAppMod = EasyAppMod(CellWatchApp.applicationContext())
-
-    fun updateBytesPerSec(newBytesPerSec: Double) {
+    private fun updateBytesPerSec(newBytesPerSec: Double) {
         _bytesPerSecState.update { newBytesPerSec }
     }
 
@@ -114,7 +112,7 @@ object MeasurementManager {
                 deviceModel = latencyMeasurement.deviceModel ?: downloadMeasurement.deviceModel ?: uploadMeasurement.deviceModel,
                 deviceOsName = "Android ${latencyMeasurement.deviceOsVersion ?: downloadMeasurement.deviceOsVersion ?: uploadMeasurement.deviceOsVersion}",
                 appName = latencyMeasurement.appName ?: downloadMeasurement.appName ?: uploadMeasurement.appName,
-                appVersion = appMod.appVersion,
+                appVersion = EasyAppMod(CellWatchApp.applicationContext()).appVersion,
                 provider = TelephonyInfoManager.getProviderName(),
                 simCountryCode = latencyMeasurement.simMcc ?: downloadMeasurement.simMcc ?: uploadMeasurement.simMcc,
                 simNetworkCode = latencyMeasurement.simMnc ?: downloadMeasurement.simMnc ?: uploadMeasurement.simMnc,
@@ -135,7 +133,7 @@ object MeasurementManager {
         return MeasurementGroup(latencyMeasurement, downloadMeasurement, uploadMeasurement, fccSubmission)
     }
 
-    suspend fun runThroughputTest(
+    private suspend fun runThroughputTest(
         server: Server,
         direction: ThroughputDirection,
         groupId: String,
@@ -170,7 +168,7 @@ object MeasurementManager {
         return measurement
     }
 
-    suspend fun runLatencyTest(
+    private suspend fun runLatencyTest(
         client: OkHttpClient,
         server: Server,
         groupId: String,
@@ -197,7 +195,7 @@ object MeasurementManager {
         return measurement
     }
 
-    suspend fun insertFccSubmission(fccSubmission: FccSubmission) {
+    private suspend fun insertFccSubmission(fccSubmission: FccSubmission) {
         try {
             fccSubmissionRepository.insertFccSubmission(fccSubmission)
         } catch (e: Exception) {
@@ -206,7 +204,7 @@ object MeasurementManager {
         }
     }
 
-    suspend fun insertMeasurement(m: Measurement) {
+    private suspend fun insertMeasurement(m: Measurement) {
         try {
             measurementRepository.insertMeasurement(m)
         } catch (e: Exception) {
@@ -215,7 +213,7 @@ object MeasurementManager {
         }
     }
 
-    suspend fun chooseMsakServers(client: OkHttpClient? = null): Pair<Server, Server> {
+    private suspend fun chooseMsakServers(client: OkHttpClient? = null): Pair<Server, Server> {
         val manager = LocateManager(client)
         try {
             val throughputServers = manager.locateThroughputServers()

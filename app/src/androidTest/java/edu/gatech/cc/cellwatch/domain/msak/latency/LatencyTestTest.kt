@@ -35,7 +35,7 @@ class LatencyTestTest {
         var serverPort = 1234
     }
 
-    fun setup(
+    private fun setup(
         authResponse: MockResponse = MockResponse().setBody("{\"Type\": \"c2s\", \"ID\": \"fakeid\", \"Seq\": 0}"),
         resultResponse: MockResponse = MockResponse().setBody("""{
             "ID": "fakeid",
@@ -70,7 +70,7 @@ class LatencyTestTest {
         ))
     }
 
-    fun expectPacket(payload: LatencyMessage) {
+    private fun expectPacket(payload: LatencyMessage) {
         val buf = ByteArray(1024)
         val pkt = DatagramPacket(buf, buf.size)
         socket.receive(pkt)
@@ -79,7 +79,7 @@ class LatencyTestTest {
         assertEquals(payload, Gson().fromJson(buf.sliceArray(IntRange(0, pkt.length - 1)).toString(LATENCY_CHARSET), LatencyMessage::class.java))
     }
 
-    fun sendPacket(payload: LatencyMessage) {
+    private fun sendPacket(payload: LatencyMessage) {
         val buf = Gson().toJson(payload).toByteArray(LATENCY_CHARSET)
         val pkt = DatagramPacket(buf, buf.size)
         pkt.address = testAddr

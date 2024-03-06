@@ -144,12 +144,12 @@ class ThroughputTest(
         handler.postDelayed({ catchErrors { msakTest.stop() } }, maxActiveTime)
 
         try {
-            lastWarmupUpdates = msakTest.streams.mapIndexed() { i, stream ->
+            lastWarmupUpdates = msakTest.streams.mapIndexed { i, stream ->
                 // avoid using an iterator on the list of updates to prevent a ConcurrentModificationException
                 // see https://stackoverflow.com/questions/27818867/java-concurrentmodificationexception-when-iterating-arraylist
                 var update: ThroughputUpdate? = null
-                for (i in (stream.updates.size - 1) downTo 0) {
-                    val u = stream.updates[i]
+                for (j in (stream.updates.size - 1) downTo 0) {
+                    val u = stream.updates[j]
                     if (isFromReceiver(u)) {
                         update = u
                         break

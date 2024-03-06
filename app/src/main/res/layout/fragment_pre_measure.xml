@@ -72,7 +72,7 @@
                 android:id="@+id/stationaryCheck"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="left"
+                android:layout_gravity="start"
                 android:src="@drawable/fa_solid_check"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -126,7 +126,7 @@
                 android:id="@+id/movingCheck"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="left"
+                android:layout_gravity="start"
                 android:src="@drawable/fa_solid_check"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -165,7 +165,6 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <TableLayout
-            android:id="@+id/tableLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:layout_constraintEnd_toEndOf="parent"
@@ -182,7 +181,6 @@
                     app:srcCompat="@drawable/fa_solid_check_circle" />
 
                 <TextView
-                    android:id="@+id/certifySubscriber"
                     android:layout_weight="1"
                     android:text="@string/certify_subscriber"
                     android:textColor="@color/black"
@@ -199,7 +197,6 @@
                     app:srcCompat="@drawable/fa_solid_check_circle" />
 
                 <TextView
-                    android:id="@+id/certifyOutdoors"
                     android:layout_weight="1"
                     android:text="@string/certify_outdoors"
                     android:textColor="@color/black"
@@ -216,7 +213,6 @@
                     app:srcCompat="@drawable/fa_solid_check_circle" />
 
                 <TextView
-                    android:id="@+id/certifyPhoneWorking"
                     android:layout_weight="1"
                     android:text="@string/certify_phone_working"
                     android:textColor="@color/black"
@@ -233,7 +229,6 @@
                     app:srcCompat="@drawable/fa_solid_check_circle" />
 
                 <TextView
-                    android:id="@+id/certifyStatements"
                     android:layout_weight="1"
                     android:text="@string/certify_statements"
                     android:textColor="@color/black"

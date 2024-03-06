@@ -18,8 +18,8 @@ object MapAnnotationManager {
     fun getAllCoordinates(): MutableList<Coordinate> {
         val measurementRepository = CellWatchApp.measurementRepository
 
-        Log.d(TAG,"Getting stored measurements");
-        var groups = runBlocking { measurementRepository.getMeasurementGroups() };
+        Log.d(TAG,"Getting stored measurements")
+        val groups = runBlocking { measurementRepository.getMeasurementGroups() }
         Log.d(TAG, "*** Got ${groups.size} measurements ***")
 
         val coords: MutableList<Coordinate> = groupsToCoordinates(groups)
@@ -35,7 +35,7 @@ object MapAnnotationManager {
         return groupedCoordinates
     }
 
-    fun groupCoordinates(coordinates: MutableList<Coordinate>, threshold: Double): MutableList<Coordinate> {
+    private fun groupCoordinates(coordinates: MutableList<Coordinate>, threshold: Double): MutableList<Coordinate> {
         var i = 0
         while (i < coordinates.size) {
             var j = i + 1
@@ -64,7 +64,7 @@ object MapAnnotationManager {
     }
 
     private fun groupsToCoordinates(groups: List<MeasurementGroup>): MutableList<Coordinate> {
-        var coords: MutableList<Coordinate> = mutableListOf()
+        val coords: MutableList<Coordinate> = mutableListOf()
 
         for (group in groups) {
             for (measurement in listOfNotNull(group.latency, group.download, group.upload)) {

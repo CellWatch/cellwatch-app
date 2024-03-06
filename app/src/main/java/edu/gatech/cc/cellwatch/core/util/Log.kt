@@ -5,11 +5,11 @@ import com.google.firebase.crashlytics.crashlytics
 import edu.gatech.cc.cellwatch.BuildConfig
 
 object Log {
-    val VERBOSE = android.util.Log.VERBOSE
-    val DEBUG = android.util.Log.DEBUG
-    val INFO = android.util.Log.INFO
-    val WARN = android.util.Log.WARN
-    val ERROR = android.util.Log.ERROR
+    const val VERBOSE = android.util.Log.VERBOSE
+    const val DEBUG = android.util.Log.DEBUG
+    const val INFO = android.util.Log.INFO
+    const val WARN = android.util.Log.WARN
+    const val ERROR = android.util.Log.ERROR
 
     init {
         Firebase.crashlytics.setCustomKey("debug", BuildConfig.DEBUG)

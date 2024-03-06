@@ -78,7 +78,6 @@
     <string name="latency">Latencia</string>
     <string name="download">Descarga</string>
     <string name="upload">Subida</string>
-    <string name="running">en curso</string>
     <string name="failed">fallido</string>
     <string name="speed_mbps">%1$d Mbps</string>
     <string name="latency_ms">%1$d ms</string>
@@ -99,7 +98,6 @@
 
     <!-- measurement history -->
     <string name="measurement_history">Historial de medición</string>
-    <string name="datetime">Fecha/hora</string>
     <string name="location">Ubicación</string>
     <string name="carrier">Proveedor</string>
     <string name="type">Tipo</string>

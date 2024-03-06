@@ -41,8 +41,7 @@ class LatencyTest(
                 }
             }
 
-            val error = msakTest.error
-            val result = when (error) {
+            val result = when (val error = msakTest.error) {
                 null,
                 is LatencyTest.AuthorizeFailureExecption,
                 is LatencyTest.ResultFailureException,

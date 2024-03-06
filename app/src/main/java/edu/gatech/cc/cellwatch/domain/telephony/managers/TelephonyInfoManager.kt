@@ -53,7 +53,7 @@ object TelephonyInfoManager {
         appContext.getSystemService(Context.TELEPHONY_SERVICE) as
             TelephonyManager
     private var availableNetworks = HashSet<Network>()
-    val connectivityManager = appContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val connectivityManager = appContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
 
     init {
         connectivityManager.registerNetworkCallback(
@@ -78,54 +78,54 @@ object TelephonyInfoManager {
 
     fun getNetworkMobileCountryCode(): String? {
         val networkOperator: String = Objects.requireNonNull(telephonyManager).networkOperator
-        var mcc: String? = null;
+        var mcc: String? = null
 
         if (!TextUtils.isEmpty(networkOperator)) {
             mcc = networkOperator.substring(0, 3)
         }
 
         Log.d(TAG, "net_mcc = $mcc")
-        return mcc;
+        return mcc
     }
 
     fun getNetworkMobileNetworkCode(): String? {
         val networkOperator: String = Objects.requireNonNull(telephonyManager).networkOperator
-        var mnc: String? = null;
+        var mnc: String? = null
 
         if (!TextUtils.isEmpty(networkOperator)) {
             mnc = networkOperator.substring(3)
         }
 
         Log.d(TAG, "net_mnc = $mnc")
-        return mnc;
+        return mnc
     }
 
     fun getSimMobileCountryCode(): String? {
         val simOperator: String = Objects.requireNonNull(telephonyManager).simOperator
-        var mcc: String? = null;
+        var mcc: String? = null
 
         if (!TextUtils.isEmpty(simOperator)) {
             mcc = simOperator.substring(0, 3)
         }
 
         Log.d(TAG, "sim_mcc = $mcc")
-        return mcc;
+        return mcc
     }
 
     fun getSimMobileNetworkCode(): String? {
         val simOperator: String = Objects.requireNonNull(telephonyManager).simOperator
-        var mnc: String? = null;
+        var mnc: String? = null
 
         if (!TextUtils.isEmpty(simOperator)) {
             mnc = simOperator.substring(3)
         }
 
         Log.d(TAG, "net_mcc = $mnc")
-        return mnc;
+        return mnc
     }
 
     fun getProviderName(): String {
-        return telephonyManager?.networkOperatorName?.lowercase()?.trim() ?: "unknown"
+        return telephonyManager.networkOperatorName?.lowercase()?.trim() ?: "unknown"
     }
 
     fun getConnectionType(): NetworkConnectionType {
@@ -143,7 +143,7 @@ object TelephonyInfoManager {
         return result
     }
 
-    fun getCellularDataNetworkType(): Int? {
+    private fun getCellularDataNetworkType(): Int? {
         if (!PermissionManager.checkPermission()) return null
 
         val connectivityManager = appContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -157,7 +157,7 @@ object TelephonyInfoManager {
         return telephonyManager.dataNetworkType
     }
 
-    fun getActiveNetworkSubType(cells: List<CellInfo>): String? {
+    private fun getActiveNetworkSubType(cells: List<CellInfo>): String? {
         // must be one of 1X, EVDO, WCDMA, GSM, HSPA, HSPA+, LTE, NRSA, NRNSA
         return when (getCellularDataNetworkType()) {
             TelephonyManager.NETWORK_TYPE_1xRTT -> "1X"
@@ -209,7 +209,7 @@ object TelephonyInfoManager {
         }
     }
 
-    fun isNRNonStandAlone(cells: List<CellInfo>): Boolean {
+    private fun isNRNonStandAlone(cells: List<CellInfo>): Boolean {
         val primary = cells.filter { it.cellConnectionStatus == CONNECTION_PRIMARY_SERVING }
         val secondary = cells.filter { it.cellConnectionStatus == CONNECTION_SECONDARY_SERVING }
 
@@ -426,6 +426,7 @@ object TelephonyInfoManager {
             return fun() { telephonyManager.unregisterTelephonyCallback(callback) }
         } else {
             val listener = object: PhoneStateListener() {
+                @Deprecated("Deprecated in Java")
                 override fun onCellInfoChanged(cellInfos: MutableList<CellInfo>) {
                     if (!PermissionManager.checkPermission()) return
                     super.onCellInfoChanged(cellInfos)

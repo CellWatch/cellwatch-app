@@ -28,7 +28,7 @@ class LocateManagerTest {
         manager = LocateManager(locateUrl = server.url("/").toString())
     }
 
-    fun makeServers(num: Int): List<Server> {
+    private fun makeServers(num: Int): List<Server> {
         return List(num) {
             Server("mlab1-iad$it.mlab-oti.example.com", ServerLocation("ATL$it", "US"), mapOf(
                 "wss:///t/test" to "wss://msak-mlab1-iad$it.map-oti.example.com/t/test",

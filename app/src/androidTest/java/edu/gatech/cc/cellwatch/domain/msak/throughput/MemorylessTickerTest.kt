@@ -26,7 +26,7 @@ class MemorylessTickerTest {
         assertEquals(true, times.size >= 6)
         assertEquals(true, times.size <= 20)
 
-        var diffs = ArrayList<Long>()
+        val diffs = ArrayList<Long>()
         for (i in 1 until times.size) diffs.add((times[i] - times[i - 1]).inWholeMilliseconds)
 
         diffs.forEach {

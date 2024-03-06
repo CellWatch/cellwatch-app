@@ -249,7 +249,7 @@ class ThroughputStream(
 
         if (ended) {
             Log.d(TAG, "WebSocket opened after stream stopped")
-            webSocket?.close(wsCodeNormalClosure, "stream stopped")
+            webSocket.close(wsCodeNormalClosure, "stream stopped")
             return
         }
 
@@ -322,5 +322,5 @@ class ThroughputStream(
         code: Int,
         reason: String?,
     ): Exception("websocket closed with unexpected code: $code $reason")
-    class FailureException(): Exception("websocket failure")
+    class FailureException : Exception("websocket failure")
 }

@@ -85,7 +85,7 @@ class FccSubmissionRepository(
         }
     }
 
-    suspend fun getPubicTCPTuple(
+    private suspend fun getPubicTCPTuple(
         serviceUrl: String = BuildConfig.TCP_TUPLE_URL,
     ): TcpTuple = suspendCoroutine { continuation ->
         val client = OkHttpClient.Builder().build()

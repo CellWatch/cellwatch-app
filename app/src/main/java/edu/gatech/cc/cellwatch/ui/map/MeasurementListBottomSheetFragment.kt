@@ -7,14 +7,12 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import edu.gatech.cc.cellwatch.R
-import edu.gatech.cc.cellwatch.data.model.Measurement
-import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 
 class MeasurementListBottomSheetFragment : BottomSheetDialogFragment() {
 
-    private var measurements: List<Measurement>? = null
     private var h3Address: Long? = null
 
     companion object {

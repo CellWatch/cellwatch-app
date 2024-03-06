@@ -29,7 +29,7 @@ class PostMeasureFragment: Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         binding = FragmentPostMeasureBinding.inflate(inflater, container, false)
         model = ViewModelProvider(requireActivity())[MeasurementViewModel::class.java]
 
@@ -57,13 +57,13 @@ class PostMeasureFragment: Fragment() {
     }
 
     private suspend fun uploadMeasurements(): Instant? {
-        try {
+        return try {
             val uploadTime = measurementRepository.uploadMeasurements()
             fccSubmissionRepository.uploadFccSubmissions()
-            return uploadTime
+            uploadTime
         } catch (e: Exception) {
             Log.d(TAG, "failed to upload measurements and submission", e)
-            return null
+            null
         }
     }
 }

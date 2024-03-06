@@ -238,7 +238,7 @@ class FccSubmissionDaoTest {
             received = 779927,
             servers = listOf("server1", "server2")
         )
-        val downloadCells = listOf<CellEntity>(
+        val downloadCells = listOf(
             CellEntity(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -280,7 +280,7 @@ class FccSubmissionDaoTest {
                 arfcn = 528000
             )
         )
-        val uploadCells = listOf<CellEntity>(
+        val uploadCells = listOf(
             CellEntity(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -322,7 +322,7 @@ class FccSubmissionDaoTest {
                 arfcn = 528000
             )
         )
-        val latencyCells = listOf<CellEntity>(
+        val latencyCells = listOf(
             CellEntity(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -368,21 +368,21 @@ class FccSubmissionDaoTest {
             downloadMeasurement,
             downloadData,
             null,
-            listOf<LocationEntity>(locationEntity),
+            listOf(locationEntity),
             downloadCells
         )
         val uploadMeasurementWithData = MeasurementWithData(
             uploadMeasurement,
             uploadData,
             null,
-            listOf<LocationEntity>(locationEntity2),
+            listOf(locationEntity2),
             uploadCells
         )
         val latencyMeasurementWithData = MeasurementWithData(
             latencyMeasurement,
             null,
             latencyDataEntity,
-            listOf<LocationEntity>(locationEntity3),
+            listOf(locationEntity3),
             latencyCells
         )
 
@@ -576,7 +576,7 @@ class FccSubmissionDaoTest {
             received = 779927,
             servers = listOf("server1", "server2")
         )
-        val downloadCells = listOf<CellEntity>(
+        val downloadCells = listOf(
             CellEntity(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -618,7 +618,7 @@ class FccSubmissionDaoTest {
                 arfcn = 528000
             )
         )
-        val uploadCells = listOf<CellEntity>(
+        val uploadCells = listOf(
             CellEntity(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -660,7 +660,7 @@ class FccSubmissionDaoTest {
                 arfcn = 528000
             )
         )
-        val latencyCells = listOf<CellEntity>(
+        val latencyCells = listOf(
             CellEntity(
                 timestamp = Clock.System.now(),
                 cellId = 234,
@@ -714,7 +714,7 @@ class FccSubmissionDaoTest {
                 downloadMeasurement,
                 downloadData,
                 null,
-                listOf<LocationEntity>(locationEntity),
+                listOf(locationEntity),
                 downloadCells
             )
             measurementDao.insertMeasurementWithData(
@@ -724,7 +724,7 @@ class FccSubmissionDaoTest {
                 uploadMeasurement,
                 uploadData,
                 null,
-                listOf<LocationEntity>(locationEntity2),
+                listOf(locationEntity2),
                 uploadCells
             )
             measurementDao.insertMeasurementWithData(
@@ -734,7 +734,7 @@ class FccSubmissionDaoTest {
                 latencyMeasurement,
                 null,
                 latencyDataEntity,
-                listOf<LocationEntity>(locationEntity3),
+                listOf(locationEntity3),
                 latencyCells
             )
             measurementDao.insertMeasurementWithData(
@@ -762,7 +762,7 @@ class FccSubmissionDaoTest {
                 }
                 cells?.forEach {
                     assertEquals(it.arfcn, 528000)
-                    Log.d(TAG, "cell = ${it}")
+                    Log.d(TAG, "cell = $it")
                 }
             }
 
