@@ -16,13 +16,7 @@ interface LatencyDataDao {
     suspend fun deleteLatencyData(measurement: LatencyDataEntity)
 
     @Query("SELECT * FROM LatencyDataEntity")
-    suspend fun getLatencyData(): List<LatencyDataEntity>
-
-    @Query("SELECT * FROM LatencyDataEntity")
     fun getLatencyDataFlow(): Flow<List<LatencyDataEntity>>
-
-    @Query("SELECT * FROM LatencyDataEntity WHERE measurementId = :measurementId")
-    suspend fun getLatencyDataByMeasurementId(measurementId: String): List<LatencyDataEntity>
 
     @Query("SELECT * FROM LatencyDataEntity WHERE measurementId = :measurementId")
     fun getLatencyDataByMeasurementIdFlow(measurementId: String): Flow<List<LatencyDataEntity>>

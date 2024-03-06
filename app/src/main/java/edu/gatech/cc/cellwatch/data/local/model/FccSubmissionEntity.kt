@@ -2,8 +2,6 @@ package edu.gatech.cc.cellwatch.data.local.model
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
 import androidx.room.PrimaryKey
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import kotlinx.datetime.Instant
@@ -14,9 +12,6 @@ data class FccSubmissionEntity(
     // AKA groupId
     @PrimaryKey
     var id: String = UUID.randomUUID().toString(),
-
-//    @ColumnInfo(index = true)
-//    val groupId: String? = null,
 
     @ColumnInfo(index = true)
     val challengeDataId: String? = null,
@@ -50,10 +45,7 @@ data class FccSubmissionEntity(
     val submittedOn: Instant? = null,
     val submission: String? = null,
 
-    //    @ColumnInfo(name = "created_on")
     val createdOn: Instant? = null,
-
-    //    @ColumnInfo(name = "updated_on")
     val updatedOn: Instant? = null,
 
     // When was this record pushed to cloud storage?
@@ -62,7 +54,6 @@ data class FccSubmissionEntity(
 
 fun FccSubmissionEntity.asExternalModel() = FccSubmission(
     id,
-//    groupId,
     challengeDataId,
     contactName,
     contactEmail,

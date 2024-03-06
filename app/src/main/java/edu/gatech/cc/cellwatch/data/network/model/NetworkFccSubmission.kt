@@ -11,10 +11,6 @@ data class NetworkFccSubmission(
     // aliases to test_id when submitting to FCC
     var id: String = UUID.randomUUID().toString(),
 
-    // aliases to test_id when submitting to FCC
-//    @SerialName("group_id")
-//    val groupId: String? = null,
-
     @SerialName("challenge_data_id")
     val challengeDataId: String? = null,
 
@@ -103,7 +99,6 @@ data class NetworkFccSubmission(
 
 fun NetworkFccSubmission.asExternalModel() = FccSubmission(
     id,
-//    groupId,
     challengeDataId,
     contactName,
     contactEmail,

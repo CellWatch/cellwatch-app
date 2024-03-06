@@ -6,15 +6,12 @@ import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
-import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionWithMeasurements
 import edu.gatech.cc.cellwatch.data.local.dao.FccSubmissionDao
 import edu.gatech.cc.cellwatch.data.local.model.asExternalModel
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.TcpTuple
 import edu.gatech.cc.cellwatch.data.model.asEntity
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import okhttp3.Call
@@ -33,56 +30,15 @@ class FccSubmissionRepository(
 ) {
     private val TAG = this::class.simpleName
 
-    val allFccSubmissions: Flow<List<FccSubmission>> =
-        fccSubmissionDao.getFccSubmissionsFlow().map { it.map(FccSubmissionEntity::asExternalModel) }
-
-//    val allFccSubmissionsWithMeasurements: Flow<List<FccSubmission>> =
-//        FccSubmissionDao.getFccSubmissionsWithMeasurementsFlow().map { it.map(FccSubmissionWithMeasurements::asExternalModel) }
-
-//    @WorkerThread
-//    suspend fun getFccSubmissionByIdWithMeasurements(id: String): FccSubmission =
-//        FccSubmissionDao.getFccSubmissionByIdWithMeasurements(id).asExternalModel()
-
-    @WorkerThread
-    suspend fun getFccSubmissionById(id: String): FccSubmission =
-        fccSubmissionDao.getFccSubmissionById(id).asExternalModel()
-
-    @WorkerThread
-    suspend fun getFccSubmissions(): List<FccSubmission> =
-        fccSubmissionDao.getFccSubmissions().map(FccSubmissionEntity::asExternalModel)
-
-    @WorkerThread
-    suspend fun getFccSubmissionsWithMeasurements(): List<FccSubmission> =
-        fccSubmissionDao.getFccSubmissionsWithMeasurements().map(FccSubmissionWithMeasurements::asExternalModel)
-
     @WorkerThread
     suspend fun getUnsynchronizedFccSubmissions(): List<FccSubmission> =
         fccSubmissionDao.getUnsynchronizedFccSubmissions().map(FccSubmissionEntity::asExternalModel)
 
     @WorkerThread
-    suspend fun getUnsynchronizedFccSubmissionsWithMeasurements(): List<FccSubmission> =
-        fccSubmissionDao.getUnsynchronizedFccSubmissionsWithMeasurements().map(FccSubmissionWithMeasurements::asExternalModel)
-
-    //    @Suppress("RedundantSuspendModifier")
-    @WorkerThread
     suspend fun insertFccSubmission(FccSubmission: FccSubmission) {
         val FccSubmissionEntity = FccSubmission.asEntity()
         fccSubmissionDao.insertFccSubmission(FccSubmissionEntity)
     }
-
-    @WorkerThread
-    suspend fun updateFccSubmission(FccSubmission: FccSubmission) {
-        fccSubmissionDao.updateFccSubmission(FccSubmission.asEntity())
-    }
-
-//    @Suppress("RedundantSuspendModifier")
-//    @WorkerThread
-//    suspend fun insertFccSubmissionWithMeasurements(FccSubmissionWithMeasurements: FccSubmissionWithMeasurements) {
-//        FccSubmissionDao.insertFccSubmissionWithMeasurements(FccSubmissionWithMeasurements)
-//    }
-
-    @WorkerThread
-    suspend fun deleteAllFccSubmissions() = fccSubmissionDao.deleteAllFccSubmissions()
 
     /**
      * Store-and-forward FccSubmission data
@@ -92,7 +48,6 @@ class FccSubmissionRepository(
     @WorkerThread
     suspend fun uploadFccSubmissions(): Instant? {
         val fccSubmissions = getUnsynchronizedFccSubmissions()
-//        val fccSubmissions = getUnsynchronizedFccSubmissionsWithMeasurements()
 
         if (fccSubmissions.isNotEmpty()) {
             Log.d(TAG, "uploadFccSubmissions: Attempting to upload ${fccSubmissions.size} FccSubmissions")

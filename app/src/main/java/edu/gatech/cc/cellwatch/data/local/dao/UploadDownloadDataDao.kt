@@ -16,13 +16,7 @@ interface UploadDownloadDataDao {
     suspend fun deleteUploadDownloadData(uploadDownloadDataEntity: UploadDownloadDataEntity)
 
     @Query("SELECT * FROM UploadDownloadDataEntity")
-    suspend fun getUploadDownloadData(): List<UploadDownloadDataEntity>
-
-    @Query("SELECT * FROM UploadDownloadDataEntity")
     fun getUploadDownloadDataFlow(): Flow<List<UploadDownloadDataEntity>>
-
-    @Query("SELECT * FROM UploadDownloadDataEntity WHERE measurementId = :measurementId")
-    suspend fun getUploadDownloadDataByMeasurementId(measurementId: String): List<UploadDownloadDataEntity>
 
     @Query("SELECT * FROM UploadDownloadDataEntity WHERE measurementId = :measurementId")
     fun getUploadDownloadDataByMeasurementIdFlow(measurementId: String): Flow<List<UploadDownloadDataEntity>>

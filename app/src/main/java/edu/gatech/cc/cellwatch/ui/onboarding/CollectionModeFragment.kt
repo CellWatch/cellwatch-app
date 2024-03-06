@@ -71,17 +71,4 @@ class CollectionModeFragment : Fragment() {
             }
         }
     }
-
-    private fun storeSelection() {
-        //TODO Do something with the selection
-        when {
-            flFCCChallengeMode.isSelected -> {
-
-            }
-            flTestingMode.isSelected -> {
-
-            }
-        }
-
-    }
 }

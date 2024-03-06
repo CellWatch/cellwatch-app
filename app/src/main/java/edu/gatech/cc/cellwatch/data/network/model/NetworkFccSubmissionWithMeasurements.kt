@@ -15,7 +15,6 @@ data class NetworkFccSubmissionWithMeasurements(
 
 fun NetworkFccSubmissionWithMeasurements.asExternalModel() = FccSubmission(
     fccSubmission.id,
-//    fccSubmission.groupId,
     fccSubmission.challengeDataId,
     fccSubmission.contactName,
     fccSubmission.contactEmail,

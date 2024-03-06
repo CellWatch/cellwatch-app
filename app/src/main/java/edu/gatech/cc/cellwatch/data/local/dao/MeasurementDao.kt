@@ -55,40 +55,8 @@ abstract class MeasurementDao {
     @Insert
     abstract suspend fun insertLocation(locationEntity: LocationEntity)
 
-    @Insert
-    suspend fun addUploadDownloadDataToMeasurement(measurement: MeasurementEntity, uploadDownloadDataEntity: UploadDownloadDataEntity) {
-        uploadDownloadDataEntity.measurementId = measurement.id
-
-    }
-
     @Update
     abstract suspend fun updateMeasurement(measurement: MeasurementEntity)
-
-//    @Transaction
-//    suspend fun insertMeasurementWithLocationsAndData(
-//        measurement: Measurement,
-//        locations: List<Location>,
-//        uploadDownloadData: UploadDownloadData?,
-//        latencyData: LatencyData?
-//    ) {
-//        insertMeasurement(measurement)
-//
-//        locations.forEach {
-//            it.
-//        }
-//    }
-
-//    @Insert
-//    suspend fun insertMeasurementWithLocationsAndData(
-//        measurement: Measurement,
-//        locations: List<Location>,
-//        uploadDownloadData: UploadDownloadData?,
-//        latencyData: LatencyData?
-////        latencyData: List<LatencyData>
-//    )
-
-//    @Insert
-//    fun insertMeasurementWithData(measurement: MeasurementWithData)
 
     @Delete
     abstract suspend fun deleteMeasurement(measurement: MeasurementEntity)
@@ -98,9 +66,6 @@ abstract class MeasurementDao {
 
     @Query("SELECT * FROM MeasurementEntity WHERE id = :id")
     abstract suspend fun getMeasurementById(id: String): MeasurementEntity
-
-//    @Query("SELECT * FROM Measurement WHERE id = :id")
-//    abstract fun getMeasurementByIdFlow(id: String): Flow<List<Measurement>>
 
     @Query("SELECT * FROM MeasurementEntity")
     abstract suspend fun getMeasurements(): List<MeasurementEntity>

@@ -8,7 +8,6 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.datetime.Clock
 import okhttp3.OkHttpClient
-import kotlin.math.abs
 import kotlin.math.pow
 
 class LatencyTest(

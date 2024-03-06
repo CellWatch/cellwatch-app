@@ -3,7 +3,6 @@ package edu.gatech.cc.cellwatch.data.core.repositories
 import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.annotation.WorkerThread
 import edu.gatech.cc.cellwatch.data.local.dao.FccSubmissionDao
-import edu.gatech.cc.cellwatch.data.local.model.MeasurementEntity
 import edu.gatech.cc.cellwatch.data.local.model.MeasurementWithData
 import edu.gatech.cc.cellwatch.data.local.dao.MeasurementDao
 import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
@@ -14,8 +13,6 @@ import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.data.model.asEntity
 import edu.gatech.cc.cellwatch.data.model.asEntityWithData
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
@@ -24,28 +21,7 @@ class MeasurementRepository(
     private val submissionDao: FccSubmissionDao,
     private val networkDataSource: NetworkMeasurementDatasource
 ) {
-//object MeasurementRepository {
-//    private val measurementDao: MeasurementDao = MeasurementDao()
-
     private val TAG = this::class.simpleName
-
-    val allMeasurements: Flow<List<Measurement>> =
-        measurementDao.getMeasurementsFlow().map { it.map(MeasurementEntity::asExternalModel) }
-
-    val allMeasurementsWithData: Flow<List<Measurement>> =
-        measurementDao.getMeasurementsWithDataFlow().map { it.map(MeasurementWithData::asExternalModel) }
-
-    @WorkerThread
-    suspend fun getMeasurementByIdWithData(id: String): Measurement =
-        measurementDao.getMeasurementByIdWithData(id).asExternalModel()
-
-    @WorkerThread
-    suspend fun getMeasurementById(id: String): Measurement =
-        measurementDao.getMeasurementById(id).asExternalModel()
-
-    @WorkerThread
-    suspend fun getMeasurements(): List<Measurement> =
-        measurementDao.getMeasurements().map(MeasurementEntity::asExternalModel)
 
     @WorkerThread
     suspend fun getMeasurementGroups(): List<MeasurementGroup> {
@@ -91,10 +67,6 @@ class MeasurementRepository(
     }
 
     @WorkerThread
-    suspend fun getUnsynchronizedMeasurements(): List<Measurement> =
-        measurementDao.getUnsynchronizedMeasurements().map(MeasurementEntity::asExternalModel)
-
-    @WorkerThread
     suspend fun getMeasurementsWithData(): List<Measurement> =
         measurementDao.getMeasurementsWithData().map(MeasurementWithData::asExternalModel)
 
@@ -102,7 +74,6 @@ class MeasurementRepository(
     suspend fun getUnsynchronizedMeasurementsWithData(): List<Measurement> =
         measurementDao.getUnsynchronizedMeasurementsWithData().map(MeasurementWithData::asExternalModel)
 
-//    @Suppress("RedundantSuspendModifier")
     @WorkerThread
     suspend fun insertMeasurement(measurement: Measurement) {
         val measurementWithDataEntity = measurement.asEntityWithData()
@@ -110,20 +81,6 @@ class MeasurementRepository(
         Log.d(TAG, "MeasurementRepository.insertMeasurement: measurementWithDataEntity.simMcc is ${measurementWithDataEntity.measurement?.simMcc}")
         measurementDao.insertMeasurementWithData(measurementWithDataEntity)
     }
-
-    @WorkerThread
-    suspend fun updateMeasurement(measurement: Measurement) {
-        measurementDao.updateMeasurement(measurement.asEntity())
-    }
-
-//    @Suppress("RedundantSuspendModifier")
-//    @WorkerThread
-//    suspend fun insertMeasurementWithData(measurementWithData: MeasurementWithData) {
-//        measurementDao.insertMeasurementWithData(measurementWithData)
-//    }
-
-    @WorkerThread
-    suspend fun deleteAllMeasurements() = measurementDao.deleteAllMeasurements()
 
     /**
      * Store-and-forward measurement data
@@ -137,10 +94,6 @@ class MeasurementRepository(
         if (measurements.isNotEmpty()) {
             Log.d(TAG, "uploadMeasurements: Attempting to upload ${measurements.size} measurements")
             try {
-                // Get public ip address
-//                val myPublicIp = TelephonyInfoManager.getMyPublicIpAsync().await()
-//                Toast.makeText(CellWatchApp.applicationContext(), myPublicIp, Toast.LENGTH_LONG).show()
-
                 networkDataSource.insertMeasurements(measurements)
             } catch (e: Exception) {
                 Log.e(TAG, "Error in uploadMeasurements: ${e.message}")

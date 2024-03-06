@@ -4,7 +4,6 @@ import edu.gatech.cc.cellwatch.data.local.model.MeasurementEntity
 import edu.gatech.cc.cellwatch.data.local.model.MeasurementWithData
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurement
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurementWithData
-import edu.gatech.cc.cellwatch.data.network.model.NetworkUploadDownloadData
 import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import kotlinx.datetime.Instant
 import java.util.UUID
