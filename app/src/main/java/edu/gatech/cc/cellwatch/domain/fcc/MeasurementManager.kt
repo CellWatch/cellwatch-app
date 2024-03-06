@@ -12,6 +12,7 @@ import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.LatencyData
 import edu.gatech.cc.cellwatch.data.model.Location
 import edu.gatech.cc.cellwatch.data.model.Measurement
+import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.data.model.UploadDownloadData
 import edu.gatech.cc.cellwatch.domain.msak.Server
 import edu.gatech.cc.cellwatch.domain.msak.locate.LocateManager
@@ -65,7 +66,7 @@ object MeasurementManager {
         onUploadStart: () -> Unit,
         onUploadComplete: (m: Measurement) -> Unit,
         failIfNotOnCellular: Boolean = true,
-    ) {
+    ): MeasurementGroup {
         if (failIfNotOnCellular && (
                     TelephonyInfoManager.getConnectionType() == NetworkConnectionType.WIFI ||
                     TelephonyInfoManager.isCellularDataEnabled() == false
@@ -113,7 +114,7 @@ object MeasurementManager {
         insertMeasurement(uploadMeasurement)
         onUploadComplete(uploadMeasurement)
 
-        if (
+        val fccSubmission = if (
             latencyMeasurement.connectionType != NetworkConnectionType.WIFI &&
             downloadMeasurement.connectionType != NetworkConnectionType.WIFI &&
             uploadMeasurement.connectionType != NetworkConnectionType.WIFI &&
@@ -121,13 +122,7 @@ object MeasurementManager {
             downloadMeasurement.cellularDataEnabled != false &&
             uploadMeasurement.cellularDataEnabled != false
         ) {
-//            val challengeData = ChallengeData(
-//                submissionCategory = "Consumer Challenge",
-//                contactName = CellWatchApp.localDataStore.getUserName.first(),
-//                contactEmail = CellWatchApp.localDataStore.getEmail.first(),
-//                contactPhone = CellWatchApp.localDataStore.getPhoneNumber.first()
-//            )
-            val fccSubmission = FccSubmission(
+            val submission = FccSubmission(
                 id = groupId,
                 deviceId = latencyMeasurement.deviceId ?: downloadMeasurement.deviceId ?: uploadMeasurement.deviceId,
                 deviceTimestamp = Clock.System.now(),
@@ -149,11 +144,15 @@ object MeasurementManager {
                 contactPhone = CellWatchApp.localDataStore.getPhoneNumber.first()
             )
 
-            insertFccSubmission(fccSubmission)
+            insertFccSubmission(submission)
+            submission
         } else {
             Log.i(TAG, "skipping fcc submission insertion for group $groupId")
             // TODO: inform user somehow
+            null
         }
+
+        return MeasurementGroup(latencyMeasurement, downloadMeasurement, uploadMeasurement, fccSubmission)
     }
 
     suspend fun runThroughputTest(

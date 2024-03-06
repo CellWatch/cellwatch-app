@@ -129,4 +129,5 @@ fun MeasurementEntity.asExternalModel() = Measurement(
     updatedOn,
     connectionType = connectionType,
     cellularDataEnabled = cellularDataEnabled,
+    uploadTime = uploadTime,
 )

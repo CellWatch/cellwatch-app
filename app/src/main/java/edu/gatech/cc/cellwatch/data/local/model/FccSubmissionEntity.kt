@@ -86,5 +86,6 @@ fun FccSubmissionEntity.asExternalModel() = FccSubmission(
     netCountryCode,
     netNetworkCode,
     inVehicle,
-    externalAntenna
+    externalAntenna,
+    uploadTime = uploadTime,
 )

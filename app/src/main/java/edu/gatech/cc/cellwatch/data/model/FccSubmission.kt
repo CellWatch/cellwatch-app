@@ -41,7 +41,9 @@ data class FccSubmission(
     var submission: String? = null,
     val createdOn: Instant? = null,
     val updatedOn: Instant? = null,
-    var measurements: List<Measurement>? = null
+    var measurements: List<Measurement>? = null,
+    // When was this record pushed to cloud storage?
+    var uploadTime: Instant? = null,
 )
 
 fun FccSubmission.asEntity() = FccSubmissionEntity(
@@ -75,7 +77,8 @@ fun FccSubmission.asEntity() = FccSubmissionEntity(
     submittedOn,
     submission,
     createdOn,
-    updatedOn
+    updatedOn,
+    uploadTime
 )
 
 //fun FccSubmission.asEntityWithMeasurements() = FccSubmissionWithMeasurements(
