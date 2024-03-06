@@ -87,6 +87,9 @@
     <string name="yes">Yes</string>
     <string name="pending">Pending</string>
     <string name="wifi">WiFi</string>
+    <string name="fcc_challenge_stationary">FCC Challenge (Stationary)</string>
+    <string name="fcc_challenge_vehicle">FCC Challenge (In Vehicle)</string>
+    <string name="testing">Testing</string>
 
     <!-- measurement history -->
     <string name="measurement_history">Measurement History</string>

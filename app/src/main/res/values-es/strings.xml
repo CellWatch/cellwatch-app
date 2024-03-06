@@ -93,6 +93,9 @@
     <string name="yes">Sí</string>
     <string name="pending">Pendiente</string>
     <string name="wifi">WiFi</string>
+    <string name="fcc_challenge_stationary">Impugnación FCC (Parado)</string>
+    <string name="fcc_challenge_vehicle">Impugnación FCC (En Vehículo)</string>
+    <string name="testing">Prueba</string>
 
     <!-- measurement history -->
     <string name="measurement_history">Historial de medición</string>

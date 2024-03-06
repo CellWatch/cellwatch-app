@@ -148,7 +148,6 @@ object MeasurementManager {
             submission
         } else {
             Log.i(TAG, "skipping fcc submission insertion for group $groupId")
-            // TODO: inform user somehow
             null
         }
 
