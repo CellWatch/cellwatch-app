@@ -11,19 +11,19 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Msak"
+        android:theme="@style/Theme.CellWatch"
         tools:targetApi="31">
         <activity
             android:name="edu.gatech.cc.cellwatch.ui.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.Msak.NoActionBar">
+            android:theme="@style/Theme.CellWatch.NoActionBar">
         </activity>
 
         <activity
             android:name="edu.gatech.cc.cellwatch.ui.OnboardingActivity"
             android:exported="true"
-            android:theme="@style/Theme.Msak.NoActionBar">
+            android:theme="@style/Theme.CellWatch.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -37,6 +37,4 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-<!--    <uses-permission android:name="android.permission.READ_PRIVILEGED_PHONE_STATE" />-->
-
 </manifest>

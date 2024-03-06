@@ -42,7 +42,6 @@ import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.minus
 import java.util.Objects
 
-
 enum class NetworkConnectionType {
     NONE, WIFI, CELLULAR
 }
@@ -132,24 +131,12 @@ object TelephonyInfoManager {
     fun getConnectionType(): NetworkConnectionType {
         var result = NetworkConnectionType.NONE // Returns connection type. 0: none; 1: mobile data; 2: wift
         val cm = connectivityManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            cm.run {
-                cm.getNetworkCapabilities(cm.activeNetwork)?.run {
-                    if (hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                        result = NetworkConnectionType.WIFI
-                    } else if (hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
-                        result = NetworkConnectionType.CELLULAR
-                    }
-                }
-            }
-        } else {
-            cm.run {
-                cm.activeNetworkInfo?.run {
-                    if (type == ConnectivityManager.TYPE_WIFI) {
-                        result = NetworkConnectionType.WIFI
-                    } else if (type == ConnectivityManager.TYPE_MOBILE) {
-                        result = NetworkConnectionType.CELLULAR
-                    }
+        cm.run {
+            cm.activeNetworkInfo?.run {
+                if (type == ConnectivityManager.TYPE_WIFI) {
+                    result = NetworkConnectionType.WIFI
+                } else if (type == ConnectivityManager.TYPE_MOBILE) {
+                    result = NetworkConnectionType.CELLULAR
                 }
             }
         }
@@ -223,8 +210,8 @@ object TelephonyInfoManager {
     }
 
     fun isNRNonStandAlone(cells: List<CellInfo>): Boolean {
-        val primary = cells.filter { it.cellConnectionStatus == CellInfo.CONNECTION_PRIMARY_SERVING }
-        val secondary = cells.filter { it.cellConnectionStatus == CellInfo.CONNECTION_SECONDARY_SERVING }
+        val primary = cells.filter { it.cellConnectionStatus == CONNECTION_PRIMARY_SERVING }
+        val secondary = cells.filter { it.cellConnectionStatus == CONNECTION_SECONDARY_SERVING }
 
         return primary.filterIsInstance<CellInfoLte>().isNotEmpty()
             && secondary.filterIsInstance<CellInfoNr>().isNotEmpty()
@@ -274,7 +261,7 @@ object TelephonyInfoManager {
             }
 
             // must be one of 1X, EVDO, WCDMA, GSM, HSPA, HSPA+, LTE, NRSA, NRNSA
-            val networkSubtype = if (cellInfo.cellConnectionStatus == CellInfo.CONNECTION_PRIMARY_SERVING && activeNetworkSubtype != null) {
+            val networkSubtype = if (cellInfo.cellConnectionStatus == CONNECTION_PRIMARY_SERVING && activeNetworkSubtype != null) {
                 activeNetworkSubtype
             } else {
                 when (cellInfo) {
@@ -411,7 +398,7 @@ object TelephonyInfoManager {
         // There will only be multiple cells that are currently "serving" (primary or secondary) if
         // carrier aggregation is enabled.
         // See https://www.sharetechnote.com/html/Handbook_LTE_CellType.html
-        return cells.filter { it.cellConnection == CellInfo.CONNECTION_PRIMARY_SERVING || it.cellConnection == CellInfo.CONNECTION_SECONDARY_SERVING }.size > 1
+        return cells.filter { it.cellConnection == CONNECTION_PRIMARY_SERVING || it.cellConnection == CONNECTION_SECONDARY_SERVING }.size > 1
     }
 
     fun isNetworkAvailable(): Boolean {

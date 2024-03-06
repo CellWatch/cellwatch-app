@@ -94,8 +94,6 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
             updateArrowVisibility()
         }
 
-//        model.generateDeviceId()
-
         observeDeviceId()
     }
 
@@ -125,6 +123,4 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
     override fun onMoreInfoSelected(visible: Boolean) {
         updateArrowVisibility(visible)
     }
-
-
 }

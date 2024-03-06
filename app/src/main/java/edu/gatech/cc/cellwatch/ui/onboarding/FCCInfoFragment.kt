@@ -16,8 +16,6 @@ import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModel
 import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModelFactory
-import kotlinx.coroutines.flow.first
-
 
 class FCCInfoFragment : Fragment() {
     private val TAG = this::class.simpleName
@@ -41,8 +39,6 @@ class FCCInfoFragment : Fragment() {
         etPhone = view.findViewById(R.id.etPhone)
         etEmail = view.findViewById(R.id.etEmail)
         awkCheckbox = view.findViewById(R.id.cbAcknowledgement)
-
-//        etName.setText(CellWatchApp.localDataStore.getUserName.first())
 
         observeFccInfo()
 

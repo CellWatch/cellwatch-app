@@ -14,13 +14,11 @@ import java.util.UUID
 class OnboardingViewModel(private val localDataStore: LocalDataStore) : ViewModel() {
     private var deviceId = MutableLiveData<String>()
     private val fccPolicyAgreed = MutableLiveData<Boolean>()
-    private val collectionMode = MutableLiveData<String>()
     private val userName = MutableLiveData<String>()
     private val phoneNumber = MutableLiveData<String>()
     private val email = MutableLiveData<String>()
 
     fun getDeviceId(): LiveData<String> {
-//        viewModelScope.launch {
         runBlocking {
             deviceId.value = localDataStore.getDeviceId.first()
             if (deviceId.value == "") {
@@ -32,16 +30,7 @@ class OnboardingViewModel(private val localDataStore: LocalDataStore) : ViewMode
         return deviceId
     }
 
-    fun getCollectionMode(): LiveData<String> {
-//        viewModelScope.launch {
-        runBlocking {
-          collectionMode.value = localDataStore.getCollectionMode.first()
-        }
-        return collectionMode
-    }
-
     fun getFccPolicyAgreed(): LiveData<Boolean> {
-//        viewModelScope.launch {
         runBlocking {
           fccPolicyAgreed.value = localDataStore.getFccPolicyAgreed.first()
         }
@@ -49,7 +38,6 @@ class OnboardingViewModel(private val localDataStore: LocalDataStore) : ViewMode
     }
 
     fun getUserName(): LiveData<String> {
-//        viewModelScope.launch {
         runBlocking {
             userName.value = localDataStore.getUserName.first()
         }
@@ -57,7 +45,6 @@ class OnboardingViewModel(private val localDataStore: LocalDataStore) : ViewMode
     }
 
     fun getPhoneNumber(): LiveData<String> {
-//        viewModelScope.launch {
         runBlocking {
             phoneNumber.value = localDataStore.getPhoneNumber.first()
         }
@@ -71,24 +58,6 @@ class OnboardingViewModel(private val localDataStore: LocalDataStore) : ViewMode
         return email
     }
     
-    /**
-     * Generate a new deviceId on first launch of app
-     */
-    fun generateDeviceId(): String {
-        val newDeviceId = UUID.randomUUID().toString()
-        viewModelScope.launch {
-            localDataStore.saveDeviceId(newDeviceId)
-        }
-        return newDeviceId
-    }
-
-    fun setCollectionMode(mode: String) {
-        collectionMode.value = mode
-        viewModelScope.launch {
-            localDataStore.saveCollectionMode(mode)
-        }
-    }
-
     fun agreeToFccPolicy(agreed: Boolean) {
         fccPolicyAgreed.value = agreed
         viewModelScope.launch {

@@ -47,18 +47,3 @@ fun Location.asEntity() = LocationEntity(
 fun Location.asNetworkModel() = NetworkLocation(
     id, timestamp, lat, lon, accuracy, speed, speedAccuracy, heading, measurementId, createdOn, updatedOn
 )
-
-//fun Location.fromAndroidLocation(androidLocation: android.location.Location) =
-//    Location(
-//        timestamp = Instant.fromEpochMilliseconds(androidLocation.time),
-//        lat = androidLocation.latitude,
-//        lon = androidLocation.longitude,
-//        accuracy = if (androidLocation.hasAccuracy())
-//            androidLocation.accuracy.toDouble() else null,
-//        speed = if (androidLocation.hasSpeed())
-//            androidLocation.speed.toDouble() else null,
-//        speedAccuracy = if (androidLocation.hasSpeedAccuracy())
-//            androidLocation.speedAccuracyMetersPerSecond.toDouble() else null,
-//        heading = if (androidLocation.hasBearing())
-//            androidLocation.bearing.toDouble() else null
-//    )

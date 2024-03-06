@@ -3,7 +3,6 @@ package edu.gatech.cc.cellwatch.domain.fcc
 import com.birjuvachhani.locus.Locus
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.Log
-import edu.gatech.cc.cellwatch.data.datastore.LocalDataStore
 import edu.gatech.cc.cellwatch.data.model.LatencyData
 import edu.gatech.cc.cellwatch.data.model.Location
 import edu.gatech.cc.cellwatch.data.model.Measurement
@@ -63,7 +62,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
 
         return Measurement(
             groupId = groupId,
-            deviceId = CellWatchApp.localDataStore.getDeviceId.first(), //LocalDataStore(context).getDeviceId.first(),
+            deviceId = CellWatchApp.localDataStore.getDeviceId.first(),
             deviceManufacturer = deviceMod.manufacturer,
             deviceModel = deviceMod.model,
             deviceOsName = "Android",
@@ -120,7 +119,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
 
     private suspend fun getLocation(): Location? = suspendCoroutine { continuation ->
         val context = CellWatchApp.applicationContext()
-        var location: Location? = null //android.location.Location? = null
+        var location: Location? = null
 
         Locus.getCurrentLocation(context) { locationResult ->
             locationResult.location?.let { /* Received location update */

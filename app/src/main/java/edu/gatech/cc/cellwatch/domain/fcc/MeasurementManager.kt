@@ -1,19 +1,11 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
 import edu.gatech.cc.cellwatch.core.util.Log
-import android.widget.Toast
-import com.birjuvachhani.locus.Locus
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
-import edu.gatech.cc.cellwatch.data.datastore.LocalDataStore
-import edu.gatech.cc.cellwatch.data.model.Cell
-import edu.gatech.cc.cellwatch.data.model.ChallengeData
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
-import edu.gatech.cc.cellwatch.data.model.LatencyData
-import edu.gatech.cc.cellwatch.data.model.Location
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
-import edu.gatech.cc.cellwatch.data.model.UploadDownloadData
 import edu.gatech.cc.cellwatch.domain.msak.Server
 import edu.gatech.cc.cellwatch.domain.msak.locate.LocateManager
 import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputDirection
@@ -25,29 +17,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import java.security.InvalidParameterException
 import kotlinx.datetime.Clock
 import java.io.IOException
 import java.util.UUID
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
-
 
 object MeasurementManager {
     private var _bytesPerSecState = MutableStateFlow(0.0)
-    val bytesPerSecState: StateFlow<Double> = _bytesPerSecState
 
     private val measurementRepository = CellWatchApp.measurementRepository
     private val fccSubmissionRepository = CellWatchApp.fccSubmissionRepository
     private val TAG = this::class.simpleName
-
-//    private lateinit var telephonyInfoManager: TelephonyInfoManager
 
     private var appMod: EasyAppMod = EasyAppMod(CellWatchApp.applicationContext())
 
@@ -83,9 +67,6 @@ object MeasurementManager {
         Log.i(TAG,"RUNNING TEST SEQUENCE with measurement id $measurementId")
 
         val groupId: String = UUID.randomUUID().toString()
-        val dataStore = CellWatchApp.localDataStore
-//        val dataStore = LocalDataStore(CellWatchApp.applicationContext())
-        val deviceId = dataStore.getDeviceId.first()
 
         val client = OkHttpClient.Builder().build()
 

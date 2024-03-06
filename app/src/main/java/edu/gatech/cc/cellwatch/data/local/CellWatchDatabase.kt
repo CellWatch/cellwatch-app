@@ -50,33 +50,11 @@ abstract class CellWatchDatabase : RoomDatabase() {
 
     abstract fun cellDao(): CellDao
 
-    companion object : edu.gatech.cc.cellwatch.core.util.SingletonHolder<CellWatchDatabase, Context>({
+    companion object : SingletonHolder<CellWatchDatabase, Context>({
         Room.databaseBuilder(
                     it.applicationContext,
                     CellWatchDatabase::class.java,
                     "cellwatch_database"
                 ).fallbackToDestructiveMigration().build()
     })
-
-//    companion object {
-//        // Singleton prevents multiple instances of database opening at the
-//        // same time.
-//        @Volatile
-//        private var INSTANCE: CellWatchDatabase? = null
-//
-//        fun getDatabase(context: Context): CellWatchDatabase {
-//            // if the INSTANCE is not null, then return it,
-//            // if it is, then create the database
-//            return INSTANCE ?: synchronized(this) {
-//                val instance = Room.databaseBuilder(
-//                    context.applicationContext,
-//                    CellWatchDatabase::class.java,
-//                    "cellwatch_database"
-//                ).fallbackToDestructiveMigration().build()
-//                INSTANCE = instance
-//                // return instance
-//                instance
-//            }
-//        }
-//    }
 }

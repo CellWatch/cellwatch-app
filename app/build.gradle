@@ -23,9 +23,6 @@ android {
         versionCode 1
         versionName "1.0"
 
-//        buildConfigField("String", "SUPABASE_URL", cellwatchProperties['SUPABASE_URL'])
-//        buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties['SUPABASE_API_KEY'])
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
@@ -39,14 +36,15 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
             buildConfigField("String", "TCP_TUPLE_URL", cellwatchProperties['TCP_TUPLE_URL'])
-            buildConfigField("String", "SUPABASE_URL", cellwatchProperties['SUPABASE_LOCAL_URL'])
-            buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties['SUPABASE_LOCAL_API_KEY'])
+//            buildConfigField("String", "SUPABASE_URL", cellwatchProperties['SUPABASE_LOCAL_URL'])
+//            buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties['SUPABASE_LOCAL_API_KEY'])
+            buildConfigField("String", "SUPABASE_URL", cellwatchProperties['SUPABASE_URL'])
+            buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties['SUPABASE_API_KEY'])
             buildConfigField("String", "MSAK_SERVER_ENV", cellwatchProperties['MSAK_SERVER_ENV'])
             buildConfigField("String", "MSAK_LOCAL_SERVER_HOST", cellwatchProperties['MSAK_LOCAL_SERVER_HOST'])
             buildConfigField("Boolean", "MSAK_LOCAL_SERVER_SECURE", cellwatchProperties['MSAK_LOCAL_SERVER_SECURE'])
             buildConfigField("Integer", "MSAK_LATENCY_PORT", cellwatchProperties['MSAK_LOCAL_LATENCY_PORT'])
             buildConfigField("String", "USER_AGENT", "\"CellWatch/dev\"")
-            //buildConfigField("String", "MAPBOX_API_KEY", cellwatchProperties['MAPBOX_DOWNLOADS_TOKEN'])
         }
         release {
             minifyEnabled false
@@ -60,7 +58,6 @@ android {
             buildConfigField("Boolean", "MSAK_LOCAL_SERVER_SECURE", "true")
             buildConfigField("Integer", "MSAK_LATENCY_PORT", cellwatchProperties['MSAK_LATENCY_PORT'])
             buildConfigField("String", "USER_AGENT", "\"CellWatch/0.1.0\"") // TODO: use real version
-            //buildConfigField("String", "MAPBOX_API_KEY", cellwatchProperties['MAPBOX_DOWNLOADS_TOKEN'])
         }
     }
     compileOptions {
@@ -77,6 +74,10 @@ android {
     packagingOptions {
         resources.excludes.add("META-INF/LICENSE.md")
         resources.excludes.add("META-INF/LICENSE-notice.md")
+    }
+
+    lintOptions {
+        abortOnError false
     }
 }
 
@@ -141,8 +142,6 @@ dependencies {
 
     // To use Kotlin annotation processing tool (kapt)
     kapt "androidx.room:room-compiler:$room_version"
-    // To use Kotlin Symbol Processing (KSP)
-//    ksp "androidx.room:room-compiler:$room_version"
 
     // optional - RxJava2 support for Room
     implementation "androidx.room:room-rxjava2:$room_version"

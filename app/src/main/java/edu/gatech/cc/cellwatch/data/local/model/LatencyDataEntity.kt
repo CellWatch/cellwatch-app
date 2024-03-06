@@ -35,10 +35,8 @@ data class LatencyDataEntity(
 
     val servers: List<String>? = null,
 
-//    @ColumnInfo(name = "created_on")
     val createdOn: Instant? = null,
 
-//    @ColumnInfo(name = "updated_on")
     val updatedOn: Instant? = null
 )
 

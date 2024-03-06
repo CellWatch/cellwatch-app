@@ -1,9 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.map.managers
 
-import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.CellWatchApp
-import edu.gatech.cc.cellwatch.data.model.Measurement
-import edu.gatech.cc.cellwatch.domain.map.model.Coordinate
 import com.mapbox.geojson.Point
 import com.uber.h3core.H3Core
 import com.uber.h3core.util.GeoCoord
@@ -15,41 +12,10 @@ object H3Manager {
     /*
     Responsible for producing coordinates for the hexagon overlays.
     */
-    private val TAG = this::class.simpleName
 
     private suspend fun getAllCoordinates(): List<MeasurementGroup> {
         val measurementRepository = CellWatchApp.measurementRepository
         return measurementRepository.getMeasurementGroups()
-    }
-
-    private fun measurementsToCoordinates(measurements: List<Measurement>): MutableList<Coordinate> {
-        val coords: MutableList<Coordinate> = mutableListOf()
-
-        for (measurement in measurements) {
-            if (measurement.locations != null) {
-                val measurementCoords = measurement.locations?.map { location ->
-                    Coordinate(location.lat!!, location.lon!!, 1)
-                }!!.toList()
-                coords.addAll(measurementCoords)
-            } else {
-                Log.e(TAG, "!!!!! measurement ${measurement.id} has no locations !!!!!!")
-            }
-        }
-
-        return coords
-    }
-
-    private fun latLongToH3Index(coords: MutableList<Coordinate>): MutableList<String> {
-        /*
-        Takes a list of lat/long coordinates, converts to a list of h3 indexes associated with those coordinates.
-         */
-        val h3IndexList: MutableList<String> = mutableListOf()
-
-        coords.forEach { coord ->
-            h3IndexList.add(h3.geoToH3Address(coord.lat, coord.long, 4))
-        }
-
-        return h3IndexList
     }
 
     private fun h3IndexToBoundary(h3Indexes: List<Long>): MutableList<MutableList<Point>> {

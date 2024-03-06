@@ -1,17 +1,13 @@
 package edu.gatech.cc.cellwatch.data.model
 
 import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
-import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionWithMeasurements
 import edu.gatech.cc.cellwatch.data.network.model.NetworkFccSubmission
-import edu.gatech.cc.cellwatch.data.network.model.NetworkFccSubmissionWithMeasurements
 import kotlinx.datetime.Instant
-import kotlinx.serialization.SerialName
 import java.util.UUID
 
 data class FccSubmission(
     // aliases to test_id when submitting to FCC
     var id: String = UUID.randomUUID().toString(),
-//    val groupId: String? = null,
     val challengeDataId: String? = null,
     val contactName: String? = null,
     val contactEmail: String? = null,
@@ -48,7 +44,6 @@ data class FccSubmission(
 
 fun FccSubmission.asEntity() = FccSubmissionEntity(
     id,
-//    groupId,
     challengeDataId,
     contactName,
     contactEmail,
@@ -81,76 +76,8 @@ fun FccSubmission.asEntity() = FccSubmissionEntity(
     uploadTime
 )
 
-//fun FccSubmission.asEntityWithMeasurements() = FccSubmissionWithMeasurements(
-//    fccSubmission = FccSubmissionEntity(
-//        id,
-//        groupId,
-//        challengeDataId,
-//        contactName,
-//        contactEmail,
-//        contactPhone,
-//        deviceTimestamp,
-//        serverTimestamp,
-//        sourceIp,
-//        sourcePort,
-//        deviceImei,
-//        deviceTac,
-//        simCountryCode,
-//        simNetworkCode,
-//        netCountryCode,
-//        netNetworkCode,
-//        inVehicle,
-//        externalAntenna,
-//        submitted,
-//        submittedOn,
-//        submission,
-//        createdOn,
-//        updatedOn
-//    ),
-//    measurements = m
-////    measurementsWithData = measurements?.map { measurement -> measurement.asEntityWithData() }
-//)
-
-fun FccSubmission.asNetworkModelWithMeasurements() = NetworkFccSubmissionWithMeasurements(
-    fccSubmission = NetworkFccSubmission(
-        id,
-//        groupId,
-        challengeDataId,
-        contactName,
-        contactEmail,
-        contactPhone,
-        deviceTimestamp,
-        serverTimestamp,
-        sourceIp,
-        sourcePort,
-        deviceId,
-        deviceImei,
-        deviceTac,
-        deviceType,
-        deviceManufacturer,
-        deviceModel,
-        deviceOsName,
-        appName,
-        appVersion,
-        provider,
-        simCountryCode,
-        simNetworkCode,
-        netCountryCode,
-        netNetworkCode,
-        inVehicle,
-        externalAntenna,
-        submitted,
-        submittedOn,
-        submission,
-        createdOn,
-        updatedOn
-    ),
-    measurements = measurements?.map { measurement -> measurement.asNetworkModelWithData() }
-)
-
 fun FccSubmission.asNetworkModel() = NetworkFccSubmission(
     id,
-//    groupId,
     challengeDataId,
     contactName,
     contactEmail,

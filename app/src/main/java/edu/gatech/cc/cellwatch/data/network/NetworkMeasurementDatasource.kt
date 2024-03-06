@@ -9,7 +9,6 @@ import edu.gatech.cc.cellwatch.data.model.LatencyData
 import edu.gatech.cc.cellwatch.data.model.Location
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.UploadDownloadData
-import edu.gatech.cc.cellwatch.data.model.asEntity
 import edu.gatech.cc.cellwatch.data.model.asNetworkModel
 import edu.gatech.cc.cellwatch.data.network.model.NetworkCell
 import edu.gatech.cc.cellwatch.data.network.model.NetworkFccSubmission
@@ -31,7 +30,6 @@ import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-//class NetworkMeasurementDatasource {
 object NetworkMeasurementDatasource {
     private val TAG = this::class.simpleName
 
@@ -141,7 +139,6 @@ object NetworkMeasurementDatasource {
                 locations.forEach { location ->
                     Log.d(TAG, "Attempting to upload location ${location.id} for measurement ${measurement.id}")
                     location.measurementId = measurement.id
-//                    insertLocation(location)
                 }
                 insertedMeasurement.locations = insertLocations(locations)
             }
@@ -152,7 +149,6 @@ object NetworkMeasurementDatasource {
                 cells.forEach { cell ->
                     Log.d(TAG, "Attempting to upload cell ${cell.id} for measurement ${measurement.id}")
                     cell.measurementId = measurement.id
-//                    insertCell(cell)
                 }
                 insertedMeasurement.cells = insertCells(cells)
             }
@@ -195,9 +191,6 @@ object NetworkMeasurementDatasource {
         )
 
         try {
-//            insertedMeasurement =
-//                measurementTable.insert(measurement.asNetworkModel()).decodeSingle<NetworkMeasurement>().asExternalModel()
-
             insertedMeasurement =
                 supabaseClient.postgrest.rpc("insert_measurement", networkMeasurementData).decodeAs<NetworkMeasurement>().asExternalModel()
 
@@ -226,10 +219,6 @@ object NetworkMeasurementDatasource {
     suspend fun insertMeasurements(measurements: List<Measurement>): List<Measurement>? {
         var insertedMeasurements: List<Measurement>? = null
 
-//        measurements.map { measurement ->
-//            Log.d(TAG, "insertMeasurements: $measurement")
-//        }
-
         if (measurements.isNotEmpty()) {
             Log.d(TAG, "insertMeasurements: Attempting to upload ${measurements.size} measurements")
             // Move network IO off the Main thread
@@ -238,7 +227,6 @@ object NetworkMeasurementDatasource {
                     insertedMeasurements = measurements.map { measurement ->
                         Log.d(TAG, "insertMeasurements: $measurement")
                         insertMeasurementTransaction(measurement)!!
-//                    insertMeasurement(measurement)!!
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in insertMeasurementTransaction: ${e.message}")
@@ -462,8 +450,6 @@ object NetworkMeasurementDatasource {
 
     @WorkerThread
     suspend fun getMeasurementById(measurementId: String): Measurement? {
-        var networkMeasurementWithData: NetworkMeasurementWithData?
-        var measurement: Measurement?
         var result: PostgrestResult
 
         // Move network IO off the Main thread
@@ -476,13 +462,6 @@ object NetworkMeasurementDatasource {
                 }
 
                 Log.d(TAG, "PostgrestResult = ${result.body}")
-
-//            networkMeasurementWithData = measurementTable.select(
-//                columns = Columns.raw("""*,upload_download_data(*),latency_data(*),locations(*),cells(*)""")
-//            ) {
-//                Measurement::id eq measurementId
-//            }.decodeSingle<NetworkMeasurementWithData>()
-//            measurement = networkMeasurementWithData.asExternalModel()
             } catch (e: RestException) {
                 Log.e(TAG, "RestException: ${e.message}")
                 throw e

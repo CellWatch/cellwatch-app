@@ -28,7 +28,6 @@ data class LocationEntity(
     val accuracy: Double? = null,
     val speed: Double? = null,
 
-//    @ColumnInfo(name = "speed_accuracy")
     val speedAccuracy: Double? = null,
 
     val heading: Double? = null,
@@ -36,10 +35,8 @@ data class LocationEntity(
     @ColumnInfo(index = true)
     var measurementId: String? = null,
 
-//    @ColumnInfo(name = "created_on")
     val createdOn: Instant? = null,
 
-//    @ColumnInfo(name = "updated_on")
     val updatedOn: Instant? = null
 )
 
