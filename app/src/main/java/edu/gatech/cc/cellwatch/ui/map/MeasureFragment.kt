@@ -49,16 +49,14 @@ class MeasureFragment : Fragment() {
 
     private fun runTestSequence(failIfNotOnCellular: Boolean = true) {
         viewLifecycleOwner.lifecycleScope.launch {
-            model.latencyResult = null
-            model.downloadResult = null
-            model.uploadResult = null
+            model.group = null
             binding.latencyResult.text = ""
             binding.downloadResult.text = ""
             binding.uploadResult.text = ""
             binding.progressBar.visibility = View.VISIBLE
 
             try {
-                MeasurementManager.runTestSequence(
+                model.group = MeasurementManager.runTestSequence(
                     model.inVehicle,
                     { handleLocateStart() },
                     { handleLocateComplete() },
@@ -95,7 +93,6 @@ class MeasureFragment : Fragment() {
     }
 
     private fun handleLatencyComplete(m: Measurement) {
-        model.latencyResult = m
         val rttMillis = ((m.latencyData?.rtt ?: 0) / 1e3).roundToInt()
         if (m.success == true) {
             binding.latencyResult.text = getString(R.string.latency_ms, rttMillis)
@@ -114,11 +111,6 @@ class MeasureFragment : Fragment() {
     }
 
     private fun handleThroughputComplete(row: TableRow, content: TextView, m: Measurement) {
-        when (m.type) {
-            "download" -> model.downloadResult = m
-            "upload" -> model.uploadResult = m
-            else -> throw RuntimeException("unexpected measurement type ${m.type}")
-        }
         val activeMetrics = ThroughputMetrics(m.uploadDownloadData?.bytes ?: 0, m.uploadDownloadData?.duration ?: 0)
         val speedMbps = (activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()
         if (m.success == true) {

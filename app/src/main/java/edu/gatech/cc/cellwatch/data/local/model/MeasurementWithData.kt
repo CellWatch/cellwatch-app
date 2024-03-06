@@ -70,4 +70,5 @@ fun MeasurementWithData.asExternalModel() = Measurement(
     locations = locations?.map(LocationEntity::asExternalModel),
     connectionType = measurement.connectionType,
     cellularDataEnabled = measurement.cellularDataEnabled,
+    uploadTime = measurement.uploadTime,
 )

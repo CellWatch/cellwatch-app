@@ -25,7 +25,7 @@ class MeasurementAdapter(private val measurements: List<Measurement>) :
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MeasurementViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_measurement, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_measurement_history, parent, false)
         return MeasurementViewHolder(view)
     }
 

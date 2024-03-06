@@ -39,6 +39,6 @@ fun FccSubmissionWithMeasurements.asExternalModel() = FccSubmission(
     submission = fccSubmission.submission,
     createdOn = fccSubmission.createdOn,
     updatedOn = fccSubmission.updatedOn,
-    measurements = measurementsWithData?.map(MeasurementWithData::asExternalModel)
-
+    measurements = measurementsWithData?.map(MeasurementWithData::asExternalModel),
+    uploadTime = fccSubmission.uploadTime
 )
