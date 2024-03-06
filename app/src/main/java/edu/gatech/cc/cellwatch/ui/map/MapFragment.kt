@@ -18,15 +18,9 @@ import android.widget.TextView
 import androidx.annotation.DrawableRes
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.ActivityCompat
-import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
-import androidx.navigation.Navigation
 import edu.gatech.cc.cellwatch.R
-import edu.gatech.cc.cellwatch.data.model.Cell
-import edu.gatech.cc.cellwatch.data.model.Location
 import edu.gatech.cc.cellwatch.databinding.FragmentMapBinding
-import edu.gatech.cc.cellwatch.domain.fcc.LatencyResult
-import edu.gatech.cc.cellwatch.domain.fcc.ThroughputResult
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 import edu.gatech.cc.cellwatch.domain.map.managers.MapAnnotationManager
 import com.google.gson.JsonObject
@@ -50,23 +44,13 @@ import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
 import com.mapbox.maps.plugin.delegates.listeners.OnCameraChangeListener
 import com.mapbox.maps.plugin.gestures.OnMapClickListener
-import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.addOnMapClickListener
-import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.gestures.removeOnMapClickListener
-import com.mapbox.maps.plugin.locationcomponent.OnIndicatorBearingChangedListener
-import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.maps.viewannotation.ViewAnnotationManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.*
-import kotlin.math.roundToInt
-
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-//private const val ARG_PARAM1 = "param1"
-//private const val ARG_PARAM2 = "param2"
 
 /**
  * A simple [Fragment] subclass.
@@ -88,19 +72,6 @@ class MapFragment : Fragment() {
 
     private var measurementButtonListener: OnMapFragmentInteractionListener? = null
 
-    // TODO: Rename and change types of parameters
-//    private var param1: String? = null
-//    private var param2: String? = null
-
-//    override fun onCreate(savedInstanceState: Bundle?) {
-//        super.onCreate(savedInstanceState)
-//        Log.d(TAG, "onCreate")
-//        arguments?.let {
-//            param1 = it.getString(ARG_PARAM1)
-//            param2 = it.getString(ARG_PARAM2)
-//        }
-//    }
-
     // This property is only valid between onCreateView and
     // onDestroyView.
     private val binding get() = _binding!!
@@ -109,8 +80,6 @@ class MapFragment : Fragment() {
         super.onCreate(savedInstanceState)
 
         Log.d(TAG, "onCreate")
-
-//        setContentView(R.layout.activity_map)
     }
 
     override fun onCreateView(
@@ -141,15 +110,15 @@ class MapFragment : Fragment() {
         }
 
 
-        mapView = binding.mapView //findViewById(R.id.mapView)
+        mapView = binding.mapView
         mapboxMap = mapView.getMapboxMap()
         mapboxMap.loadStyleUri(Style.LIGHT)
         onMapReady()
 
-        val hamburgerButton = binding.sideMenuButton //findViewById<ImageButton>(R.id.sideMenuButton)
-        val h3ToggleSwitch = binding.h3ToggleSwitch //findViewById<SwitchCompat>(R.id.h3ToggleSwitch)
-        val measureButton = binding.measureButton //findViewById<Button>(R.id.measureButton)
-        val centerButton = binding.centerUserButton //findViewById<Button>(R.id.centerUserButton)
+        val hamburgerButton = binding.sideMenuButton
+        val h3ToggleSwitch = binding.h3ToggleSwitch
+        val measureButton = binding.measureButton
+        val centerButton = binding.centerUserButton
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context!!)
 
@@ -190,52 +159,6 @@ class MapFragment : Fragment() {
         } else {
             loadMapH3()
         }
-
-        fun locationToString(l: Location?): String {
-            if (l == null) {
-                return ""
-            }
-
-            return String.format("lat=%f, lon=%f, speed=%.2fm/s", l.lat, l.lon, l.speed)
-        }
-
-        fun handleLatencyComplete(r: LatencyResult, l: List<Location>, c: List<Cell>) {
-            if (!r.success) {
-//                binding.latencyContent.text = "failed"
-                return
-            }
-
-//            binding.latencyContent.text = "success"
-            val mean = "Mean RTT: ${r.meanRtt / 1e3}ms"
-            val jitter = "Jitter: ${r.jitter / 1e3}ms"
-            val received = "Received: ${r.packetsReceived}/${r.packetsSent}"
-            val start = "Start time: ${r.start}"
-            val duration = "Duration: ${r.usecs / 1e6}s"
-            val target = "Target host: ${r.targetHost}"
-            val startLoc = "Start location: ${locationToString(l.getOrNull(0))}"
-            val endLoc = "End location: ${locationToString(l.getOrNull(1))}"
-            val cells = "Cells: $c"
-            Log.d(TAG, "$mean\n$jitter\n$received\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells")
-
-//            binding.latencyDetails.text = "$mean\n$jitter\n$received\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells"
-        }
-
-        fun handleThroughputComplete(r: ThroughputResult, l: List<Location>, c: List<Cell>) {
-            if (!r.success || r.activeMetrics == null) {
-                return
-            }
-
-            val speed = "Speed: ${(r.activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()} Mbps"
-            val start = "Start time: ${r.start}"
-            val duration = "Duration: ${(r.activeMetrics.usecs + (r.warmupMetrics?.usecs ?: 0)) / 1e6}s"
-            val target = "Target host: ${r.targetHost}"
-            val startLoc = "Start location: ${locationToString(l.getOrNull(0))}"
-            val endLoc = "End location: ${locationToString(l.getOrNull(1))}"
-            val cells = "Cells: ${c}"
-            Log.d(TAG, "$speed\n$start\n$duration\n$target\n$startLoc\n$endLoc\n$cells")
-        }
-
-//
     }
 
 
@@ -253,14 +176,14 @@ class MapFragment : Fragment() {
         val h3Address = h3AddressElement?.takeIf { it.isJsonPrimitive }?.asLong
 
         if(h3Address?.let { H3Manager.getH3ResolutionFromAddress(it) } == 6) {
-            val associatedMeasurements = h3Address.let {
-                H3Manager.getMeasurementsAssociatedWithH3Address(it, 6)
+            val associatedGroups = h3Address.let {
+                runBlocking { H3Manager.getMeasurementGroupsAssociatedWithH3Address(it, 6) }
             }
             Log.i("OnPolygonClick", "H3AddressElement: $h3AddressElement")
             Log.i("OnPolygonClick", "h3Address: $h3Address")
-            Log.i("OnPolygonClick", "associatedMeasurements: $associatedMeasurements")
+            Log.i("OnPolygonClick", "associatedGroups: $associatedGroups")
 
-            if (associatedMeasurements.size > 1) {
+            if (associatedGroups.size > 1) {
                 val bottomSheetFragment = MeasurementListBottomSheetFragment.newInstance(h3Address)
                 fragmentManager?.let { it1 ->
                     bottomSheetFragment.show(
@@ -277,7 +200,9 @@ class MapFragment : Fragment() {
     private var debounceJob: Job? = null
 
     private val onMapClickListenerH3 = OnMapClickListener { it ->
-        val associatedMeasurements = H3Manager.getMeasurementsAssociatedWithLatLong(it)
+        val associatedMeasurements = runBlocking {
+            H3Manager.getMeasurementGroupsAssociatedWithLatLong(it)
+        }
         val h3Address = H3Manager.getH3AddressFromPointSingleton(it, 5)
         if(H3Manager.getH3ResolutionFromAddress(h3Address) == 5 && associatedMeasurements.size > 0) {
 
@@ -493,8 +418,10 @@ class MapFragment : Fragment() {
             Log.i("H3 Child Data", "$data")
 
 
-            val measurements = H3Manager.getMeasurementsAssociatedWithH3Address(address, 5)
-            if (measurements.size > 1) {
+            val groups = runBlocking {
+                H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, 5)
+            }
+            if (groups.size > 1) {
                 val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
                 reusablePolygonOptions
                     .withPoints(addressBoundary)
@@ -507,7 +434,7 @@ class MapFragment : Fragment() {
 
                 val view = LayoutInflater.from(context).inflate(R.layout.view_map_annotaton_layout, mapView, false)
                 val textViewMeasurements = view.findViewById<TextView>(R.id.textView_measurements)
-                textViewMeasurements.text = measurements.size.toString()
+                textViewMeasurements.text = groups.size.toString()
 
                 val viewAnnotationOptions = ViewAnnotationOptions.Builder()
                     .geometry(hexCenter)
@@ -548,14 +475,16 @@ class MapFragment : Fragment() {
             Log.i("H3 Child Data", "$data")
 
 
-            val measurements = H3Manager.getMeasurementsAssociatedWithH3Address(address, 6)
+            val groups = runBlocking {
+                H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, 6)
+            }
             val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
             reusablePolygonOptions
                 .withPoints(addressBoundary)
                 .withFillColor("#22B14C") // Green fill color
                 .withData(data)
 
-            if (measurements.size > 1) {
+            if (groups.size > 1) {
                 reusablePolygonOptions.withFillOpacity(.5)
                 lowResPolygonAnnotationManager?.create(reusablePolygonOptions)
 
@@ -564,7 +493,7 @@ class MapFragment : Fragment() {
                 // Inflate the custom view
                 val view = LayoutInflater.from(context).inflate(R.layout.view_map_annotaton_layout, mapView, false)
                 val textViewMeasurements = view.findViewById<TextView>(R.id.textView_measurements)
-                textViewMeasurements.text = measurements.size.toString()
+                textViewMeasurements.text = groups.size.toString()
 
                 // Add the view as an annotation at the hexagon's center
                 val viewAnnotationOptions = ViewAnnotationOptions.Builder()

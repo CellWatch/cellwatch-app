@@ -1,6 +1,5 @@
 package edu.gatech.cc.cellwatch.ui.map
 
-import MeasurementAdapter
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,8 +7,8 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
-import edu.gatech.cc.cellwatch.data.model.Measurement
 
 class MeasureHistoryFragment : Fragment() {
     override fun onCreateView(
@@ -21,15 +20,10 @@ class MeasureHistoryFragment : Fragment() {
         val recyclerView: RecyclerView = view.findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(context)
 
-        val adapter = MeasurementAdapter(getMeasurements())
-        recyclerView.adapter = adapter
+        recyclerView.adapter = MeasurementAdapter(viewLifecycleOwner) {
+            CellWatchApp.measurementRepository.getMeasurementGroups()
+        }
 
         return view
-    }
-
-
-    private fun getMeasurements(): List<Measurement> {
-        //TODO Implement this
-        return emptyList()
     }
 }

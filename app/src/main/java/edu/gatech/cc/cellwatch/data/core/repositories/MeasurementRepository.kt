@@ -1,19 +1,19 @@
 package edu.gatech.cc.cellwatch.data.core.repositories
 
-import android.app.Application
 import edu.gatech.cc.cellwatch.core.util.Log
-import android.widget.Toast
 import androidx.annotation.WorkerThread
-import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.data.local.dao.FccSubmissionDao
 import edu.gatech.cc.cellwatch.data.local.model.MeasurementEntity
 import edu.gatech.cc.cellwatch.data.local.model.MeasurementWithData
 import edu.gatech.cc.cellwatch.data.local.dao.MeasurementDao
+import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
 import edu.gatech.cc.cellwatch.data.local.model.asExternalModel
+import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.Measurement
+import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.data.model.asEntity
 import edu.gatech.cc.cellwatch.data.model.asEntityWithData
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
-import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
@@ -21,8 +21,9 @@ import kotlinx.datetime.Instant
 
 class MeasurementRepository(
     private val measurementDao: MeasurementDao,
+    private val submissionDao: FccSubmissionDao,
     private val networkDataSource: NetworkMeasurementDatasource
-    ) {
+) {
 //object MeasurementRepository {
 //    private val measurementDao: MeasurementDao = MeasurementDao()
 
@@ -45,6 +46,49 @@ class MeasurementRepository(
     @WorkerThread
     suspend fun getMeasurements(): List<Measurement> =
         measurementDao.getMeasurements().map(MeasurementEntity::asExternalModel)
+
+    @WorkerThread
+    suspend fun getMeasurementGroups(): List<MeasurementGroup> {
+        val measurements = getMeasurementsWithData()
+        val submissionList = submissionDao.getFccSubmissions().map(FccSubmissionEntity::asExternalModel)
+        val latency = mutableMapOf<String, Measurement>()
+        val download = mutableMapOf<String, Measurement>()
+        val upload = mutableMapOf<String, Measurement>()
+
+        measurements.forEach {
+            if (it.groupId == null) {
+                throw RuntimeException("measurement ${it.id} missing group id")
+            }
+
+            when (it.type) {
+                "latency" -> latency[it.groupId] = it
+                "download" -> download[it.groupId] = it
+                "upload" -> upload[it.groupId] = it
+                else -> throw RuntimeException("unknown measurement type ${it.type}")
+            }
+        }
+
+        val submissions = mutableMapOf<String, FccSubmission>()
+        submissionList.forEach { submissions[it.id] = it }
+
+        val groups = mutableMapOf<String, MeasurementGroup>()
+        measurements.forEach {
+            if (it.groupId == null) {
+                throw RuntimeException("measurement ${it.id} missing group id")
+            }
+
+            if (groups[it.groupId] == null) {
+                groups[it.groupId] = MeasurementGroup(
+                    latency[it.groupId],
+                    download[it.groupId],
+                    upload[it.groupId],
+                    submissions[it.groupId],
+                )
+            }
+        }
+
+        return groups.values.toList()
+    }
 
     @WorkerThread
     suspend fun getUnsynchronizedMeasurements(): List<Measurement> =

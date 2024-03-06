@@ -2,7 +2,7 @@ package edu.gatech.cc.cellwatch.domain.map.managers
 
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.CellWatchApp
-import edu.gatech.cc.cellwatch.data.model.Measurement
+import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.map.model.Coordinate
 import kotlinx.coroutines.runBlocking
 import kotlin.math.atan2
@@ -19,10 +19,10 @@ object MapAnnotationManager {
         val measurementRepository = CellWatchApp.measurementRepository
 
         Log.d(TAG,"Getting stored measurements");
-        var measurements = runBlocking { measurementRepository.getMeasurementsWithData() };
-        Log.d(TAG, "*** Got ${measurements.size} measurements ***")
+        var groups = runBlocking { measurementRepository.getMeasurementGroups() };
+        Log.d(TAG, "*** Got ${groups.size} measurements ***")
 
-        val coords: MutableList<Coordinate> = measurementsToCoordinates(measurements)
+        val coords: MutableList<Coordinate> = groupsToCoordinates(groups)
 
         Log.d(TAG, "Got ${coords.size} measurements")
 
@@ -63,17 +63,19 @@ object MapAnnotationManager {
         return coordinates
     }
 
-    private fun measurementsToCoordinates(measurements: List<Measurement>): MutableList<Coordinate> {
+    private fun groupsToCoordinates(groups: List<MeasurementGroup>): MutableList<Coordinate> {
         var coords: MutableList<Coordinate> = mutableListOf()
 
-        for (measurement in measurements) {
-            if (measurement.locations != null) {
-                val measurementCoords = measurement.locations?.map { location ->
-                    Coordinate(location.lat!!, location.lon!!, 1)
-                }!!.toList()
-                coords.addAll(measurementCoords)
-            } else {
-                Log.e(TAG, "!!!!! measurement ${measurement.id} has no locations !!!!!!")
+        for (group in groups) {
+            for (measurement in listOfNotNull(group.latency, group.download, group.upload)) {
+                if (measurement.locations != null) {
+                    val measurementCoords = measurement.locations?.map { location ->
+                        Coordinate(location.lat!!, location.lon!!, 1)
+                    }!!.toList()
+                    coords.addAll(measurementCoords)
+                } else {
+                    Log.e(TAG, "!!!!! measurement ${measurement.id} has no locations !!!!!!")
+                }
             }
         }
 
