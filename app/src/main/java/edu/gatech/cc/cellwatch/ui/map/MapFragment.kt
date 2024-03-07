@@ -21,10 +21,6 @@ import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-import edu.gatech.cc.cellwatch.R
-import edu.gatech.cc.cellwatch.databinding.FragmentMapBinding
-import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
-import edu.gatech.cc.cellwatch.domain.map.managers.MapAnnotationManager
 import com.google.gson.JsonObject
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
@@ -50,14 +46,17 @@ import com.mapbox.maps.plugin.gestures.addOnMapClickListener
 import com.mapbox.maps.plugin.gestures.removeOnMapClickListener
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.maps.viewannotation.ViewAnnotationManager
+import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.databinding.FragmentMapBinding
+import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
+import edu.gatech.cc.cellwatch.domain.map.managers.MapAnnotationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import com.mapbox.maps.plugin.gestures.gestures
-import kotlinx.coroutines.*
+import kotlinx.coroutines.withContext
 
 /**
  * A simple [Fragment] subclass.
@@ -68,6 +67,8 @@ class MapFragment : Fragment() {
     private var _binding: FragmentMapBinding? = null
 
     private var drawerToggleListener: DrawerToggleListener? = null
+
+    private val renderedH3Addresses = HashSet<Long>()
 
     interface DrawerToggleListener {
         fun toggleDrawer()
@@ -145,6 +146,7 @@ class MapFragment : Fragment() {
                 polygonAnnotationManager?.deleteAll()
                 lowResPolygonAnnotationManager?.deleteAll()
                 viewAnnotationManager?.removeAllViewAnnotations()
+                renderedH3Addresses.clear()
                 loadMapAnnotations()
                 mapboxMap.removeOnCameraChangeListener(onCameraChangeListener)
                 mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
@@ -246,17 +248,21 @@ class MapFragment : Fragment() {
     private var annotations: MutableList<PointAnnotation> = mutableListOf()
 
     private val onCameraChangeListener = OnCameraChangeListener {
-        debounceJob?.cancel() // Cancel the previous job if the camera is still moving
+        debounceJob?.cancel()
         debounceJob = CoroutineScope(Dispatchers.Main).launch {
-            delay(100) // Wait for 500ms of no camera movement before loading H3
-            polygonAnnotationManager?.deleteAll()
-            lowResPolygonAnnotationManager?.deleteAll()
-            lowResPolygonAnnotationManager?.removeClickListener(onPolygonClick)
+            delay(100)
 
-            viewAnnotationManager?.removeAllViewAnnotations()
-            Log.i(TAG, "Removing all views")
-            mapboxMap.addOnMapClickListener(onMapClickListenerH3)
-            loadMapH3()
+            val currentZoom = mapboxMap.cameraState.zoom
+            Log.i("currentZoom", currentZoom.toString())
+
+            //TODO Adjust as needed
+            if (currentZoom < 12.0) {
+                hideMapH3Content()
+            } else {
+                viewAnnotationManager?.removeAllViewAnnotations()
+                mapboxMap.addOnMapClickListener(onMapClickListenerH3)
+                loadMapH3()
+            }
         }
     }
 
@@ -379,7 +385,9 @@ class MapFragment : Fragment() {
         val se = Point.fromLngLat(center.latitude() + delta, center.longitude() - delta)
 
         //Convert camera boundaries to h3 boundaries
-        val h3Addresses = H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), 8)
+        var h3Addresses = H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), 8)
+        h3Addresses = h3Addresses.filterNot { it in renderedH3Addresses }.toMutableList()
+
         val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(h3Addresses)
 
         withContext(Dispatchers.Main) {
@@ -409,7 +417,7 @@ class MapFragment : Fragment() {
                 data.addProperty("h3_address", address)
                 Log.i("H3 Child Data", "$data")
 
-
+                renderedH3Addresses.add(address)
                 reusablePolygonOptions.withPoints(listOf(boundary))
                 polygonAnnotationManager?.create(reusablePolygonOptions.withData(data))
             }
@@ -448,7 +456,13 @@ class MapFragment : Fragment() {
         }
     }
 
+    private fun hideMapH3Content() {
+        //Need to figure out some way just to hide them and keep the polygons stored within the manager.
 
+        polygonAnnotationManager?.deleteAll()
+        lowResPolygonAnnotationManager?.deleteAll()
+        renderedH3Addresses.clear()
+    }
 
     private fun displayRes8Hexagons(point: Point) {
         val h3Address = H3Manager.getH3AddressFromPointSingleton(point, 8)
@@ -521,10 +535,6 @@ class MapFragment : Fragment() {
                 .build()
         )
 
-        mapView.gestures.apply {
-            pinchToZoomEnabled = false
-            quickZoomEnabled = false
-        }
         mapView.getMapboxMap().loadStyleUri(
             Style.LIGHT
         ) {
@@ -591,15 +601,5 @@ class MapFragment : Fragment() {
                 }.toJson()
             )
         }
-    }
-
-    override fun onPause() {
-        super.onPause()
-
-        pointAnnotationManager?.deleteAll()
-        this.pointAnnotationManager = null
-        this.lowResPolygonAnnotationManager = null
-        this.polygonAnnotationManager = null
-        this.viewAnnotationManager = null
     }
 }
