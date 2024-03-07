@@ -1,5 +1,3 @@
-package edu.gatech.cc.cellwatch.ui.onboarding
-
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -18,7 +16,11 @@ class SettingsSetupFragment : Fragment() {
     }
 
     companion object {
-        private const val LOCATION_PERMISSION_REQUEST_CODE = 1
+        private const val PERMISSIONS_REQUEST_CODE = 1
+        private val REQUIRED_PERMISSIONS = arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.READ_PHONE_STATE
+        )
     }
 
     override fun onCreateView(
@@ -28,24 +30,26 @@ class SettingsSetupFragment : Fragment() {
 
         val btnReady = view.findViewById<Button>(R.id.btnReady)
         btnReady.setOnClickListener {
-            requestLocationPermission()
+            requestPermissionsIfNeeded()
         }
 
         return view
     }
 
-    private fun requestLocationPermission() {
-        if (ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // Permission is not granted, so request it
+    private fun requestPermissionsIfNeeded() {
+        val context = requireContext()
+        val missingPermissions = REQUIRED_PERMISSIONS.filter {
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+        }.toTypedArray()
+
+        if (missingPermissions.isNotEmpty()) {
+            // Permissions are not granted, so request them
             requestPermissions(
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                LOCATION_PERMISSION_REQUEST_CODE
+                missingPermissions,
+                PERMISSIONS_REQUEST_CODE
             )
         } else {
+            // All permissions are granted
             (activity as? OnPermissionsHandledListener)?.onPermissionsHandled()
         }
     }
@@ -57,11 +61,13 @@ class SettingsSetupFragment : Fragment() {
         grantResults: IntArray
     ) {
         when (requestCode) {
-            LOCATION_PERMISSION_REQUEST_CODE -> {
-                if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+            PERMISSIONS_REQUEST_CODE -> {
+                if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                    // All requested permissions are granted
                     (activity as? OnPermissionsHandledListener)?.onPermissionsHandled()
                 } else {
-                    //TODO on location permission denied
+                    // At least one permission was denied
+                    // TODO: Handle the case where permissions are denied
                 }
             }
             else -> super.onRequestPermissionsResult(requestCode, permissions, grantResults)

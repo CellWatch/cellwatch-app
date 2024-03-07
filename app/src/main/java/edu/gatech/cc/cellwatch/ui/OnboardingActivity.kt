@@ -1,5 +1,6 @@
 package edu.gatech.cc.cellwatch.ui
 
+import SettingsSetupFragment
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -14,7 +15,6 @@ import edu.gatech.cc.cellwatch.ui.onboarding.CollectionModeFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.DataUseFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.FCCInfoFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.HomeFragment
-import edu.gatech.cc.cellwatch.ui.onboarding.SettingsSetupFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModel
 import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModelFactory
 
