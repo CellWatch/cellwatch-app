@@ -20,7 +20,7 @@
             android:textSize="20sp"
             android:textAlignment="center"
             android:text="@string/stationary_or_moving"
-            android:textColor="@color/black"
+            android:textColor="@color/cw_black"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
@@ -39,9 +39,10 @@
 
             <ImageView
                 android:id="@+id/stationaryIcon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/person"
+                android:layout_width="32dp"
+                android:layout_height="28dp"
+                android:src="@drawable/fa_solid_person"
+                app:tint="@color/cw_grey"
                 android:importantForAccessibility="no"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -53,7 +54,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:text="@string/stationary_outdoors"
-                android:textColor="@color/black"
+                android:textColor="@color/cw_black"
                 android:textSize="24sp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toEndOf="@id/stationaryIcon"
@@ -74,6 +75,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="start"
                 android:src="@drawable/fa_solid_check"
+                app:tint="@color/cw_green"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -93,9 +95,10 @@
 
             <ImageView
                 android:id="@+id/movingIcon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/car"
+                android:layout_width="32dp"
+                android:layout_height="28dp"
+                android:src="@drawable/fa_solid_car"
+                app:tint="@color/cw_grey"
                 android:importantForAccessibility="no"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -107,7 +110,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:text="@string/moving_vehicle"
-                android:textColor="@color/black"
+                android:textColor="@color/cw_black"
                 android:textSize="24sp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toEndOf="@id/movingIcon"
@@ -128,6 +131,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="start"
                 android:src="@drawable/fa_solid_check"
+                app:tint="@color/cw_green"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -159,7 +163,7 @@
             android:textAlignment="center"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="@color/black"
+            android:textColor="@color/cw_black"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -183,7 +187,7 @@
                 <TextView
                     android:layout_weight="1"
                     android:text="@string/certify_subscriber"
-                    android:textColor="@color/black"
+                    android:textColor="@color/cw_black"
                     android:textSize="20sp" />
             </TableRow>
 
@@ -199,7 +203,7 @@
                 <TextView
                     android:layout_weight="1"
                     android:text="@string/certify_outdoors"
-                    android:textColor="@color/black"
+                    android:textColor="@color/cw_black"
                     android:textSize="20sp" />
             </TableRow>
 
@@ -215,7 +219,7 @@
                 <TextView
                     android:layout_weight="1"
                     android:text="@string/certify_phone_working"
-                    android:textColor="@color/black"
+                    android:textColor="@color/cw_black"
                     android:textSize="20sp" />
             </TableRow>
 
@@ -231,7 +235,7 @@
                 <TextView
                     android:layout_weight="1"
                     android:text="@string/certify_statements"
-                    android:textColor="@color/black"
+                    android:textColor="@color/cw_black"
                     android:textSize="20sp" />
             </TableRow>
         </TableLayout>
@@ -243,7 +247,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
         android:text="@string/data_reminder"
-        android:textColor="@color/black"
+        android:textColor="@color/cw_black"
         android:textAlignment="center"
         android:textSize="16sp"
         app:layout_constraintBottom_toTopOf="@id/go"
@@ -257,10 +261,10 @@
         android:layout_marginHorizontal="24dp"
         android:padding="4dp"
         android:text="@string/go"
-        android:textColor="@color/white"
+        android:textColor="@color/cw_white"
         android:textAllCaps="false"
         android:textSize="36sp"
-        android:backgroundTint="@color/cwbuttongreen"
+        android:backgroundTint="@color/cw_green"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

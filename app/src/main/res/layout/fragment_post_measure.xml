@@ -11,7 +11,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="36sp"
-        android:textColor="@color/cwheaderblue"
+        android:textColor="@color/cw_blue"
         android:textStyle="bold"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -31,29 +31,20 @@
 
     <Button
         android:id="@+id/takeAnotherButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:padding="16dp"
+        style="@style/GreenButton"
         app:layout_constraintBottom_toTopOf="@id/backToMapButton"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:backgroundTint="@color/cwbuttongreen"
-        android:textAllCaps="false"
-        android:textColor="@color/white"
+        android:layout_marginBottom="4dp"
+        android:textSize="16sp"
         android:text="Take Another Measurement" />
 
     <Button
         android:id="@+id/backToMapButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:padding="16dp"
+        style="@style/GreenButton"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:backgroundTint="@color/cwbuttongreen"
-        android:textAllCaps="false"
-        android:textColor="@color/white"
+        android:textSize="16sp"
         android:text="Back to Map" />
 </androidx.constraintlayout.widget.ConstraintLayout>

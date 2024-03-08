@@ -4,8 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    android:background="@color/white">
+    android:padding="16dp" >
 
     <TextView
         android:id="@+id/header"
@@ -13,8 +12,8 @@
         android:layout_height="wrap_content"
         android:gravity="center_horizontal"
         android:text="@string/finding_server"
-        android:textColor="@color/cwheaderblue"
-        android:textSize="45sp"
+        android:textColor="@color/cw_blue"
+        android:textSize="36sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -25,7 +24,7 @@
         android:layout_width="75dp"
         android:layout_height="75dp"
         android:indeterminate="true"
-        android:indeterminateTint="@color/cwbuttongreen"
+        android:indeterminateTint="@color/cw_green"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/results"
         app:layout_constraintEnd_toEndOf="parent"
@@ -53,18 +52,18 @@
                 android:paddingEnd="10dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/fa_stopwatch"
-                app:tint="@color/black" />
+                app:tint="@color/cw_black" />
 
             <TextView
                 android:text="@string/latency"
                 android:textSize="18sp"
-                android:textColor="@color/black" />
+                android:textColor="@color/cw_black" />
 
             <TextView
                 android:id="@+id/latencyResult"
                 android:gravity="end"
                 android:textSize="18sp"
-                android:textColor="@color/black" />
+                android:textColor="@color/cw_black" />
         </TableRow>
 
         <TableRow
@@ -80,18 +79,18 @@
                 android:paddingEnd="10dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/fa_download"
-                app:tint="@color/black" />
+                app:tint="@color/cw_black" />
 
             <TextView
                 android:text="@string/download"
                 android:textSize="18sp"
-                android:textColor="@color/black" />
+                android:textColor="@color/cw_black" />
 
             <TextView
                 android:id="@+id/downloadResult"
                 android:gravity="end"
                 android:textSize="18sp"
-                android:textColor="@color/black" />
+                android:textColor="@color/cw_black" />
         </TableRow>
 
         <TableRow
@@ -107,18 +106,18 @@
                 android:paddingEnd="10dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/fa_upload"
-                app:tint="@color/black" />
+                app:tint="@color/cw_black" />
 
             <TextView
                 android:text="@string/upload"
                 android:textSize="18sp"
-                android:textColor="@color/black" />
+                android:textColor="@color/cw_black" />
 
             <TextView
                 android:id="@+id/uploadResult"
                 android:gravity="end"
                 android:textSize="18sp"
-                android:textColor="@color/black" />
+                android:textColor="@color/cw_black" />
         </TableRow>
     </TableLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

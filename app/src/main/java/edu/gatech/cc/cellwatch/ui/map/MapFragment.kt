@@ -136,6 +136,11 @@ class MapFragment : Fragment() {
 
         h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
             if(isChecked) {
+                pointAnnotationManager?.deleteAll()
+                loadMapH3()
+                mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
+                mapboxMap.addOnMapClickListener(onMapClickListenerH3)
+            } else {
                 polygonAnnotationManager?.deleteAll()
                 lowResPolygonAnnotationManager?.deleteAll()
                 viewAnnotationManager?.removeAllViewAnnotations()
@@ -143,12 +148,6 @@ class MapFragment : Fragment() {
                 loadMapAnnotations()
                 mapboxMap.removeOnCameraChangeListener(onCameraChangeListener)
                 mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
-
-            } else {
-                pointAnnotationManager?.deleteAll()
-                loadMapH3()
-                mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
-                mapboxMap.addOnMapClickListener(onMapClickListenerH3)
             }
         }
 
@@ -159,9 +158,9 @@ class MapFragment : Fragment() {
 
         // Initial switch function on start
         if (h3ToggleSwitch.isChecked) {
-            loadMapAnnotations()
-        } else {
             loadMapH3()
+        } else {
+            loadMapAnnotations()
         }
     }
 
@@ -351,7 +350,7 @@ class MapFragment : Fragment() {
             Log.d(TAG, "coordinate = $coordinate")
             bitmapFromDrawableRes(
                 requireContext(),
-                R.drawable.blue_marker_transparent,
+                R.drawable.fa_solid_location_pin,
                 coordinate.count
             )?.let { bitmap ->
                 val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()

@@ -6,7 +6,6 @@
     app:behavior_hideable="true"
     app:behavior_peekHeight="100dp"
     app:layout_behavior="@string/bottom_sheet_behavior"
-    app:background="@color/white"
     android:background="@drawable/measurement_card_background">
 
     <View
@@ -21,7 +20,7 @@
         android:gravity="center"
         android:text="@string/cell"
         android:textAppearance="@style/TextAppearance.AppCompat.Large"
-        android:textColor="@color/green"/>
+        android:textColor="@color/cw_green"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"

@@ -15,6 +15,7 @@
 
     <!-- read more -->
     <string name="read_more">Leer más</string>
+    <string name="read_more_underlined"><u>Leer más</u></string>
     <string name="rm1">Para impugnar las afirmaciones de rendimiento de un proveedor, se tiene que hacer varias mediciones dentro de una región geográfica y enviarlas a la FCC, la agencia gubernamental de los EE. UU. que regula la telecomunicación.</string>
     <string name="rm1b">Nuestra aplicación ayuda a los consumidores a hacer estas mediciones y las envía automáticamente a la FCC.</string>
     <string name="rm2">Una impugnación a las afirmaciones de cobertura de un proveedor se aplica a una región geográfica específica. La FCC ha utilizado un sistema de tejados hexagonales para delimitar las regiones. Al hacer varias mediciones dentro de una región hexagonal, se puede comprobar que el Internet celular no funciona bien en esa región.</string>
@@ -27,7 +28,7 @@
     <string name="data_use_p1">Los datos que usted recopila con CellWatch se comparte con el público, incluso la ubicación y hora generales de sus mediciones.</string>
     <string name="data_use_p2">Sus datos de CellWatch también se pueden utilizar para fines de investigación.</string>
     <string name="data_use_p3">Por favor lea nuestra política de privacidad para los detalles.</string>
-    <string name="read_privacy_policy">Leer nuestra política de privacidad</string>
+    <string name="read_privacy_policy"><u>Leer nuestra política de privacidad</u></string>
 
     <!-- collection mode -->
     <string name="collection_mode">Modo de recopilación</string>
@@ -47,14 +48,14 @@
 
     <!-- allow permissions -->
     <string name="allow_permissions">Dar permisos</string>
-    <string name="allow_permissions_description">Para hacer mediciones, se necesitan los permisos siguientes:\n1. Ubicación, para saber dónde se hacen las mediciones.\n2. Llamadas telefónicas, para recopilar información acerca de su conexión celular. Nunca realizaremos llamadas.</string>
+    <string name="allow_permissions_description">Para hacer mediciones, se necesitan los permisos siguientes:\n\n1. Ubicación, para saber dónde se hacen las mediciones.\n\n2. Llamadas telefónicas, para recopilar información acerca de su conexión celular. Nunca realizaremos llamadas.</string>
     <string name="allow_ready">Cuando esté listo, haga clic en \"Permitir\" en el mensaje. Se pueden cambiar estos permisos luego en los ajustes del dispositivo.</string>
     <string name="ready">Listo</string>
 
     <!-- map -->
     <string name="map">Mapa</string>
     <string name="cell">Celda</string>
-    <string name="add_measurement">+ Medir</string>
+    <string name="add_measurement">Medir</string>
     <string name="search_map">Buscar en el mapa</string>
 
     <!-- pre-measure -->
@@ -114,7 +115,13 @@
         <item>FCC y CellWatch</item>
         <item>solo CellWatch</item>
     </string-array>
+    <string name="edit">Editar</string>
 
     <!-- help -->
     <string name="help">Ayuda</string>
+
+    <!-- navigation -->
+    <string name="next">Siguiente</string>
+    <string name="previous">Anterior</string>
+    <string name="menu">Menú</string>
 </resources>

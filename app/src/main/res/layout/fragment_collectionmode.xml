@@ -2,9 +2,9 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:padding="16dp"
-    android:background="#FFFFFF"
     android:gravity="center_horizontal">
 
     <TextView
@@ -13,8 +13,8 @@
         android:text="@string/collection_mode"
         android:layout_marginTop="32dp"
         android:gravity="center"
-        android:textColor="@color/cwheaderblue"
-        android:textSize="50sp"
+        android:textColor="@color/cw_blue"
+        android:textSize="36sp"
         android:textStyle="bold"/>
 
     <TextView
@@ -22,7 +22,7 @@
         android:layout_height="wrap_content"
         android:text="@string/collection_mode_description"
         android:textSize="16sp"
-        android:textColor="#666666"
+        android:textColor="@color/cw_black"
         android:layout_marginTop="16dp"
         android:gravity="center"/>
 
@@ -33,48 +33,47 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="8dp"
-        android:clickable="true">
+        android:clickable="true"
+        android:layout_marginBottom="16dp" >
 
-        <!-- Icon to the left of the text -->
         <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_user_lock" /> <!-- Replace with your actual drawable resource name -->
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/fa_solid_user_lock" />
 
-        <!-- Text with hyperlink styling -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:text="@string/read_privacy_policy"
-            android:textSize="14sp"
-            android:textColor="@color/black"
-            android:drawablePadding="4dp"
-            android:paddingStart="8dp"
-            android:gravity="center" />
+            android:textColor="#000000"
+            android:textSize="16sp" />
     </LinearLayout>
 
     <!-- FCC Challenge Mode Box -->
-    <FrameLayout
+    <LinearLayout
         android:id="@+id/flFCCChallengeMode"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:background="@drawable/selectable_button_bg"
+        android:padding="12dp"
         android:clickable="true"
         android:focusable="true">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_weight="1"
+            android:orientation="vertical">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/fcc_challenge_mode"
-                android:textSize="18sp"
-                android:textColor="@color/cwbuttongreen"
+                android:textSize="20sp"
+                android:textColor="@color/cw_green"
                 android:textStyle="bold"/>
 
             <TextView
@@ -82,34 +81,43 @@
                 android:layout_height="wrap_content"
                 android:text="@string/fcc_challenge_mode_description"
                 android:textSize="16sp"
-                android:textColor="#666666"
+                android:textColor="@color/cw_black"
                 android:layout_marginTop="8dp"/>
         </LinearLayout>
 
-    </FrameLayout>
+        <ImageView
+            android:id="@+id/fccModeCheck"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="12dp"
+            app:tint="@color/cw_green"
+            android:src="@drawable/fa_solid_check" />
+    </LinearLayout>
 
     <!-- Testing Mode Box -->
-    <FrameLayout
+    <LinearLayout
         android:id="@+id/flTestingMode"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="16dp"
         android:background="@drawable/selectable_button_bg"
+        android:padding="12dp"
         android:clickable="true"
         android:focusable="true">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_weight="1"
+            android:orientation="vertical">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/testing_mode"
-                android:textSize="18sp"
-                android:textColor="@color/cwbuttongreen"
+                android:textSize="20sp"
+                android:textColor="@color/cw_green"
                 android:textStyle="bold"/>
 
             <TextView
@@ -117,10 +125,18 @@
                 android:layout_height="wrap_content"
                 android:text="@string/testing_mode_description"
                 android:textSize="16sp"
-                android:textColor="#666666"
+                android:textColor="@color/cw_black"
                 android:layout_marginTop="8dp"/>
         </LinearLayout>
 
-    </FrameLayout>
+        <ImageView
+            android:id="@+id/testingModeCheck"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="12dp"
+            app:tint="@color/cw_green"
+            android:src="@drawable/fa_solid_check" />
+    </LinearLayout>
 
 </LinearLayout>

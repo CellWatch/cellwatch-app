@@ -21,17 +21,17 @@ class PreMeasureFragment: Fragment() {
             binding.stationary.isSelected = !v
             binding.stationaryCheck.isVisible = !v
             if (v) {
-                binding.stationaryIcon.clearColorFilter()
+                binding.stationaryIcon.setColorFilter(resources.getColor(R.color.cw_grey, null))
             } else {
-                binding.stationaryIcon.setColorFilter(resources.getColor(R.color.cwbuttongreen, null))
+                binding.stationaryIcon.setColorFilter(resources.getColor(R.color.cw_green, null))
             }
 
             binding.moving.isSelected = v
             binding.movingCheck.isVisible = v
             if (v) {
-                binding.movingIcon.setColorFilter(resources.getColor(R.color.cwbuttongreen, null))
+                binding.movingIcon.setColorFilter(resources.getColor(R.color.cw_green, null))
             } else {
-                binding.movingIcon.clearColorFilter()
+                binding.stationaryIcon.setColorFilter(resources.getColor(R.color.cw_grey, null))
             }
         }
 

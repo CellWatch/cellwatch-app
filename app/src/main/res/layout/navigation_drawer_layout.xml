@@ -10,177 +10,82 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:paddingBottom="16dp"
+        android:paddingVertical="16dp"
+        android:paddingEnd="16dp"
         android:gravity="center_horizontal"
-        android:background="@color/cwheaderblue">
+        android:background="@color/cw_blue">
 
         <!-- Close button at the top left -->
         <ImageButton
             android:id="@+id/menuCloseButton"
-            android:background="@color/cwheaderblue"
-            android:layout_width="60dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:src="@drawable/ic_close"
-            android:contentDescription="Close"
+            android:background="@color/cw_blue"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="16dp"
+            android:src="@drawable/fa_solid_xmark"
+            android:contentDescription="@string/close"
             android:layout_gravity="start|center"
-            android:paddingBottom="20dp"
-            app:tint="@color/white"/>
+            app:tint="@color/cw_white"/>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_gravity="center|start"
-            >
+        <Button
+            android:id="@+id/mapButton"
+            style="@style/SideMenuButton"
+            app:icon="@drawable/fa_solid_map_location_dot"
+            android:text="@string/map" />
 
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="start|center_vertical"
-                android:src="@drawable/ic_place_marker"
-                android:contentDescription="Map"
-                android:layout_gravity="center"
-                app:tint="@color/white"/>
+        <Button
+            android:id="@+id/menuMeasureButton"
+            style="@style/SideMenuButton"
+            app:icon="@drawable/fa_solid_gauge_high"
+            android:text="@string/measure" />
 
-            <Button
-                android:id="@+id/mapButton"
-                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:backgroundTint="@color/cwheaderblue"
-                android:elevation="0dp"
-                android:gravity="start|center_vertical"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:text="@string/map"
-                android:textColor="#FFFFFF" />
-        </LinearLayout>
+        <Button
+            android:id="@+id/historyButton"
+            style="@style/SideMenuButton"
+            app:icon="@drawable/fa_solid_clock"
+            android:text="@string/measurement_history" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:elevation="0dp">
+        <Button
+            android:id="@+id/settingsButton"
+            style="@style/SideMenuButton"
+            app:icon="@drawable/fa_solid_gear"
+            android:text="@string/settings" />
 
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_meter"
-                android:elevation="0dp"
-                android:layout_gravity="center"
-                app:tint="@color/white"
-                />
-
-            <Button
-                android:id="@+id/menuMeasureButton"
-                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:backgroundTint="@color/cwheaderblue"
-                android:elevation="0dp"
-                android:gravity="start|center_vertical"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:text="@string/measure"
-                android:textColor="#FFFFFF" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_measurement_history"
-                android:layout_gravity="center"
-                app:tint="@color/white"
-                />
-
-            <Button
-                android:id="@+id/historyButton"
-                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:backgroundTint="@color/cwheaderblue"
-                android:gravity="start|center_vertical"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:text="@string/measurement_history"
-                android:textColor="#FFFFFF" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_settings"
-                android:layout_gravity="center"
-                app:tint="@color/white"
-                />
-
-            <Button
-                android:id="@+id/settingsButton"
-                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:backgroundTint="@color/cwheaderblue"
-                android:gravity="start|center_vertical"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:text="@string/settings"
-                android:textColor="#FFFFFF" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_help"
-                android:layout_gravity="center"
-                app:tint="@color/white"
-                />
-
-            <Button
-                android:id="@+id/helpButton"
-                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:backgroundTint="@color/cwheaderblue"
-                android:gravity="start|center_vertical"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:text="@string/help"
-                android:textColor="#FFFFFF" />
-        </LinearLayout>
+        <Button
+            android:id="@+id/helpButton"
+            style="@style/SideMenuButton"
+            app:icon="@drawable/fa_solid_circle_question"
+            android:text="@string/help" />
     </LinearLayout>
 
-    <View
+    <Space
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"/>
 
-    <!-- Logo at the bottom -->
-    <ImageView
-        android:layout_width="match_parent"
-        android:layout_height="100dp"
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal|bottom"
-        android:src="@drawable/cellwatch_logo" />
+        android:layout_marginBottom="16dp"
+        android:orientation="horizontal">
 
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/logo" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textColor="@color/cw_white"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:text="@string/app_name" />
+    </LinearLayout>
 
 </com.google.android.material.navigation.NavigationView>

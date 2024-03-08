@@ -1,157 +1,129 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/beige">
-
+    android:layout_height="match_parent">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/cwgrey"
+        android:gravity="center_horizontal"
         android:orientation="vertical"
-        tools:context=".ReadMore">
+        android:padding="16dp">
 
         <ImageButton
             android:id="@+id/buttonExitTop"
-            android:layout_width="55dp"
-            android:layout_height="60dp"
-            android:background="@drawable/exit_button_background"
-            android:src="@drawable/ic_close"
-            android:textColor="@color/cwheaderblue"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:layout_marginBottom="8dp"
+            android:layout_gravity="start"
+            android:background="@null"
+            android:src="@drawable/fa_solid_xmark"
+            app:tint="@color/cw_blue"
+            android:contentDescription="@string/close"
+            android:textColor="@color/cw_blue"
             android:textSize="22sp" />
 
-
-        <ScrollView
-            android:layout_width="fill_parent"
+        <TextView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingTop="30sp">
+            android:text="@string/read_more"
+            android:textAlignment="center"
+            android:textColor="@color/cw_blue"
+            android:textSize="36sp"
+            android:textStyle="bold" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="16dp"
+            android:text="@string/rm1"
+            android:fontFamily="sans-serif"
+            android:textColor="@color/cw_black"
+            android:textSize="16sp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="103dp"
+            android:layout_marginVertical="16dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                app:srcCompat="@drawable/fa_regular_circle_user" />
+
+            <ImageView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:background="@color/cwgrey"
-                android:gravity="center_horizontal"
-                android:orientation="vertical"
-                android:paddingBottom="50dp">
+                android:layout_weight="1"
+                android:layout_marginHorizontal="16dp"
+                app:srcCompat="@drawable/fa_solid_arrow_right" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                app:srcCompat="@drawable/fcc_building" />
 
-                    android:text="@string/read_more"
-                    android:textAlignment="center"
-                    android:textColor="@color/cwheaderblue"
-                    android:textSize="40sp"
-                    android:textStyle="bold" />
+        </LinearLayout>
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/rm1"
-                    android:fontFamily="sans-serif"
-                    android:paddingLeft="50sp"
-                    android:paddingTop="30sp"
-                    android:paddingRight="50sp"
-                    android:textColor="@color/black"
-                    android:textSize="18sp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="16dp"
+            android:text="@string/rm1b"
 
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="103sp"
-                    android:gravity="center|center_horizontal"
-                    android:orientation="horizontal"
-                    android:paddingTop="20sp"
-                    android:paddingBottom="20sp">
+            android:fontFamily="sans-serif"
+            android:textColor="@color/cw_black"
+            android:textSize="16sp"/>
 
-                    <ImageView
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        app:srcCompat="@drawable/facecircle" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="16dp"
+            android:text="@string/rm2"
 
-                    <ImageView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        app:srcCompat="@drawable/arrow_fwd" />
+            android:fontFamily="sans-serif"
+            android:textColor="@color/cw_black"
+            android:textSize="16sp"/>
 
-                    <ImageView
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        app:srcCompat="@drawable/fcchut" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="16dp"
+            app:srcCompat="@drawable/cwmap_marked" />
 
-                </LinearLayout>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="16dp"
+            android:text="@string/rm3"
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/rm1b"
+            android:fontFamily="sans-serif"
+            android:textColor="@color/cw_black"
+            android:textSize="16sp"/>
 
-                    android:fontFamily="sans-serif"
-                    android:paddingLeft="50sp"
-                    android:paddingTop="30sp"
-                    android:paddingRight="50sp"
-                    android:textColor="@color/black"
-                    android:textSize="18sp"/>
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="16dp"
+            app:srcCompat="@drawable/cwmap_hexed" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/rm2"
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="16dp"
+            android:text="@string/rm3b"
 
-                    android:fontFamily="sans-serif"
-                    android:paddingLeft="50sp"
-                    android:paddingTop="30sp"
-                    android:paddingRight="50sp"
-                    android:textColor="@color/black"
-                    android:textSize="18sp"/>
+            android:fontFamily="sans-serif"
+            android:textColor="@color/cw_black"
+            android:textSize="16sp"/>
 
-                <ImageView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:srcCompat="@drawable/cwmap_marked" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/rm3"
-
-                    android:fontFamily="sans-serif"
-                    android:paddingLeft="50sp"
-                    android:paddingTop="30sp"
-                    android:paddingRight="50sp"
-                    android:textColor="@color/black"
-                    android:textSize="18sp"/>
-
-                <ImageView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:srcCompat="@drawable/cwmap_hexed" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/rm3b"
-
-                    android:fontFamily="sans-serif"
-                    android:paddingLeft="50sp"
-                    android:paddingTop="30sp"
-                    android:paddingRight="50sp"
-                    android:paddingBottom="30sp"
-                    android:textColor="@color/black"
-                    android:textSize="18sp"/>
-
-                <Button
-                    android:id="@+id/exitButtonBottom"
-                    android:layout_width="200sp"
-                    android:layout_height="wrap_content"
-                    android:text="@string/close"
-                    android:background="@color/cwbuttongreen"
-                    android:textColor="@color/white"/>
-            </LinearLayout>
-        </ScrollView>
+        <Button
+            android:id="@+id/exitButtonBottom"
+            style="@style/GreenButton"
+            android:layout_marginVertical="16dp"
+            android:text="@string/close" />
     </LinearLayout>
-
-</FrameLayout>
+</ScrollView>

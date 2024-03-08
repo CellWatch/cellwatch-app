@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-
-    <color name="cwgrey">#F2F2F2</color>
-    <color name="cwbuttongreen">#1E5638</color>
-    <color name="cwbuttongreenlight">#8891C799</color>
-    <color name="cwheaderblue">#07416B</color>
-    <color name="cwnavblue">#07416B</color>
-    <color name="highlightblue">#5E8BAB</color>
-    <color name="beige">#F2F2F2</color>
-    <color name="green">#91C799</color>
-    <color name="progressgreen">#1E5638</color>
+    <color name="cw_blue">#07416B</color>
+    <color name="cw_blue_light">#5E8BAB</color>
+    <color name="cw_green">#1E5638</color>
+    <color name="cw_green_light">#C8E3CC</color>
+    <color name="cw_green_dark">#003618</color>
+    <color name="cw_grey">#777777</color>
+    <color name="cw_grey_dark">#464646</color>
+    <color name="cw_grey_light">#BABABA</color>
+    <color name="cw_grey_extra_light">#DFDFDF</color>
+    <color name="cw_grey_ultra_light">#F2F2F2</color>
+    <color name="cw_white">#FFFFFF</color>
+    <color name="cw_black">#000000</color>
 </resources>

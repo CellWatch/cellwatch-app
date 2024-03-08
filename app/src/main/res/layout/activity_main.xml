@@ -3,8 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:layout_height="match_parent">
 
     <!-- Main content layout with Toolbar including hamburger button -->
     <LinearLayout
@@ -28,8 +27,9 @@
                 android:layout_marginTop="16dp"
                 android:layout_marginStart="16dp"
                 android:background="?android:selectableItemBackground"
-                android:src="@drawable/ic_menu"
-                app:tint="@color/mapbox_blue" />
+                android:src="@drawable/fa_solid_bars"
+                android:contentDescription="@string/menu"
+                app:tint="@color/cw_blue" />
         </androidx.appcompat.widget.Toolbar>
 
         <FrameLayout
@@ -41,6 +41,7 @@
     </LinearLayout>
 
     <include
+        android:id="@+id/navDrawer"
         layout="@layout/navigation_drawer_layout"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"

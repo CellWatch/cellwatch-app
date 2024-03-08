@@ -4,15 +4,14 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
-    android:background="#FFFFFF"
     android:gravity="center|top">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/fcc_info"
-        android:textColor="@color/cwheaderblue"
-        android:textSize="50sp"
+        android:textColor="@color/cw_blue"
+        android:textSize="36sp"
         android:textStyle="bold"
         android:gravity="center_horizontal"
         android:layout_marginBottom="16dp" />
@@ -22,8 +21,7 @@
         android:layout_height="wrap_content"
         android:text="@string/fcc_info_description"
         android:textSize="16sp"
-        android:textColor="#666666"
-        android:layout_marginBottom="8dp"
+        android:textColor="@color/cw_black"
         android:gravity="center"/>
 
     <LinearLayout
@@ -33,24 +31,22 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="8dp"
-        android:clickable="true">
+        android:clickable="true"
+        android:layout_marginBottom="16dp" >
 
-        <!-- Icon to the left of the text -->
         <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_user_lock" /> <!-- Replace with your actual drawable resource name -->
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/fa_solid_user_lock" />
 
-        <!-- Text with hyperlink styling -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:text="@string/read_privacy_policy"
-            android:textSize="14sp"
-            android:textColor="@color/black"
-            android:drawablePadding="4dp"
-            android:paddingStart="8dp"
-            android:gravity="center" />
+            android:textColor="#000000"
+            android:textSize="16sp" />
     </LinearLayout>
 
     <TextView
@@ -58,22 +54,19 @@
         android:layout_height="wrap_content"
         android:text="@string/name"
         android:textSize="20sp"
-        android:textColor="@color/cwnavblue"
+        android:textColor="@color/cw_blue"
+        android:textStyle="bold"
         android:layout_marginBottom="4dp" />
 
     <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        style="@style/CustomInputTextFilledBox">
+        style="@style/TextInputLayout"
+        android:layout_marginBottom="16dp">
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etName"
+            style="@style/TextInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="textPersonName"
-            android:textColor="@color/black"
-            android:background="@color/white"
-            android:enabled="true" />
+            android:inputType="textPersonName" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
@@ -81,21 +74,18 @@
         android:layout_height="wrap_content"
         android:text="@string/phone"
         android:textSize="20sp"
-        android:textColor="@color/cwnavblue" />
+        android:textStyle="bold"
+        android:textColor="@color/cw_blue" />
 
     <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        style="@style/CustomInputTextFilledBox">
+        style="@style/TextInputLayout"
+        android:layout_marginBottom="16dp">
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etPhone"
+            style="@style/TextInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="phone"
-            android:textColor="@color/black"
-            android:background="@color/white"
-            android:enabled="true"/>
+            android:inputType="phone" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
@@ -103,22 +93,19 @@
         android:layout_height="wrap_content"
         android:text="@string/email"
         android:textSize="20sp"
-        android:textColor="@color/cwnavblue" />
+        android:textStyle="bold"
+        android:textColor="@color/cw_blue" />
 
     <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:background="@color/white"
-        style="@style/CustomInputTextFilledBox">
+        style="@style/TextInputLayout"
+        android:layout_marginBottom="16dp">
+
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etEmail"
+            style="@style/TextInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@color/black"
-            android:background="@color/white"
-            android:inputType="textEmailAddress"
-            android:enabled="true" />
+            android:inputType="textEmailAddress" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <CheckBox
@@ -127,6 +114,5 @@
         android:layout_height="wrap_content"
         android:text="@string/fcc_acknowledgement"
         android:textSize="16sp"
-        android:textColor="#666666"
-        android:padding="16dp" />
+        android:textColor="@color/cw_black" />
 </LinearLayout>
