@@ -40,11 +40,14 @@ import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
+import com.mapbox.maps.plugin.compass.compass
 import com.mapbox.maps.plugin.delegates.listeners.OnCameraChangeListener
 import com.mapbox.maps.plugin.gestures.OnMapClickListener
 import com.mapbox.maps.plugin.gestures.addOnMapClickListener
 import com.mapbox.maps.plugin.gestures.removeOnMapClickListener
 import com.mapbox.maps.plugin.locationcomponent.location
+import com.mapbox.maps.plugin.logo.logo
+import com.mapbox.maps.plugin.scalebar.scalebar
 import com.mapbox.maps.viewannotation.ViewAnnotationManager
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.databinding.FragmentMapBinding
@@ -541,6 +544,9 @@ class MapFragment : Fragment() {
             initLocationComponent()
             mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
             mapboxMap.addOnMapClickListener(onMapClickListenerH3)
+
+            mapView.compass.enabled = false
+            mapView.scalebar.enabled = false
         }
     }
 
