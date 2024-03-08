@@ -2,17 +2,16 @@ package edu.gatech.cc.cellwatch.ui
 
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
-import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import edu.gatech.cc.cellwatch.R
-import edu.gatech.cc.cellwatch.ui.map.*
+import edu.gatech.cc.cellwatch.databinding.ActivityMainBinding
 import edu.gatech.cc.cellwatch.ui.map.MapFragment
 import edu.gatech.cc.cellwatch.ui.map.MeasureFragment
 import edu.gatech.cc.cellwatch.ui.map.MeasureHistoryFragment
+import edu.gatech.cc.cellwatch.ui.map.PostMeasureFragment
+import edu.gatech.cc.cellwatch.ui.map.PreMeasureFragment
 import edu.gatech.cc.cellwatch.ui.map.SettingsFragment
 
 class MainActivity : AppCompatActivity(),
@@ -22,87 +21,95 @@ class MainActivity : AppCompatActivity(),
     MeasureFragment.MeasureFragmentInteractionListener,
     PostMeasureFragment.PostMeasureFragmentInteractionListener {
 
-    private lateinit var drawerLayout: DrawerLayout
-    private lateinit var toolbar: androidx.appcompat.widget.Toolbar
+    private lateinit var binding: ActivityMainBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        toolbar = findViewById(R.id.toolbar)
         createDrawerLayout()
-
         replaceFragment(MapFragment())
     }
 
 
     private fun createDrawerLayout() {
-        drawerLayout = findViewById(R.id.drawer_layout)
-
         // Hamburger Button functionality
-        val hamburgerButton: ImageButton = findViewById(R.id.sideMenuButton)
-        hamburgerButton.setOnClickListener {
-            if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                drawerLayout.closeDrawer(GravityCompat.START)
+        binding.sideMenuButton.setOnClickListener {
+            if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                binding.drawerLayout.closeDrawer(GravityCompat.START)
             } else {
-                drawerLayout.openDrawer(GravityCompat.START)
+                binding.drawerLayout.openDrawer(GravityCompat.START)
             }
         }
 
         // Exit button functionality
-        val exitButton: ImageButton = findViewById(R.id.menuCloseButton)
-        exitButton.setOnClickListener {
-            drawerLayout.closeDrawer(GravityCompat.START)
+        binding.navDrawer.menuCloseButton.setOnClickListener {
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
         }
 
         // Map button functionality
-        val mapButton: Button = findViewById(R.id.mapButton)
-        mapButton.setOnClickListener {
+        binding.navDrawer.mapButton.setOnClickListener {
             replaceFragment(MapFragment())
         }
 
         // Measure button functionality
-        val measureButton: Button = findViewById(R.id.menuMeasureButton)
-        measureButton.setOnClickListener {
+        binding.navDrawer.menuMeasureButton.setOnClickListener {
             replaceFragment(PreMeasureFragment())
         }
 
         // Measurement History button functionality
-        val historyButton: Button = findViewById(R.id.historyButton)
-        historyButton.setOnClickListener {
+        binding.navDrawer.historyButton.setOnClickListener {
             replaceFragment(MeasureHistoryFragment())
         }
 
         // Settings button functionality
-        val settingsButton: Button = findViewById(R.id.settingsButton)
-        settingsButton.setOnClickListener {
+        binding.navDrawer.settingsButton.setOnClickListener {
             replaceFragment(SettingsFragment())
         }
 
         // Help button functionality
-        val helpButton: Button = findViewById(R.id.helpButton)
-        helpButton.setOnClickListener {
+        binding.navDrawer.helpButton.setOnClickListener {
             //TODO redirect to a web page
         }
     }
 
     private fun replaceFragment(fragment: Fragment) {
         if (fragment is MapFragment || fragment is MeasureFragment) {
-            toolbar.visibility = View.GONE
+            binding.toolbar.visibility = View.GONE
         } else {
-            toolbar.visibility = View.VISIBLE
+            binding.toolbar.visibility = View.VISIBLE
         }
+
+        listOf(
+            binding.navDrawer.mapButton,
+            binding.navDrawer.menuMeasureButton,
+            binding.navDrawer.historyButton,
+            binding.navDrawer.settingsButton,
+            binding.navDrawer.helpButton,
+        ).forEach { it.setBackgroundColor(getColor(R.color.cw_blue)) }
+
+        val activeButton = when (fragment) {
+            is MapFragment -> binding.navDrawer.mapButton
+            is MeasureFragment, is PreMeasureFragment, is PostMeasureFragment -> binding.navDrawer.menuMeasureButton
+            is MeasureHistoryFragment -> binding.navDrawer.historyButton
+            is SettingsFragment -> binding.navDrawer.settingsButton
+            else -> null
+        }
+
+        activeButton?.setBackgroundColor(getColor(R.color.cw_blue_light))
 
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()
-        drawerLayout.closeDrawer(GravityCompat.START)
+        binding.drawerLayout.closeDrawer(GravityCompat.START)
     }
 
     override fun toggleDrawer() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            drawerLayout.closeDrawer(GravityCompat.START)
+        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
         } else {
-            drawerLayout.openDrawer(GravityCompat.START)
+            binding.drawerLayout.openDrawer(GravityCompat.START)
         }
     }
 

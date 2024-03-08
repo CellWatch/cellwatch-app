@@ -1,6 +1,0 @@
-<!-- res/drawable/button_background.xml -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="@android:color/transparent"/> <!-- Use #FFFFFF for white background -->
-    <corners android:radius="0dp"/> <!-- Adjust if you want rounded corners -->
-</shape>

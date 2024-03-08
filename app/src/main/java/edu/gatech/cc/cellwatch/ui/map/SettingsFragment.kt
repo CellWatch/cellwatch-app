@@ -5,33 +5,25 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
-import android.widget.Spinner
-import androidx.appcompat.widget.AppCompatButton
-import androidx.appcompat.widget.AppCompatImageButton
+import android.widget.AutoCompleteTextView
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import com.google.android.material.textfield.TextInputEditText
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.databinding.FragmentSettingsBinding
 
 class SettingsFragment : Fragment() {
+    private lateinit var binding: FragmentSettingsBinding
     private lateinit var shareArray: Array<String>
-    private var shareSpinner: Spinner? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        val rootView = inflater.inflate(R.layout.fragment_settings, container, false)
+        binding = FragmentSettingsBinding.inflate(inflater, container, false)
 
-        shareSpinner = rootView.findViewById(R.id.data_share_spinner)
         shareArray = resources.getStringArray(R.array.data_sharing_options_array)
-        shareSpinner?.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, shareArray)
+        val adapter = ArrayAdapter(requireContext(), R.layout.dropdown_item, shareArray)
+        (binding.dataShareMenu.editText as? AutoCompleteTextView)?.setAdapter(adapter)
 
-
-        val settingsEditButton = rootView.findViewById<AppCompatImageButton>(R.id.settingsEditButton)
-        val saveButton = rootView.findViewById<AppCompatButton>(R.id.submit_edit)
-
-        val nameEditText = rootView.findViewById<TextInputEditText>(R.id.nameEditText)
-        val emailEditText = rootView.findViewById<TextInputEditText>(R.id.emailEditText)
-        val phoneEditText = rootView.findViewById<TextInputEditText>(R.id.phoneEditText)
 
         //TODO Load user name/email/phone/FCC Data Collection on fragment start
         /*
@@ -41,26 +33,28 @@ class SettingsFragment : Fragment() {
         shareSpinner?.setSelection(0)
          */
 
-        settingsEditButton.setOnClickListener {
-            saveButton.visibility = View.VISIBLE
-            settingsEditButton.visibility = View.GONE
+        binding.settingsEditButton.setOnClickListener { setEditable(true) }
 
-            nameEditText.isEnabled = true
-            emailEditText.isEnabled = true
-            phoneEditText.isEnabled = true
+        binding.submitEdit.setOnClickListener {
+            setEditable(false)
+            //TODO save edited user name/email/phone on submitEdit click
         }
 
-        saveButton.setOnClickListener {
-            saveButton.visibility = View.GONE
-            settingsEditButton.visibility = View.VISIBLE
+        setEditable(false)
 
-            nameEditText.isEnabled = false
-            emailEditText.isEnabled = false
-            phoneEditText.isEnabled = false
+        return binding.root
+    }
 
-            //TODO save edited user name/email/phone on saveButton click
-        }
+    private fun setEditable(e: Boolean) {
+        binding.settingsEditButton.visibility = if (e) View.INVISIBLE else View.VISIBLE
+        binding.submitEdit.isVisible = e
+        binding.nameEditText.isEnabled = e
+        binding.emailEditText.isEnabled = e
+        binding.phoneEditText.isEnabled = e
 
-        return rootView
+        val bg = if (e) R.color.cw_white else R.color.cw_grey_extra_light
+        binding.nameEditTextLayout.setBoxBackgroundColorResource(bg)
+        binding.emailEditTextLayout.setBoxBackgroundColorResource(bg)
+        binding.phoneEditTextLayout.setBoxBackgroundColorResource(bg)
     }
 }

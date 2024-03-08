@@ -1,20 +1,20 @@
 package edu.gatech.cc.cellwatch.ui
 
 import android.content.Intent
-import edu.gatech.cc.cellwatch.ui.onboarding.SettingsSetupFragment
-import edu.gatech.cc.cellwatch.R
 import android.os.Bundle
 import android.view.View
-import android.widget.ImageView
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.databinding.ActivityHomeBinding
 import edu.gatech.cc.cellwatch.ui.onboarding.CollectionModeFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.DataUseFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.FCCInfoFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.HomeFragment
+import edu.gatech.cc.cellwatch.ui.onboarding.SettingsSetupFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModel
 import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModelFactory
 
@@ -34,42 +34,37 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
         SettingsSetupFragment()
     )
 
-    private lateinit var backButton: ImageView
-    private lateinit var nextButton: ImageView
+    private lateinit var binding: ActivityHomeBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_home)
+        binding = ActivityHomeBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         supportFragmentManager.beginTransaction()
             .replace(R.id.content_frame, fragments.first())
             .commit()
 
-        backButton = findViewById(R.id.back_arrow)
-        nextButton = findViewById(R.id.forward_arrow)
+        updateNav(true)
 
-        backButton.visibility = View.GONE
-        nextButton.visibility = if (currentPosition == fragments.size - 1) View.GONE else View.VISIBLE
-
-        backButton.setOnClickListener {
+        binding.backArrow.setOnClickListener {
             if (currentPosition > 0) {
                 currentPosition--
                 supportFragmentManager.beginTransaction()
                     .replace(R.id.content_frame, fragments[currentPosition])
                     .commit()
-                updateArrowVisibility()
+                updateNav()
                 Log.d(TAG, "Previous fragment is $currentPosition")
             }
         }
 
-        nextButton.setOnClickListener {
+        binding.forwardArrow.setOnClickListener {
             val currentFragment = supportFragmentManager.findFragmentById(R.id.content_frame)
             val isValidated = if (currentFragment is FCCInfoFragment) {
                 currentFragment.validateInputs()
             } else {
                 true
             }
-
 
             if (currentFragment is CollectionModeFragment) {
                 if(currentFragment.retrieveSelection()) {
@@ -91,7 +86,7 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
                         .commit()
                 }
             }
-            updateArrowVisibility()
+            updateNav()
         }
 
         observeDeviceId()
@@ -100,17 +95,28 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
     private fun observeDeviceId() {
         model.getDeviceId().observe(this) { deviceId ->
             Log.d(TAG, "deviceId = $deviceId")
-            Toast.makeText(this, "Your deviceId is: $deviceId", Toast.LENGTH_LONG).show()
         }
     }
 
-    private fun updateArrowVisibility(visible: Boolean = true) {
+    private fun updateNav(visible: Boolean = true) {
+        binding.nav.isVisible = visible
         if (!visible) {
-            backButton.visibility = View.GONE
-            nextButton.visibility = View.GONE
-        } else {
-            backButton.visibility = if (currentPosition == 0) View.GONE else View.VISIBLE
-            nextButton.visibility = if (currentPosition == fragments.size - 1) View.GONE else View.VISIBLE
+            return
+        }
+
+        binding.backArrow.visibility = if (currentPosition > 0) View.VISIBLE else View.INVISIBLE
+        binding.forwardArrow.visibility = if (currentPosition < fragments.size - 1) View.VISIBLE else View.INVISIBLE
+
+        val activeDot = when (currentPosition) {
+            0 -> binding.dot1
+            1 -> binding.dot2
+            2, 3 -> binding.dot3
+            4 -> binding.dot4
+            else -> throw RuntimeException("position $currentPosition out of bounds")
+        }
+
+        listOf(binding.dot1, binding.dot2, binding.dot3, binding.dot4).forEach {
+            it.setColorFilter(getColor(if (it == activeDot) R.color.cw_blue else R.color.cw_grey_light))
         }
     }
 
@@ -121,6 +127,6 @@ class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedL
     }
 
     override fun onMoreInfoSelected(visible: Boolean) {
-        updateArrowVisibility(visible)
+        updateNav(visible)
     }
 }

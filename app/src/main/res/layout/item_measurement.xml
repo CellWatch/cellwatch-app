@@ -22,19 +22,21 @@
 
             <ImageButton
                 android:id="@+id/expandButton"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@drawable/arrow_right"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/fa_solid_caret_right"
+                app:tint="@color/cw_green"
                 android:background="@null"
                 android:layout_gravity="center"
-                android:layout_marginEnd="8dp" />
+                android:layout_marginStart="-8dp" />
 
             <TextView
                 android:id="@+id/dateText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center"
                 android:text="28 Feb 2024"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
@@ -43,9 +45,10 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_gravity="center"
                 android:text="08:19:54"
                 android:textAlignment="textEnd"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="20sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -70,7 +73,7 @@
                     android:layout_marginEnd="10dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/fa_download"
-                    app:tint="@color/cwbuttongreen" />
+                    app:tint="@color/cw_green" />
 
                 <TextView
                     android:id="@+id/summaryDownloadText"
@@ -78,7 +81,7 @@
                     android:layout_height="wrap_content"
                     android:text="77 Mbps"
                     android:textAlignment="textEnd"
-                    android:textColor="@color/cwbuttongreen"
+                    android:textColor="@color/cw_green"
                     android:textSize="16sp" />
             </LinearLayout>
 
@@ -100,7 +103,7 @@
                     android:layout_marginEnd="10dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/fa_upload"
-                    app:tint="@color/cwbuttongreen" />
+                    app:tint="@color/cw_green" />
 
                 <TextView
                     android:id="@+id/summaryUploadText"
@@ -108,7 +111,7 @@
                     android:layout_height="wrap_content"
                     android:text="23 Mbps"
                     android:textAlignment="textEnd"
-                    android:textColor="@color/cwbuttongreen"
+                    android:textColor="@color/cw_green"
                     android:textSize="16sp" />
             </LinearLayout>
         </LinearLayout>
@@ -133,7 +136,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="5dp"
                 android:text="@string/location"
-                android:textColor="@color/black"
+                android:textColor="@color/cw_black"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -144,7 +147,7 @@
                 android:layout_weight="1"
                 android:text="Cell 100abcdef"
                 android:textAlignment="textEnd"
-                android:textColor="@color/black"
+                android:textColor="@color/cw_black"
                 android:textSize="16sp" />
         </LinearLayout>
 
@@ -158,7 +161,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="5dp"
                 android:text="@string/carrier"
-                android:textColor="@color/black"
+                android:textColor="@color/cw_black"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -169,7 +172,7 @@
                 android:layout_weight="1"
                 android:text="AT&amp;T"
                 android:textAlignment="textEnd"
-                android:textColor="@color/black"
+                android:textColor="@color/cw_black"
                 android:textSize="16sp" />
         </LinearLayout>
 
@@ -183,7 +186,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="5dp"
                 android:text="@string/type"
-                android:textColor="@color/black"
+                android:textColor="@color/cw_black"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -194,7 +197,7 @@
                 android:layout_weight="1"
                 android:text="FCC Challenge (Stationary)"
                 android:textAlignment="textEnd"
-                android:textColor="@color/black"
+                android:textColor="@color/cw_black"
                 android:textSize="16sp" />
         </LinearLayout>
     </LinearLayout>
@@ -221,14 +224,14 @@
                 android:layout_marginEnd="10dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/fa_stopwatch"
-                app:tint="@color/cwbuttongreen" />
+                app:tint="@color/cw_green" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="5dp"
                 android:text="@string/latency"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -239,7 +242,7 @@
                 android:layout_weight="1"
                 android:text="20 ms"
                 android:textAlignment="textEnd"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp" />
         </LinearLayout>
 
@@ -256,14 +259,14 @@
                 android:layout_marginEnd="10dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/fa_download"
-                app:tint="@color/cwbuttongreen" />
+                app:tint="@color/cw_green" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="5dp"
                 android:text="@string/download"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -274,7 +277,7 @@
                 android:layout_weight="1"
                 android:text="77 Mbps"
                 android:textAlignment="textEnd"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp" />
         </LinearLayout>
 
@@ -291,14 +294,14 @@
                 android:layout_marginEnd="10dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/fa_upload"
-                app:tint="@color/cwbuttongreen" />
+                app:tint="@color/cw_green" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="5dp"
                 android:text="@string/upload"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -309,7 +312,7 @@
                 android:layout_weight="1"
                 android:text="23 Mbps"
                 android:textAlignment="textEnd"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp" />
         </LinearLayout>
 
@@ -326,14 +329,14 @@
                 android:layout_marginEnd="10dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/fa_broadcast_tower"
-                app:tint="@color/cwbuttongreen" />
+                app:tint="@color/cw_green" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="5dp"
                 android:text="@string/technology"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -344,7 +347,7 @@
                 android:layout_weight="1"
                 android:text="4G"
                 android:textAlignment="textEnd"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp" />
         </LinearLayout>
 
@@ -361,14 +364,14 @@
                 android:layout_marginEnd="10dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/fa_globe"
-                app:tint="@color/cwbuttongreen" />
+                app:tint="@color/cw_green" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="5dp"
                 android:text="@string/roaming"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -379,7 +382,7 @@
                 android:layout_weight="1"
                 android:text="No"
                 android:textAlignment="textEnd"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp" />
         </LinearLayout>
 
@@ -396,14 +399,14 @@
                 android:layout_marginEnd="10dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/fa_check_square"
-                app:tint="@color/cwbuttongreen" />
+                app:tint="@color/cw_green" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="5dp"
                 android:text="@string/uploaded"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -414,7 +417,7 @@
                 android:layout_weight="1"
                 android:text="24 Feb 2024 08:59:54"
                 android:textAlignment="textEnd"
-                android:textColor="@color/cwbuttongreen"
+                android:textColor="@color/cw_green"
                 android:textSize="16sp" />
         </LinearLayout>
     </LinearLayout>

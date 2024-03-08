@@ -9,6 +9,7 @@
 
     <!-- read more -->
     <string name="read_more">Read More</string>
+    <string name="read_more_underlined"><u>Read More</u></string>
     <string name="rm1">To formally challenge a provider’s performance claims, you need to take several measurements within a geographic area and submit them to the FCC, the U.S. government agency that regulates telecommunications.</string>
     <string name="rm1b">Our app helps consumers take these measurements and automatically submits them to the FCC.</string>
     <string name="rm2">A challenge to a provider’s coverage claims is specific to a geographic area. The FCC has used a hexagonal tiling system to define regions. By collecting several measurements within one hexagonal region, a consumer can prove that the region does not have good mobile Internet performance, despite what their cell carrier may claim.</string>
@@ -21,7 +22,7 @@
     <string name="data_use_p1">The data you collect with CellWatch will be shared with the public, including the general location and time of your measurements.</string>
     <string name="data_use_p2">Your CellWatch data may also be used for research purposes.</string>
     <string name="data_use_p3">Please read our privacy policy for details.</string>
-    <string name="read_privacy_policy">Read our Privacy Policy</string>
+    <string name="read_privacy_policy"><u>Read our Privacy Policy</u></string>
 
     <!-- collection mode -->
     <string name="collection_mode">Collection Mode</string>
@@ -41,14 +42,14 @@
 
     <!-- allow permissions -->
     <string name="allow_permissions">Allow Permissions</string>
-    <string name="allow_permissions_description">In order to take measurements, we need the following permissions:\n1. Location, to know where measurements are taken.\n2. Phone calls, to gather information about your cellular connection. We will never make phone calls.</string>
+    <string name="allow_permissions_description">In order to take measurements, we need the following permissions:\n\n1. Location, to know where measurements are taken.\n\n2. Phone calls, to gather information about your cellular connection. We will never make phone calls.</string>
     <string name="allow_ready">When ready, click \"Allow\" when prompted. You can update these permissions later in your device\'s settings.</string>
     <string name="ready">Ready</string>
 
     <!-- map -->
     <string name="map">Map</string>
     <string name="cell">Cell</string>
-    <string name="add_measurement">+ Measure</string>
+    <string name="add_measurement">Measure</string>
     <string name="search_map">Search Map</string>
 
     <!-- pre-measure -->
@@ -108,7 +109,13 @@
         <item>FCC and CellWatch</item>
         <item>CellWatch only</item>
     </string-array>
+    <string name="edit">Edit</string>
 
     <!-- help -->
     <string name="help">Help</string>
+
+    <!-- navigation -->
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+    <string name="menu">Menu</string>
 </resources>

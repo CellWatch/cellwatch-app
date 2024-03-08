@@ -1,16 +1,22 @@
 <resources>
-    <!-- Base application theme. -->
-    <style name="Theme.CellWatch" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/cwbuttongreen</item>
-        <item name="colorPrimaryVariant">@color/cwbuttongreen</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/highlightblue</item>
-        <item name="colorSecondaryVariant">@color/highlightblue</item>
-        <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+    <style name="Theme.CellWatch" parent="Theme.MaterialComponents.Light.DarkActionBar">
+        <item name="android:colorBackground">@color/cw_grey_ultra_light</item>
+
+        <item name="colorSurface">@color/cw_white</item>
+        <item name="colorOnSurface">@color/cw_black</item>
+        <item name="colorPrimarySurface">@color/cw_white</item>
+        <item name="colorOnPrimarySurface">@color/cw_black</item>
+
+        <item name="colorPrimary">@color/cw_green</item>
+        <item name="colorPrimaryDark">@color/cw_green</item>
+        <item name="colorPrimaryVariant">@color/cw_green_light</item>
+        <item name="colorOnPrimary">@color/cw_white</item>
+
+        <item name="colorSecondary">@color/cw_blue</item>
+        <item name="colorSecondaryVariant">@color/cw_blue</item>
+        <item name="colorOnSecondary">@color/cw_white</item>
+
+        <item name="android:statusBarColor">?attr/colorPrimaryDark</item>
     </style>
 
     <style name="Theme.CellWatch.NoActionBar">
