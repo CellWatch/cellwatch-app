@@ -7,6 +7,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -29,6 +31,7 @@ class LocalDataStore(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[DEVICE_ID] = deviceId
         }
+        Firebase.crashlytics.setCustomKey("device_id", deviceId)
     }
 
     val getCollectionMode: Flow<String> = context.dataStore.data.map { preferences ->
