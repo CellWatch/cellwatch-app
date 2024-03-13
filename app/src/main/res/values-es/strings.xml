@@ -116,6 +116,9 @@
         <item>solo CellWatch</item>
     </string-array>
     <string name="edit">Editar</string>
+    <string name="device_id">Identificación de dispositivo</string>
+    <string name="app_version">Versión de aplicación</string>
+    <string name="copied">Se copió %1$s</string>
 
     <!-- help -->
     <string name="help">Ayuda</string>

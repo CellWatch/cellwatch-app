@@ -110,6 +110,9 @@
         <item>CellWatch only</item>
     </string-array>
     <string name="edit">Edit</string>
+    <string name="device_id">Device ID</string>
+    <string name="app_version">App Version</string>
+    <string name="copied">Copied %1$s</string>
 
     <!-- help -->
     <string name="help">Help</string>
