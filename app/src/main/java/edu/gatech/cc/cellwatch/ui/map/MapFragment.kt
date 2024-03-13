@@ -547,6 +547,8 @@ class MapFragment : Fragment() {
 
             mapView.compass.enabled = false
             mapView.scalebar.enabled = false
+
+            centerCameraOnUser()
         }
     }
 
