@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.databinding.ActivityMainBinding
 import edu.gatech.cc.cellwatch.ui.map.MapFragment
 import edu.gatech.cc.cellwatch.ui.map.MeasureFragment
@@ -22,6 +23,7 @@ class MainActivity : AppCompatActivity(),
     PostMeasureFragment.PostMeasureFragmentInteractionListener {
 
     private lateinit var binding: ActivityMainBinding
+    private val fragmentStack = ArrayDeque<Fragment>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,7 +31,7 @@ class MainActivity : AppCompatActivity(),
         setContentView(binding.root)
 
         createDrawerLayout()
-        replaceFragment(MapFragment())
+        replaceFragment(MapFragment(), false)
     }
 
 
@@ -50,22 +52,22 @@ class MainActivity : AppCompatActivity(),
 
         // Map button functionality
         binding.navDrawer.mapButton.setOnClickListener {
-            replaceFragment(MapFragment())
+            replaceFragment(MapFragment(), false)
         }
 
         // Measure button functionality
         binding.navDrawer.menuMeasureButton.setOnClickListener {
-            replaceFragment(PreMeasureFragment())
+            replaceFragment(PreMeasureFragment(), false)
         }
 
         // Measurement History button functionality
         binding.navDrawer.historyButton.setOnClickListener {
-            replaceFragment(MeasureHistoryFragment())
+            replaceFragment(MeasureHistoryFragment(), false)
         }
 
         // Settings button functionality
         binding.navDrawer.settingsButton.setOnClickListener {
-            replaceFragment(SettingsFragment())
+            replaceFragment(SettingsFragment(), false)
         }
 
         // Help button functionality
@@ -74,7 +76,13 @@ class MainActivity : AppCompatActivity(),
         }
     }
 
-    private fun replaceFragment(fragment: Fragment) {
+    private fun replaceFragment(fragment: Fragment, onBackPressed: Boolean) {
+        val currentFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
+        if (currentFragment != null && !onBackPressed) {
+            fragmentStack.addLast(currentFragment)
+        }
+        Log.i("FragmentDeque", fragmentStack.toString())
+
         if (fragment is MapFragment || fragment is MeasureFragment) {
             binding.toolbar.visibility = View.GONE
         } else {
@@ -114,22 +122,29 @@ class MainActivity : AppCompatActivity(),
     }
 
     override fun onMeasureButtonPressed() {
-        replaceFragment(PreMeasureFragment())
+        replaceFragment(PreMeasureFragment(), false)
     }
 
     override fun onGoButtonPressed() {
-        replaceFragment(MeasureFragment())
+        replaceFragment(MeasureFragment(), false)
     }
 
     override fun onMeasurementComplete() {
-        replaceFragment(PostMeasureFragment())
+        replaceFragment(PostMeasureFragment(), false)
     }
 
     override fun onTakeAnotherMeasurementPressed() {
-        replaceFragment(PreMeasureFragment())
+        replaceFragment(PreMeasureFragment(), false)
     }
 
     override fun onBackToMapPressed() {
-        replaceFragment(MapFragment())
+        replaceFragment(MapFragment(), false)
+    }
+
+    override fun onBackPressed() {
+        if (fragmentStack.isNotEmpty()) {
+            val lastFragment = fragmentStack.removeLast()
+            replaceFragment(lastFragment, true)
+        }
     }
 }
