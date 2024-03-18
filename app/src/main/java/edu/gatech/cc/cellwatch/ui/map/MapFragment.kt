@@ -72,6 +72,7 @@ class MapFragment : Fragment() {
     private var drawerToggleListener: DrawerToggleListener? = null
 
     private val renderedH3Addresses = HashSet<Long>()
+    private val renderedMeasurementOverlays = HashSet<Long>()
 
     interface DrawerToggleListener {
         fun toggleDrawer()
@@ -150,6 +151,7 @@ class MapFragment : Fragment() {
                 lowResPolygonAnnotationManager?.deleteAll()
                 viewAnnotationManager?.removeAllViewAnnotations()
                 renderedH3Addresses.clear()
+                renderedMeasurementOverlays.clear()
                 loadMapAnnotations()
                 mapboxMap.removeOnCameraChangeListener(onCameraChangeListener)
                 mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
@@ -175,6 +177,7 @@ class MapFragment : Fragment() {
         Used when a child hexagon is clicked to display measurements associated with it.
          */
         val data = polygon.getData()
+        Log.i("onPolygonClick", data.toString())
         if (data == null || data.isJsonNull || !data.isJsonObject) {
             Log.i("H3", "Skipping annotation due to null or invalid data")
             return@OnPolygonAnnotationClickListener false // Skip if data is null or not a JsonObject
@@ -183,9 +186,9 @@ class MapFragment : Fragment() {
         val h3AddressElement = data.asJsonObject.get("h3_address")
         val h3Address = h3AddressElement?.takeIf { it.isJsonPrimitive }?.asLong
 
-        if(h3Address?.let { H3Manager.getH3ResolutionFromAddress(it) } == 6) {
+        if(h3Address?.let { H3Manager.getH3ResolutionFromAddress(it) } == 9) {
             val associatedGroups = h3Address.let {
-                runBlocking { H3Manager.getMeasurementGroupsAssociatedWithH3Address(it, 6) }
+                runBlocking { H3Manager.getMeasurementGroupsAssociatedWithH3Address(it, 9) }
             }
 
             if (associatedGroups.size > 1) {
@@ -262,7 +265,6 @@ class MapFragment : Fragment() {
             if (currentZoom < 12.0) {
                 hideMapH3Content()
             } else {
-                viewAnnotationManager?.removeAllViewAnnotations()
                 mapboxMap.addOnMapClickListener(onMapClickListenerH3)
                 loadMapH3()
             }
@@ -388,10 +390,10 @@ class MapFragment : Fragment() {
         val se = Point.fromLngLat(center.latitude() + delta, center.longitude() - delta)
 
         //Convert camera boundaries to h3 boundaries
-        var h3Addresses = H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), 8)
-        h3Addresses = h3Addresses.filterNot { it in renderedH3Addresses }.toMutableList()
+        val h3Addresses = H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), 8)
+        val nonRenderedH3Addresses = h3Addresses.filterNot { it in renderedH3Addresses }.toMutableList()
 
-        val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(h3Addresses)
+        val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(nonRenderedH3Addresses)
 
         withContext(Dispatchers.Main) {
             if (polygonAnnotationManager == null) {
@@ -406,7 +408,6 @@ class MapFragment : Fragment() {
                 viewAnnotationManager = mapView.viewAnnotationManager
             }
 
-
             val reusablePolygonOptions = PolygonAnnotationOptions()
                 .withFillColor("rgba(0, 0, 0, 0)") // Transparent fill color
                 .withFillOutlineColor("#0000FF") // Blue outline color
@@ -418,7 +419,6 @@ class MapFragment : Fragment() {
 
                 val data = JsonObject()
                 data.addProperty("h3_address", address)
-                Log.i("H3 Child Data", "$data")
 
                 renderedH3Addresses.add(address)
                 reusablePolygonOptions.withPoints(listOf(boundary))
@@ -431,12 +431,10 @@ class MapFragment : Fragment() {
                 data.addProperty("h3_address", address)
                 Log.i("H3 Child Data", "$data")
 
-
-                val groups = runBlocking {
-                    H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, 8)
-                }
-                if (groups.size > 1) {
+                val groups = H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, 8)
+                if (groups.size > 1 && !renderedMeasurementOverlays.contains(address)) {
                     val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
+
                     reusablePolygonOptions
                         .withPoints(addressBoundary)
                         .withFillColor("#22B14C") // Green fill color
@@ -454,17 +452,20 @@ class MapFragment : Fragment() {
                         .geometry(hexCenter)
                         .build()
                     viewAnnotationManager?.addViewAnnotation(view, viewAnnotationOptions)
+
+                    renderedMeasurementOverlays.add(address)
                 }
             }
         }
     }
 
     private fun hideMapH3Content() {
-        //Need to figure out some way just to hide them and keep the polygons stored within the manager.
-
+        //TODO Need to figure out some way just to hide them and keep the polygons stored within the manager.
         polygonAnnotationManager?.deleteAll()
         lowResPolygonAnnotationManager?.deleteAll()
         renderedH3Addresses.clear()
+        renderedMeasurementOverlays.clear()
+        viewAnnotationManager?.removeAllViewAnnotations()
     }
 
     private fun displayRes8Hexagons(point: Point) {
@@ -500,7 +501,7 @@ class MapFragment : Fragment() {
 
 
             val groups = runBlocking {
-                H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, 6)
+                H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, 9)
             }
             val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
             reusablePolygonOptions
