@@ -47,6 +47,7 @@ data class Measurement(
     val cellularDataEnabled: Boolean?,
     // When was this record pushed to cloud storage?
     var uploadTime: Instant? = null,
+    val appVersion: String? = null,
 )
 
 fun Measurement.asEntity() = MeasurementEntity(
@@ -80,6 +81,7 @@ fun Measurement.asEntity() = MeasurementEntity(
     createdOn,
     updatedOn,
     uploadTime,
+    appVersion,
 )
 
 fun Measurement.asEntityWithData() = MeasurementWithData(
@@ -113,7 +115,8 @@ fun Measurement.asEntityWithData() = MeasurementWithData(
         extraData,
         createdOn,
         updatedOn,
-        uploadTime
+        uploadTime,
+        appVersion,
     ),
     uploadDownloadData = uploadDownloadData?.asEntity(),
     latencyData = latencyData?.asEntity(),
@@ -150,7 +153,8 @@ fun Measurement.asNetworkModel() = NetworkMeasurement(
     cellularDataEnabled,
     extraData,
     createdOn,
-    updatedOn
+    updatedOn,
+    appVersion = appVersion,
 )
 
 fun Measurement.asNetworkModelWithData() = NetworkMeasurementWithData(
@@ -183,7 +187,8 @@ fun Measurement.asNetworkModelWithData() = NetworkMeasurementWithData(
         cellularDataEnabled,
         extraData,
         createdOn,
-        updatedOn
+        updatedOn,
+        appVersion = appVersion,
     ),
     measurementData = uploadDownloadData?.asNetworkModel(),
     latencyData = latencyData?.asNetworkModel(),

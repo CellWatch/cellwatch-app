@@ -100,7 +100,10 @@ data class NetworkMeasurement(
 
     var locations: List<NetworkLocation>? = null,
 
-    var cells: List<NetworkCell>? = null
+    var cells: List<NetworkCell>? = null,
+
+    @SerialName("app_version")
+    val appVersion: String? = null,
 )
 
 fun NetworkMeasurement.asExternalModel() = Measurement(
@@ -137,4 +140,5 @@ fun NetworkMeasurement.asExternalModel() = Measurement(
     cells?.map { cell -> cell.asExternalModel() },
     connectionType,
     cellularDataEnabled,
+    appVersion = appVersion,
 )

@@ -74,6 +74,7 @@ data class MeasurementEntity(
 
     // When was this record pushed to cloud storage?
     var uploadTime: Instant? = null,
+    val appVersion: String? = null,
 )
 
 fun MeasurementEntity.asExternalModel() = Measurement(
@@ -107,4 +108,5 @@ fun MeasurementEntity.asExternalModel() = Measurement(
     connectionType = connectionType,
     cellularDataEnabled = cellularDataEnabled,
     uploadTime = uploadTime,
+    appVersion = appVersion,
 )
