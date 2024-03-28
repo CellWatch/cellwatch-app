@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
 import com.birjuvachhani.locus.Locus
+import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.LatencyData
@@ -68,6 +69,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
             deviceOsName = "Android",
             deviceOsVersion = deviceMod.osVersion,
             appName = appMod.appName,
+            appVersion = BuildConfig.VERSION_NAME,
             provider = TelephonyInfoManager.getProviderName(),
             type = type,
             scheduled = false,

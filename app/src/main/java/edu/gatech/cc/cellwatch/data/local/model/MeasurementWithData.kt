@@ -71,4 +71,5 @@ fun MeasurementWithData.asExternalModel() = Measurement(
     connectionType = measurement.connectionType,
     cellularDataEnabled = measurement.cellularDataEnabled,
     uploadTime = measurement.uploadTime,
+    appVersion = measurement.appVersion,
 )
