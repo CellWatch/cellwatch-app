@@ -1,10 +1,12 @@
 package edu.gatech.cc.cellwatch.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.databinding.ActivityMainBinding
@@ -14,6 +16,7 @@ import edu.gatech.cc.cellwatch.ui.map.MeasureHistoryFragment
 import edu.gatech.cc.cellwatch.ui.map.PostMeasureFragment
 import edu.gatech.cc.cellwatch.ui.map.PreMeasureFragment
 import edu.gatech.cc.cellwatch.ui.map.SettingsFragment
+import kotlinx.coroutines.runBlocking
 
 class MainActivity : AppCompatActivity(),
     MapFragment.DrawerToggleListener,
@@ -27,6 +30,11 @@ class MainActivity : AppCompatActivity(),
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val onboardingComplete = runBlocking { CellWatchApp.settingsRepository.getOnboardingComplete() }
+        if (!onboardingComplete) {
+            startActivity(Intent(this, OnboardingActivity::class.java))
+        }
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 

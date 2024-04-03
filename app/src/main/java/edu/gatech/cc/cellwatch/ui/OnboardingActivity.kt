@@ -1,132 +1,174 @@
 package edu.gatech.cc.cellwatch.ui
 
 import SettingsSetupFragment
-import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.commit
+import androidx.lifecycle.lifecycleScope
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
-import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.databinding.ActivityHomeBinding
 import edu.gatech.cc.cellwatch.ui.onboarding.CollectionModeFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.DataUseFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.FCCInfoFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.HomeFragment
-import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModel
-import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModelFactory
+import edu.gatech.cc.cellwatch.ui.onboarding.ReadMoreFragment
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
-class OnboardingActivity : AppCompatActivity(), HomeFragment.OnMoreInfoSelectedListener, SettingsSetupFragment.OnPermissionsHandledListener  {
-    private val TAG = this::class.simpleName
-
-    private val model: OnboardingViewModel by viewModels {
-        OnboardingViewModelFactory(CellWatchApp.localDataStore)
-    }
-
-    private var currentPosition = 0
-    private val fragments = listOf(
-        HomeFragment(),
-        DataUseFragment(),
-        CollectionModeFragment(),
-        FCCInfoFragment(),
-        SettingsSetupFragment()
-    )
-
+class OnboardingActivity : AppCompatActivity(),
+    HomeFragment.HomeInteractionListener,
+    ReadMoreFragment.ReadMoreInteractionListener,
+    CollectionModeFragment.CollectionModeInteractionListener,
+    SettingsSetupFragment.OnPermissionsHandledListener
+{
     private lateinit var binding: ActivityHomeBinding
+    private var screen = Screen.WELCOME
+    private var collectionMode: CollectionMode = CollectionMode.FCC_CHALLENGE
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.content_frame, fragments.first())
-            .commit()
+        supportFragmentManager.addFragmentOnAttachListener { _, fragment -> handleFragmentChange(fragment) }
+        supportFragmentManager.addOnBackStackChangedListener { handleFragmentChange(supportFragmentManager.findFragmentById(R.id.content_frame)) }
 
-        updateNav(true)
+        binding.backArrow.setOnClickListener { goPrev() }
+        binding.forwardArrow.setOnClickListener { goNext() }
 
-        binding.backArrow.setOnClickListener {
-            if (currentPosition > 0) {
-                currentPosition--
-                supportFragmentManager.beginTransaction()
-                    .replace(R.id.content_frame, fragments[currentPosition])
-                    .commit()
-                updateNav()
-                Log.d(TAG, "Previous fragment is $currentPosition")
-            }
+        val fragment = supportFragmentManager.findFragmentById(R.id.content_frame)
+        val s = fragment?.let { Screen.fromFragment(it) }
+        if (s == null) {
+            setCurrentFragment(screen.toNewFragment())
+        } else {
+            screen = s
         }
 
-        binding.forwardArrow.setOnClickListener {
-            val currentFragment = supportFragmentManager.findFragmentById(R.id.content_frame)
-            val isValidated = if (currentFragment is FCCInfoFragment) {
-                currentFragment.validateInputs()
-            } else {
-                true
-            }
-
-            if (currentFragment is CollectionModeFragment) {
-                if(currentFragment.retrieveSelection()) {
-                    currentPosition+=2
-                    supportFragmentManager.beginTransaction()
-                        .replace(R.id.content_frame, fragments[currentPosition])
-                        .commit()
-                } else {
-                    currentPosition++
-                    supportFragmentManager.beginTransaction()
-                        .replace(R.id.content_frame, fragments[currentPosition])
-                        .commit()
-                }
-            } else {
-                if (isValidated && currentPosition < fragments.size - 1) {
-                    currentPosition++
-                    supportFragmentManager.beginTransaction()
-                        .replace(R.id.content_frame, fragments[currentPosition])
-                        .commit()
-                }
-            }
-            updateNav()
-        }
-
-        observeDeviceId()
+        updateNav(screen.isNavVisible(), screen.toNavPosition())
     }
 
-    private fun observeDeviceId() {
-        model.getDeviceId().observe(this) { deviceId ->
-            Log.d(TAG, "deviceId = $deviceId")
+    override fun onPermissionsHandled() {
+        runBlocking { CellWatchApp.settingsRepository.setOnboardingComplete(true) }
+        finish()
+    }
+
+    private fun goNext() {
+        if (screen == Screen.FCC_INFO) {
+            val fragment = supportFragmentManager.findFragmentById(R.id.content_frame)
+            if (fragment !is FCCInfoFragment) {
+                throw RuntimeException("screen is set to FCC info, but fragment is $fragment")
+            }
+            if (!fragment.validateInputs()) {
+                return
+            }
+            lifecycleScope.launch {
+                fragment.storeData()
+                CellWatchApp.settingsRepository.setCollectionMode(collectionMode)
+            }
+        } else if (screen == Screen.COLLECTION_MODE && collectionMode == CollectionMode.TESTING) {
+            lifecycleScope.launch { CellWatchApp.settingsRepository.setCollectionMode(collectionMode) }
+        }
+
+        setCurrentFragment(screen.next(collectionMode).toNewFragment())
+    }
+
+    private fun goPrev() {
+        supportFragmentManager.popBackStack()
+    }
+
+    private fun setCurrentFragment(f: Fragment, allowBack: Boolean = true) {
+        supportFragmentManager.commit {
+            replace(R.id.content_frame, f)
+            if (allowBack) addToBackStack(null)
         }
     }
 
-    private fun updateNav(visible: Boolean = true) {
+    private fun updateNav(visible: Boolean, position: Int) {
         binding.nav.isVisible = visible
-        if (!visible) {
-            return
-        }
-
-        binding.backArrow.visibility = if (currentPosition > 0) View.VISIBLE else View.INVISIBLE
-        binding.forwardArrow.visibility = if (currentPosition < fragments.size - 1) View.VISIBLE else View.INVISIBLE
-
-        val activeDot = when (currentPosition) {
-            0 -> binding.dot1
-            1 -> binding.dot2
-            2, 3 -> binding.dot3
+        val activeDot = when (position) {
+            1 -> binding.dot1
+            2 -> binding.dot2
+            3 -> binding.dot3
             4 -> binding.dot4
-            else -> throw RuntimeException("position $currentPosition out of bounds")
+            else -> throw IllegalArgumentException("nav position $position out of range")
         }
 
         listOf(binding.dot1, binding.dot2, binding.dot3, binding.dot4).forEach {
             it.setColorFilter(getColor(if (it == activeDot) R.color.cw_blue else R.color.cw_grey_light))
         }
+
+        binding.backArrow.visibility = if (position > 1) View.VISIBLE else View.INVISIBLE
+        binding.forwardArrow.visibility = if (position < 4) View.VISIBLE else View.INVISIBLE
     }
 
-    override fun onPermissionsHandled() {
-        val intent = Intent(this, MainActivity::class.java)
-        startActivity(intent)
-        finish()
+    override fun onMoreInfoClicked() {
+        setCurrentFragment(ReadMoreFragment())
     }
 
-    override fun onMoreInfoSelected(visible: Boolean) {
-        updateNav(visible)
+    override fun onClose() {
+        supportFragmentManager.popBackStack()
+    }
+
+    override fun onCollectionModeChanged(mode: CollectionMode) {
+        collectionMode = mode
+    }
+
+    fun handleFragmentChange(f: Fragment?) {
+        val s = f?.let { Screen.fromFragment(it) }
+        if (s != null) {
+            screen = s
+            updateNav(screen.isNavVisible(), screen.toNavPosition())
+        }
+    }
+
+    enum class Screen {
+        WELCOME, READ_MORE, DATA_USE, COLLECTION_MODE, FCC_INFO, PERMISSIONS;
+
+        fun next(selectedMode: CollectionMode): Screen = when (this) {
+            WELCOME -> DATA_USE
+            READ_MORE -> throw RuntimeException("can't go next from read more screen")
+            DATA_USE -> COLLECTION_MODE
+            COLLECTION_MODE -> if (selectedMode == CollectionMode.FCC_CHALLENGE) FCC_INFO else PERMISSIONS
+            FCC_INFO -> PERMISSIONS
+            PERMISSIONS -> throw RuntimeException("can't go next from permissions screen")
+        }
+
+        fun toNavPosition(): Int = when (this) {
+            WELCOME, READ_MORE -> 1
+            DATA_USE -> 2
+            COLLECTION_MODE, FCC_INFO -> 3
+            PERMISSIONS -> 4
+        }
+
+        fun isNavVisible(): Boolean = when (this) {
+            READ_MORE -> false
+            else -> true
+        }
+
+        fun toNewFragment(): Fragment = when (this) {
+            WELCOME -> HomeFragment()
+            READ_MORE -> ReadMoreFragment()
+            DATA_USE -> DataUseFragment()
+            COLLECTION_MODE -> CollectionModeFragment()
+            FCC_INFO -> FCCInfoFragment()
+            PERMISSIONS -> SettingsSetupFragment()
+        }
+
+        companion object {
+            fun fromFragment(f: Fragment): Screen? = when (f) {
+                is HomeFragment -> WELCOME
+                is ReadMoreFragment -> READ_MORE
+                is DataUseFragment -> DATA_USE
+                is CollectionModeFragment -> COLLECTION_MODE
+                is FCCInfoFragment -> FCC_INFO
+                is SettingsSetupFragment -> PERMISSIONS
+                else -> null
+            }
+        }
     }
 }

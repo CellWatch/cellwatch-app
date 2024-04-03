@@ -17,7 +17,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -118,9 +117,9 @@ object MeasurementManager {
                 simNetworkCode = latencyMeasurement.simMnc ?: downloadMeasurement.simMnc ?: uploadMeasurement.simMnc,
                 netCountryCode = latencyMeasurement.netMcc ?: downloadMeasurement.netMcc ?: uploadMeasurement.netMcc,
                 netNetworkCode = latencyMeasurement.netMnc ?: downloadMeasurement.netMnc ?: uploadMeasurement.netMnc,
-                contactName = CellWatchApp.localDataStore.getUserName.first(),
-                contactEmail = CellWatchApp.localDataStore.getEmail.first(),
-                contactPhone = CellWatchApp.localDataStore.getPhoneNumber.first()
+                contactName = CellWatchApp.settingsRepository.getName(),
+                contactEmail = CellWatchApp.settingsRepository.getEmail(),
+                contactPhone = CellWatchApp.settingsRepository.getPhoneNumber(),
             )
 
             insertFccSubmission(submission)

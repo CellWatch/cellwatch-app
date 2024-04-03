@@ -3,9 +3,10 @@ package edu.gatech.cc.cellwatch
 import android.app.Application
 import android.content.Context
 import edu.gatech.cc.cellwatch.data.core.repositories.FccSubmissionRepository
-import edu.gatech.cc.cellwatch.data.local.CellWatchDatabase
 import edu.gatech.cc.cellwatch.data.core.repositories.MeasurementRepository
+import edu.gatech.cc.cellwatch.data.core.repositories.SettingsRepository
 import edu.gatech.cc.cellwatch.data.datastore.LocalDataStore
+import edu.gatech.cc.cellwatch.data.local.CellWatchDatabase
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
 import org.conscrypt.Conscrypt
 import java.security.Security
@@ -44,8 +45,11 @@ class CellWatchApp : Application() {
                 NetworkMeasurementDatasource
             )
         }
-        val localDataStore by lazy {
+        private val localDataStore by lazy {
             LocalDataStore(applicationContext())
+        }
+        val settingsRepository by lazy {
+            SettingsRepository(localDataStore)
         }
     }
 }

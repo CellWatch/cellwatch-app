@@ -4,7 +4,6 @@ import com.google.firebase.Firebase
 import com.google.firebase.crashlytics.crashlytics
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 
 object Log {
@@ -16,7 +15,7 @@ object Log {
 
     init {
         Firebase.crashlytics.setCustomKey("debug", BuildConfig.DEBUG)
-        val deviceId = runBlocking { CellWatchApp.localDataStore.getDeviceId.firstOrNull() }
+        val deviceId = runBlocking { CellWatchApp.settingsRepository.getDeviceId() }
         Firebase.crashlytics.setCustomKey("device_id", deviceId ?: "NULL")
     }
 

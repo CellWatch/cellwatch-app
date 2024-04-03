@@ -11,7 +11,6 @@ import edu.gatech.cc.cellwatch.data.model.UploadDownloadData
 import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
-import kotlinx.coroutines.flow.first
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -63,7 +62,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
 
         return Measurement(
             groupId = groupId,
-            deviceId = CellWatchApp.localDataStore.getDeviceId.first(),
+            deviceId = CellWatchApp.settingsRepository.getDeviceId(),
             deviceManufacturer = deviceMod.manufacturer,
             deviceModel = deviceMod.model,
             deviceOsName = "Android",

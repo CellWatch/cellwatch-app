@@ -4,38 +4,25 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import androidx.fragment.app.Fragment
-import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.databinding.FragmentHomeBinding
 
 class HomeFragment : Fragment() {
-
-    interface OnMoreInfoSelectedListener {
-        fun onMoreInfoSelected(visible: Boolean)
+    interface HomeInteractionListener {
+        fun onMoreInfoClicked()
     }
 
-    private lateinit var moreInfoButton: Button
+    private lateinit var binding: FragmentHomeBinding
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        val rootView = inflater.inflate(R.layout.fragment_home, container, false)
-
-        moreInfoButton = rootView.findViewById(R.id.button_readmore)
-        moreInfoButton.setOnClickListener {
-            navigateToReadMoreFragment()
+        val binding = FragmentHomeBinding.inflate(inflater, container, false)
+        val listener = if (activity is HomeInteractionListener) {
+            activity as HomeInteractionListener
+        } else {
+            throw RuntimeException("HomeFragment requires a parent activity that is a HomeInteractionListener")
         }
 
-        return rootView
-    }
-
-    private fun navigateToReadMoreFragment() {
-        (activity as? OnMoreInfoSelectedListener)?.onMoreInfoSelected(false)
-        activity?.supportFragmentManager?.beginTransaction()
-            ?.replace(R.id.content_frame, ReadMoreFragment())
-            ?.commit()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        (activity as? OnMoreInfoSelectedListener)?.onMoreInfoSelected(true)
+        binding.buttonReadmore.setOnClickListener { listener.onMoreInfoClicked() }
+        return binding.root
     }
 }

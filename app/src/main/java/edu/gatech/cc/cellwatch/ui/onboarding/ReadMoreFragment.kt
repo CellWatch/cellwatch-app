@@ -4,38 +4,31 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ImageButton
 import androidx.fragment.app.Fragment
-import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.databinding.FragmentReadmoreBinding
 
 class ReadMoreFragment : Fragment() {
-    private var goHomeButtonTop: ImageButton? = null
-    private var goHomeButtonBottom: Button? = null
+    interface ReadMoreInteractionListener {
+        fun onClose()
+    }
+
+    private lateinit var binding: FragmentReadmoreBinding
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val rootView = inflater.inflate(R.layout.fragment_readmore, container, false)
-        goHomeButtonBottom = rootView.findViewById(R.id.exitButtonBottom)
-        goHomeButtonBottom!!.setOnClickListener { //Simple navigation change instead of navgraph
-            returnToHome()
+        val binding = FragmentReadmoreBinding.inflate(inflater, container, false)
+        val listener = if (activity is ReadMoreInteractionListener) {
+            activity as ReadMoreInteractionListener
+        } else {
+            throw RuntimeException("HomeFragment requires a parent activity that is a ReadMoreInteractionListener")
         }
 
-        goHomeButtonTop = rootView.findViewById(R.id.buttonExitTop)
-        goHomeButtonTop!!.setOnClickListener { //Simple navigation change instead of navgraph
-            returnToHome()
-        }
+        binding.exitButtonBottom.setOnClickListener { listener.onClose() }
+        binding.buttonExitTop.setOnClickListener { listener.onClose() }
 
-        return rootView
-    }
-
-
-    private fun returnToHome() {
-        val fragmentTransaction = activity
-            ?.supportFragmentManager?.beginTransaction()
-        fragmentTransaction?.replace(R.id.content_frame, HomeFragment())
-        fragmentTransaction?.commit()
+        return binding.root
     }
 }

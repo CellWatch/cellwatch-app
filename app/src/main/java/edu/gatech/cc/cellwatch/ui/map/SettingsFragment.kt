@@ -18,7 +18,6 @@ import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.databinding.FragmentSettingsBinding
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class SettingsFragment : Fragment() {
@@ -55,7 +54,7 @@ class SettingsFragment : Fragment() {
         binding.deviceId.text = ""
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                binding.deviceId.text = CellWatchApp.localDataStore.getDeviceId.first()
+                binding.deviceId.text = CellWatchApp.settingsRepository.getDeviceId()
             } catch (t: Throwable) {
                 Log.e(TAG, "failed to set device ID")
             }
