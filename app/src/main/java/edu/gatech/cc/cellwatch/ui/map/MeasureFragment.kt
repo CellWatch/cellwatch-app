@@ -125,7 +125,7 @@ class MeasureFragment : Fragment() {
                 dialog.dismiss()
                 runTestSequence(false)
             }
-            .setNegativeButton(R.string.not_cellular_abort) { dialog, _ -> dialog.dismiss()}
+            .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.dismiss()}
             .show()
     }
 

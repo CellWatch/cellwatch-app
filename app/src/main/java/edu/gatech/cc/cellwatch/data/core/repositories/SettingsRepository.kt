@@ -47,7 +47,7 @@ class SettingsRepository(
             getEmail().isBlank() ||
             !getFccSharingAcknowledged()
         )) {
-            throw IllegalStateException("Cannot enable FCC Challenge mode without setting name, phone, and email and acknowledging FCC sharing")
+            throw MissingFccInfoException()
         }
 
         dataStore.saveCollectionMode(mode)
@@ -59,7 +59,7 @@ class SettingsRepository(
 
     suspend fun setName(name: String) {
         if (getCollectionMode() == CollectionMode.FCC_CHALLENGE && name.isBlank()) {
-            throw IllegalStateException("Cannot set a blank name while in FCC Challenge mode")
+            throw BlankInFccChallengeModeException()
         }
 
         dataStore.saveUserName(name)
@@ -71,7 +71,7 @@ class SettingsRepository(
 
     suspend fun setPhoneNumber(phoneNumber: String) {
         if (getCollectionMode() == CollectionMode.FCC_CHALLENGE && phoneNumber.isBlank()) {
-            throw IllegalStateException("Cannot set a blank phone number while in FCC Challenge mode")
+            throw BlankInFccChallengeModeException()
         }
 
         dataStore.savePhoneNumber(phoneNumber)
@@ -83,7 +83,7 @@ class SettingsRepository(
 
     suspend fun setEmail(email: String) {
         if (getCollectionMode() == CollectionMode.FCC_CHALLENGE && email.isBlank()) {
-            throw IllegalStateException("Cannot set a blank email while in FCC Challenge mode")
+            throw BlankInFccChallengeModeException()
         }
 
         dataStore.saveEmail(email)
@@ -100,4 +100,7 @@ class SettingsRepository(
 
         dataStore.saveFccPolicyAgreed(acknowledged)
     }
+
+    class MissingFccInfoException: IllegalStateException()
+    class BlankInFccChallengeModeException: IllegalStateException()
 }
