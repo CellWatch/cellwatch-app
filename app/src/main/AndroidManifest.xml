@@ -24,16 +24,16 @@
             android:name="edu.gatech.cc.cellwatch.ui.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.CellWatch.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
 
         <activity
             android:name="edu.gatech.cc.cellwatch.ui.OnboardingActivity"
             android:exported="true"
             android:theme="@style/Theme.CellWatch.NoActionBar">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
         </activity>
     </application>
 </manifest>

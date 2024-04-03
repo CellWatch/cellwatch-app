@@ -5,76 +5,44 @@ import android.util.Patterns
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
-import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.activityViewModels
-import com.google.android.material.textfield.TextInputEditText
+import androidx.lifecycle.lifecycleScope
 import edu.gatech.cc.cellwatch.CellWatchApp
-import edu.gatech.cc.cellwatch.R
-import edu.gatech.cc.cellwatch.core.util.Log
-import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModel
-import edu.gatech.cc.cellwatch.ui.onboarding.viewmodels.OnboardingViewModelFactory
+import edu.gatech.cc.cellwatch.data.model.CollectionMode
+import edu.gatech.cc.cellwatch.databinding.FragmentFccInformationBinding
+import kotlinx.coroutines.launch
 
 class FCCInfoFragment : Fragment() {
-    private val TAG = this::class.simpleName
-
-    private lateinit var etName: TextInputEditText
-    private lateinit var etPhone: TextInputEditText
-    private lateinit var etEmail: TextInputEditText
-    private lateinit var awkCheckbox: CheckBox
-
-    private val viewModel: OnboardingViewModel by activityViewModels<OnboardingViewModel> {
-        OnboardingViewModelFactory(CellWatchApp.localDataStore)
-    }
+    private lateinit var binding: FragmentFccInformationBinding
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        val view = inflater.inflate(R.layout.fragment_fcc_information, container, false)
-        etName = view.findViewById(R.id.etName)
-        etPhone = view.findViewById(R.id.etPhone)
-        etEmail = view.findViewById(R.id.etEmail)
-        awkCheckbox = view.findViewById(R.id.cbAcknowledgement)
+    ): View {
+        binding = FragmentFccInformationBinding.inflate(inflater, container, false)
 
-        observeFccInfo()
+        // only load saved info when this is really a newly created activity
+        if (savedInstanceState == null) {
+            lifecycleScope.launch { loadSavedFccInfo() }
+        }
 
-        return view
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        // Find the TextView and make it clickable
-        val tvReadPrivacyPolicy = view.findViewById<LinearLayout>(R.id.LLReadPrivacyPolicy)
-        tvReadPrivacyPolicy.setOnClickListener {
+        binding.LLReadPrivacyPolicy.setOnClickListener {
             showPrivacyPolicyText()
         }
     }
 
-    private fun observeFccInfo() {
-        viewModel.getUserName().observe(this) { userName ->
-            Log.d(TAG, "userName = $userName")
-            etName.setText(userName)
-        }
-
-        viewModel.getPhoneNumber().observe(this) { phoneNumber ->
-            Log.d(TAG, "phoneNumber = $phoneNumber")
-            etPhone.setText(phoneNumber)
-        }
-
-        viewModel.getEmail().observe(this) { email ->
-            Log.d(TAG, "email = $email")
-            etEmail.setText(email)
-        }
-
-        viewModel.getFccPolicyAgreed().observe(this) { fccPolicyAgreed ->
-            Log.d(TAG, "fccPolicyAgreed = $fccPolicyAgreed")
-            awkCheckbox.isChecked = fccPolicyAgreed
-        }
+    private suspend fun loadSavedFccInfo() {
+        binding.etName.setText(CellWatchApp.settingsRepository.getName())
+        binding.etPhone.setText(CellWatchApp.settingsRepository.getPhoneNumber())
+        binding.etEmail.setText(CellWatchApp.settingsRepository.getEmail())
+        binding.cbAcknowledgement.isChecked = CellWatchApp.settingsRepository.getFccSharingAcknowledged()
     }
 
     private fun showPrivacyPolicyText() {
@@ -88,46 +56,42 @@ class FCCInfoFragment : Fragment() {
         ).show()
     }
 
-    private fun storeData() {
-        //TODO Do something with name, email, phone
-        val name = etName.text.toString()
-        val phone = etPhone.text.toString()
-        val email = etEmail.text.toString()
-        val fccPolicyAgreed = awkCheckbox.isChecked
-
-        viewModel.setUserName(name)
-        viewModel.setPhoneNumber(phone)
-        viewModel.setEmail(email)
-        viewModel.agreeToFccPolicy(fccPolicyAgreed)
+    suspend fun storeData() {
+        CellWatchApp.settingsRepository.run {
+            setName(binding.etName.text.toString())
+            setPhoneNumber(binding.etPhone.text.toString())
+            setEmail(binding.etEmail.text.toString())
+            setFccSharingAcknowledged(binding.cbAcknowledgement.isChecked)
+            setCollectionMode(CollectionMode.FCC_CHALLENGE)
+        }
     }
 
     fun validateInputs(): Boolean {
-        val name = etName.text.toString()
-        val phone = etPhone.text.toString()
-        val email = etEmail.text.toString()
+        val name = binding.etName.text.toString()
+        val phone = binding.etPhone.text.toString()
+        val email = binding.etEmail.text.toString()
+        var valid = true
 
-        if (name.isEmpty() || !name.matches("[a-zA-Z\\s'-]+".toRegex())) {
-            etName.error = "Invalid name"
-            return false
+        if (name.isBlank()) {
+            binding.etName.error = "Invalid name"
+            valid = false
         }
 
-        if (phone.isEmpty() || !Patterns.PHONE.matcher(phone).matches()) {
-            etPhone.error = "Invalid phone number"
-            return false
+        if (phone.isBlank() || !Patterns.PHONE.matcher(phone).matches()) {
+            binding.etPhone.error = "Invalid phone number"
+            valid = false
         }
 
-        if (email.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            etEmail.error = "Invalid email address"
-            return false
+        if (email.isBlank() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            binding.etEmail.error = "Invalid email address"
+            valid = false
         }
 
-        if (!awkCheckbox.isChecked) {
+        if (!binding.cbAcknowledgement.isChecked) {
             Toast.makeText(context, "Please acknowledge the bottom statement.", Toast.LENGTH_LONG).show()
-            return false
+            valid = false
         }
 
-        storeData()
-
-        return true
+        return valid
     }
 }

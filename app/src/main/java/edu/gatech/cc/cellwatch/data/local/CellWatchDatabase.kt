@@ -8,16 +8,16 @@ import androidx.room.TypeConverters
 import edu.gatech.cc.cellwatch.core.util.SingletonHolder
 import edu.gatech.cc.cellwatch.data.local.dao.CellDao
 import edu.gatech.cc.cellwatch.data.local.dao.FccSubmissionDao
-import edu.gatech.cc.cellwatch.data.local.model.LatencyDataEntity
-import edu.gatech.cc.cellwatch.data.local.model.LocationEntity
-import edu.gatech.cc.cellwatch.data.local.model.MeasurementEntity
-import edu.gatech.cc.cellwatch.data.local.model.UploadDownloadDataEntity
 import edu.gatech.cc.cellwatch.data.local.dao.LatencyDataDao
 import edu.gatech.cc.cellwatch.data.local.dao.LocationDao
 import edu.gatech.cc.cellwatch.data.local.dao.MeasurementDao
 import edu.gatech.cc.cellwatch.data.local.dao.UploadDownloadDataDao
 import edu.gatech.cc.cellwatch.data.local.model.CellEntity
 import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
+import edu.gatech.cc.cellwatch.data.local.model.LatencyDataEntity
+import edu.gatech.cc.cellwatch.data.local.model.LocationEntity
+import edu.gatech.cc.cellwatch.data.local.model.MeasurementEntity
+import edu.gatech.cc.cellwatch.data.local.model.UploadDownloadDataEntity
 import edu.gatech.cc.cellwatch.data.local.util.InstantConverter
 import edu.gatech.cc.cellwatch.data.local.util.ListConverter
 
@@ -30,7 +30,7 @@ import edu.gatech.cc.cellwatch.data.local.util.ListConverter
         LocationEntity::class,
         CellEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false,
 )
 @TypeConverters(
