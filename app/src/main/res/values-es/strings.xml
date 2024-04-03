@@ -84,7 +84,7 @@
     <string name="latency_ms">%1$d ms</string>
     <string name="not_cellular_warning">Parece que está conectado al WiFi o se apagaron los datos celulares. Si continúa, puede que la medición no se envíe a la FCC.</string>
     <string name="not_cellular_proceed">Medir de todas maneras</string>
-    <string name="not_cellular_abort">Cancelar</string>
+    <string name="cancel">Cancelar</string>
 
     <!-- post measure -->
     <string name="results">Resultados</string>
@@ -114,6 +114,9 @@
     <string name="device_id">Identificación de dispositivo</string>
     <string name="app_version">Versión de aplicación</string>
     <string name="copied">Se copió %1$s</string>
+    <string name="acknowledge">Reconocer</string>
+    <string name="missing_fcc_info_error">No se puede activar el modo de impugnación FCC sin anotar su nombre, número de teléfono y correo electrónico.</string>
+    <string name="blank_info_error">No se puede dejar en blanco su nombre, número de teléfono ni correo electrónico mientras está activo el modo de impugnación FCC.</string>
 
     <!-- help -->
     <string name="help">Ayuda</string>
