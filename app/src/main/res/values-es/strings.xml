@@ -109,12 +109,7 @@
     <!-- settings -->
     <string name="settings">Ajustes</string>
     <string name="p_info">Información personal</string>
-    <string name="data_share">Compartimiento de datos</string>
     <string name="apply_changes">Aplicar cambios</string>
-    <string-array name="data_sharing_options_array">
-        <item>FCC y CellWatch</item>
-        <item>solo CellWatch</item>
-    </string-array>
     <string name="edit">Editar</string>
     <string name="device_id">Identificación de dispositivo</string>
     <string name="app_version">Versión de aplicación</string>

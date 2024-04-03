@@ -103,7 +103,6 @@
     <!-- settings -->
     <string name="settings">Settings</string>
     <string name="p_info">Personal Information</string>
-    <string name="data_share">Data Sharing</string>
     <string name="apply_changes">Apply Changes</string>
     <string-array name="data_sharing_options_array">
         <item>FCC and CellWatch</item>

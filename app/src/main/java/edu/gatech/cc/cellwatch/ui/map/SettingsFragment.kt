@@ -30,9 +30,9 @@ class SettingsFragment : Fragment() {
     ): View {
         binding = FragmentSettingsBinding.inflate(inflater, container, false)
 
-        shareArray = resources.getStringArray(R.array.data_sharing_options_array)
+        shareArray = arrayOf(getString(R.string.fcc_challenge_mode), getString(R.string.testing_mode))
         val adapter = ArrayAdapter(requireContext(), R.layout.dropdown_item, shareArray)
-        (binding.dataShareMenu.editText as? AutoCompleteTextView)?.setAdapter(adapter)
+        (binding.collectionModeMenu.editText as? AutoCompleteTextView)?.setAdapter(adapter)
 
 
         //TODO Load user name/email/phone/FCC Data Collection on fragment start
