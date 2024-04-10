@@ -1,8 +1,9 @@
 package edu.gatech.cc.cellwatch.data.network
 
-import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.annotation.WorkerThread
 import edu.gatech.cc.cellwatch.BuildConfig
+import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.Cell
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.LatencyData
@@ -27,8 +28,13 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.PostgrestResult
 import io.github.jan.supabase.postgrest.rpc
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.Clock
 
 object NetworkMeasurementDatasource {
     private val TAG = this::class.simpleName
@@ -194,6 +200,10 @@ object NetworkMeasurementDatasource {
             insertedMeasurement =
                 supabaseClient.postgrest.rpc("insert_measurement", networkMeasurementData).decodeAs<NetworkMeasurement>().asExternalModel()
 
+            // Update synchronized status in local Room database
+            insertedMeasurement.uploadTime = Clock.System.now()
+            CellWatchApp.measurementRepository.updateMeasurement(insertedMeasurement)
+
             Log.d(
                 TAG,
                 "*** Inserted new Measurement record as transaction: $insertedMeasurement"
@@ -236,6 +246,124 @@ object NetworkMeasurementDatasource {
         }
 
         return insertedMeasurements
+    }
+
+    @WorkerThread
+    suspend fun uploadMeasurements(measurements: List<Measurement>): List<NetworkRestResult> = coroutineScope {
+        val deferredResults = measurements.map { measurement ->
+            async(Dispatchers.IO) {
+                try {
+                    Log.d(TAG, "insertMeasurement: $measurement")
+                    NetworkRestResult(insertMeasurementTransaction(measurement), null)
+                } catch (e: RestException) {
+                    Log.e(TAG, "RestException: ${e.error}")
+                    // Don't fail on Rest Exceptions
+                    NetworkRestResult(measurement, e)
+                } catch (e: HttpRequestTimeoutException) {
+                    Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+                    throw e
+                } catch (e: HttpRequestException) {
+                    Log.e(TAG, "HttpRequestException: ${e.message}")
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Exception: ${e.message}")
+                    throw e
+                }
+            }
+        }
+
+        deferredResults.awaitAll()
+    }
+
+//    private suspend fun allOrSome(): List<Deferred<Measurement>> =
+//        supervisorScope { deferredList() }
+
+//    private fun CoroutineScope.deferredList(): List<Deferred<String>> =
+//        List(10) {
+//            this.async {
+//                delay(it * 10L)
+//                if (it != 5) "$it" else throw SillyException()
+//            }
+//        }
+
+
+//    class SillyException : Throwable("Silly")
+
+//    @WorkerThread
+//    suspend fun insertMeasurementsTest2(measurements: List<Measurement>): List<Measurement> = coroutineScope {
+//        val deferredInsertedMeasurements = measurements.map { measurement ->
+//            async(Dispatchers.IO) {
+//                try {
+//                    Log.d(TAG, "insertMeasurement: $measurement")
+//                        insertMeasurementTransaction(measurement)
+//                } catch (e: RestException) {
+//                    Log.e(TAG, "RestException: ${e.error}, ${e.message}")
+//                    // Don't fail on Rest Exceptions
+//                    measurement
+////                    null
+//                } catch (e: HttpRequestTimeoutException) {
+//                    Log.e(TAG, "HttpRequestTimeoutException: ${e.message}")
+//                    throw e
+//                } catch (e: HttpRequestException) {
+//                    Log.e(TAG, "HttpRequestException: ${e.message}")
+//                    throw e
+//                } catch (e: Exception) {
+//                    Log.e(TAG, "Exception: ${e.message}")
+//                    throw e
+//                }
+//            }
+//        }
+//
+////        deferredInsertedMeasurements.awaitAll().filterNotNull()
+//        deferredInsertedMeasurements.awaitAll()
+//    }
+
+//    @WorkerThread
+//    suspend fun insertMeasurementsTest(measurements: List<Measurement>): List<Measurement>? {
+//        var insertedMeasurements: List<Measurement>? = null
+//
+//        val scope = CoroutineScope(ceh + Dispatchers.IO)
+//        var index = 0
+//
+//        Log.d(TAG, "Inserting ${measurements.size} measurements")
+//
+//        scope.launch {
+////            try {
+//                Log.d(TAG, "launch coroutine...")
+//                insertedMeasurements = supervisorScope {
+//                    Log.d(TAG, "launch supervisorScope...")
+//
+//                    withContext(Dispatchers.IO) {
+//                        measurements.mapNotNull { measurement ->
+//                            try {
+//                                Log.d(TAG, "insertMeasurements: $measurement")
+//                                if (index != 2) {
+//                                    index++
+//                                    insertMeasurementTransaction(measurement)
+//                                } else throw SillyException()
+//                            } catch (e: Throwable) {
+//                                Log.e(TAG, "Error in insertMeasurementTransaction: ${e.message}")
+//                                null
+//                            }
+//                        }
+//                    }
+//                }
+//        }
+//
+////        withContext(Dispatchers.IO) {
+////            Thread.sleep(1000)
+////        }
+//
+//        insertedMeasurements?.map {
+//            it.uploadTime = Clock.System.now()
+//            Log.d(TAG, "insertedMeasurement: $it")
+//        }
+//
+//        return insertedMeasurements
+//    }
+
+    val ceh = CoroutineExceptionHandler { _, e ->
+        println("Handled Crash $e")
     }
 
     @WorkerThread
@@ -461,7 +589,7 @@ object NetworkMeasurementDatasource {
                     Measurement::id eq measurementId
                 }
 
-                Log.d(TAG, "PostgrestResult = ${result.body}")
+                Log.d(TAG, "getMeasurementById: PostgrestResult = ${result.body}")
             } catch (e: RestException) {
                 Log.e(TAG, "RestException: ${e.message}")
                 throw e
@@ -477,6 +605,7 @@ object NetworkMeasurementDatasource {
             }
         }
 
-        return null
+        // return Measurement or null if not found
+        return result.decodeSingleOrNull<NetworkMeasurement>()?.asExternalModel()
     }
 }
