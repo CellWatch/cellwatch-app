@@ -3,6 +3,8 @@ package edu.gatech.cc.cellwatch
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.gson.GsonBuilder
 import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.data.core.repositories.MeasurementRepository
+import edu.gatech.cc.cellwatch.data.local.CellWatchDatabase
 import edu.gatech.cc.cellwatch.data.model.Cell
 import edu.gatech.cc.cellwatch.data.model.LatencyData
 import edu.gatech.cc.cellwatch.data.model.Location
@@ -37,6 +39,17 @@ import java.util.UUID
 class NetworkMeasurementDatasourceTest {
     private lateinit var networkMeasurementDatasource: NetworkMeasurementDatasource
 
+    private lateinit var measurementRepository: MeasurementRepository
+
+//    val measurementRepository by lazy {
+//        MeasurementRepository(
+//            CellWatchApp.database.measurementDao(),
+//            CellWatchApp.database.fccSubmissionDao(),
+//            NetworkMeasurementDatasource
+//        )
+//    }
+
+
     private lateinit var supabaseClient: SupabaseClient
 
     private lateinit var measurementTable: PostgrestBuilder
@@ -49,11 +62,27 @@ class NetworkMeasurementDatasourceTest {
     }
 
     private val groupId = UUID.randomUUID().toString()
+    private val campaignId = UUID.randomUUID().toString()
+    private val sessionId = UUID.randomUUID().toString()
+
+    @Before
+    fun createMeasurementRepository() {
+        val database = CellWatchDatabase.getInstance(CellWatchApp.applicationContext())
+
+        measurementRepository = MeasurementRepository(
+                database.measurementDao(),
+                database.fccSubmissionDao(),
+                NetworkMeasurementDatasource
+            )
+    }
     
     @Before
-    fun createMeasurementNetworkDatasource() {
+    fun createNetworkMeasurementDatasource() {
         val supabaseUrl = BuildConfig.SUPABASE_URL
         val supabaseApiKey = BuildConfig.SUPABASE_API_KEY
+
+        Log.d(TAG, "SUPABASE_URL = $supabaseUrl")
+        Log.d(TAG, "SUPABASE_API_KEY = $supabaseApiKey")
 
         networkMeasurementDatasource = NetworkMeasurementDatasource
 
@@ -70,14 +99,430 @@ class NetworkMeasurementDatasourceTest {
         latencyTable = supabaseClient.postgrest["latency_data"]
     }
 
+    fun createMeasurementsWithData(): List<Measurement> {
+        val deviceId = UUID.randomUUID().toString()
+        val duplicateId = UUID.randomUUID().toString()
+
+//        val groupId = UUID.randomUUID().toString()
+
+        val downloadLocations = listOf(
+            Location(
+//                id = duplicateId,
+                timestamp = Clock.System.now(),
+                lat = 33.87297,
+                lon = -84.3413,
+                accuracy = 20.883,
+                speed = .323,
+                heading = 234.98
+            ),
+            Location(
+//                id = duplicateId,
+                timestamp = Clock.System.now(),
+                lat = 33.87797,
+                lon = -84.3111,
+                accuracy = 20.3,
+                speed = .123,
+                heading = 234.23
+            )
+        )
+
+        val uploadLocations = listOf(
+            Location(
+                timestamp = Clock.System.now(),
+                lat = 33.297,
+                lon = -84.13,
+                accuracy = 20.45883,
+                speed = 0.1,
+                heading = 234.44
+            ),
+            Location(
+                timestamp = Clock.System.now(),
+                lat = 33.4797,
+                lon = -84.5111,
+                accuracy = 20.93,
+                speed = .23,
+                heading = 233.3
+            )
+        )
+
+        val uploadCells = listOf(
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 234,
+                physicalCellId = 4321,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -103,
+                rssi = -78,
+                rsrp = -102,
+                rsrq = -12,
+                sinr = 2,
+                csiRsrp = -101,
+                csiRsrq = -13,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            ),
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 235,
+                physicalCellId = 4322,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -102,
+                rssi = -79,
+                rsrp = -101,
+                rsrq = -11,
+                sinr = 2,
+                csiRsrp = -100,
+                csiRsrq = -14,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            )
+        )
+
+        val downloadCells = listOf(
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 234,
+                physicalCellId = 4321,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -103,
+                rssi = -78,
+                rsrp = -102,
+                rsrq = -12,
+                sinr = 2,
+                csiRsrp = -101,
+                csiRsrq = -13,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            ),
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 235,
+                physicalCellId = 4322,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -102,
+                rssi = -79,
+                rsrp = -101,
+                rsrq = -11,
+                sinr = 2,
+                csiRsrp = -100,
+                csiRsrq = -14,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            )
+        )
+
+        val latencyCells = listOf(
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 234,
+                physicalCellId = 4321,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -103,
+                rssi = -78,
+                rsrp = -102,
+                rsrq = -12,
+                sinr = 2,
+                csiRsrp = -101,
+                csiRsrq = -13,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            ),
+            Cell(
+                timestamp = Clock.System.now(),
+                cellId = 235,
+                physicalCellId = 4322,
+                cellConnection = 1,
+                networkGeneration = "5G",
+                networkSubtype = "GSM",
+                signalStrength = -102,
+                rssi = -79,
+                rsrp = -101,
+                rsrq = -11,
+                sinr = 2,
+                csiRsrp = -100,
+                csiRsrq = -14,
+                csiSinr = 2,
+                cqi = 4,
+                spectrumBand = "n41",
+                spectrumBandwidth = 100.0f,
+                arfcn = 528000
+            )
+        )
+
+        val latencyLocations = listOf(
+            Location(
+                timestamp = Clock.System.now(),
+                lat = 33.297,
+                lon = -84.13,
+                accuracy = 20.45883,
+                speed = 0.1,
+                heading = 234.44
+            ),
+            Location(
+                timestamp = Clock.System.now(),
+                lat = 33.4797,
+                lon = -84.5111,
+                accuracy = 20.93,
+                speed = .23,
+                heading = 233.3
+            )
+        )
+
+        val uploadData = UploadDownloadData(
+            warmupDuration = 10234,
+            warmupBytes = 134425,
+            duration = 9372444,
+            bytes = 83724,
+            applicationBytes = 92331,
+            servers = listOf("server1", "server2")
+        )
+
+        val downloadData = UploadDownloadData(
+            warmupDuration = 12344,
+            warmupBytes = 56325,
+            duration = 3756444,
+            bytes = 53724,
+            applicationBytes = 92331,
+            servers = listOf("server1", "server2")
+        )
+
+        val latencyData = LatencyData(
+            rtt = 12355,
+            jitter = 88372,
+            sent = 8124553,
+            received = 779927,
+            servers = listOf("server1", "server2")
+        )
+
+        val downloadMeasurement = Measurement(
+//            id = UUID.randomUUID().toString(),
+//            id = duplicateId,
+            groupId = groupId,
+            campaignId = campaignId,
+            sessionId = sessionId,
+            deviceId = deviceId,
+            deviceManufacturer = "Google",
+            deviceModel = "Pixel 5",
+            deviceOsName = "Android",
+            deviceOsVersion = "13",
+            appName = "CellWatch",
+            provider = "T-Mobile",
+            type = "download", //direction.toString().lowercase(),
+            timestamp = Clock.System.now(),
+            duration = 7288314,
+            scheduled = false,
+            success = true,
+            carrierAggregation = false,
+            networkAvailable = true,
+            networkConnected = true,
+            networkRoaming = false,
+            simMcc = "310",
+            simMnc = "310",
+            netMcc = "410",
+            netMnc = "410",
+            extraData = "extraData",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
+            uploadDownloadData = downloadData,
+            cells = downloadCells,
+            locations = downloadLocations
+        )
+
+        val uploadMeasurement = Measurement(
+//            id = UUID.randomUUID().toString(),
+//            id = duplicateId,
+            groupId = groupId,
+            campaignId = campaignId,
+            sessionId = sessionId,
+            deviceId = deviceId,
+            deviceManufacturer = "Google",
+            deviceModel = "Pixel 5",
+            deviceOsName = "Android",
+            deviceOsVersion = "13",
+            appName = "CellWatch",
+            provider = "T-Mobile",
+            type = "upload", //direction.toString().lowercase(),
+            timestamp = Clock.System.now(),
+            duration = 8874314,
+            scheduled = false,
+            success = true,
+            carrierAggregation = false,
+            networkAvailable = true,
+            networkConnected = true,
+            networkRoaming = false,
+            simMcc = "310",
+            simMnc = "310",
+            netMcc = "410",
+            netMnc = "410",
+            extraData = "extraData",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
+            uploadDownloadData = uploadData,
+            cells = uploadCells,
+            locations = uploadLocations
+        )
+
+        val latencyMeasurement = Measurement(
+//            id = UUID.randomUUID().toString(),
+//            id = duplicateId,
+            groupId = groupId,
+            campaignId = campaignId,
+            sessionId = sessionId,
+            deviceId = deviceId,
+            deviceManufacturer = "Google",
+            deviceModel = "Pixel 5",
+            deviceOsName = "Android",
+            deviceOsVersion = "13",
+            appName = "CellWatch",
+            provider = "T-Mobile",
+            type = "latency", //direction.toString().lowercase(),
+            timestamp = Clock.System.now(),
+            duration = 742314,
+            scheduled = false,
+            success = true,
+            carrierAggregation = false,
+            networkAvailable = true,
+            networkConnected = true,
+            networkRoaming = false,
+            simMcc = "310",
+            simMnc = "310",
+            netMcc = "410",
+            netMnc = "410",
+            extraData = "extraData",
+            cellularDataEnabled = true,
+            connectionType = NetworkConnectionType.CELLULAR,
+            latencyData = latencyData,
+            cells = latencyCells,
+            locations = latencyLocations
+        )
+
+        return listOf(latencyMeasurement, downloadMeasurement, uploadMeasurement)
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun asyncTest() {
+        Log.d(TAG, "!!!! asyncTest !!!!")
+        val newMeasurements = createMeasurementsWithData()
+
+        runBlocking {
+            // insert new measurements into local Room database
+            newMeasurements.map { measurement ->
+                measurementRepository.insertMeasurement(measurement)
+            }
+
+            val uploadTime = measurementRepository.uploadMeasurements()
+
+            Log.d(TAG, "asyncTest: uploadTime = $uploadTime")
+
+            var unsynchronizedMeasurements =
+                measurementRepository.getUnsynchronizedMeasurementsWithData()
+
+            assertEquals(0, unsynchronizedMeasurements.size)
+        }
+        Log.d(TAG, "!!!! Done with asyncTest !!!!")
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun asyncTest2() {
+        Log.d(TAG, "!!!! asyncTest2 !!!!")
+        val newMeasurements = createMeasurementsWithData()
+
+        runBlocking {
+            // insert new measurements into local Room database
+            newMeasurements.map { measurement ->
+                measurementRepository.insertMeasurement(measurement)
+            }
+
+            var unsynchronizedMeasurements = measurementRepository.getUnsynchronizedMeasurementsWithData()
+
+            assertEquals(3, unsynchronizedMeasurements.size)
+
+            val duplicateId = unsynchronizedMeasurements[1].uploadDownloadData?.id
+
+            if (duplicateId != null && unsynchronizedMeasurements[2].uploadDownloadData != null) {
+                unsynchronizedMeasurements[2].uploadDownloadData!!.id = duplicateId
+            }
+
+            // upload measurements to Supabase
+            val results = networkMeasurementDatasource.uploadMeasurements(unsynchronizedMeasurements)
+//            val insertedMeasurements = networkMeasurementDatasource.insertMeasurementsTest2(unsynchronizedMeasurements)
+
+            Log.d(TAG, "************** Number of inserted measurements: ${results.size}")
+
+            results.forEach {
+                Log.d(TAG, "Error: ${it.error}")
+            }
+
+            val errors = results.filter { it.error != null }.map { it.error }
+
+            Log.d(TAG, "************** Number of errors: ${errors.size}")
+
+            errors.map {
+                val isDuplicateKeyError = it?.error?.startsWith("duplicate key value violates unique constraint") ?: false
+                if (isDuplicateKeyError) {
+                    Log.d(TAG, "!!!!!!!! Duplicate key error !!!!!!!!")
+                } else {
+                    Log.d(TAG, "!!!!!!! Unknown REST error !!!!!!!")
+                }
+            }
+
+            assertEquals(3, results.size)
+
+            val successfulUploads = results.filter { it.measurement.uploadTime != null }.size
+
+            Log.d(TAG, "**** Successfully uploaded $successfulUploads out of ${results.size} measurements")
+            assertEquals(successfulUploads, 2)
+
+            val errorResults = results.filter { it.error != null }.map { it }
+
+            // assume duplicate key means this measurement was already synced with Supabase
+            errorResults.forEach { errorResult ->
+                errorResult.measurement.uploadTime = Clock.System.now()
+                measurementRepository.updateMeasurement(errorResult.measurement)
+            }
+
+            unsynchronizedMeasurements = measurementRepository.getUnsynchronizedMeasurementsWithData()
+
+            assertEquals(0, unsynchronizedMeasurements.size)
+        }
+        Log.d(TAG, "!!!! Done with asyncTest2 !!!!")
+    }
+
     @Test
     @Throws(Exception::class)
     fun measurementInsert() {
         var insertedMeasurement: Measurement? = null
         val measurement = Measurement(
             groupId = UUID.randomUUID().toString(),
-//            campaignId = UUID.randomUUID().toString(),
-//            sessionId = UUID.randomUUID().toString(),
+            campaignId = UUID.randomUUID().toString(),
+            sessionId = UUID.randomUUID().toString(),
             deviceId = UUID.randomUUID().toString(),
             deviceManufacturer = "Google",
             deviceModel = "Pixel 5",
@@ -355,8 +800,8 @@ class NetworkMeasurementDatasourceTest {
         val downloadMeasurement = Measurement(
 //            id = UUID.randomUUID().toString(),
             groupId = groupId,
-            campaignId = UUID.randomUUID().toString(),
-            sessionId = UUID.randomUUID().toString(),
+            campaignId = campaignId,
+            sessionId = sessionId,
             deviceId = deviceId,
             deviceManufacturer = "Google",
             deviceModel = "Pixel 5",
@@ -385,8 +830,8 @@ class NetworkMeasurementDatasourceTest {
         val uploadMeasurement = Measurement(
 //            id = UUID.randomUUID().toString(),
             groupId = groupId,
-            campaignId = UUID.randomUUID().toString(),
-            sessionId = UUID.randomUUID().toString(),
+            campaignId = campaignId,
+            sessionId = sessionId,
             deviceId = deviceId,
             deviceManufacturer = "Google",
             deviceModel = "Pixel 5",
@@ -415,8 +860,8 @@ class NetworkMeasurementDatasourceTest {
         val latencyMeasurement = Measurement(
 //            id = UUID.randomUUID().toString(),
             groupId = groupId,
-            campaignId = UUID.randomUUID().toString(),
-            sessionId = UUID.randomUUID().toString(),
+            campaignId = campaignId,
+            sessionId = sessionId,
             deviceId = deviceId,
             deviceManufacturer = "Google",
             deviceModel = "Pixel 5",
@@ -446,7 +891,6 @@ class NetworkMeasurementDatasourceTest {
             uploadMeasurement.asNetworkModel(),
             uploadData.asNetworkModel(),
             null,
-//            uploadLatencyData.asNetworkModel(),
             uploadLocations.map { location -> location.asNetworkModel() },
             uploadCells.map { cell -> cell.asNetworkModel() }
         )
@@ -455,7 +899,6 @@ class NetworkMeasurementDatasourceTest {
             downloadMeasurement.asNetworkModel(),
             downloadData.asNetworkModel(),
             null,
-//            downloadLatencyData.asNetworkModel(),
             downloadLocations.map { location -> location.asNetworkModel() },
             downloadCells.map { cell -> cell.asNetworkModel() }
         )
@@ -847,22 +1290,22 @@ class NetworkMeasurementDatasourceTest {
     @Throws(Exception::class)
     fun GetMeasurementById() {
         val measurement: Measurement?
-        val measurementId = "0f65833e-5c3f-4738-8005-8b294ccf074d"
+        val measurementId = "4d66fb3d-3d2c-4735-9355-01e5ba7256ca"
         val gson = GsonBuilder().setPrettyPrinting().create()
 
-        try {
-            measurement = runBlocking {
-                networkMeasurementDatasource.getMeasurementById(measurementId)
+        runBlocking {
+            try {
+                measurement = networkMeasurementDatasource.getMeasurementById(measurementId)
+            } catch (e: Exception) {
+                Log.d(TAG, "Cannot find Measurement with id = $measurementId", e)
+                throw e
             }
-        } catch (e: Exception) {
-            Log.d(TAG, "Cannot find Measurement with id = $measurementId", e)
-            throw e
-        }
 
-        if (measurement != null) {
-            Log.d(TAG, "*** Found Measurement with id = $measurementId")
-            val jsonString = gson.toJson(measurement.asNetworkModel())
-            Log.d(TAG, jsonString)
+            if (measurement != null) {
+                Log.d(TAG, "*** Found Measurement with id = $measurementId")
+                val jsonString = gson.toJson(measurement.asNetworkModel())
+                Log.d(TAG, jsonString)
+            }
         }
     }
 }

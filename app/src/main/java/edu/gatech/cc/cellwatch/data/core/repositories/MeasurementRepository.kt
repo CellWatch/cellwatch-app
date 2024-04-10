@@ -13,6 +13,7 @@ import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.data.model.asEntity
 import edu.gatech.cc.cellwatch.data.model.asEntityWithData
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
+import edu.gatech.cc.cellwatch.data.network.NetworkRestResult
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
@@ -77,9 +78,15 @@ class MeasurementRepository(
     @WorkerThread
     suspend fun insertMeasurement(measurement: Measurement) {
         val measurementWithDataEntity = measurement.asEntityWithData()
-        Log.d(TAG, "MeasurementRepository.insertMeasurement: measurementWithDataEntity.cells length is ${measurementWithDataEntity.cells?.size}")
-        Log.d(TAG, "MeasurementRepository.insertMeasurement: measurementWithDataEntity.simMcc is ${measurementWithDataEntity.measurement.simMcc}")
+//        Log.d(TAG, "MeasurementRepository.insertMeasurement: measurementWithDataEntity.cells length is ${measurementWithDataEntity.cells?.size}")
+//        Log.d(TAG, "MeasurementRepository.insertMeasurement: measurementWithDataEntity.simMcc is ${measurementWithDataEntity.measurement.simMcc}")
         measurementDao.insertMeasurementWithData(measurementWithDataEntity)
+    }
+
+    @WorkerThread
+    suspend fun updateMeasurement(measurement: Measurement) {
+        val measurementEntity = measurement.asEntity()
+        measurementDao.updateMeasurement(measurementEntity)
     }
 
     /**
@@ -89,30 +96,71 @@ class MeasurementRepository(
      */
     @WorkerThread
     suspend fun uploadMeasurements(): Instant? {
-        val measurements = getUnsynchronizedMeasurementsWithData()
+        val results: List<NetworkRestResult>
+        val unsynchronizedMeasurements = getUnsynchronizedMeasurementsWithData()
 
-        if (measurements.isNotEmpty()) {
-            Log.d(TAG, "uploadMeasurements: Attempting to upload ${measurements.size} measurements")
+        if (unsynchronizedMeasurements.isNotEmpty()) {
+            Log.d(TAG, "uploadMeasurements: Attempting to upload ${unsynchronizedMeasurements.size} measurements")
             try {
-                networkDataSource.insertMeasurements(measurements)
+                results = networkDataSource.uploadMeasurements(unsynchronizedMeasurements)
+//                networkDataSource.insertMeasurements(measurements)
+                val errors = results.filter { it.error != null }.map { it.error }
+                Log.d(TAG, "************** Number of errors: ${errors.size}")
+                errors.map {
+                    val isDuplicateKeyError = it?.error?.startsWith("duplicate key value violates unique constraint") ?: false
+                    if (isDuplicateKeyError) {
+                        Log.d(TAG, "!!!!!!!! Duplicate key error !!!!!!!!")
+                    } else {
+                        Log.d(TAG, "!!!!!!! Unknown REST error !!!!!!!")
+                    }
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in uploadMeasurements: ${e.message}")
                 throw e
             }
 
-            Log.d(TAG, "Update ${measurements.size} measurements as synchronized")
-            val uploadTime = Clock.System.now()
+            val errorResults = results.filter { it.error != null }.map { it }
 
-            measurements.forEach { measurement ->
-                val measurementEntity = measurement.asEntity()
-                measurementEntity.uploadTime = uploadTime
-                measurementDao.updateMeasurement(measurementEntity)
+            // assume duplicate key means this measurement was already synced with Supabase
+            // so, update measurement.uploadTime
+            errorResults.forEach { errorResult ->
+                errorResult.measurement.uploadTime = Clock.System.now()
+                updateMeasurement(errorResult.measurement)
             }
 
-            return uploadTime
+            return Clock.System.now()
         } else {
             Log.d(TAG, "No measurements to upload !!!")
             return null
         }
     }
+
+//    @WorkerThread
+//    suspend fun uploadMeasurementsTest(): Instant? {
+//        val measurements = getUnsynchronizedMeasurementsWithData()
+//
+//        if (measurements.isNotEmpty()) {
+//            Log.d(TAG, "uploadMeasurements: Attempting to upload ${measurements.size} measurements")
+//            try {
+//                networkDataSource.insertMeasurementsTest(measurements)
+//            } catch (e: Exception) {
+//                Log.e(TAG, "Error in uploadMeasurements: ${e.message}")
+//                throw e
+//            }
+//
+//            Log.d(TAG, "Update ${measurements.size} measurements as synchronized")
+//            val uploadTime = Clock.System.now()
+//
+//            measurements.forEach { measurement ->
+//                val measurementEntity = measurement.asEntity()
+//                measurementEntity.uploadTime = uploadTime
+//                measurementDao.updateMeasurement(measurementEntity)
+//            }
+//
+//            return uploadTime
+//        } else {
+//            Log.d(TAG, "No measurements to upload !!!")
+//            return null
+//        }
+//    }
 }
