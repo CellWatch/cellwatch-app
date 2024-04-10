@@ -161,4 +161,5 @@ dependencies {
     implementation "com.uber:h3:3.7.2"
 
     implementation 'com.googlecode.libphonenumber:libphonenumber:8.12.46'
+    implementation 'commons-validator:commons-validator:1.7'
 }

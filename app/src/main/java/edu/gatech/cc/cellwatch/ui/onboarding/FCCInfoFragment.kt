@@ -13,6 +13,7 @@ import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.databinding.FragmentFccInformationBinding
 import kotlinx.coroutines.launch
+import org.apache.commons.validator.routines.EmailValidator
 
 class FCCInfoFragment : Fragment() {
     private lateinit var binding: FragmentFccInformationBinding
@@ -85,7 +86,7 @@ class FCCInfoFragment : Fragment() {
             valid = false
         }
 
-        if (email.isBlank() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+        if (email.isBlank() || !EmailValidator.getInstance().isValid(email)) {
             binding.etEmail.error = "Invalid email address"
             valid = false
         }
