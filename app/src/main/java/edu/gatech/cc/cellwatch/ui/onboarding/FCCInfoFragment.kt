@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.google.i18n.phonenumbers.PhoneNumberUtil
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.databinding.FragmentFccInformationBinding
@@ -77,7 +78,9 @@ class FCCInfoFragment : Fragment() {
             valid = false
         }
 
-        if (phone.isBlank() || !Patterns.PHONE.matcher(phone).matches()) {
+        val phoneUtil = PhoneNumberUtil.getInstance()
+        val numberProto = phoneUtil.parse(phone, "US")
+        if (phone.isBlank() || !phoneUtil.isValidNumber(numberProto)) {
             binding.etPhone.error = "Invalid phone number"
             valid = false
         }
