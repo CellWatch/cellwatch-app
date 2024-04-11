@@ -48,7 +48,7 @@
 
     <!-- map -->
     <string name="map">Map</string>
-    <string name="cell">Cell</string>
+    <string name="hex">Hex</string>
     <string name="add_measurement">Measure</string>
     <string name="search_map">Search Map</string>
 
@@ -82,7 +82,7 @@
 
     <!-- post measure -->
     <string name="results">Results</string>
-    <string name="cell_index">Cell %1$s</string>
+    <string name="hex_index">Hex %1$s</string>
     <string name="no">No</string>
     <string name="yes">Yes</string>
     <string name="pending">Pending</string>

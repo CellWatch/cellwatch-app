@@ -54,7 +54,7 @@
 
     <!-- map -->
     <string name="map">Mapa</string>
-    <string name="cell">Celda</string>
+    <string name="hex">Hexágono</string>
     <string name="add_measurement">Medir</string>
     <string name="search_map">Buscar en el mapa</string>
 
@@ -88,7 +88,7 @@
 
     <!-- post measure -->
     <string name="results">Resultados</string>
-    <string name="cell_index">Celda %1$s</string>
+    <string name="hex_index">Hexágono %1$s</string>
     <string name="no">No</string>
     <string name="yes">Sí</string>
     <string name="pending">Pendiente</string>
