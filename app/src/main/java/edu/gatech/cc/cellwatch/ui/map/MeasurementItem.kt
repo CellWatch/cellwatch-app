@@ -7,12 +7,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.core.util.setCopyOnClick
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.databinding.ItemMeasurementBinding
 import edu.gatech.cc.cellwatch.domain.fcc.ThroughputMetrics
-import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import kotlinx.datetime.Instant
@@ -76,10 +76,11 @@ class MeasurementItem(
 
         val lat = location?.lat
         val lon = location?.lon
-        binding.locationText.text = if (lat != null && lon != null) {
-            context.getString(R.string.hex_index, H3Manager.getH3Index(lat, lon, 9))
+        if (lat != null && lon != null) {
+            binding.locationText.text = context.getString(R.string.latlon, lat, lon)
+            binding.locationText.setCopyOnClick("location") { binding.locationText.text }
         } else {
-            "-"
+            binding.locationText.text = "-"
         }
 
         val carrier = group.latency?.provider
