@@ -89,6 +89,7 @@
     <!-- post measure -->
     <string name="results">Resultados</string>
     <string name="hex_index">Hexágono %1$s</string>
+    <string name="latlon">%1$.6f, %2$.6f</string>
     <string name="no">No</string>
     <string name="yes">Sí</string>
     <string name="pending">Pendiente</string>

@@ -83,6 +83,7 @@
     <!-- post measure -->
     <string name="results">Results</string>
     <string name="hex_index">Hex %1$s</string>
+    <string name="latlon">%1$.6f, %2$.6f</string>
     <string name="no">No</string>
     <string name="yes">Yes</string>
     <string name="pending">Pending</string>

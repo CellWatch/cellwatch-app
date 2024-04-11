@@ -1,9 +1,6 @@
 package edu.gatech.cc.cellwatch.ui.map
 
 import android.app.AlertDialog
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -16,7 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
-import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.core.util.setCopyOnClick
 import edu.gatech.cc.cellwatch.data.core.repositories.SettingsRepository
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.databinding.FragmentSettingsBinding
@@ -57,24 +54,8 @@ class SettingsFragment : Fragment() {
             binding.deviceId.text = CellWatchApp.settingsRepository.getDeviceId()
         }
 
-        val clipboard = context?.getSystemService(Context.CLIPBOARD_SERVICE).let {
-            if (it is ClipboardManager) {
-                it
-            } else {
-                Log.e(TAG, "expected ClipboardManager, got $it")
-                null
-            }
-        }
-
-        if (clipboard != null) {
-            fun copy(label: String, text: CharSequence) {
-                clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
-                Toast.makeText(requireContext(), getString(R.string.copied, text), Toast.LENGTH_SHORT).show()
-            }
-
-            binding.deviceIdRow.setOnClickListener { copy("device ID", binding.deviceId.text) }
-            binding.appVersionRow.setOnClickListener {copy("app version", binding.appVersion.text) }
-        }
+        binding.deviceIdRow.setCopyOnClick("device ID") { binding.deviceId.text }
+        binding.appVersionRow.setCopyOnClick("app version") { binding.appVersion.text }
 
         setEditable(false)
 
