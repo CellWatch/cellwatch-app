@@ -16,11 +16,17 @@
         android:textSize="36sp"
         android:textStyle="bold"/>
 
+    <ImageView
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_gravity="center"
+        android:layout_marginVertical="10dp"
+        android:src="@drawable/logo" />
+
     <TextView
         android:layout_width="350dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="20dp"
         android:fontFamily="sans-serif"
         android:gravity="center_horizontal"
         android:text="@string/welcome_description"
