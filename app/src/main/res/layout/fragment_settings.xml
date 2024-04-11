@@ -136,7 +136,6 @@
             android:id="@+id/submit_edit"
             style="@style/GreenButton"
             android:text="@string/apply_changes"
-            android:textSize="22sp"
             android:layout_marginVertical="16dp"
             android:visibility="gone"/>
 

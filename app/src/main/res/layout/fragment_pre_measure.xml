@@ -256,15 +256,10 @@
 
     <Button
         android:id="@+id/go"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        style="@style/GreenButton"
         android:layout_marginHorizontal="24dp"
         android:padding="4dp"
         android:text="@string/go"
-        android:textColor="@color/cw_white"
-        android:textAllCaps="false"
-        android:textSize="36sp"
-        android:backgroundTint="@color/cw_green"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
