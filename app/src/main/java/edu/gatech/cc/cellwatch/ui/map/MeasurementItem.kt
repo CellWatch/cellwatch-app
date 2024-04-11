@@ -77,7 +77,7 @@ class MeasurementItem(
         val lat = location?.lat
         val lon = location?.lon
         binding.locationText.text = if (lat != null && lon != null) {
-            context.getString(R.string.cell_index, H3Manager.getH3Index(lat, lon, 9))
+            context.getString(R.string.hex_index, H3Manager.getH3Index(lat, lon, 9))
         } else {
             "-"
         }

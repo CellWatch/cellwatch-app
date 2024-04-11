@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
+import okhttp3.internal.toHexString
 
 class MeasurementListBottomSheetFragment : BottomSheetDialogFragment() {
 
@@ -52,7 +53,7 @@ class MeasurementListBottomSheetFragment : BottomSheetDialogFragment() {
         }
 
         val textViewTitle: TextView = view.findViewById(R.id.tvTitle)
-        val tvTitleText = "Cell $h3Address"
+        val tvTitleText = getString(R.string.hex_index, h3Address?.toHexString()?.lowercase())
         textViewTitle.text = tvTitleText
     }
 }
