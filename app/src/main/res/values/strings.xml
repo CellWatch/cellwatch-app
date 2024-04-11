@@ -4,7 +4,7 @@
 
     <!-- welcome -->
     <string name="welcome">Welcome to CellWatch</string>
-    <string name="welcome_description">CellWatch is a FCC Challenge app. You can collect measurements to send to the FCC to show that your coverage doesn’t meet the minimum standards, or take measurements to test speeds for yourself.</string>
+    <string name="welcome_description">CellWatch is an FCC Challenge app. You can collect measurements to send to the FCC to show that your coverage doesn’t meet the minimum standards, or take measurements to test speeds for yourself.</string>
     <string name="other_language_available">¿Prefiere español? Se puede cambiar el idioma en los ajustes del dispositivo.</string>
 
     <!-- read more -->
@@ -26,15 +26,15 @@
 
     <!-- collection mode -->
     <string name="collection_mode">Collection Mode</string>
-    <string name="collection_mode_description">Would you like to work towards a formal FCC challenge? You can update this later in the app settings.</string>
+    <string name="collection_mode_description">Would you like to work towards a formal FCC challenge? You can update this later in the app settings.\n\nIn both modes your data will be shared with the public, including general locations and timestamps, and may be used by the CellWatch team for research purposes.</string>
     <string name="fcc_challenge_mode">FCC Challenge Mode</string>
-    <string name="fcc_challenge_mode_description">Measurements will be sent to the FCC as challenge data. The FCC may make public your exact GPS location, provider, and other relevant details. Data will also be shared with CellWatch.</string>
+    <string name="fcc_challenge_mode_description">Measurements will be sent to the FCC as challenge data. The FCC may make public your exact GPS location, provider, and other relevant details.</string>
     <string name="testing_mode">Testing Mode</string>
-    <string name="testing_mode_description">Measurements will not be sent to the FCC but will be shared with CellWatch.</string>
+    <string name="testing_mode_description">Measurements will not be sent to the FCC.</string>
 
     <!-- fcc info -->
     <string name="fcc_info">FCC Information</string>
-    <string name="fcc_info_description">If you would like to work toward an official FCC challenge, this information must be submitted to the FCC with your measurements.</string>
+    <string name="fcc_info_description">If you would like to work toward an official FCC challenge, this information must be submitted to the FCC with your measurements. This information will never be shared with the public.</string>
     <string name="name">Name</string>
     <string name="email">Email </string>
     <string name="phone">Phone</string>
@@ -43,7 +43,7 @@
     <!-- allow permissions -->
     <string name="allow_permissions">Allow Permissions</string>
     <string name="allow_permissions_description">In order to take measurements, we need the following permissions:\n\n1. Location, to know where measurements are taken.\n\n2. Phone calls, to gather information about your cellular connection. We will never make phone calls.</string>
-    <string name="allow_ready">When ready, click \"Allow\" when prompted. You can update these permissions later in your device\'s settings.</string>
+    <string name="allow_ready">When ready, click the button below and grant permissions when prompted. You can update these permissions later in your device\'s settings.</string>
     <string name="ready">Ready</string>
 
     <!-- map -->

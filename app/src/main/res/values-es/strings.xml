@@ -32,15 +32,15 @@
 
     <!-- collection mode -->
     <string name="collection_mode">Modo de recopilación</string>
-    <string name="collection_mode_description">¿Le gustaría trabajar para una impugnación oficial con la FCC? Esto se puede cambiar luego en los ajustes de la aplicación.</string>
+    <string name="collection_mode_description">¿Le gustaría trabajar para una impugnación oficial con la FCC? Esto se puede cambiar luego en los ajustes de la aplicación.\n\nEn ambos modos sus datos se compartirán con el público, incluso las ubicaciones y horas generales, y se pueden utilizar para fines de investigación por el equipo CellWatch.</string>
     <string name="fcc_challenge_mode">Modo de impugnación FCC</string>
-    <string name="fcc_challenge_mode_description">Las mediciones se enviarán a la FCC como datos de impugnación. Puede que la FCC haga público la ubicación exacta del GPS, el proveedor y otros detalles pertinentes. Los datos también se compartirán con CellWatch.</string>
+    <string name="fcc_challenge_mode_description">Las mediciones se enviarán a la FCC como datos de impugnación. Puede que la FCC haga público la ubicación exacta del GPS, el proveedor y otros detalles pertinentes.</string>
     <string name="testing_mode">Modo de prueba</string>
-    <string name="testing_mode_description">Las mediciones no se enviarán a la FCC pero sí se compartirán con CellWatch.</string>
+    <string name="testing_mode_description">Las mediciones no se enviarán a la FCC.</string>
 
     <!-- fcc info -->
     <string name="fcc_info">Información para la FCC</string>
-    <string name="fcc_info_description">Si desea trabajar para una impugnación con la FCC, esta información se debe enviar a la FCC con sus mediciones.</string>
+    <string name="fcc_info_description">Si desea trabajar para una impugnación con la FCC, esta información se debe enviar a la FCC con sus mediciones. Esta información no se compartirá con el público nunca.</string>
     <string name="name">Nombre</string>
     <string name="email">Correo electrónico</string>
     <string name="phone">Número de teléfono</string>
@@ -49,7 +49,7 @@
     <!-- allow permissions -->
     <string name="allow_permissions">Dar permisos</string>
     <string name="allow_permissions_description">Para hacer mediciones, se necesitan los permisos siguientes:\n\n1. Ubicación, para saber dónde se hacen las mediciones.\n\n2. Llamadas telefónicas, para recopilar información acerca de su conexión celular. Nunca realizaremos llamadas.</string>
-    <string name="allow_ready">Cuando esté listo, haga clic en \"Permitir\" en el mensaje. Se pueden cambiar estos permisos luego en los ajustes del dispositivo.</string>
+    <string name="allow_ready">Cuando esté listo, haga clic en el botón abajo y dé permiso cuando se le pida. Se pueden cambiar estos permisos luego en los ajustes del dispositivo.</string>
     <string name="ready">Listo</string>
 
     <!-- map -->
