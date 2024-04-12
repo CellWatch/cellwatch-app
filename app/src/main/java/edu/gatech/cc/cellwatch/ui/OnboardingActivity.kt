@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.ui
 
 import SettingsSetupFragment
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
@@ -44,7 +45,7 @@ class OnboardingActivity : AppCompatActivity(),
         val fragment = supportFragmentManager.findFragmentById(R.id.content_frame)
         val s = fragment?.let { Screen.fromFragment(it) }
         if (s == null) {
-            setCurrentFragment(screen.toNewFragment())
+            setCurrentFragment(screen.toNewFragment(), false)
         } else {
             screen = s
         }
@@ -54,6 +55,7 @@ class OnboardingActivity : AppCompatActivity(),
 
     override fun onPermissionsHandled() {
         runBlocking { CellWatchApp.settingsRepository.setOnboardingComplete(true) }
+        startActivity(Intent(this, MainActivity::class.java))
         finish()
     }
 
