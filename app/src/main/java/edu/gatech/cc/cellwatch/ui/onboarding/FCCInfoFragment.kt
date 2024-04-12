@@ -1,13 +1,13 @@
 package edu.gatech.cc.cellwatch.ui.onboarding
 
 import android.os.Bundle
-import android.util.Patterns
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
@@ -80,8 +80,12 @@ class FCCInfoFragment : Fragment() {
         }
 
         val phoneUtil = PhoneNumberUtil.getInstance()
-        val numberProto = phoneUtil.parse(phone, "US")
-        if (phone.isBlank() || !phoneUtil.isValidNumber(numberProto)) {
+        val numberProto = try {
+            phoneUtil.parse(phone, "US")
+        } catch (e: NumberParseException) {
+            null
+        }
+        if (phone.isBlank() || numberProto == null || !phoneUtil.isValidNumber(numberProto)) {
             binding.etPhone.error = "Invalid phone number"
             valid = false
         }
