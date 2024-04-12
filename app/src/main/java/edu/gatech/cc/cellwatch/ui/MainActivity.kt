@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity(),
         val onboardingComplete = runBlocking { CellWatchApp.settingsRepository.getOnboardingComplete() }
         if (!onboardingComplete) {
             startActivity(Intent(this, OnboardingActivity::class.java))
+            finish()
         }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
