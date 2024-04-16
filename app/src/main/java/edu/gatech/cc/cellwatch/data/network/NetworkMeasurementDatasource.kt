@@ -36,6 +36,13 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 
+/**
+ * NetworkMeasurementDatasource is a singleton object representing a network data source with
+ * member functions to read/write [NetworkMeasurement] records to the remote Supabase database.
+ * NetworkMeasurementDatasource is used by MeasurementRepository to synchronize locally stored
+ * [Measurement] records to Supabase.
+ */
+
 object NetworkMeasurementDatasource {
     private val TAG = this::class.simpleName
 
