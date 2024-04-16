@@ -17,6 +17,13 @@ import edu.gatech.cc.cellwatch.data.network.NetworkRestResult
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
+
+/**
+ * A MeasurementRepository contains methods to read/write [Measurement] records to the local Room
+ * database. MeasurementRepository also contains the uploadMeasurements method which uploads all
+ * unsynchronized [Measurement] records from the Room database to the remote Supabase database.
+ */
+
 class MeasurementRepository(
     private val measurementDao: MeasurementDao,
     private val submissionDao: FccSubmissionDao,
@@ -119,13 +126,26 @@ class MeasurementRepository(
                 throw e
             }
 
-            val errorResults = results.filter { it.error != null }.map { it }
+            // Get all duplicate key value errors to check for already synced measurements.
+            val errorResults = results.filter {
+                it.error != null && it.error.error.startsWith("duplicate key value violates unique constraint")
+            }.map { it }
 
-            // assume duplicate key means this measurement was already synced with Supabase
-            // so, update measurement.uploadTime
+            // If there exists a synced measurement with the same timestamp,
+            // assume duplicate key means this measurement was already successfully synced with Supabase
+            // so, update measurement.uploadTime.
             errorResults.forEach { errorResult ->
-                errorResult.measurement.uploadTime = Clock.System.now()
-                updateMeasurement(errorResult.measurement)
+                try {
+                    val networkMeasurement = networkDataSource.getMeasurementById(errorResult.measurement.id)
+                    if (networkMeasurement != null) {
+                        if (networkMeasurement.timestamp == errorResult.measurement.timestamp)
+                            errorResult.measurement.uploadTime = Clock.System.now()
+                            updateMeasurement(errorResult.measurement)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in uploadMeasurements: ${e.message}")
+                    throw e
+                }
             }
 
             return Clock.System.now()
