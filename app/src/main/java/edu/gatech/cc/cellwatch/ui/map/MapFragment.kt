@@ -74,6 +74,9 @@ class MapFragment : Fragment() {
     private val renderedH3Addresses = HashSet<Long>()
     private val renderedMeasurementOverlays = HashSet<Long>()
 
+    private val BIGGER_HEX_TILE_RES = 8
+    private val SMALLER_HEX_TILE_RES = 9
+
     interface DrawerToggleListener {
         fun toggleDrawer()
     }
@@ -89,15 +92,12 @@ class MapFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        Log.d(TAG, "onCreate")
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        Log.d(TAG, "onCreateView")
         // Inflate the layout for this fragment
         _binding = FragmentMapBinding.inflate(inflater, container, false)
         return binding.root
@@ -105,8 +105,6 @@ class MapFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        Log.d(TAG, "onViewCreated!")
 
         if (context is DrawerToggleListener) {
             drawerToggleListener = context as DrawerToggleListener
@@ -186,12 +184,12 @@ class MapFragment : Fragment() {
         val h3AddressElement = data.asJsonObject.get("h3_address")
         val h3Address = h3AddressElement?.takeIf { it.isJsonPrimitive }?.asLong
 
-        if(h3Address?.let { H3Manager.getH3ResolutionFromAddress(it) } == 9) {
+        if(h3Address?.let { H3Manager.getH3ResolutionFromAddress(it) } == SMALLER_HEX_TILE_RES) {
             val associatedGroups = h3Address.let {
-                runBlocking { H3Manager.getMeasurementGroupsAssociatedWithH3Address(it, 9) }
+                runBlocking { H3Manager.getMeasurementGroupsAssociatedWithH3Address(it, SMALLER_HEX_TILE_RES) }
             }
 
-            if (associatedGroups.size > 1) {
+            if (associatedGroups.size >= 1) {
                 val bottomSheetFragment = MeasurementListBottomSheetFragment.newInstance(h3Address)
                 if (isAdded) {
                     bottomSheetFragment.show(
@@ -211,8 +209,8 @@ class MapFragment : Fragment() {
         val associatedMeasurements = runBlocking {
             H3Manager.getMeasurementGroupsAssociatedWithLatLong(it)
         }
-        val h3Address = H3Manager.getH3AddressFromPointSingleton(it, 8)
-        if(H3Manager.getH3ResolutionFromAddress(h3Address) == 8 && associatedMeasurements.size > 0) {
+        val h3Address = H3Manager.getH3AddressFromPointSingleton(it, BIGGER_HEX_TILE_RES)
+        if(H3Manager.getH3ResolutionFromAddress(h3Address) == BIGGER_HEX_TILE_RES && associatedMeasurements.size > 0) {
             polygonAnnotationManager?.annotations?.forEach { annotation ->
                 val data = annotation.getData()
                 if (data == null || !data.isJsonObject) {
@@ -259,7 +257,6 @@ class MapFragment : Fragment() {
             delay(100)
 
             val currentZoom = mapboxMap.cameraState.zoom
-            Log.i("currentZoom", currentZoom.toString())
 
             //TODO Adjust as needed
             if (currentZoom < 12.0) {
@@ -284,7 +281,6 @@ class MapFragment : Fragment() {
             val modifiedBitmap = drawableBitMap.copy(Bitmap.Config.ARGB_8888, true)
             val canvas = Canvas(modifiedBitmap)
 
-            //Draw text overlay on bitmap if there's more than one averaged point
             if (count != 1) {
                 val paint = Paint()
                 paint.color = Color.WHITE
@@ -294,11 +290,10 @@ class MapFragment : Fragment() {
                 val textSize: Float = canvas.width * 0.5f
                 paint.textSize = textSize
 
-                // Draw the count onto the Bitmap
                 canvas.drawText(
                     count.toString(),
                     (canvas.width / 2).toFloat(),
-                    (canvas.height / 2) + (textSize / 3), // Adjust the + (textSize / 3) part to vertically center the text
+                    (canvas.height / 2) + (textSize / 3),
                     paint
                 )
             }
@@ -306,9 +301,6 @@ class MapFragment : Fragment() {
             modifiedBitmap
 
         } else {
-            //Create pin map bitmap
-
-            // copying drawable object to not manipulate on the same reference
             val constantState = sourceDrawable.constantState ?: return null
             val drawable = constantState.newDrawable().mutate()
             val bitmap: Bitmap = Bitmap.createBitmap(
@@ -326,20 +318,16 @@ class MapFragment : Fragment() {
                 paint.textAlign = Paint.Align.CENTER
                 paint.isAntiAlias = true
 
-                val textSize: Float = canvas.width * 0.5f // Adjust this size accordingly
+                val textSize: Float = canvas.width * 0.5f
                 paint.textSize = textSize
-                Log.i("Count Draw", "Textsize: $textSize")
 
-                // Draw the count onto the Bitmap
                 canvas.drawText(
                     count.toString(),
                     (canvas.width / 2).toFloat(),
-                    (canvas.height / 2) + (textSize / 3), // Adjust the + (textSize / 3) part to vertically center the text
+                    (canvas.height / 2) + (textSize / 3),
                     paint
                 )
             }
-
-            //return pin map with text overlay, if needed
             bitmap
         }
     }
@@ -390,9 +378,15 @@ class MapFragment : Fragment() {
         val se = Point.fromLngLat(center.latitude() + delta, center.longitude() - delta)
 
         //Convert camera boundaries to h3 boundaries
-        val h3Addresses = H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), 8)
+        val h3Addresses = H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), BIGGER_HEX_TILE_RES)
+
+        // Get all of the non rendered H3 addresses; used for when the map is moved so we don't re-render hexagons.
         val nonRenderedH3Addresses = h3Addresses.filterNot { it in renderedH3Addresses }.toMutableList()
 
+        Log.i(TAG, "nonRenderedH3Addresses: $nonRenderedH3Addresses")
+        Log.i(TAG, "renderedH3Addresses: $renderedH3Addresses")
+
+        // Get all of the hex boundaries that we need to render.
         val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(nonRenderedH3Addresses)
 
         withContext(Dispatchers.Main) {
@@ -415,13 +409,14 @@ class MapFragment : Fragment() {
 
             // Display h3 boundaries
             h3Boundaries.forEach { boundary ->
-                val address = H3Manager.getH3AddressFromPointSingleton(boundary.first(), 8)
+                val address = H3Manager.getH3AddressFromPointSingleton(boundary.first(), BIGGER_HEX_TILE_RES)
 
                 val data = JsonObject()
                 data.addProperty("h3_address", address)
 
                 renderedH3Addresses.add(address)
                 reusablePolygonOptions.withPoints(listOf(boundary))
+                Log.i("MapFragment", "polygonAnnotationManager: ${polygonAnnotationManager.toString()}")
                 polygonAnnotationManager?.create(reusablePolygonOptions.withData(data))
             }
 
@@ -429,18 +424,21 @@ class MapFragment : Fragment() {
             h3Addresses.forEach { address ->
                 val data = JsonObject()
                 data.addProperty("h3_address", address)
-                Log.i("H3 Child Data", "$data")
 
-                val groups = H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, 8)
-                if (groups.size > 1 && !renderedMeasurementOverlays.contains(address)) {
+                val groups = H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, BIGGER_HEX_TILE_RES)
+                Log.i(TAG, "$groups")
+                Log.i(TAG, "Determining if we have a match: ${groups.size > 1} and ${renderedMeasurementOverlays.contains(address)}")
+                if (groups.size >= 1 && !renderedMeasurementOverlays.contains(address)) {
+                    Log.i(TAG, "Address boundary precursor")
                     val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
 
-                    reusablePolygonOptions
+                    Log.i(TAG, "address boundary: $addressBoundary")
+
+                    polygonAnnotationManager?.create(reusablePolygonOptions
                         .withPoints(addressBoundary)
-                        .withFillColor("#22B14C") // Green fill color
+                        .withFillColor("#22B14C")
                         .withFillOpacity(.5)
-                        .withData(data)
-                    polygonAnnotationManager?.create(reusablePolygonOptions)
+                        .withData(data))
 
                     val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
 
@@ -452,6 +450,7 @@ class MapFragment : Fragment() {
                         .geometry(hexCenter)
                         .build()
                     viewAnnotationManager?.addViewAnnotation(view, viewAnnotationOptions)
+                    Log.i("MapFragment", "viewAnnotationManager: ${viewAnnotationManager.toString()}")
 
                     renderedMeasurementOverlays.add(address)
                 }
@@ -469,8 +468,8 @@ class MapFragment : Fragment() {
     }
 
     private fun displayRes8Hexagons(point: Point) {
-        val h3Address = H3Manager.getH3AddressFromPointSingleton(point, 8)
-        val h3HexChildren = H3Manager.getRelatedH3Hex(h3Address, 9)
+        val h3Address = H3Manager.getH3AddressFromPointSingleton(point, BIGGER_HEX_TILE_RES)
+        val h3HexChildren = H3Manager.getRelatedH3Hex(h3Address, SMALLER_HEX_TILE_RES)
         val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(h3HexChildren)
 
         Log.i("H3 map click", "H3address: $h3Address, H3boundaries: $h3Boundaries")
@@ -501,7 +500,7 @@ class MapFragment : Fragment() {
 
 
             val groups = runBlocking {
-                H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, 9)
+                H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, SMALLER_HEX_TILE_RES)
             }
             val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
             reusablePolygonOptions
@@ -509,8 +508,9 @@ class MapFragment : Fragment() {
                 .withFillColor("#22B14C") // Green fill color
                 .withData(data)
 
-            if (groups.size > 1) {
+            if (groups.size >= 1) {
                 reusablePolygonOptions.withFillOpacity(.5)
+                Log.i("MapFragment", "LowResPolygonAnnotationManager: ${lowResPolygonAnnotationManager.toString()}")
                 lowResPolygonAnnotationManager?.create(reusablePolygonOptions)
 
                 val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
