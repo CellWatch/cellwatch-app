@@ -55,8 +55,8 @@ class LatencyTest(
 
             val rtts = result?.RoundTrips?.filter { !it.Lost }?.map { it.RTT }
             val meanRTT = rtts?.average()
-            val variance = if (meanRTT != null) {
-                rtts.sumOf { (it - meanRTT).pow(2) } / rtts.size
+            val stddev = if (meanRTT != null) {
+                (rtts.sumOf { (it - meanRTT).pow(2) } / rtts.size).pow(0.5)
             } else {
                 null
             }
@@ -75,7 +75,7 @@ class LatencyTest(
                 startTime,
                 (endTime - startTime).inWholeMicroseconds,
                 meanRTT?.toInt() ?: 0,
-                variance?.toInt() ?: 0,
+                stddev?.toInt() ?: 0,
                 result?.PacketsSent ?: 0,
                 result?.PacketsReceived ?: 0,
             )
