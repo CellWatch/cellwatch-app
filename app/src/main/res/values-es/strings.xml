@@ -85,9 +85,8 @@
     <string name="not_cellular_warning">Parece que está conectado al WiFi o se apagaron los datos celulares. Si continúa, puede que la medición no se envíe a la FCC.</string>
     <string name="not_cellular_proceed">Medir de todas maneras</string>
     <string name="cancel">Cancelar</string>
-
-    <!-- post measure -->
-    <string name="results">Resultados</string>
+    <string name="measurement_complete">Medición completa</string>
+    <string name="measurement_failed">Medición fallida</string>
     <string name="hex_index">Hexágono %1$s</string>
     <string name="latlon">%1$.6f, %2$.6f</string>
     <string name="no">No</string>

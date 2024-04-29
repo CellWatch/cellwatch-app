@@ -66,7 +66,7 @@ class MeasurementItem(
             binding.timeText.text =
                 DateFormat.format("h:mm:ss a", timestamp.toEpochMilliseconds())
         } else {
-            binding.dateText.text = "-"
+            binding.dateText.text = ""
             binding.timeText.text = "-"
         }
 

@@ -79,9 +79,8 @@
     <string name="not_cellular_warning">It looks like you are connected to WiFi or have cellular data disabled. If you proceed, your measurement may not be submitted to the FCC.</string>
     <string name="not_cellular_proceed">Measure anyway</string>
     <string name="cancel">Cancel</string>
-
-    <!-- post measure -->
-    <string name="results">Results</string>
+    <string name="measurement_complete">Measurement complete</string>
+    <string name="measurement_failed">Measurement failed</string>
     <string name="hex_index">Hex %1$s</string>
     <string name="latlon">%1$.6f, %2$.6f</string>
     <string name="no">No</string>
