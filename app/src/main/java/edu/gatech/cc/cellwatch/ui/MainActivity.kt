@@ -13,7 +13,6 @@ import edu.gatech.cc.cellwatch.databinding.ActivityMainBinding
 import edu.gatech.cc.cellwatch.ui.map.MapFragment
 import edu.gatech.cc.cellwatch.ui.map.MeasureFragment
 import edu.gatech.cc.cellwatch.ui.map.MeasureHistoryFragment
-import edu.gatech.cc.cellwatch.ui.map.PostMeasureFragment
 import edu.gatech.cc.cellwatch.ui.map.PreMeasureFragment
 import edu.gatech.cc.cellwatch.ui.map.SettingsFragment
 import kotlinx.coroutines.runBlocking
@@ -22,8 +21,7 @@ class MainActivity : AppCompatActivity(),
     MapFragment.DrawerToggleListener,
     MapFragment.OnMapFragmentInteractionListener,
     PreMeasureFragment.PreMeasureFragmentInteractionListener,
-    MeasureFragment.MeasureFragmentInteractionListener,
-    PostMeasureFragment.PostMeasureFragmentInteractionListener {
+    MeasureFragment.MeasureFragmentInteractionListener {
 
     private lateinit var binding: ActivityMainBinding
     private val fragmentStack = ArrayDeque<Fragment>()
@@ -108,7 +106,7 @@ class MainActivity : AppCompatActivity(),
 
         val activeButton = when (fragment) {
             is MapFragment -> binding.navDrawer.mapButton
-            is MeasureFragment, is PreMeasureFragment, is PostMeasureFragment -> binding.navDrawer.menuMeasureButton
+            is MeasureFragment, is PreMeasureFragment -> binding.navDrawer.menuMeasureButton
             is MeasureHistoryFragment -> binding.navDrawer.historyButton
             is SettingsFragment -> binding.navDrawer.settingsButton
             else -> null
@@ -136,10 +134,6 @@ class MainActivity : AppCompatActivity(),
 
     override fun onGoButtonPressed() {
         replaceFragment(MeasureFragment(), false)
-    }
-
-    override fun onMeasurementComplete() {
-        replaceFragment(PostMeasureFragment(), false)
     }
 
     override fun onTakeAnotherMeasurementPressed() {

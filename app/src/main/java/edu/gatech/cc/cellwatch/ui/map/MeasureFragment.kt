@@ -5,27 +5,29 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TableRow
-import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.Measurement
+import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.databinding.FragmentMeasureBinding
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementManager
-import edu.gatech.cc.cellwatch.domain.fcc.ThroughputMetrics
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
+import kotlinx.datetime.Instant
 
 class MeasureFragment : Fragment() {
     private val TAG = this::class.simpleName
+    private val measurementRepository = CellWatchApp.measurementRepository
+    private val fccSubmissionRepository = CellWatchApp.fccSubmissionRepository
     private lateinit var binding: FragmentMeasureBinding
     private lateinit var model: MeasurementViewModel
 
     interface MeasureFragmentInteractionListener {
-        fun onMeasurementComplete()
+        fun onTakeAnotherMeasurementPressed()
+        fun onBackToMapPressed()
     }
 
     override fun onCreateView(
@@ -34,11 +36,18 @@ class MeasureFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentMeasureBinding.inflate(inflater, container, false)
-        binding.progressBar.visibility = View.INVISIBLE
-        binding.latencyRow.visibility = View.INVISIBLE
-        binding.downloadRow.visibility = View.INVISIBLE
-        binding.uploadRow.visibility = View.INVISIBLE
+        binding.takeAnotherButton.visibility = View.GONE
+        binding.backToMapButton.visibility = View.GONE
         model = ViewModelProvider(requireActivity())[MeasurementViewModel::class.java]
+
+        val interactionListener = if (context is MeasureFragmentInteractionListener) {
+            context as MeasureFragmentInteractionListener
+        } else {
+            throw RuntimeException(context.toString() + " must implement MeasureFragmentInteractionListener")
+        }
+        binding.takeAnotherButton.setOnClickListener { interactionListener.onTakeAnotherMeasurementPressed() }
+        binding.backToMapButton.setOnClickListener { interactionListener.onBackToMapPressed() }
+
         return binding.root
     }
 
@@ -49,31 +58,31 @@ class MeasureFragment : Fragment() {
 
     private fun runTestSequence(failIfNotOnCellular: Boolean = true) {
         viewLifecycleOwner.lifecycleScope.launch {
-            model.group = null
-            binding.latencyResult.text = ""
-            binding.downloadResult.text = ""
-            binding.uploadResult.text = ""
+            var group = MeasurementGroup(null, null, null, null)
+            model.group = group
+            binding.item.setMeasurementGroup(group)
             binding.progressBar.visibility = View.VISIBLE
 
             try {
-                model.group = MeasurementManager.runTestSequence(
+                group = MeasurementManager.runTestSequence(
                     model.inVehicle,
                     { handleLocateStart() },
                     { },
                     { handleLatencyStart() },
                     { handleLatencyComplete(it) },
                     { handleDownloadStart() },
-                    { handleThroughputComplete(binding.downloadRow, binding.downloadResult, it) },
+                    { handleThroughputComplete(it) },
                     { handleUploadStart() },
-                    { handleThroughputComplete(binding.uploadRow, binding.uploadResult, it) },
+                    { handleThroughputComplete(it) },
                     failIfNotOnCellular = failIfNotOnCellular,
                 )
-                handleMeasurementComplete()
+                model.group = group
+                handleMeasurementComplete(group)
             } catch (e: MeasurementManager.NotOnCellularException) {
                 handleNotOnCellular()
             } catch (e: Exception) {
                 Log.e(TAG, "unexpected error running test sequence", e)
-                handleMeasurementComplete()
+                handleMeasurementComplete(null)
             } finally {
                 binding.progressBar.visibility = View.INVISIBLE
             }
@@ -89,13 +98,9 @@ class MeasureFragment : Fragment() {
     }
 
     private fun handleLatencyComplete(m: Measurement) {
-        val rttMillis = ((m.latencyData?.rtt ?: 0) / 1e3).roundToInt()
-        if (m.success == true) {
-            binding.latencyResult.text = getString(R.string.latency_ms, rttMillis)
-        } else {
-            binding.latencyResult.setText(R.string.failed)
-        }
-        binding.latencyRow.visibility = View.VISIBLE
+        val group = MeasurementGroup(m, model.group?.download, model.group?.upload, model.group?.submission)
+        model.group = group
+        binding.item.setMeasurementGroup(group)
     }
 
     private fun handleDownloadStart() {
@@ -106,16 +111,14 @@ class MeasureFragment : Fragment() {
         binding.header.setText(R.string.measuring_upload)
     }
 
-    private fun handleThroughputComplete(row: TableRow, content: TextView, m: Measurement) {
-        val activeMetrics = ThroughputMetrics(m.uploadDownloadData?.bytes ?: 0, m.uploadDownloadData?.duration ?: 0)
-        val speedMbps = (activeMetrics.bytesPerSec * 8 / 1e6).roundToInt()
-        if (m.success == true) {
-            content.text = getString(R.string.speed_mbps, speedMbps)
-        } else {
-            content.setText(R.string.failed)
+    private fun handleThroughputComplete(m: Measurement) {
+        val group = when (m.type) {
+            "download" -> MeasurementGroup(model.group?.latency, m, model.group?.upload, model.group?.submission)
+            "upload" -> MeasurementGroup(model.group?.latency, model.group?.download, m, model.group?.submission)
+            else -> throw RuntimeException("throughput complete called with non-throughput measurement: ${m.type}")
         }
-
-        row.visibility = View.VISIBLE
+        model.group = group
+        binding.item.setMeasurementGroup(group)
     }
 
     private fun handleNotOnCellular() {
@@ -129,13 +132,35 @@ class MeasureFragment : Fragment() {
             .show()
     }
 
-    private fun handleMeasurementComplete() {
-        val interactionListener = if (context is MeasureFragmentInteractionListener) {
-            context as MeasureFragmentInteractionListener
+    private fun handleMeasurementComplete(group: MeasurementGroup?) {
+        binding.progressBar.visibility = View.GONE
+        binding.takeAnotherButton.visibility = View.VISIBLE
+        binding.backToMapButton.visibility = View.VISIBLE
+
+        if (group == null) {
+            binding.header.setText(R.string.measurement_failed)
         } else {
-            throw RuntimeException(context.toString() + " must implement MeasureFragmentInteractionListener")
+            binding.header.setText(R.string.measurement_complete)
+            binding.item.setMeasurementGroup(group)
         }
 
-        interactionListener.onMeasurementComplete()
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                binding.item.updateUploadTime(uploadMeasurements())
+            } catch (t: Throwable) {
+                Log.e(TAG, "failed to set uploaded text", t)
+            }
+        }
+    }
+
+    private suspend fun uploadMeasurements(): Instant? {
+        return try {
+            val uploadTime = measurementRepository.uploadMeasurements()
+            fccSubmissionRepository.uploadFccSubmissions()
+            uploadTime
+        } catch (e: Exception) {
+            Log.d(TAG, "failed to upload measurements and submission", e)
+            null
+        }
     }
 }
