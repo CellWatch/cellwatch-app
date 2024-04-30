@@ -1,4 +1,4 @@
-package edu.gatech.cc.cellwatch.ui.map
+package edu.gatech.cc.cellwatch.ui.main
 
 import android.os.Bundle
 import android.view.LayoutInflater

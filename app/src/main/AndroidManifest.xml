@@ -21,8 +21,9 @@
         android:theme="@style/Theme.CellWatch"
         tools:targetApi="31">
         <activity
-            android:name="edu.gatech.cc.cellwatch.ui.MainActivity"
+            android:name="edu.gatech.cc.cellwatch.ui.main.MapActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.CellWatch.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -31,9 +32,22 @@
         </activity>
 
         <activity
-            android:name="edu.gatech.cc.cellwatch.ui.OnboardingActivity"
+            android:name="edu.gatech.cc.cellwatch.ui.main.MeasureActivity"
             android:exported="true"
-            android:theme="@style/Theme.CellWatch.NoActionBar">
-        </activity>
+            android:theme="@style/Theme.CellWatch.NoActionBar" />
+
+        <activity
+            android:name="edu.gatech.cc.cellwatch.ui.main.MeasureHistoryActivity"
+            android:exported="true"
+            android:theme="@style/Theme.CellWatch.NoActionBar" />
+
+        <activity
+            android:name="edu.gatech.cc.cellwatch.ui.main.SettingsActivity"
+            android:exported="true"
+            android:theme="@style/Theme.CellWatch.NoActionBar" />
+
+        <activity
+            android:name="edu.gatech.cc.cellwatch.ui.main.OnboardingActivity"
+            android:theme="@style/Theme.CellWatch.NoActionBar" />
     </application>
 </manifest>

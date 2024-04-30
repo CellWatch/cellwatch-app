@@ -67,6 +67,7 @@
     <!-- measure -->
     <string name="measure">Measure</string>
     <string name="finding_server">Finding server</string>
+    <string name="measuring">Measuring</string>
     <string name="measuring_latency">Measuring latency</string>
     <string name="measuring_download">Measuring download speed</string>
     <string name="measuring_upload">Measuring upload speed</string>

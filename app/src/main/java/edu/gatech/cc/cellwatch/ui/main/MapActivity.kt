@@ -1,7 +1,7 @@
-package edu.gatech.cc.cellwatch.ui.map
+package edu.gatech.cc.cellwatch.ui.main
 
 import android.Manifest
-import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -11,20 +11,15 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.TextView
 import androidx.annotation.DrawableRes
-import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.app.ActivityCompat
-import androidx.fragment.app.Fragment
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.GravityCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.gson.JsonObject
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
-import com.mapbox.maps.MapView
 import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.Style
 import com.mapbox.maps.ViewAnnotationOptions
@@ -46,11 +41,11 @@ import com.mapbox.maps.plugin.gestures.OnMapClickListener
 import com.mapbox.maps.plugin.gestures.addOnMapClickListener
 import com.mapbox.maps.plugin.gestures.removeOnMapClickListener
 import com.mapbox.maps.plugin.locationcomponent.location
-import com.mapbox.maps.plugin.logo.logo
 import com.mapbox.maps.plugin.scalebar.scalebar
 import com.mapbox.maps.viewannotation.ViewAnnotationManager
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
-import edu.gatech.cc.cellwatch.databinding.FragmentMapBinding
+import edu.gatech.cc.cellwatch.databinding.ActivityMapBinding
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 import edu.gatech.cc.cellwatch.domain.map.managers.MapAnnotationManager
 import kotlinx.coroutines.CoroutineScope
@@ -61,84 +56,48 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
-/**
- * A simple [Fragment] subclass.
- * create an instance of this fragment.
- */
-class MapFragment : Fragment() {
+class MapActivity : AppCompatActivity() {
     private val TAG = this::class.simpleName
-    private var _binding: FragmentMapBinding? = null
-
-    private var drawerToggleListener: DrawerToggleListener? = null
-
+    private lateinit var binding: ActivityMapBinding
     private val renderedH3Addresses = HashSet<Long>()
     private val renderedMeasurementOverlays = HashSet<Long>()
-
     private val BIGGER_HEX_TILE_RES = 8
     private val SMALLER_HEX_TILE_RES = 9
-
-    interface DrawerToggleListener {
-        fun toggleDrawer()
-    }
-    interface OnMapFragmentInteractionListener {
-        fun onMeasureButtonPressed()
-    }
-
-    private var measurementButtonListener: OnMapFragmentInteractionListener? = null
-
-    // This property is only valid between onCreateView and
-    // onDestroyView.
-    private val binding get() = _binding!!
+    private lateinit var mapboxMap : MapboxMap
+    private var pointAnnotationManager: PointAnnotationManager? = null
+    private var polygonAnnotationManager: PolygonAnnotationManager? = null
+    private var lowResPolygonAnnotationManager: PolygonAnnotationManager? = null
+    private var viewAnnotationManager: ViewAnnotationManager? = null
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var annotations: MutableList<PointAnnotation> = mutableListOf()
+    private var debounceJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-    }
-
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        // Inflate the layout for this fragment
-        _binding = FragmentMapBinding.inflate(inflater, container, false)
-        return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-        if (context is DrawerToggleListener) {
-            drawerToggleListener = context as DrawerToggleListener
-        } else {
-            throw RuntimeException(context.toString() + " must implement DrawerToggleListener")
+        val onboardingComplete = runBlocking { CellWatchApp.settingsRepository.getOnboardingComplete() }
+        if (!onboardingComplete) {
+            startActivity(Intent(this, OnboardingActivity::class.java))
+            finish()
         }
 
-        if (context is OnMapFragmentInteractionListener) {
-            measurementButtonListener = context as OnMapFragmentInteractionListener
-        } else {
-            throw RuntimeException(context.toString() + " must implement OnMapFragmentInteractionListener")
-        }
+        binding = ActivityMapBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        mapView = binding.mapView
-        mapboxMap = mapView.getMapboxMap()
+        mapboxMap = binding.mapView.getMapboxMap()
         mapboxMap.loadStyleUri(Style.LIGHT)
         onMapReady()
 
-        val hamburgerButton = binding.sideMenuButton
-        val h3ToggleSwitch = binding.h3ToggleSwitch
-        val measureButton = binding.measureButton
-        val centerButton = binding.centerUserButton
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context!!)
-
-        measureButton.setOnClickListener {
-            measurementButtonListener?.onMeasureButtonPressed()
+        binding.measureButton.setOnClickListener {
+            startActivity(Intent(this, MeasureActivity::class.java))
         }
 
-        centerButton.setOnClickListener{
+        binding.centerUserButton.setOnClickListener{
             centerCameraOnUser()
         }
 
-        h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
+        binding.h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
             if(isChecked) {
                 pointAnnotationManager?.deleteAll()
                 loadMapH3()
@@ -156,19 +115,23 @@ class MapFragment : Fragment() {
             }
         }
 
-        hamburgerButton.setOnClickListener {
-            drawerToggleListener?.toggleDrawer()
-            Log.i("MapFragment", "toggleDrawer")
+        binding.navDrawer.setOnCloseListener { binding.root.closeDrawer(GravityCompat.START) }
+        binding.navDrawer.setActiveActivity(this)
+        binding.sideMenuButton.setOnClickListener {
+            if (binding.root.isDrawerOpen(GravityCompat.START)) {
+                binding.root.closeDrawer(GravityCompat.START)
+            } else {
+                binding.root.openDrawer(GravityCompat.START)
+            }
         }
 
         // Initial switch function on start
-        if (h3ToggleSwitch.isChecked) {
+        if (binding.h3ToggleSwitch.isChecked) {
             loadMapH3()
         } else {
             loadMapAnnotations()
         }
     }
-
 
     private val onPolygonClick: OnPolygonAnnotationClickListener = OnPolygonAnnotationClickListener { polygon ->
         /*
@@ -191,19 +154,12 @@ class MapFragment : Fragment() {
 
             if (associatedGroups.size >= 1) {
                 val bottomSheetFragment = MeasurementListBottomSheetFragment.newInstance(h3Address)
-                if (isAdded) {
-                    bottomSheetFragment.show(
-                        parentFragmentManager,
-                        bottomSheetFragment.tag
-                    )
-                }
+                bottomSheetFragment.show(supportFragmentManager, bottomSheetFragment.tag)
             }
         }
 
         true
     }
-
-    private var debounceJob: Job? = null
 
     private val onMapClickListenerH3 = OnMapClickListener { it ->
         val associatedMeasurements = runBlocking {
@@ -233,23 +189,9 @@ class MapFragment : Fragment() {
         val h3Address = H3Manager.getH3AddressFromPointSingleton(point, 8)
 
         val bottomSheetFragment = MeasurementListBottomSheetFragment.newInstance(h3Address)
-        if (isAdded) {
-            bottomSheetFragment.show(
-                parentFragmentManager,
-                bottomSheetFragment.tag
-            )
-        }
+        bottomSheetFragment.show(supportFragmentManager, bottomSheetFragment.tag)
         true
     }
-
-    private lateinit var mapView: MapView
-    private lateinit var mapboxMap : MapboxMap
-    private var pointAnnotationManager: PointAnnotationManager? = null
-    private var polygonAnnotationManager: PolygonAnnotationManager? = null
-    private var lowResPolygonAnnotationManager: PolygonAnnotationManager? = null
-    private var viewAnnotationManager: ViewAnnotationManager? = null
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private var annotations: MutableList<PointAnnotation> = mutableListOf()
 
     private val onCameraChangeListener = OnCameraChangeListener {
         debounceJob?.cancel()
@@ -268,9 +210,9 @@ class MapFragment : Fragment() {
         }
     }
 
+    private fun bitmapFromDrawableRes(@DrawableRes resourceId: Int, count: Int) =
+        convertDrawableToBitmap(getDrawable(resourceId), count)
 
-    private fun bitmapFromDrawableRes(context: Context, @DrawableRes resourceId: Int, count: Int) =
-        convertDrawableToBitmap(AppCompatResources.getDrawable(context, resourceId), count)
     private fun convertDrawableToBitmap(sourceDrawable: Drawable?, count: Int): Bitmap? {
         if (sourceDrawable == null) {
             return null
@@ -334,7 +276,8 @@ class MapFragment : Fragment() {
 
     private fun loadMapAnnotations() {
         if(this.pointAnnotationManager == null) {
-            val annotationApi = mapView.annotations
+            val annotationApi = binding.mapView.annotations
+
             pointAnnotationManager = annotationApi.createPointAnnotationManager()
             Log.d(TAG, "loadMapAnnotations initialize pointAnnotationManager")
         }
@@ -343,11 +286,7 @@ class MapFragment : Fragment() {
         Log.d(TAG, "loadMapAnnotations got ${coordinates.size} coordinates")
         for (coordinate in coordinates) {
             Log.d(TAG, "coordinate = $coordinate")
-            bitmapFromDrawableRes(
-                requireContext(),
-                R.drawable.fa_solid_location_pin,
-                coordinate.count
-            )?.let { bitmap ->
+            bitmapFromDrawableRes(R.drawable.fa_solid_location_pin, coordinate.count)?.let { bitmap ->
                 val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
                     .withPoint(Point.fromLngLat(coordinate.long, coordinate.lat))
                     .withIconImage(bitmap)
@@ -391,15 +330,15 @@ class MapFragment : Fragment() {
 
         withContext(Dispatchers.Main) {
             if (polygonAnnotationManager == null) {
-                val annotationApi = mapView.annotations
+                val annotationApi = binding.mapView.annotations
                 polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
             }
             if (lowResPolygonAnnotationManager == null) {
-                val annotationApi = mapView.annotations
+                val annotationApi = binding.mapView.annotations
                 lowResPolygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
             }
             if (viewAnnotationManager == null) {
-                viewAnnotationManager = mapView.viewAnnotationManager
+                viewAnnotationManager = binding.mapView.viewAnnotationManager
             }
 
             val reusablePolygonOptions = PolygonAnnotationOptions()
@@ -442,7 +381,7 @@ class MapFragment : Fragment() {
 
                     val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
 
-                    val view = LayoutInflater.from(context).inflate(R.layout.view_map_annotaton_layout, mapView, false)
+                    val view = layoutInflater.inflate(R.layout.view_map_annotaton_layout, binding.mapView, false)
                     val textViewMeasurements = view.findViewById<TextView>(R.id.textView_measurements)
                     textViewMeasurements.text = groups.size.toString()
 
@@ -475,11 +414,11 @@ class MapFragment : Fragment() {
         Log.i("H3 map click", "H3address: $h3Address, H3boundaries: $h3Boundaries")
 
         if(lowResPolygonAnnotationManager == null) {
-            val annotationApi = mapView.annotations
+            val annotationApi = binding.mapView.annotations
             lowResPolygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
         }
         if(viewAnnotationManager == null) {
-            viewAnnotationManager = mapView.viewAnnotationManager
+            viewAnnotationManager = binding.mapView.viewAnnotationManager
         }
 
         val reusablePolygonOptions = PolygonAnnotationOptions()
@@ -516,7 +455,7 @@ class MapFragment : Fragment() {
                 val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
 
                 // Inflate the custom view
-                val view = LayoutInflater.from(context).inflate(R.layout.view_map_annotaton_layout, mapView, false)
+                val view = layoutInflater.inflate(R.layout.view_map_annotaton_layout, binding.mapView, false)
                 val textViewMeasurements = view.findViewById<TextView>(R.id.textView_measurements)
                 textViewMeasurements.text = groups.size.toString()
 
@@ -533,21 +472,21 @@ class MapFragment : Fragment() {
     }
 
     private fun onMapReady() {
-        mapView.getMapboxMap().setCamera(
+        binding.mapView.getMapboxMap().setCamera(
             CameraOptions.Builder()
                 .zoom(13.0)
                 .build()
         )
 
-        mapView.getMapboxMap().loadStyleUri(
+        binding.mapView.getMapboxMap().loadStyleUri(
             Style.LIGHT
         ) {
             initLocationComponent()
             mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
             mapboxMap.addOnMapClickListener(onMapClickListenerH3)
 
-            mapView.compass.enabled = false
-            mapView.scalebar.enabled = false
+            binding.mapView.compass.enabled = false
+            binding.mapView.scalebar.enabled = false
 
             centerCameraOnUser()
         }
@@ -555,23 +494,15 @@ class MapFragment : Fragment() {
 
     private fun centerCameraOnUser() {
         //Permissions check required by fusedLocationClient
-        if (context?.let {
-                ActivityCompat.checkSelfPermission(
-                    it,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                )
-            } == PackageManager.PERMISSION_GRANTED && context?.let {
-                ActivityCompat.checkSelfPermission(
-                    it,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            } == PackageManager.PERMISSION_GRANTED
+        if (
+            checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         ) {
             fusedLocationClient.lastLocation
                 .addOnSuccessListener { lastKnownLocation->
                     if (lastKnownLocation != null) {
                         Log.i(TAG, "centerCameraOnUser setCamera")
-                        mapView.getMapboxMap().setCamera(
+                        binding.mapView.getMapboxMap().setCamera(
                             CameraOptions.Builder()
                                 .zoom(14.0)
                                 .center(Point.fromLngLat(lastKnownLocation.longitude, lastKnownLocation.latitude))
@@ -584,18 +515,12 @@ class MapFragment : Fragment() {
     }
 
     private fun initLocationComponent() {
-        val locationComponentPlugin = mapView.location
+        val locationComponentPlugin = binding.mapView.location
         locationComponentPlugin.updateSettings {
             this.enabled = true
             this.locationPuck = LocationPuck2D(
-                bearingImage = AppCompatResources.getDrawable(
-                    requireContext(),
-                    R.drawable.mapbox_user_puck_icon,
-                ),
-                shadowImage = AppCompatResources.getDrawable(
-                    requireContext(),
-                    R.drawable.mapbox_user_icon_shadow,
-                ),
+                bearingImage = getDrawable(R.drawable.mapbox_user_puck_icon),
+                shadowImage = getDrawable(R.drawable.mapbox_user_icon_shadow),
                 scaleExpression = interpolate {
                     linear()
                     zoom()

@@ -1,6 +1,6 @@
-package edu.gatech.cc.cellwatch.ui.map
+package edu.gatech.cc.cellwatch.ui.main
 
-import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -29,8 +29,12 @@ class MeasureFragment : Fragment() {
         binding = FragmentMeasureBinding.inflate(inflater, container, false)
         model = ViewModelProvider(requireActivity())[MeasureViewModel::class.java]
 
-        binding.takeAnotherButton.setOnClickListener { model.prepareForMeasurement() }
-        binding.backToMapButton.setOnClickListener { model.stopMeasuring() }
+        binding.takeAnotherButton.setOnClickListener { model.reset() }
+        binding.backToMapButton.setOnClickListener {
+            startActivity(Intent(context, MapActivity::class.java))
+            requireActivity().finish()
+            model.reset()
+        }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -45,12 +49,11 @@ class MeasureFragment : Fragment() {
 
     private fun handleStateUpdate(
         group: MeasurementGroup?,
-        progress: MeasureViewModel.MeasureProgress?,
+        progress: MeasureViewModel.MeasureProgress,
         uploadTime: Instant?,
     ) {
         binding.item.setMeasurementGroup(group ?: MeasurementGroup(null, null, null, null))
         val complete = when (progress) {
-            MeasureViewModel.MeasureProgress.SAVING,
             MeasureViewModel.MeasureProgress.END,
             MeasureViewModel.MeasureProgress.ERROR -> true
             else -> false
@@ -60,30 +63,18 @@ class MeasureFragment : Fragment() {
         binding.takeAnotherButton.isVisible = complete
         binding.backToMapButton.isVisible = complete
 
-        when (progress) {
-            null,
+        binding.header.setText(when (progress) {
             MeasureViewModel.MeasureProgress.PRE,
-            MeasureViewModel.MeasureProgress.START -> {} // ignore
-            MeasureViewModel.MeasureProgress.NOT_CELLULAR -> {
-                AlertDialog.Builder(context)
-                    .setMessage(R.string.not_cellular_warning)
-                    .setPositiveButton(R.string.not_cellular_proceed) { dialog, _ ->
-                        dialog.dismiss()
-                        model.startMeasurement()
-                    }
-                    .setNegativeButton(R.string.cancel) { dialog, _ ->
-                        dialog.dismiss()
-                        model.prepareForMeasurement()
-                    }
-                    .show()
-            }
-            MeasureViewModel.MeasureProgress.LOCATE -> binding.header.setText(R.string.finding_server)
-            MeasureViewModel.MeasureProgress.LATENCY -> binding.header.setText(R.string.measuring_latency)
-            MeasureViewModel.MeasureProgress.DOWNLOAD -> binding.header.setText(R.string.measuring_download)
-            MeasureViewModel.MeasureProgress.UPLOAD -> binding.header.setText(R.string.measuring_upload)
-            MeasureViewModel.MeasureProgress.SAVING -> binding.header.setText(R.string.measurement_complete)
-            MeasureViewModel.MeasureProgress.END -> binding.item.updateUploadTime(uploadTime)
-            MeasureViewModel.MeasureProgress.ERROR -> binding.header.setText(R.string.measurement_failed)
-        }
+            MeasureViewModel.MeasureProgress.START,
+            MeasureViewModel.MeasureProgress.NOT_CELLULAR -> R.string.measuring
+            MeasureViewModel.MeasureProgress.LOCATE -> R.string.finding_server
+            MeasureViewModel.MeasureProgress.LATENCY -> R.string.measuring_latency
+            MeasureViewModel.MeasureProgress.DOWNLOAD ->R.string.measuring_download
+            MeasureViewModel.MeasureProgress.UPLOAD -> R.string.measuring_upload
+            MeasureViewModel.MeasureProgress.END -> R.string.measurement_complete
+            MeasureViewModel.MeasureProgress.ERROR -> R.string.measurement_failed
+        })
+
+        binding.item.updateUploadTime(uploadTime)
     }
 }

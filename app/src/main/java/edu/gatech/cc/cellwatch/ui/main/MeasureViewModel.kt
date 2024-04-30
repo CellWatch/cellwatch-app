@@ -1,4 +1,4 @@
-package edu.gatech.cc.cellwatch.ui.map
+package edu.gatech.cc.cellwatch.ui.main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,7 +19,7 @@ class MeasureViewModel: ViewModel() {
     private val measurementRepository = CellWatchApp.measurementRepository
     private val fccSubmissionRepository = CellWatchApp.fccSubmissionRepository
 
-    private val _state = MutableStateFlow(State(null, null, null, false))
+    private val _state = MutableStateFlow(State(MeasureProgress.PRE, null, null, false))
     val state: StateFlow<State> = _state
 
     fun setInVehicle(inVehicle: Boolean) {
@@ -58,12 +58,12 @@ class MeasureViewModel: ViewModel() {
         }
     }
 
-    fun prepareForMeasurement() {
-        _state.update { State(MeasureProgress.PRE, null, null, false) }
+    fun cancel() {
+        _state.update { currentState -> currentState.copy(progress = MeasureProgress.PRE, results = null, uploadTime = null) }
     }
 
-    fun stopMeasuring() {
-        _state.update { State(null, null, null, false) }
+    fun reset() {
+        _state.update { State(MeasureProgress.PRE, null, null, false) }
     }
 
     private fun handleNotOnCellular() {
@@ -115,7 +115,7 @@ class MeasureViewModel: ViewModel() {
             return
         }
 
-        _state.update { currentState -> currentState.copy(progress = MeasureProgress.SAVING, results = group) }
+        _state.update { currentState -> currentState.copy(progress = MeasureProgress.END, results = group) }
 
         viewModelScope.launch {
             val uploadTime = try {
@@ -127,18 +127,16 @@ class MeasureViewModel: ViewModel() {
                 null
             }
 
-            _state.update { currentState ->
-                currentState.copy(progress = MeasureProgress.END, uploadTime = uploadTime)
-            }
+            _state.update { currentState -> currentState.copy(uploadTime = uploadTime) }
         }
     }
 
     data class State(
-        val progress: MeasureProgress?,
+        val progress: MeasureProgress,
         val results: MeasurementGroup?,
         val uploadTime: Instant?,
         val inVehicle: Boolean,
     )
 
-    enum class MeasureProgress { PRE, START, NOT_CELLULAR, LOCATE, LATENCY, DOWNLOAD, UPLOAD, SAVING, END, ERROR }
+    enum class MeasureProgress { PRE, START, NOT_CELLULAR, LOCATE, LATENCY, DOWNLOAD, UPLOAD, END, ERROR }
 }
