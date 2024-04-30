@@ -2,13 +2,14 @@ package edu.gatech.cc.cellwatch.domain.msak.latency
 
 import android.os.Handler
 import android.os.Looper
-import edu.gatech.cc.cellwatch.core.util.Log
+import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
 import edu.gatech.cc.cellwatch.BuildConfig
+import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.domain.msak.LATENCY_CHARSET
 import edu.gatech.cc.cellwatch.domain.msak.LATENCY_DURATION
 import edu.gatech.cc.cellwatch.domain.msak.Server
-import com.google.gson.Gson
-import com.google.gson.JsonSyntaxException
 import io.ktor.http.Url
 import io.ktor.util.reflect.instanceOf
 import kotlinx.coroutines.channels.Channel
@@ -127,7 +128,7 @@ class LatencyTest(
         Log.d(TAG, "making authorize request to $authorizeUrl")
         val request = Request.Builder()
             .url(authorizeUrl)
-            .header("User-Agent", BuildConfig.USER_AGENT)
+            .header("User-Agent", CellWatchApp.userAgent)
             .build()
 
         client.newCall(request).enqueue(object: Callback {

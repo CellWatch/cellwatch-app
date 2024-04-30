@@ -1,12 +1,13 @@
 package edu.gatech.cc.cellwatch.data.core.repositories
 
-import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.annotation.WorkerThread
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import edu.gatech.cc.cellwatch.BuildConfig
-import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
+import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.local.dao.FccSubmissionDao
+import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
 import edu.gatech.cc.cellwatch.data.local.model.asExternalModel
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.TcpTuple
@@ -91,7 +92,7 @@ class FccSubmissionRepository(
         val client = OkHttpClient.Builder().build()
         val request = Request.Builder()
             .url(serviceUrl)
-            .header("User-Agent", BuildConfig.USER_AGENT)
+            .header("User-Agent", CellWatchApp.userAgent)
             .build()
 
         client.newCall(request).enqueue(object : Callback {

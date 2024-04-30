@@ -1,7 +1,10 @@
 package edu.gatech.cc.cellwatch.domain.msak.locate
 
-import edu.gatech.cc.cellwatch.core.util.Log
+import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
 import edu.gatech.cc.cellwatch.BuildConfig
+import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.domain.msak.LATENCY_AUTHORIZE_PATH
 import edu.gatech.cc.cellwatch.domain.msak.LATENCY_RESULT_PATH
 import edu.gatech.cc.cellwatch.domain.msak.LOCATE_LATENCY_PATH
@@ -9,8 +12,6 @@ import edu.gatech.cc.cellwatch.domain.msak.LOCATE_THROUGHPUT_PATH
 import edu.gatech.cc.cellwatch.domain.msak.Server
 import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_DOWNLOAD_PATH
 import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_UPLOAD_PATH
-import com.google.gson.Gson
-import com.google.gson.JsonSyntaxException
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -93,7 +94,7 @@ class LocateManager(client: OkHttpClient? = null, locateUrl: String? = null) {
         val params = "country=US&strict=true${if (site != null) "&site=$site" else ""}"
         val request = Request.Builder()
             .url("$fullLocateUrl?$params")
-            .header("User-Agent", BuildConfig.USER_AGENT)
+            .header("User-Agent", CellWatchApp.userAgent)
             .build()
 
         client.newCall(request).enqueue(object : Callback {
