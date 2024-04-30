@@ -51,5 +51,7 @@ class CellWatchApp : Application() {
         val settingsRepository by lazy {
             SettingsRepository(localDataStore)
         }
+
+        val userAgent = "CellWatch/${BuildConfig.VERSION_NAME}${if (BuildConfig.DEBUG) "-debug" else ""}"
     }
 }

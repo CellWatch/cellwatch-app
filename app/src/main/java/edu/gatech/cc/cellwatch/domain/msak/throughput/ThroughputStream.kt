@@ -1,16 +1,16 @@
 package edu.gatech.cc.cellwatch.domain.msak.throughput
 
-import edu.gatech.cc.cellwatch.core.util.Log
-import edu.gatech.cc.cellwatch.BuildConfig
-import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MAX_SCALED_MESSAGE_SIZE
-import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MESSAGE_SCALING_FRACTION
-import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MIN_MESSAGE_SIZE
-import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_AVG_MEASUREMENT_INTERVAL_MILLIS
-import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MAX_MEASUREMENT_INTERVAL_MILLIS
-import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MIN_MEASUREMENT_INTERVAL_MILLIS
-import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_WS_PROTO
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_AVG_MEASUREMENT_INTERVAL_MILLIS
+import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MAX_MEASUREMENT_INTERVAL_MILLIS
+import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MAX_SCALED_MESSAGE_SIZE
+import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MESSAGE_SCALING_FRACTION
+import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MIN_MEASUREMENT_INTERVAL_MILLIS
+import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_MIN_MESSAGE_SIZE
+import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_WS_PROTO
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.delay
@@ -118,7 +118,7 @@ class ThroughputStream(
             val request = Request.Builder()
                 .url(url)
                 .header("Sec-WebSocket-Protocol", THROUGHPUT_WS_PROTO)
-                .header("User-Agent", BuildConfig.USER_AGENT)
+                .header("User-Agent", CellWatchApp.userAgent)
                 .build()
 
             // Record a fallback start time. This will be overwritten in onOpen, but we need to have a
