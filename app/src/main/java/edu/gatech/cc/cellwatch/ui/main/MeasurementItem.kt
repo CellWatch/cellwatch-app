@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.LinearLayout
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.setCopyOnClick
+import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
@@ -55,7 +56,11 @@ class MeasurementItem(
         }
     }
 
-    fun setMeasurementGroup(group: MeasurementGroup) {
+    fun setData(
+        group: MeasurementGroup,
+        collectionMode: CollectionMode? = null,
+        inVehicle: Boolean? = null,
+    ) {
         val timestamp = group.latency?.timestamp
             ?: group.download?.timestamp
             ?: group.upload?.timestamp
@@ -90,9 +95,9 @@ class MeasurementItem(
         binding.carrierText.text = carrier ?: ""
 
         val submission = group.submission
-        binding.typeText.text = if (submission == null) {
+        binding.typeText.text = if (submission == null && collectionMode != CollectionMode.FCC_CHALLENGE) {
             context.getString(R.string.testing)
-        } else if (submission.inVehicle == true) {
+        } else if (submission?.inVehicle == true || inVehicle == true) {
             context.getString(R.string.fcc_challenge_vehicle)
         } else {
             context.getString(R.string.fcc_challenge_stationary)

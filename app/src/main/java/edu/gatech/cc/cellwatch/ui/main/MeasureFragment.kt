@@ -11,15 +11,17 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.databinding.FragmentMeasureBinding
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
 
 class MeasureFragment : Fragment() {
     private lateinit var binding: FragmentMeasureBinding
     private lateinit var model: MeasureViewModel
+    private var collectionMode: CollectionMode? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -37,23 +39,24 @@ class MeasureFragment : Fragment() {
         }
 
         lifecycleScope.launch {
+            collectionMode = CellWatchApp.settingsRepository.getCollectionMode()
+
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                model.state.collect {
-                    handleStateUpdate(it.results, it.progress, it.uploadTime)
-                }
+                model.state.collect { handleStateUpdate(it) }
             }
         }
 
         return binding.root
     }
 
-    private fun handleStateUpdate(
-        group: MeasurementGroup?,
-        progress: MeasureViewModel.MeasureProgress,
-        uploadTime: Instant?,
-    ) {
-        binding.item.setMeasurementGroup(group ?: MeasurementGroup(null, null, null, null))
-        val complete = when (progress) {
+    private fun handleStateUpdate(state: MeasureViewModel.State) {
+        binding.item.setData(
+            state.results ?: MeasurementGroup(null, null, null, null),
+            collectionMode,
+            state.inVehicle,
+        )
+
+        val complete = when (state.progress) {
             MeasureViewModel.MeasureProgress.END,
             MeasureViewModel.MeasureProgress.ERROR -> true
             else -> false
@@ -63,7 +66,7 @@ class MeasureFragment : Fragment() {
         binding.takeAnotherButton.isVisible = complete
         binding.backToMapButton.isVisible = complete
 
-        binding.header.setText(when (progress) {
+        binding.header.setText(when (state.progress) {
             MeasureViewModel.MeasureProgress.PRE,
             MeasureViewModel.MeasureProgress.START,
             MeasureViewModel.MeasureProgress.NOT_CELLULAR -> R.string.measuring
@@ -75,6 +78,6 @@ class MeasureFragment : Fragment() {
             MeasureViewModel.MeasureProgress.ERROR -> R.string.measurement_failed
         })
 
-        binding.item.updateUploadTime(uploadTime)
+        binding.item.updateUploadTime(state.uploadTime)
     }
 }
