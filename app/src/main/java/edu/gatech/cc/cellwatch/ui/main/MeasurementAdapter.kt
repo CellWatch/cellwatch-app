@@ -38,7 +38,7 @@ class MeasurementAdapter(viewLifecycleOwner: LifecycleOwner, getMeasurementGroup
 
     override fun onBindViewHolder(holder: MeasurementViewHolder, position: Int) {
         val group = groups[position]
-        holder.item.setMeasurementGroup(group)
+        holder.item.setData(group)
     }
 
     override fun getItemCount() = groups.size
