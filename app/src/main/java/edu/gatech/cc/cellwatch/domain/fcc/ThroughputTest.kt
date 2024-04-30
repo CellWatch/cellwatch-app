@@ -41,7 +41,17 @@ class ThroughputTest(
     private var lastWarmupUpdates: List<ThroughputUpdate>? = null
     private var error: Throwable? = null
     private val _metricsChan = Channel<ThroughputMetrics>(32)
-    private val latestUpdates; get() = msakTest.streams.map {s ->s.updates.lastOrNull { isFromReceiver(it) }}
+    private val latestUpdates; get() = msakTest.streams.map {s ->
+        // manually iterate by index to avoid ConcurrentModificationException
+        var latest: ThroughputUpdate? = null
+        for (i in (s.updates.size - 1) downTo 0) {
+            if (isFromReceiver(s.updates[i])) {
+                latest = s.updates[i]
+                break
+            }
+        }
+        latest
+    }
     private val handler = Handler(Looper.getMainLooper())
     private val latestMetrics: ThroughputMetrics?
         get() {
