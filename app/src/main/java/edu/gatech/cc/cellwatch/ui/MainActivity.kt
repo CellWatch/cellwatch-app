@@ -6,6 +6,10 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
@@ -13,21 +17,23 @@ import edu.gatech.cc.cellwatch.databinding.ActivityMainBinding
 import edu.gatech.cc.cellwatch.ui.map.MapFragment
 import edu.gatech.cc.cellwatch.ui.map.MeasureFragment
 import edu.gatech.cc.cellwatch.ui.map.MeasureHistoryFragment
+import edu.gatech.cc.cellwatch.ui.map.MeasureViewModel
 import edu.gatech.cc.cellwatch.ui.map.PreMeasureFragment
 import edu.gatech.cc.cellwatch.ui.map.SettingsFragment
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 class MainActivity : AppCompatActivity(),
     MapFragment.DrawerToggleListener,
-    MapFragment.OnMapFragmentInteractionListener,
-    PreMeasureFragment.PreMeasureFragmentInteractionListener,
-    MeasureFragment.MeasureFragmentInteractionListener {
+    MapFragment.OnMapFragmentInteractionListener {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var measureModel : MeasureViewModel
     private val fragmentStack = ArrayDeque<Fragment>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        measureModel = ViewModelProvider(this)[MeasureViewModel::class.java]
         val onboardingComplete = runBlocking { CellWatchApp.settingsRepository.getOnboardingComplete() }
         if (!onboardingComplete) {
             startActivity(Intent(this, OnboardingActivity::class.java))
@@ -39,6 +45,12 @@ class MainActivity : AppCompatActivity(),
 
         createDrawerLayout()
         replaceFragment(MapFragment(), false)
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                measureModel.state.collect { handleMeasureStateUpdate(it.progress) }
+            }
+        }
     }
 
 
@@ -129,19 +141,23 @@ class MainActivity : AppCompatActivity(),
     }
 
     override fun onMeasureButtonPressed() {
-        replaceFragment(PreMeasureFragment(), false)
+        measureModel.prepareForMeasurement()
     }
 
-    override fun onGoButtonPressed() {
-        replaceFragment(MeasureFragment(), false)
-    }
+    private fun handleMeasureStateUpdate(progress: MeasureViewModel.MeasureProgress?) {
+        val currentFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
 
-    override fun onTakeAnotherMeasurementPressed() {
-        replaceFragment(PreMeasureFragment(), false)
-    }
-
-    override fun onBackToMapPressed() {
-        replaceFragment(MapFragment(), false)
+        when (progress) {
+            null -> if (currentFragment is PreMeasureFragment || currentFragment is MeasureFragment) {
+                replaceFragment(MapFragment(), false)
+            }
+            MeasureViewModel.MeasureProgress.PRE -> if (currentFragment !is PreMeasureFragment) {
+                replaceFragment(PreMeasureFragment(), false)
+            }
+            else -> if (currentFragment !is MeasureFragment){
+                replaceFragment(MeasureFragment(), false)
+            }
+        }
     }
 
     override fun onBackPressed() {
