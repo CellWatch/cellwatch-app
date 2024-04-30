@@ -21,7 +21,8 @@ import kotlinx.datetime.Instant
 /**
  * A MeasurementRepository contains methods to read/write [Measurement] records to the local Room
  * database. MeasurementRepository also contains the uploadMeasurements method which uploads all
- * unsynchronized [Measurement] records from the Room database to the remote Supabase database.
+ * unsynchronized [Measurement] records from the Room database to the remote Supabase database and
+ * marks the local records synchronized by setting the uploadTime field to a timestamp.
  */
 
 class MeasurementRepository(
