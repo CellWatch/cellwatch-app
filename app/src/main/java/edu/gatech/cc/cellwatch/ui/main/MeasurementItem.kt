@@ -104,7 +104,7 @@ class MeasurementItem(
         }
 
         val latencyResult = group.latency
-        binding.latencyText.text = if (latencyResult == null) {
+        val latencyText = if (latencyResult == null) {
             "-"
         } else if (latencyResult.success == true) {
             context.getString(
@@ -114,6 +114,8 @@ class MeasurementItem(
         } else {
             context.getString(R.string.failed)
         }
+        binding.summaryLatencyText.text = latencyText
+        binding.latencyText.text = latencyText
 
         val downloadResult = group.download
         val downloadText = if (downloadResult == null) {

@@ -70,7 +70,38 @@
                     android:layout_width="16dp"
                     android:layout_height="16dp"
                     android:layout_gravity="center"
-                    android:layout_marginEnd="10dp"
+                    android:layout_marginEnd="4dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/fa_stopwatch"
+                    app:tint="@color/cw_green" />
+
+                <TextView
+                    android:id="@+id/summaryLatencyText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="98 ms"
+                    android:textAlignment="textEnd"
+                    android:textColor="@color/cw_green"
+                    android:textSize="16sp" />
+            </LinearLayout>
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:minWidth="8dp"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="2dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_gravity="center"
+                    android:layout_marginEnd="4dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/fa_download"
                     app:tint="@color/cw_green" />
@@ -88,6 +119,7 @@
             <Space
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
+                android:minWidth="8dp"
                 android:layout_weight="1" />
 
             <LinearLayout
@@ -100,7 +132,7 @@
                     android:layout_width="16dp"
                     android:layout_height="16dp"
                     android:layout_gravity="center"
-                    android:layout_marginEnd="10dp"
+                    android:layout_marginEnd="4dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/fa_upload"
                     app:tint="@color/cw_green" />
