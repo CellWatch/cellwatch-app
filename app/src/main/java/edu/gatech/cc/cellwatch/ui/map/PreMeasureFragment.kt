@@ -6,17 +6,20 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.databinding.FragmentPreMeasureBinding
+import kotlinx.coroutines.launch
 
 class PreMeasureFragment: Fragment() {
     private lateinit var binding: FragmentPreMeasureBinding
-    private lateinit var model: MeasurementViewModel
+    private lateinit var model: MeasureViewModel
     private var inVehicle = false
         set(v) {
             field = v
-            model.inVehicle = v
 
             binding.stationary.isSelected = !v
             binding.stationaryCheck.isVisible = !v
@@ -35,29 +38,24 @@ class PreMeasureFragment: Fragment() {
             }
         }
 
-    interface PreMeasureFragmentInteractionListener {
-        fun onGoButtonPressed()
-    }
-
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentPreMeasureBinding.inflate(inflater, container, false)
-        model = ViewModelProvider(requireActivity())[MeasurementViewModel::class.java]
+        model = ViewModelProvider(requireActivity())[MeasureViewModel::class.java]
 
-        binding.stationary.setOnClickListener { inVehicle = false }
-        binding.moving.setOnClickListener { inVehicle = true }
+        binding.stationary.setOnClickListener { model.setInVehicle(false) }
+        binding.moving.setOnClickListener { model.setInVehicle(true) }
+        binding.go.setOnClickListener { model.startMeasurement() }
+
         inVehicle = false
-
-        val interactionListener = if (context is PreMeasureFragmentInteractionListener) {
-            context as PreMeasureFragmentInteractionListener
-        } else {
-            throw RuntimeException(context.toString() + " must implement PreMeasureFragmentInteractionListener")
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                model.state.collect { inVehicle = it.inVehicle }
+            }
         }
-
-        binding.go.setOnClickListener { interactionListener.onGoButtonPressed() }
 
         return binding.root
     }
