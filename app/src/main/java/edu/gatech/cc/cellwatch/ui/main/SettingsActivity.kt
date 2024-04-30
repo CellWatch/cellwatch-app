@@ -1,14 +1,13 @@
-package edu.gatech.cc.cellwatch.ui.map
+package edu.gatech.cc.cellwatch.ui.main
 
 import android.app.AlertDialog
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
-import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
@@ -16,19 +15,22 @@ import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.setCopyOnClick
 import edu.gatech.cc.cellwatch.data.core.repositories.SettingsRepository
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
-import edu.gatech.cc.cellwatch.databinding.FragmentSettingsBinding
+import edu.gatech.cc.cellwatch.databinding.ActivitySettingsBinding
 import kotlinx.coroutines.launch
 
-class SettingsFragment : Fragment() {
-    private val TAG = this::class.simpleName
-    private lateinit var binding: FragmentSettingsBinding
+class SettingsActivity : AppCompatActivity() {
+    private lateinit var binding: ActivitySettingsBinding
     private lateinit var collectionModeToString: Map<CollectionMode, String>
     private lateinit var stringToCollectionMode: Map<String, CollectionMode>
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View {
-        binding = FragmentSettingsBinding.inflate(inflater, container, false)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivitySettingsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        binding.navDrawer.setOnCloseListener { binding.root.closeDrawer(GravityCompat.START) }
+        binding.navDrawer.setActiveActivity(this)
+        binding.toolbar.setDrawerLayout(binding.root)
 
         collectionModeToString = mapOf(
             CollectionMode.FCC_CHALLENGE to getString(R.string.fcc_challenge_mode),
@@ -36,7 +38,7 @@ class SettingsFragment : Fragment() {
         )
         stringToCollectionMode = collectionModeToString.entries.associate { it.value to it.key }
 
-        val adapter = ArrayAdapter(requireContext(), R.layout.dropdown_item, collectionModeToString.values.toTypedArray())
+        val adapter = ArrayAdapter(this, R.layout.dropdown_item, collectionModeToString.values.toTypedArray())
         binding.collectionModeTextView.setAdapter(adapter)
         binding.collectionModeTextView.setOnItemClickListener { _, _, _, _ ->
             val text = binding.collectionModeTextView.text.toString()
@@ -49,7 +51,7 @@ class SettingsFragment : Fragment() {
 
         binding.appVersion.text = BuildConfig.VERSION_NAME
         binding.deviceId.text = ""
-        viewLifecycleOwner.lifecycleScope.launch {
+        lifecycleScope.launch {
             loadSavedFccInfo()
             binding.deviceId.text = CellWatchApp.settingsRepository.getDeviceId()
         }
@@ -58,8 +60,6 @@ class SettingsFragment : Fragment() {
         binding.appVersionRow.setCopyOnClick("app version") { binding.appVersion.text }
 
         setEditable(false)
-
-        return binding.root
     }
 
     private fun setEditable(e: Boolean) {
@@ -85,6 +85,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun handleApplyContactInfoChanges() {
+        val context = this
         lifecycleScope.launch {
             try {
                 CellWatchApp.settingsRepository.run {
@@ -110,7 +111,7 @@ class SettingsFragment : Fragment() {
 
     private suspend fun enableFccChallengeMode(checkAcknowledgement: Boolean) {
         if (checkAcknowledgement && !CellWatchApp.settingsRepository.getFccSharingAcknowledged()) {
-            AlertDialog.Builder(context)
+            AlertDialog.Builder(this)
                 .setMessage(R.string.fcc_acknowledgement)
                 .setPositiveButton(R.string.acknowledge) { dialog, _ ->
                     dialog.dismiss()
@@ -124,12 +125,14 @@ class SettingsFragment : Fragment() {
                     binding.collectionModeTextView.setText(collectionModeToString[CollectionMode.TESTING], false)
                 }
                 .show()
+
+            return
         }
 
         try {
             CellWatchApp.settingsRepository.setCollectionMode(CollectionMode.FCC_CHALLENGE)
         } catch (e: SettingsRepository.MissingFccInfoException) {
-            Toast.makeText(context, getString(R.string.missing_fcc_info_error), Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.missing_fcc_info_error), Toast.LENGTH_LONG).show()
             binding.collectionModeTextView.setText(collectionModeToString[CollectionMode.TESTING], false)
         }
     }

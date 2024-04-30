@@ -1,4 +1,4 @@
-package edu.gatech.cc.cellwatch.ui
+package edu.gatech.cc.cellwatch.ui.main
 
 import SettingsSetupFragment
 import android.content.Intent
@@ -55,7 +55,7 @@ class OnboardingActivity : AppCompatActivity(),
 
     override fun onPermissionsHandled() {
         runBlocking { CellWatchApp.settingsRepository.setOnboardingComplete(true) }
-        startActivity(Intent(this, MainActivity::class.java))
+        startActivity(Intent(this, MapActivity::class.java))
         finish()
     }
 
