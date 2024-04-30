@@ -28,7 +28,8 @@ class MeasureActivity : AppCompatActivity() {
 
         binding.navDrawer.setOnCloseListener { binding.root.closeDrawer(GravityCompat.START) }
         binding.navDrawer.setActiveActivity(this)
-        binding.toolbar.setDrawerLayout(binding.root)
+        setSupportActionBar(binding.toolbar)
+        binding.toolbar.setNavigationOnClickListener {binding.root.openDrawer(GravityCompat.START) }
 
         model = ViewModelProvider(this)[MeasureViewModel::class.java]
         lifecycleScope.launch {

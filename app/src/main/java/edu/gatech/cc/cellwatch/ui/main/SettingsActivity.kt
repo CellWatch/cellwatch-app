@@ -30,7 +30,8 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.navDrawer.setOnCloseListener { binding.root.closeDrawer(GravityCompat.START) }
         binding.navDrawer.setActiveActivity(this)
-        binding.toolbar.setDrawerLayout(binding.root)
+        setSupportActionBar(binding.toolbar)
+        binding.toolbar.setNavigationOnClickListener {binding.root.openDrawer(GravityCompat.START) }
 
         collectionModeToString = mapOf(
             CollectionMode.FCC_CHALLENGE to getString(R.string.fcc_challenge_mode),
