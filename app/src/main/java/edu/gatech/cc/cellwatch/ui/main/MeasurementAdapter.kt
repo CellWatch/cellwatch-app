@@ -2,28 +2,20 @@ package edu.gatech.cc.cellwatch.ui.main
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import edu.gatech.cc.cellwatch.R
-import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
-import kotlinx.coroutines.launch
 
-class MeasurementAdapter(viewLifecycleOwner: LifecycleOwner, getMeasurementGroups: suspend () -> List<MeasurementGroup>) :
+class MeasurementAdapter() :
     RecyclerView.Adapter<MeasurementAdapter.MeasurementViewHolder>() {
 
     private var groups = listOf<MeasurementGroup>()
 
-    init {
-        viewLifecycleOwner.lifecycleScope.launch {
-            Log.d("MeasurementAdapter", "getting measurements")
-            groups = getMeasurementGroups().sortedByDescending {
-                it.latency?.timestamp ?: it.download?.timestamp ?: it.upload ?.timestamp
-            }
-            Log.d("MeasurementAdapter", "got ${groups.size} measurements")
-            notifyDataSetChanged()
+    fun setGroups(g: List<MeasurementGroup>) {
+        groups = g.sortedByDescending {
+            it.latency?.timestamp ?: it.download?.timestamp ?: it.upload ?.timestamp
         }
+        notifyDataSetChanged()
     }
 
     inner class MeasurementViewHolder(val item: MeasurementItem) : RecyclerView.ViewHolder(item)

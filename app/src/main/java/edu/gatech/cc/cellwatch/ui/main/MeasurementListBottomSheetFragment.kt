@@ -5,11 +5,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
+import kotlinx.coroutines.launch
 import okhttp3.internal.toHexString
 
 class MeasurementListBottomSheetFragment : BottomSheetDialogFragment() {
@@ -47,8 +49,11 @@ class MeasurementListBottomSheetFragment : BottomSheetDialogFragment() {
 
         h3Address?.let {
             // Use the measurementId to fetch the associated measurements
-            recyclerView.adapter = MeasurementAdapter(viewLifecycleOwner) {
-                H3Manager.getMeasurementGroupsAssociatedWithH3Address(it, H3Manager.getH3ResolutionFromAddress(it))
+            val adapter = MeasurementAdapter()
+            recyclerView.adapter = adapter
+            viewLifecycleOwner.lifecycleScope.launch {
+                val groups = H3Manager.getMeasurementGroupsAssociatedWithH3Address(it, H3Manager.getH3ResolutionFromAddress(it))
+                adapter.setGroups(groups)
             }
         }
 

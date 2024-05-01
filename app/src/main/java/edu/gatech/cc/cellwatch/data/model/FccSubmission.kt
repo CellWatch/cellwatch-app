@@ -3,8 +3,10 @@ package edu.gatech.cc.cellwatch.data.model
 import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
 import edu.gatech.cc.cellwatch.data.network.model.NetworkFccSubmission
 import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
+@Serializable
 data class FccSubmission(
     // aliases to test_id when submitting to FCC
     var id: String = UUID.randomUUID().toString(),

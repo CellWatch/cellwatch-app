@@ -6,11 +6,13 @@ import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurement
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurementWithData
 import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
 /**
  * External data layer representation of a measurement
  */
+@Serializable
 data class Measurement(
     var id: String = UUID.randomUUID().toString(),
     val groupId: String? = null,

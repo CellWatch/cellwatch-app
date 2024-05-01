@@ -3,11 +3,13 @@ package edu.gatech.cc.cellwatch.data.model
 import edu.gatech.cc.cellwatch.data.local.model.UploadDownloadDataEntity
 import edu.gatech.cc.cellwatch.data.network.model.NetworkUploadDownloadData
 import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
 /**
  * External data layer representation of an upload/download data record
  */
+@Serializable
 data class UploadDownloadData(
     var id: String = UUID.randomUUID().toString(),
     var measurementId: String? = null, // UUID

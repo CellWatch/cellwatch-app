@@ -1,5 +1,7 @@
 package edu.gatech.cc.cellwatch.data.model
 
+import kotlinx.serialization.Serializable
+@Serializable
 data class MeasurementGroup(
     val latency: Measurement?,
     val download: Measurement?,
