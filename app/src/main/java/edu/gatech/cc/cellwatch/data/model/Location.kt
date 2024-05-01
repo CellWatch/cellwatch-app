@@ -3,11 +3,13 @@ package edu.gatech.cc.cellwatch.data.model
 import edu.gatech.cc.cellwatch.data.local.model.LocationEntity
 import edu.gatech.cc.cellwatch.data.network.model.NetworkLocation
 import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
 /**
  * External data layer representation of a location
  */
+@Serializable
 data class Location (
     var id: String = UUID.randomUUID().toString(),
     val timestamp: Instant? = null,

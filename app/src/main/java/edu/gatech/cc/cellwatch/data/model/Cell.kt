@@ -3,8 +3,10 @@ package edu.gatech.cc.cellwatch.data.model
 import edu.gatech.cc.cellwatch.data.local.model.CellEntity
 import edu.gatech.cc.cellwatch.data.network.model.NetworkCell
 import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
+@Serializable
 data class Cell(
     var id: String = UUID.randomUUID().toString(),
     val timestamp: Instant? = null,

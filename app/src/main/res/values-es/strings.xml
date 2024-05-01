@@ -106,6 +106,8 @@
     <string name="technology">Tecnología</string>
     <string name="roaming">Roaming de datos</string>
     <string name="uploaded">Subido</string>
+    <string name="export">Exportar</string>
+    <string name="export_failed">Exportación fallida</string>
 
     <!-- settings -->
     <string name="settings">Ajustes</string>

@@ -3,11 +3,13 @@ package edu.gatech.cc.cellwatch.data.model
 import edu.gatech.cc.cellwatch.data.local.model.LatencyDataEntity
 import edu.gatech.cc.cellwatch.data.network.model.NetworkLatencyData
 import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
 /**
  * External data layer representation of a lotency data record
  */
+@Serializable
 data class LatencyData(
     var id: String = UUID.randomUUID().toString(),
     var measurementId: String? = null, // UUID
