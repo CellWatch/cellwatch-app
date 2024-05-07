@@ -14,6 +14,7 @@ import android.widget.TextView
 import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.gson.JsonObject
@@ -78,6 +79,7 @@ class MapActivity : AppCompatActivity() {
         if (!onboardingComplete) {
             startActivity(Intent(this, OnboardingActivity::class.java))
             finish()
+            return
         }
 
         binding = ActivityMapBinding.inflate(layoutInflater)
@@ -130,6 +132,15 @@ class MapActivity : AppCompatActivity() {
             loadMapH3()
         } else {
             loadMapAnnotations()
+        }
+
+        lifecycleScope.launch {
+            try {
+                CellWatchApp.measurementRepository.uploadMeasurements()
+                CellWatchApp.fccSubmissionRepository.uploadFccSubmissions()
+            } catch(e: Exception) {
+                Log.d(TAG, "failed to upload measurements and submissions", e)
+            }
         }
     }
 
