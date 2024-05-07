@@ -10,7 +10,6 @@ import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.util.Log
 import android.widget.TextView
 import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatActivity
@@ -45,6 +44,7 @@ import com.mapbox.maps.plugin.scalebar.scalebar
 import com.mapbox.maps.viewannotation.ViewAnnotationManager
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.databinding.ActivityMapBinding
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 import edu.gatech.cc.cellwatch.domain.map.managers.MapAnnotationManager
@@ -138,7 +138,6 @@ class MapActivity : AppCompatActivity() {
         Used when a child hexagon is clicked to display measurements associated with it.
          */
         val data = polygon.getData()
-        Log.i("onPolygonClick", data.toString())
         if (data == null || data.isJsonNull || !data.isJsonObject) {
             Log.i("H3", "Skipping annotation due to null or invalid data")
             return@OnPolygonAnnotationClickListener false // Skip if data is null or not a JsonObject
@@ -279,13 +278,10 @@ class MapActivity : AppCompatActivity() {
             val annotationApi = binding.mapView.annotations
 
             pointAnnotationManager = annotationApi.createPointAnnotationManager()
-            Log.d(TAG, "loadMapAnnotations initialize pointAnnotationManager")
         }
 
         val coordinates = MapAnnotationManager.getAllCoordinates()
-        Log.d(TAG, "loadMapAnnotations got ${coordinates.size} coordinates")
         for (coordinate in coordinates) {
-            Log.d(TAG, "coordinate = $coordinate")
             bitmapFromDrawableRes(R.drawable.fa_solid_location_pin, coordinate.count)?.let { bitmap ->
                 val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
                     .withPoint(Point.fromLngLat(coordinate.long, coordinate.lat))
@@ -322,9 +318,6 @@ class MapActivity : AppCompatActivity() {
         // Get all of the non rendered H3 addresses; used for when the map is moved so we don't re-render hexagons.
         val nonRenderedH3Addresses = h3Addresses.filterNot { it in renderedH3Addresses }.toMutableList()
 
-        Log.i(TAG, "nonRenderedH3Addresses: $nonRenderedH3Addresses")
-        Log.i(TAG, "renderedH3Addresses: $renderedH3Addresses")
-
         // Get all of the hex boundaries that we need to render.
         val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(nonRenderedH3Addresses)
 
@@ -355,7 +348,6 @@ class MapActivity : AppCompatActivity() {
 
                 renderedH3Addresses.add(address)
                 reusablePolygonOptions.withPoints(listOf(boundary))
-                Log.i("MapFragment", "polygonAnnotationManager: ${polygonAnnotationManager.toString()}")
                 polygonAnnotationManager?.create(reusablePolygonOptions.withData(data))
             }
 
@@ -365,13 +357,8 @@ class MapActivity : AppCompatActivity() {
                 data.addProperty("h3_address", address)
 
                 val groups = H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, BIGGER_HEX_TILE_RES)
-                Log.i(TAG, "$groups")
-                Log.i(TAG, "Determining if we have a match: ${groups.size > 1} and ${renderedMeasurementOverlays.contains(address)}")
                 if (groups.size >= 1 && !renderedMeasurementOverlays.contains(address)) {
-                    Log.i(TAG, "Address boundary precursor")
                     val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
-
-                    Log.i(TAG, "address boundary: $addressBoundary")
 
                     polygonAnnotationManager?.create(reusablePolygonOptions
                         .withPoints(addressBoundary)
@@ -389,8 +376,6 @@ class MapActivity : AppCompatActivity() {
                         .geometry(hexCenter)
                         .build()
                     viewAnnotationManager?.addViewAnnotation(view, viewAnnotationOptions)
-                    Log.i("MapFragment", "viewAnnotationManager: ${viewAnnotationManager.toString()}")
-
                     renderedMeasurementOverlays.add(address)
                 }
             }
@@ -410,8 +395,6 @@ class MapActivity : AppCompatActivity() {
         val h3Address = H3Manager.getH3AddressFromPointSingleton(point, BIGGER_HEX_TILE_RES)
         val h3HexChildren = H3Manager.getRelatedH3Hex(h3Address, SMALLER_HEX_TILE_RES)
         val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(h3HexChildren)
-
-        Log.i("H3 map click", "H3address: $h3Address, H3boundaries: $h3Boundaries")
 
         if(lowResPolygonAnnotationManager == null) {
             val annotationApi = binding.mapView.annotations
@@ -435,8 +418,6 @@ class MapActivity : AppCompatActivity() {
         h3HexChildren.forEach { address ->
             val data = JsonObject()
             data.addProperty("h3_address", address)
-            Log.i("H3 Child Data", "$data")
-
 
             val groups = runBlocking {
                 H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, SMALLER_HEX_TILE_RES)
@@ -449,7 +430,6 @@ class MapActivity : AppCompatActivity() {
 
             if (groups.size >= 1) {
                 reusablePolygonOptions.withFillOpacity(.5)
-                Log.i("MapFragment", "LowResPolygonAnnotationManager: ${lowResPolygonAnnotationManager.toString()}")
                 lowResPolygonAnnotationManager?.create(reusablePolygonOptions)
 
                 val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
@@ -501,7 +481,6 @@ class MapActivity : AppCompatActivity() {
             fusedLocationClient.lastLocation
                 .addOnSuccessListener { lastKnownLocation->
                     if (lastKnownLocation != null) {
-                        Log.i(TAG, "centerCameraOnUser setCamera")
                         binding.mapView.getMapboxMap().setCamera(
                             CameraOptions.Builder()
                                 .zoom(14.0)
