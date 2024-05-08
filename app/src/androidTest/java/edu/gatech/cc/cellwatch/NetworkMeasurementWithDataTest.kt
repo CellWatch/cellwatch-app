@@ -1,7 +1,6 @@
 package edu.gatech.cc.cellwatch
 
 import com.google.gson.GsonBuilder
-import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.Cell
 import edu.gatech.cc.cellwatch.data.model.Location
 import edu.gatech.cc.cellwatch.data.model.Measurement
@@ -132,9 +131,6 @@ class NetworkMeasurementWithDataTest {
         val networkDownloadMeasurement = downloadMeasurement.asNetworkModelWithData()
 
         assertEquals(networkDownloadMeasurement.cells?.count(), 2)
-
-        val jsonString = gson.toJson(networkDownloadMeasurement)
-        Log.d(NetworkMeasurementSubmissionTest.TAG, jsonString)
     }
 
 }

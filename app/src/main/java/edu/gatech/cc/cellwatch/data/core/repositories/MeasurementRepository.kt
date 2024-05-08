@@ -1,11 +1,11 @@
 package edu.gatech.cc.cellwatch.data.core.repositories
 
-import edu.gatech.cc.cellwatch.core.util.Log
 import androidx.annotation.WorkerThread
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.local.dao.FccSubmissionDao
-import edu.gatech.cc.cellwatch.data.local.model.MeasurementWithData
 import edu.gatech.cc.cellwatch.data.local.dao.MeasurementDao
 import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
+import edu.gatech.cc.cellwatch.data.local.model.MeasurementWithData
 import edu.gatech.cc.cellwatch.data.local.model.asExternalModel
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.Measurement
@@ -86,8 +86,6 @@ class MeasurementRepository(
     @WorkerThread
     suspend fun insertMeasurement(measurement: Measurement) {
         val measurementWithDataEntity = measurement.asEntityWithData()
-//        Log.d(TAG, "MeasurementRepository.insertMeasurement: measurementWithDataEntity.cells length is ${measurementWithDataEntity.cells?.size}")
-//        Log.d(TAG, "MeasurementRepository.insertMeasurement: measurementWithDataEntity.simMcc is ${measurementWithDataEntity.measurement.simMcc}")
         measurementDao.insertMeasurementWithData(measurementWithDataEntity)
     }
 
@@ -111,7 +109,6 @@ class MeasurementRepository(
             Log.d(TAG, "uploadMeasurements: Attempting to upload ${unsynchronizedMeasurements.size} measurements")
             try {
                 results = networkDataSource.uploadMeasurements(unsynchronizedMeasurements)
-//                networkDataSource.insertMeasurements(measurements)
                 val errors = results.filter { it.error != null }.map { it.error }
                 Log.d(TAG, "************** Number of errors: ${errors.size}")
                 errors.map {
@@ -139,9 +136,10 @@ class MeasurementRepository(
                 try {
                     val networkMeasurement = networkDataSource.getMeasurementById(errorResult.measurement.id)
                     if (networkMeasurement != null) {
-                        if (networkMeasurement.timestamp == errorResult.measurement.timestamp)
+                        if (networkMeasurement.timestamp == errorResult.measurement.timestamp) {
                             errorResult.measurement.uploadTime = Clock.System.now()
                             updateMeasurement(errorResult.measurement)
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in uploadMeasurements: ${e.message}")
@@ -155,33 +153,4 @@ class MeasurementRepository(
             return null
         }
     }
-
-//    @WorkerThread
-//    suspend fun uploadMeasurementsTest(): Instant? {
-//        val measurements = getUnsynchronizedMeasurementsWithData()
-//
-//        if (measurements.isNotEmpty()) {
-//            Log.d(TAG, "uploadMeasurements: Attempting to upload ${measurements.size} measurements")
-//            try {
-//                networkDataSource.insertMeasurementsTest(measurements)
-//            } catch (e: Exception) {
-//                Log.e(TAG, "Error in uploadMeasurements: ${e.message}")
-//                throw e
-//            }
-//
-//            Log.d(TAG, "Update ${measurements.size} measurements as synchronized")
-//            val uploadTime = Clock.System.now()
-//
-//            measurements.forEach { measurement ->
-//                val measurementEntity = measurement.asEntity()
-//                measurementEntity.uploadTime = uploadTime
-//                measurementDao.updateMeasurement(measurementEntity)
-//            }
-//
-//            return uploadTime
-//        } else {
-//            Log.d(TAG, "No measurements to upload !!!")
-//            return null
-//        }
-//    }
 }
