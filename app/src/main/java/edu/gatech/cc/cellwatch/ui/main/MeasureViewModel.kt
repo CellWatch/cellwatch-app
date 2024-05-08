@@ -16,9 +16,6 @@ import kotlinx.datetime.Instant
 
 class MeasureViewModel: ViewModel() {
     private val TAG = this::class.simpleName
-    private val measurementRepository = CellWatchApp.measurementRepository
-    private val fccSubmissionRepository = CellWatchApp.fccSubmissionRepository
-
     private val _state = MutableStateFlow(State(MeasureProgress.PRE, null, null, false))
     val state: StateFlow<State> = _state
 
@@ -119,9 +116,9 @@ class MeasureViewModel: ViewModel() {
 
         viewModelScope.launch {
             val uploadTime = try {
-                val ut = measurementRepository.uploadMeasurements()
-                fccSubmissionRepository.uploadFccSubmissions()
-                ut
+                CellWatchApp.measurementRepository.tryUploadMeasurements()
+                CellWatchApp.measurementRepository.tryUploadFccSubmissions()
+                CellWatchApp.measurementRepository.getUploadTime(group)
             } catch (e: Exception) {
                 Log.d(TAG, "failed to upload measurements and submission", e)
                 null

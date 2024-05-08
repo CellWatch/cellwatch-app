@@ -136,8 +136,8 @@ class MapActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                CellWatchApp.measurementRepository.uploadMeasurements()
-                CellWatchApp.fccSubmissionRepository.uploadFccSubmissions()
+                CellWatchApp.measurementRepository.tryUploadMeasurements()
+                CellWatchApp.measurementRepository.tryUploadFccSubmissions()
             } catch(e: Exception) {
                 Log.d(TAG, "failed to upload measurements and submissions", e)
             }

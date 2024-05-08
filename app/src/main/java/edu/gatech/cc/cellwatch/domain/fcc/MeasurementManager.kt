@@ -26,11 +26,8 @@ import java.io.IOException
 import java.util.UUID
 
 object MeasurementManager {
-    private var _bytesPerSecState = MutableStateFlow(0.0)
-
-    private val measurementRepository = CellWatchApp.measurementRepository
-    private val fccSubmissionRepository = CellWatchApp.fccSubmissionRepository
     private val TAG = this::class.simpleName
+    private var _bytesPerSecState = MutableStateFlow(0.0)
 
     private fun updateBytesPerSec(newBytesPerSec: Double) {
         _bytesPerSecState.update { newBytesPerSec }
@@ -196,7 +193,7 @@ object MeasurementManager {
 
     private suspend fun insertFccSubmission(fccSubmission: FccSubmission) {
         try {
-            fccSubmissionRepository.insertFccSubmission(fccSubmission)
+            CellWatchApp.measurementRepository.insertFccSubmission(fccSubmission)
         } catch (e: Exception) {
             Log.e(TAG, "Error inserting new FccSubmission in MeasurementManager: ${e.message}")
             throw e
@@ -205,7 +202,7 @@ object MeasurementManager {
 
     private suspend fun insertMeasurement(m: Measurement) {
         try {
-            measurementRepository.insertMeasurement(m)
+            CellWatchApp.measurementRepository.insertMeasurement(m)
         } catch (e: Exception) {
             Log.e(TAG, "Error inserting new measurement in MeasurementManager: ${e.message}")
             throw e
