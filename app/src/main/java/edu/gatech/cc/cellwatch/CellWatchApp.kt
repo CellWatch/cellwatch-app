@@ -35,11 +35,14 @@ class CellWatchApp : Application() {
             MeasurementRepository(
                 database.measurementDao(),
                 database.fccSubmissionDao(),
-                NetworkMeasurementDatasource
+                networkMeasurementDatasource
             )
         }
         private val localDataStore by lazy {
             LocalDataStore(applicationContext())
+        }
+        private val networkMeasurementDatasource by lazy {
+            NetworkMeasurementDatasource(localDataStore)
         }
         val settingsRepository by lazy {
             SettingsRepository(localDataStore)

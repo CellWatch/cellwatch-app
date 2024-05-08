@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.firebase.Firebase
 import com.google.firebase.crashlytics.crashlytics
+import edu.gatech.cc.cellwatch.core.util.Encryptor
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +21,7 @@ class LocalDataStore(private val context: Context) {
     companion object {
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("data_store")
         private val DEVICE_ID = stringPreferencesKey("device_id")
+        private val DEVICE_SECRET = stringPreferencesKey("device_secret")
         private val COLLECTION_MODE = stringPreferencesKey("collection_mode")
         private val FCC_POLICY_AGREED = booleanPreferencesKey("fcc_policy_agreed")
         private val USER_NAME = stringPreferencesKey("user_name")
@@ -37,6 +39,16 @@ class LocalDataStore(private val context: Context) {
             preferences[DEVICE_ID] = deviceId
         }
         Firebase.crashlytics.setCustomKey("device_id", deviceId)
+    }
+
+    val getDeviceSecret: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[DEVICE_SECRET]?.let { Encryptor.decrypt(it) }
+    }
+
+    suspend fun saveDeviceSecret(secret: String) {
+        context.dataStore.edit { preferences ->
+            preferences[DEVICE_SECRET] = Encryptor.encrypt(secret)
+        }
     }
 
     val getCollectionMode: Flow<CollectionMode?> = context.dataStore.data.map { preferences ->
