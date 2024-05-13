@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementManager
@@ -32,6 +33,8 @@ class MeasureViewModel: ViewModel() {
                 )
             }
 
+            val mode = CellWatchApp.settingsRepository.getCollectionMode()
+
             try {
                 val group = MeasurementManager.runTestSequence(
                     prevState.inVehicle,
@@ -43,7 +46,8 @@ class MeasureViewModel: ViewModel() {
                     { handleThroughputComplete(it) },
                     { handleUploadStart() },
                     { handleThroughputComplete(it) },
-                    failIfNotOnCellular = prevState.progress !== MeasureProgress.NOT_CELLULAR,
+                    failIfNotOnCellular = mode === CollectionMode.FCC_CHALLENGE
+                        && prevState.progress !== MeasureProgress.NOT_CELLULAR,
                 )
                 handleMeasurementComplete(group)
             } catch (e: MeasurementManager.NotOnCellularException) {

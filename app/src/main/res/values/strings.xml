@@ -61,6 +61,7 @@
     <string name="certify_outdoors">I am outdoors</string>
     <string name="certify_phone_working">My phone is in working order</string>
     <string name="certify_statements">All statements in this submission are true and correct</string>
+    <string name="testing_warning">You are currently in Testing mode, so this measurement will not be submitted to the FCC. You can change the collection mode in Settings.</string>
     <string name="data_reminder">All data will be stored and used consistent with our <a href="https://sites.gatech.edu/cellwatch/android-app/app-privacy-policy/">privacy policy</a>.</string>
     <string name="go">Go</string>
 
