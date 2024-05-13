@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.ui.onboarding
 
 import android.os.Bundle
+import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -35,9 +36,9 @@ class FCCInfoFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.LLReadPrivacyPolicy.setOnClickListener {
-            showPrivacyPolicyText()
-        }
+
+        // enable clicking on link to show privacy policy
+        binding.readPrivacyPolicy.movementMethod = LinkMovementMethod.getInstance()
     }
 
     private suspend fun loadSavedFccInfo() {
@@ -45,17 +46,6 @@ class FCCInfoFragment : Fragment() {
         binding.etPhone.setText(CellWatchApp.settingsRepository.getPhoneNumber())
         binding.etEmail.setText(CellWatchApp.settingsRepository.getEmail())
         binding.cbAcknowledgement.isChecked = CellWatchApp.settingsRepository.getFccSharingAcknowledged()
-    }
-
-    private fun showPrivacyPolicyText() {
-        //TODO Display Privacy Policy
-
-        //Placeholder toast
-        Toast.makeText(
-            context,
-            "Placeholder text.",
-            Toast.LENGTH_LONG
-        ).show()
     }
 
     suspend fun storeData() {
