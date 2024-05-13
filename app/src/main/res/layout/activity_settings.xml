@@ -168,9 +168,18 @@
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <TextView
+                    android:id="@+id/dataReminder"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="25dp"
+                    android:text="@string/data_reminder"
+                    android:textColor="@color/cw_black"
+                    android:textSize="16sp" />
+
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:paddingTop="25sp"
+                    android:paddingTop="10dp"
                     android:text="@string/other_language_available"
                     android:textColor="@color/cw_black"
                     android:textSize="16sp" />

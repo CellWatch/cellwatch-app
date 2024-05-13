@@ -1,41 +1,26 @@
 package edu.gatech.cc.cellwatch.ui.onboarding
 
 import android.os.Bundle
+import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.fragment.app.Fragment
-import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.databinding.FragmentDataUseBinding
 
 class DataUseFragment : Fragment() {
+    private lateinit var binding: FragmentDataUseBinding
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.fragment_data_use, container, false)
-    }
+        binding = FragmentDataUseBinding.inflate(inflater, container, false)
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+        // enable clicking on link to show privacy policy
+        binding.readPrivacyPolicy.movementMethod = LinkMovementMethod.getInstance()
 
-        val tvReadPrivacyPolicy = view.findViewById<LinearLayout>(R.id.LLReadPrivacyPolicy)
-        tvReadPrivacyPolicy.setOnClickListener {
-            showPrivacyPolicyText()
-        }
-    }
-
-    private fun showPrivacyPolicyText() {
-        //TODO Display Privacy Policy
-
-        //Placeholder toast
-        Toast.makeText(
-            context,
-            "Placeholder text.",
-            Toast.LENGTH_LONG
-        ).show()
+        return binding.root
     }
 }

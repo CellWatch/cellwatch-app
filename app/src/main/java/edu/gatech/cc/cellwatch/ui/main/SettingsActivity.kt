@@ -2,6 +2,7 @@ package edu.gatech.cc.cellwatch.ui.main
 
 import android.app.AlertDialog
 import android.os.Bundle
+import android.text.method.LinkMovementMethod
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -59,6 +60,9 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.deviceIdRow.setCopyOnClick("device ID") { binding.deviceId.text }
         binding.appVersionRow.setCopyOnClick("app version") { binding.appVersion.text }
+
+        // enable clicking on link to show privacy policy
+        binding.dataReminder.movementMethod = LinkMovementMethod.getInstance()
 
         setEditable(false)
     }

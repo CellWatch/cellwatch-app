@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.ui.main
 
 import android.os.Bundle
+import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -49,6 +50,9 @@ class PreMeasureFragment: Fragment() {
         binding.stationary.setOnClickListener { model.setInVehicle(false) }
         binding.moving.setOnClickListener { model.setInVehicle(true) }
         binding.go.setOnClickListener { model.startMeasurement() }
+
+        // enable clicking on link to show privacy policy
+        binding.dataReminder.movementMethod = LinkMovementMethod.getInstance()
 
         inVehicle = false
         lifecycleScope.launch {

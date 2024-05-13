@@ -28,7 +28,7 @@
     <string name="data_use_p1">Los datos que usted recopila con CellWatch se comparte con el público, incluso la ubicación y hora generales de sus mediciones.</string>
     <string name="data_use_p2">Sus datos de CellWatch también se pueden utilizar para fines de investigación.</string>
     <string name="data_use_p3">Por favor lea nuestra política de privacidad para los detalles.</string>
-    <string name="read_privacy_policy"><u>Leer nuestra política de privacidad</u></string>
+    <string name="read_privacy_policy"><a href="https://sites.gatech.edu/cellwatch/android-app/app-privacy-policy/">Leer nuestra política de privacidad</a></string>
 
     <!-- collection mode -->
     <string name="collection_mode">Modo de recopilación</string>
@@ -67,7 +67,7 @@
     <string name="certify_outdoors">Estoy al aire libre</string>
     <string name="certify_phone_working">Mi teléfono funciona</string>
     <string name="certify_statements">Todas las declaraciones en este envío son verdaderas y correctas</string>
-    <string name="data_reminder">Los datos se guardan y se usan según nuestra política de privacidad.</string>
+    <string name="data_reminder">Los datos se guardan y se usan según nuestra <a href="https://sites.gatech.edu/cellwatch/android-app/app-privacy-policy/">política de privacidad</a>.</string>
     <string name="go">Empezar</string>
 
     <!-- measure -->
