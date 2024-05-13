@@ -10,6 +10,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import com.google.i18n.phonenumbers.NumberParseException
+import com.google.i18n.phonenumbers.PhoneNumberUtil
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
@@ -18,6 +20,7 @@ import edu.gatech.cc.cellwatch.data.core.repositories.SettingsRepository
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.databinding.ActivitySettingsBinding
 import kotlinx.coroutines.launch
+import org.apache.commons.validator.routines.EmailValidator
 
 class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
@@ -90,6 +93,10 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun handleApplyContactInfoChanges() {
+        if (!validateInputs()) {
+            return
+        }
+
         val context = this
         lifecycleScope.launch {
             try {
@@ -140,5 +147,31 @@ class SettingsActivity : AppCompatActivity() {
             Toast.makeText(this, getString(R.string.missing_fcc_info_error), Toast.LENGTH_LONG).show()
             binding.collectionModeTextView.setText(collectionModeToString[CollectionMode.TESTING], false)
         }
+    }
+
+    private fun validateInputs(): Boolean {
+        val phone = binding.phoneEditText.text.toString()
+        val email = binding.emailEditText.text.toString()
+        var valid = true
+
+        if (phone.isNotEmpty()) {
+            val phoneUtil = PhoneNumberUtil.getInstance()
+            val numberProto = try {
+                phoneUtil.parse(phone, "US")
+            } catch (e: NumberParseException) {
+                null
+            }
+            if (numberProto == null || !phoneUtil.isValidNumber(numberProto)) {
+                binding.phoneEditText.error = "Invalid phone number"
+                valid = false
+            }
+        }
+
+        if (email.isNotEmpty() && !EmailValidator.getInstance().isValid(email)) {
+            binding.emailEditText.error = "Invalid email address"
+            valid = false
+        }
+
+        return valid
     }
 }
