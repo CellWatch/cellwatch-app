@@ -11,7 +11,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.databinding.FragmentPreMeasureBinding
 import kotlinx.coroutines.launch
 
@@ -57,6 +59,11 @@ class PreMeasureFragment: Fragment() {
         inVehicle = false
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                val mode = CellWatchApp.settingsRepository.getCollectionMode()
+                binding.stationaryOrMoving.isVisible = mode === CollectionMode.FCC_CHALLENGE
+                binding.certifications.isVisible = mode === CollectionMode.FCC_CHALLENGE
+                binding.testingWarning.isVisible = mode !== CollectionMode.FCC_CHALLENGE
+
                 model.state.collect { inVehicle = it.inVehicle }
             }
         }
