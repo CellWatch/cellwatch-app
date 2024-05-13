@@ -10,13 +10,18 @@ import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.view.View
 import android.widget.TextView
 import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
+import androidx.core.view.isVisible
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.gson.JsonObject
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
@@ -56,10 +61,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import okhttp3.internal.toHexString
 
 class MapActivity : AppCompatActivity() {
     private val TAG = this::class.simpleName
     private lateinit var binding: ActivityMapBinding
+    private lateinit var model: MapViewModel
     private val renderedH3Addresses = HashSet<Long>()
     private val renderedMeasurementOverlays = HashSet<Long>()
     private val BIGGER_HEX_TILE_RES = 8
@@ -84,6 +91,31 @@ class MapActivity : AppCompatActivity() {
 
         binding = ActivityMapBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        model = ViewModelProvider(this)[MapViewModel::class.java]
+        val sheetBehavior = BottomSheetBehavior.from(binding.sheet)
+        sheetBehavior.saveFlags = BottomSheetBehavior.SAVE_ALL
+
+        sheetBehavior.addBottomSheetCallback(object: BottomSheetBehavior.BottomSheetCallback() {
+            override fun onStateChanged(bottomSheet: View, newState: Int) {
+                binding.sheetHeader.isVisible = newState == BottomSheetBehavior.STATE_EXPANDED
+                binding.sheetHandle.isVisible = newState != BottomSheetBehavior.STATE_EXPANDED
+                if (newState == BottomSheetBehavior.STATE_HIDDEN) {
+                    model.selectedH3Address = null
+                }
+            }
+
+            override fun onSlide(bottomSheet: View, slideOffset: Float) { /* do nothing */ }
+
+        })
+
+        if (model.selectedH3Address == null) {
+            sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        }
+
+        binding.sheetCloseBtn.setOnClickListener { sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN }
+        binding.sheetContents.layoutManager = LinearLayoutManager(this)
+        binding.sheetContents.adapter = MeasurementAdapter()
 
         mapboxMap = binding.mapView.getMapboxMap()
         mapboxMap.loadStyleUri(Style.LIGHT)
@@ -163,8 +195,7 @@ class MapActivity : AppCompatActivity() {
             }
 
             if (associatedGroups.size >= 1) {
-                val bottomSheetFragment = MeasurementListBottomSheetFragment.newInstance(h3Address)
-                bottomSheetFragment.show(supportFragmentManager, bottomSheetFragment.tag)
+                showBottomSheet(h3Address)
             }
         }
 
@@ -195,11 +226,7 @@ class MapActivity : AppCompatActivity() {
     }
 
     private val onAnnotationClickListener = OnPointAnnotationClickListener { annotation ->
-        val point = annotation.geometry
-        val h3Address = H3Manager.getH3AddressFromPointSingleton(point, 8)
-
-        val bottomSheetFragment = MeasurementListBottomSheetFragment.newInstance(h3Address)
-        bottomSheetFragment.show(supportFragmentManager, bottomSheetFragment.tag)
+        showBottomSheet(H3Manager.getH3AddressFromPointSingleton(annotation.geometry, 8))
         true
     }
 
@@ -524,6 +551,25 @@ class MapActivity : AppCompatActivity() {
                     }
                 }.toJson()
             )
+        }
+    }
+
+    private fun showBottomSheet(h3Address: Long) {
+        if (model.selectedH3Address == h3Address) {
+            return // it's already showing the correct address
+        }
+
+        model.selectedH3Address = h3Address
+        val sheetBehavior = BottomSheetBehavior.from(binding.sheet)
+        sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+        binding.sheetTitle.text = getString(R.string.hex_index, h3Address?.toHexString()?.lowercase())
+        lifecycleScope.launch {
+            (binding.sheetContents.adapter as MeasurementAdapter).setGroups(listOf())
+            val groups = H3Manager.getMeasurementGroupsAssociatedWithH3Address(
+                h3Address,
+                H3Manager.getH3ResolutionFromAddress(h3Address),
+            )
+            (binding.sheetContents.adapter as MeasurementAdapter).setGroups(groups)
         }
     }
 }
