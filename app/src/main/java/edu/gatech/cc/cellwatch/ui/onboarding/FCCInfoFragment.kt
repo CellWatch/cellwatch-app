@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.databinding.FragmentFccInformationBinding
 import kotlinx.coroutines.launch
@@ -65,7 +66,7 @@ class FCCInfoFragment : Fragment() {
         var valid = true
 
         if (name.isBlank()) {
-            binding.etName.error = "Invalid name"
+            binding.etName.error = getString(R.string.blank_name)
             valid = false
         }
 
@@ -76,17 +77,17 @@ class FCCInfoFragment : Fragment() {
             null
         }
         if (phone.isBlank() || numberProto == null || !phoneUtil.isValidNumber(numberProto)) {
-            binding.etPhone.error = "Invalid phone number"
+            binding.etPhone.error = getString(R.string.invalid_phone)
             valid = false
         }
 
         if (email.isBlank() || !EmailValidator.getInstance().isValid(email)) {
-            binding.etEmail.error = "Invalid email address"
+            binding.etEmail.error = getString(R.string.invalid_email)
             valid = false
         }
 
         if (!binding.cbAcknowledgement.isChecked) {
-            Toast.makeText(context, "Please acknowledge the bottom statement.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, R.string.missing_acknowledgement, Toast.LENGTH_LONG).show()
             valid = false
         }
 

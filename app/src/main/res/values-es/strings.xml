@@ -45,6 +45,10 @@
     <string name="email">Correo electrónico</string>
     <string name="phone">Número de teléfono</string>
     <string name="fcc_acknowledgement">Reconozco que mi proveedor de servicio puede compartir la información necesaria, específica al cliente, con la FCC (tal como la dirección IP y los detalles del plan de servicio).</string>
+    <string name="blank_name">No se puede dejar en blanco el nombre</string>
+    <string name="invalid_phone">Número de teléfono inválido</string>
+    <string name="invalid_email">Correo electrónico inválido</string>
+    <string name="missing_acknowledgement">Por favor rellene el reconocimiento.</string>
 
     <!-- allow permissions -->
     <string name="allow_permissions">Dar permisos</string>

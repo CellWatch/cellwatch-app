@@ -39,6 +39,10 @@
     <string name="email">Email </string>
     <string name="phone">Phone</string>
     <string name="fcc_acknowledgement">I acknowledge that my service provider may share necessary customer-specific information with the FCC (such as IP address and service plan details).</string>
+    <string name="blank_name">Name cannot be blank</string>
+    <string name="invalid_phone">Invalid phone number</string>
+    <string name="invalid_email">Invalid email address</string>
+    <string name="missing_acknowledgement">Please complete the acknowledgement.</string>
 
     <!-- allow permissions -->
     <string name="allow_permissions">Allow Permissions</string>

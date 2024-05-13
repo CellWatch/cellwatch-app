@@ -162,13 +162,13 @@ class SettingsActivity : AppCompatActivity() {
                 null
             }
             if (numberProto == null || !phoneUtil.isValidNumber(numberProto)) {
-                binding.phoneEditText.error = "Invalid phone number"
+                binding.phoneEditText.error = getString(R.string.invalid_phone)
                 valid = false
             }
         }
 
         if (email.isNotEmpty() && !EmailValidator.getInstance().isValid(email)) {
-            binding.emailEditText.error = "Invalid email address"
+            binding.emailEditText.error = getString(R.string.invalid_email)
             valid = false
         }
 
