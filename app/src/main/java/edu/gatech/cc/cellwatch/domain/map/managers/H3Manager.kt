@@ -27,7 +27,10 @@ object H3Manager {
 
         h3Indexes.forEach { index ->
             Log.i("H3Manager", getH3ResolutionFromAddress(index).toString())
-            h3Boundaries.add(geoCoordListToMapboxPointList(h3.h3ToGeoBoundary(index)))
+            val geoBoundary = h3.h3ToGeoBoundary(index)
+            // GeoJSON requires the first and last points of a polygon to be the same
+            geoBoundary.add(geoBoundary.first())
+            h3Boundaries.add(geoCoordListToMapboxPointList(geoBoundary))
         }
 
         return h3Boundaries
