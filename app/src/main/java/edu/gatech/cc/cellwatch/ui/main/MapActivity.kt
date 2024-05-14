@@ -74,12 +74,14 @@ class MapActivity : AppCompatActivity() {
     private val renderedMeasurementOverlays = HashSet<Long>()
     private val BIGGER_HEX_TILE_RES = 8
     private val SMALLER_HEX_TILE_RES = 9
+
     private lateinit var mapboxMap : MapboxMap
-    private var pointAnnotationManager: PointAnnotationManager? = null
-    private var polygonAnnotationManager: PolygonAnnotationManager? = null
-    private var lowResPolygonAnnotationManager: PolygonAnnotationManager? = null
-    private var viewAnnotationManager: ViewAnnotationManager? = null
+    private lateinit var pointAnnotationManager: PointAnnotationManager
+    private lateinit var polygonAnnotationManager: PolygonAnnotationManager
+    private lateinit var lowResPolygonAnnotationManager: PolygonAnnotationManager
+    private lateinit var viewAnnotationManager: ViewAnnotationManager
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+
     private var annotations: MutableList<PointAnnotation> = mutableListOf()
     private var debounceJob: Job? = null
     private var cameraChangeSubscription: Cancelable? = null
@@ -123,6 +125,10 @@ class MapActivity : AppCompatActivity() {
 
         mapboxMap = binding.mapView.mapboxMap
         mapboxMap.loadStyle(Style.LIGHT)
+        pointAnnotationManager = binding.mapView.annotations.createPointAnnotationManager()
+        polygonAnnotationManager = binding.mapView.annotations.createPolygonAnnotationManager()
+        lowResPolygonAnnotationManager = binding.mapView.annotations.createPolygonAnnotationManager()
+        viewAnnotationManager = binding.mapView.viewAnnotationManager
         onMapReady()
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -137,14 +143,14 @@ class MapActivity : AppCompatActivity() {
 
         binding.h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
             if(isChecked) {
-                pointAnnotationManager?.deleteAll()
+                pointAnnotationManager.deleteAll()
                 loadMapH3()
                 cameraChangeSubscription = mapboxMap.subscribeCameraChanged(cameraChangedCallback)
                 mapboxMap.addOnMapClickListener(onMapClickListenerH3)
             } else {
-                polygonAnnotationManager?.deleteAll()
-                lowResPolygonAnnotationManager?.deleteAll()
-                viewAnnotationManager?.removeAllViewAnnotations()
+                polygonAnnotationManager.deleteAll()
+                lowResPolygonAnnotationManager.deleteAll()
+                viewAnnotationManager.removeAllViewAnnotations()
                 renderedH3Addresses.clear()
                 renderedMeasurementOverlays.clear()
                 loadMapAnnotations()
@@ -212,7 +218,7 @@ class MapActivity : AppCompatActivity() {
         }
         val h3Address = H3Manager.getH3AddressFromPointSingleton(it, BIGGER_HEX_TILE_RES)
         if(H3Manager.getH3ResolutionFromAddress(h3Address) == BIGGER_HEX_TILE_RES && associatedMeasurements.size > 0) {
-            polygonAnnotationManager?.annotations?.forEach { annotation ->
+            polygonAnnotationManager.annotations.forEach { annotation ->
                 val data = annotation.getData()
                 if (data == null || !data.isJsonObject) {
                     return@forEach
@@ -220,10 +226,10 @@ class MapActivity : AppCompatActivity() {
 
                 val h3AddressElement = data.asJsonObject.get("h3_address")
                 if (h3AddressElement?.takeIf { it.isJsonPrimitive }?.asLong == h3Address) {
-                    polygonAnnotationManager?.delete(annotation)
+                    polygonAnnotationManager.delete(annotation)
                 }
             }
-            viewAnnotationManager?.removeAllViewAnnotations()
+            viewAnnotationManager.removeAllViewAnnotations()
             displayRes8Hexagons(it)
         }
         true
@@ -316,28 +322,17 @@ class MapActivity : AppCompatActivity() {
     }
 
     private fun loadMapAnnotations() {
-        if(this.pointAnnotationManager == null) {
-            val annotationApi = binding.mapView.annotations
-
-            pointAnnotationManager = annotationApi.createPointAnnotationManager()
-        }
-
         val coordinates = MapAnnotationManager.getAllCoordinates()
         for (coordinate in coordinates) {
             bitmapFromDrawableRes(R.drawable.fa_solid_location_pin, coordinate.count)?.let { bitmap ->
                 val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
                     .withPoint(Point.fromLngLat(coordinate.long, coordinate.lat))
                     .withIconImage(bitmap)
-                val pointAnnotation = pointAnnotationManager?.create(pointAnnotationOptions)
-                pointAnnotation.let {
-                    if (it != null) {
-                        annotations.add(it)
-                    }
-                }
+                annotations.add(pointAnnotationManager.create(pointAnnotationOptions))
             }
         }
 
-        pointAnnotationManager?.addClickListener(onAnnotationClickListener)
+        pointAnnotationManager.addClickListener(onAnnotationClickListener)
     }
 
     private fun loadMapH3() = CoroutineScope(Dispatchers.Default).launch {
@@ -364,18 +359,6 @@ class MapActivity : AppCompatActivity() {
         val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(nonRenderedH3Addresses)
 
         withContext(Dispatchers.Main) {
-            if (polygonAnnotationManager == null) {
-                val annotationApi = binding.mapView.annotations
-                polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
-            }
-            if (lowResPolygonAnnotationManager == null) {
-                val annotationApi = binding.mapView.annotations
-                lowResPolygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
-            }
-            if (viewAnnotationManager == null) {
-                viewAnnotationManager = binding.mapView.viewAnnotationManager
-            }
-
             val reusablePolygonOptions = PolygonAnnotationOptions()
                 .withFillColor("rgba(0, 0, 0, 0)") // Transparent fill color
                 .withFillOutlineColor("#0000FF") // Blue outline color
@@ -390,7 +373,7 @@ class MapActivity : AppCompatActivity() {
 
                 renderedH3Addresses.add(address)
                 reusablePolygonOptions.withPoints(listOf(boundary))
-                polygonAnnotationManager?.create(reusablePolygonOptions.withData(data))
+                polygonAnnotationManager.create(reusablePolygonOptions.withData(data))
             }
 
             // Display overlays on hexagons with > 1 point within them
@@ -402,7 +385,7 @@ class MapActivity : AppCompatActivity() {
                 if (groups.size >= 1 && !renderedMeasurementOverlays.contains(address)) {
                     val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
 
-                    polygonAnnotationManager?.create(reusablePolygonOptions
+                    polygonAnnotationManager.create(reusablePolygonOptions
                         .withPoints(addressBoundary)
                         .withFillColor("#22B14C")
                         .withFillOpacity(.5)
@@ -419,7 +402,7 @@ class MapActivity : AppCompatActivity() {
                         allowOverlap(true)
                         allowOverlapWithPuck(true)
                     }
-                    viewAnnotationManager?.addViewAnnotation(view, options)
+                    viewAnnotationManager.addViewAnnotation(view, options)
                     renderedMeasurementOverlays.add(address)
                 }
             }
@@ -428,25 +411,17 @@ class MapActivity : AppCompatActivity() {
 
     private fun hideMapH3Content() {
         //TODO Need to figure out some way just to hide them and keep the polygons stored within the manager.
-        polygonAnnotationManager?.deleteAll()
-        lowResPolygonAnnotationManager?.deleteAll()
+        polygonAnnotationManager.deleteAll()
+        lowResPolygonAnnotationManager.deleteAll()
         renderedH3Addresses.clear()
         renderedMeasurementOverlays.clear()
-        viewAnnotationManager?.removeAllViewAnnotations()
+        viewAnnotationManager.removeAllViewAnnotations()
     }
 
     private fun displayRes8Hexagons(point: Point) {
         val h3Address = H3Manager.getH3AddressFromPointSingleton(point, BIGGER_HEX_TILE_RES)
         val h3HexChildren = H3Manager.getRelatedH3Hex(h3Address, SMALLER_HEX_TILE_RES)
         val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(h3HexChildren)
-
-        if(lowResPolygonAnnotationManager == null) {
-            val annotationApi = binding.mapView.annotations
-            lowResPolygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
-        }
-        if(viewAnnotationManager == null) {
-            viewAnnotationManager = binding.mapView.viewAnnotationManager
-        }
 
         val reusablePolygonOptions = PolygonAnnotationOptions()
             .withFillColor("rgba(0, 0, 0, 0)") // Transparent fill color
@@ -455,7 +430,7 @@ class MapActivity : AppCompatActivity() {
         // Display h3 boundaries
         h3Boundaries.forEach { boundary ->
             reusablePolygonOptions.withPoints(listOf(boundary))
-            lowResPolygonAnnotationManager?.create(reusablePolygonOptions)
+            lowResPolygonAnnotationManager.create(reusablePolygonOptions)
         }
 
         // Display overlays on hexagons with > 1 point within them
@@ -474,7 +449,7 @@ class MapActivity : AppCompatActivity() {
 
             if (groups.size >= 1) {
                 reusablePolygonOptions.withFillOpacity(.5)
-                lowResPolygonAnnotationManager?.create(reusablePolygonOptions)
+                lowResPolygonAnnotationManager.create(reusablePolygonOptions)
 
                 val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
 
@@ -489,11 +464,11 @@ class MapActivity : AppCompatActivity() {
                     allowOverlap(true)
                     allowOverlapWithPuck(true)
                 }
-                viewAnnotationManager?.addViewAnnotation(view, options)
+                viewAnnotationManager.addViewAnnotation(view, options)
             }
         }
 
-        lowResPolygonAnnotationManager?.addClickListener(onPolygonClick)
+        lowResPolygonAnnotationManager.addClickListener(onPolygonClick)
         mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
     }
 
