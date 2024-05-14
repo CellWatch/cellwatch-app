@@ -23,11 +23,13 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.gson.JsonObject
+import com.mapbox.common.Cancelable
 import com.mapbox.geojson.Point
+import com.mapbox.maps.CameraChangedCallback
 import com.mapbox.maps.CameraOptions
+import com.mapbox.maps.ImageHolder
 import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.Style
-import com.mapbox.maps.ViewAnnotationOptions
 import com.mapbox.maps.extension.style.expressions.dsl.generated.interpolate
 import com.mapbox.maps.plugin.LocationPuck2D
 import com.mapbox.maps.plugin.annotation.annotations
@@ -41,13 +43,14 @@ import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
 import com.mapbox.maps.plugin.compass.compass
-import com.mapbox.maps.plugin.delegates.listeners.OnCameraChangeListener
 import com.mapbox.maps.plugin.gestures.OnMapClickListener
 import com.mapbox.maps.plugin.gestures.addOnMapClickListener
 import com.mapbox.maps.plugin.gestures.removeOnMapClickListener
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.maps.plugin.scalebar.scalebar
 import com.mapbox.maps.viewannotation.ViewAnnotationManager
+import com.mapbox.maps.viewannotation.geometry
+import com.mapbox.maps.viewannotation.viewAnnotationOptions
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
@@ -79,6 +82,7 @@ class MapActivity : AppCompatActivity() {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var annotations: MutableList<PointAnnotation> = mutableListOf()
     private var debounceJob: Job? = null
+    private var cameraChangeSubscription: Cancelable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,8 +121,8 @@ class MapActivity : AppCompatActivity() {
         binding.sheetContents.layoutManager = LinearLayoutManager(this)
         binding.sheetContents.adapter = MeasurementAdapter()
 
-        mapboxMap = binding.mapView.getMapboxMap()
-        mapboxMap.loadStyleUri(Style.LIGHT)
+        mapboxMap = binding.mapView.mapboxMap
+        mapboxMap.loadStyle(Style.LIGHT)
         onMapReady()
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -135,7 +139,7 @@ class MapActivity : AppCompatActivity() {
             if(isChecked) {
                 pointAnnotationManager?.deleteAll()
                 loadMapH3()
-                mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
+                cameraChangeSubscription = mapboxMap.subscribeCameraChanged(cameraChangedCallback)
                 mapboxMap.addOnMapClickListener(onMapClickListenerH3)
             } else {
                 polygonAnnotationManager?.deleteAll()
@@ -144,7 +148,7 @@ class MapActivity : AppCompatActivity() {
                 renderedH3Addresses.clear()
                 renderedMeasurementOverlays.clear()
                 loadMapAnnotations()
-                mapboxMap.removeOnCameraChangeListener(onCameraChangeListener)
+                cameraChangeSubscription?.cancel()
                 mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
             }
         }
@@ -230,7 +234,7 @@ class MapActivity : AppCompatActivity() {
         true
     }
 
-    private val onCameraChangeListener = OnCameraChangeListener {
+    private val cameraChangedCallback = CameraChangedCallback {
         debounceJob?.cancel()
         debounceJob = CoroutineScope(Dispatchers.Main).launch {
             delay(100)
@@ -410,10 +414,12 @@ class MapActivity : AppCompatActivity() {
                     val textViewMeasurements = view.findViewById<TextView>(R.id.textView_measurements)
                     textViewMeasurements.text = groups.size.toString()
 
-                    val viewAnnotationOptions = ViewAnnotationOptions.Builder()
-                        .geometry(hexCenter)
-                        .build()
-                    viewAnnotationManager?.addViewAnnotation(view, viewAnnotationOptions)
+                    val options = viewAnnotationOptions {
+                        geometry(hexCenter)
+                        allowOverlap(true)
+                        allowOverlapWithPuck(true)
+                    }
+                    viewAnnotationManager?.addViewAnnotation(view, options)
                     renderedMeasurementOverlays.add(address)
                 }
             }
@@ -478,10 +484,12 @@ class MapActivity : AppCompatActivity() {
                 textViewMeasurements.text = groups.size.toString()
 
                 // Add the view as an annotation at the hexagon's center
-                val viewAnnotationOptions = ViewAnnotationOptions.Builder()
-                    .geometry(hexCenter)
-                    .build()
-                viewAnnotationManager?.addViewAnnotation(view, viewAnnotationOptions)
+                val options = viewAnnotationOptions {
+                    geometry(hexCenter)
+                    allowOverlap(true)
+                    allowOverlapWithPuck(true)
+                }
+                viewAnnotationManager?.addViewAnnotation(view, options)
             }
         }
 
@@ -490,17 +498,16 @@ class MapActivity : AppCompatActivity() {
     }
 
     private fun onMapReady() {
-        binding.mapView.getMapboxMap().setCamera(
+        mapboxMap.setCamera(
             CameraOptions.Builder()
                 .zoom(13.0)
                 .build()
         )
 
-        binding.mapView.getMapboxMap().loadStyleUri(
-            Style.LIGHT
-        ) {
+        mapboxMap.loadStyle(Style.LIGHT) {
             initLocationComponent()
-            mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
+            cameraChangeSubscription?.cancel()
+            cameraChangeSubscription = mapboxMap.subscribeCameraChanged(cameraChangedCallback)
             mapboxMap.addOnMapClickListener(onMapClickListenerH3)
 
             binding.mapView.compass.enabled = false
@@ -519,7 +526,7 @@ class MapActivity : AppCompatActivity() {
             fusedLocationClient.lastLocation
                 .addOnSuccessListener { lastKnownLocation->
                     if (lastKnownLocation != null) {
-                        binding.mapView.getMapboxMap().setCamera(
+                        mapboxMap.setCamera(
                             CameraOptions.Builder()
                                 .zoom(14.0)
                                 .center(Point.fromLngLat(lastKnownLocation.longitude, lastKnownLocation.latitude))
@@ -535,20 +542,15 @@ class MapActivity : AppCompatActivity() {
         val locationComponentPlugin = binding.mapView.location
         locationComponentPlugin.updateSettings {
             this.enabled = true
+            this.puckBearingEnabled = true
             this.locationPuck = LocationPuck2D(
-                bearingImage = getDrawable(R.drawable.mapbox_user_puck_icon),
-                shadowImage = getDrawable(R.drawable.mapbox_user_icon_shadow),
+                bearingImage = ImageHolder.Companion.from(R.drawable.mapbox_user_puck_icon),
+                shadowImage = ImageHolder.from(R.drawable.mapbox_user_icon_shadow),
                 scaleExpression = interpolate {
                     linear()
                     zoom()
-                    stop {
-                        literal(0.0)
-                        literal(0.6)
-                    }
-                    stop {
-                        literal(20.0)
-                        literal(1.0)
-                    }
+                    stop(0.0, 0.6)
+                    stop(20.0, 1.0)
                 }.toJson()
             )
         }
@@ -562,7 +564,7 @@ class MapActivity : AppCompatActivity() {
         model.selectedH3Address = h3Address
         val sheetBehavior = BottomSheetBehavior.from(binding.sheet)
         sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-        binding.sheetTitle.text = getString(R.string.hex_index, h3Address?.toHexString()?.lowercase())
+        binding.sheetTitle.text = getString(R.string.hex_index, h3Address.toHexString().lowercase())
         lifecycleScope.launch {
             (binding.sheetContents.adapter as MeasurementAdapter).setGroups(listOf())
             val groups = H3Manager.getMeasurementGroupsAssociatedWithH3Address(
