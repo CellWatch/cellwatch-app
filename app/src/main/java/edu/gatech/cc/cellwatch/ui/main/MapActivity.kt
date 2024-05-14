@@ -31,7 +31,10 @@ import com.mapbox.maps.ImageHolder
 import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.style.expressions.dsl.generated.interpolate
+import com.mapbox.maps.extension.style.layers.getLayer
+import com.mapbox.maps.extension.style.layers.properties.generated.Visibility
 import com.mapbox.maps.plugin.LocationPuck2D
+import com.mapbox.maps.plugin.annotation.AnnotationConfig
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.OnPointAnnotationClickListener
 import com.mapbox.maps.plugin.annotation.generated.OnPolygonAnnotationClickListener
@@ -74,6 +77,10 @@ class MapActivity : AppCompatActivity() {
     private val renderedMeasurementOverlays = HashSet<Long>()
     private val BIGGER_HEX_TILE_RES = 8
     private val SMALLER_HEX_TILE_RES = 9
+
+    private val measurementPointLayerId = "measurement-points"
+    private val hexGridLayerId = "hex-grid"
+    private val lowResHexGridLayerId = "hex-grid-low-res"
 
     private lateinit var mapboxMap : MapboxMap
     private lateinit var pointAnnotationManager: PointAnnotationManager
@@ -125,9 +132,15 @@ class MapActivity : AppCompatActivity() {
 
         mapboxMap = binding.mapView.mapboxMap
         mapboxMap.loadStyle(Style.LIGHT)
-        pointAnnotationManager = binding.mapView.annotations.createPointAnnotationManager()
-        polygonAnnotationManager = binding.mapView.annotations.createPolygonAnnotationManager()
-        lowResPolygonAnnotationManager = binding.mapView.annotations.createPolygonAnnotationManager()
+        pointAnnotationManager = binding.mapView.annotations.createPointAnnotationManager(
+            AnnotationConfig(layerId = measurementPointLayerId)
+        )
+        polygonAnnotationManager = binding.mapView.annotations.createPolygonAnnotationManager(
+            AnnotationConfig(layerId = hexGridLayerId)
+        )
+        lowResPolygonAnnotationManager = binding.mapView.annotations.createPolygonAnnotationManager(
+            AnnotationConfig(layerId = lowResHexGridLayerId)
+        )
         viewAnnotationManager = binding.mapView.viewAnnotationManager
         onMapReady()
 
@@ -141,24 +154,6 @@ class MapActivity : AppCompatActivity() {
             centerCameraOnUser()
         }
 
-        binding.h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
-            if(isChecked) {
-                pointAnnotationManager.deleteAll()
-                loadMapH3()
-                cameraChangeSubscription = mapboxMap.subscribeCameraChanged(cameraChangedCallback)
-                mapboxMap.addOnMapClickListener(onMapClickListenerH3)
-            } else {
-                polygonAnnotationManager.deleteAll()
-                lowResPolygonAnnotationManager.deleteAll()
-                viewAnnotationManager.removeAllViewAnnotations()
-                renderedH3Addresses.clear()
-                renderedMeasurementOverlays.clear()
-                loadMapAnnotations()
-                cameraChangeSubscription?.cancel()
-                mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
-            }
-        }
-
         binding.navDrawer.setOnCloseListener { binding.root.closeDrawer(GravityCompat.START) }
         binding.navDrawer.setActiveActivity(this)
         binding.sideMenuButton.setOnClickListener {
@@ -169,12 +164,8 @@ class MapActivity : AppCompatActivity() {
             }
         }
 
-        // Initial switch function on start
-        if (binding.h3ToggleSwitch.isChecked) {
-            loadMapH3()
-        } else {
-            loadMapAnnotations()
-        }
+        binding.h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked -> toggleHexGrid(isChecked) }
+        toggleHexGrid(binding.h3ToggleSwitch.isChecked) // initial switch function on start
 
         lifecycleScope.launch {
             try {
@@ -185,6 +176,40 @@ class MapActivity : AppCompatActivity() {
             }
         }
     }
+
+    private fun toggleHexGrid(enabled: Boolean) {
+        hexGridEnabled = enabled
+        measurementPointsEnabled = !enabled
+    }
+
+    private var hexGridEnabled = true
+        set(enabled) {
+            field = enabled
+
+            mapboxMap.style?.apply {
+                getLayer(hexGridLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
+                getLayer(lowResHexGridLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
+            }
+
+            viewAnnotationManager.annotations.forEach { (view) ->  view.isVisible = enabled }
+
+            if(enabled) {
+                loadMapH3()
+                mapboxMap.addOnMapClickListener(onMapClickListenerH3)
+            } else {
+                mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
+            }
+        }
+
+    private var measurementPointsEnabled = false
+        set(enabled) {
+            field = enabled
+            mapboxMap.style?.getLayer(measurementPointLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
+
+            if(enabled) {
+                loadMapAnnotations()
+            }
+        }
 
     private val onPolygonClick: OnPolygonAnnotationClickListener = OnPolygonAnnotationClickListener { polygon ->
         /*
@@ -242,17 +267,24 @@ class MapActivity : AppCompatActivity() {
 
     private val cameraChangedCallback = CameraChangedCallback {
         debounceJob?.cancel()
-        debounceJob = CoroutineScope(Dispatchers.Main).launch {
-            delay(100)
+        if (binding.h3ToggleSwitch.isChecked) {
+            debounceJob = CoroutineScope(Dispatchers.Main).launch {
+                delay(100)
 
-            val currentZoom = mapboxMap.cameraState.zoom
+                val currentZoom = mapboxMap.cameraState.zoom
 
-            //TODO Adjust as needed
-            if (currentZoom < 12.0) {
-                hideMapH3Content()
-            } else {
-                mapboxMap.addOnMapClickListener(onMapClickListenerH3)
-                loadMapH3()
+                //TODO Adjust as needed
+                if (currentZoom < 12.0) {
+                    if (hexGridEnabled) {
+                        hexGridEnabled = false
+                    }
+                } else {
+                    if (!hexGridEnabled) {
+                        hexGridEnabled = true // setter calls loadMapH3()
+                    } else {
+                        loadMapH3()
+                    }
+                }
             }
         }
     }
@@ -322,6 +354,10 @@ class MapActivity : AppCompatActivity() {
     }
 
     private fun loadMapAnnotations() {
+        if (annotations.isNotEmpty()) {
+            return
+        }
+
         val coordinates = MapAnnotationManager.getAllCoordinates()
         for (coordinate in coordinates) {
             bitmapFromDrawableRes(R.drawable.fa_solid_location_pin, coordinate.count)?.let { bitmap ->
@@ -407,15 +443,6 @@ class MapActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    private fun hideMapH3Content() {
-        //TODO Need to figure out some way just to hide them and keep the polygons stored within the manager.
-        polygonAnnotationManager.deleteAll()
-        lowResPolygonAnnotationManager.deleteAll()
-        renderedH3Addresses.clear()
-        renderedMeasurementOverlays.clear()
-        viewAnnotationManager.removeAllViewAnnotations()
     }
 
     private fun displayRes8Hexagons(point: Point) {
