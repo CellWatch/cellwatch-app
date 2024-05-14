@@ -136,7 +136,7 @@ fun NetworkMeasurement.asExternalModel() = Measurement(
     updatedOn,
     uploadDownloadData?.asExternalModel(),
     latencyData?.asExternalModel(),
-    locations?.map { location -> location.asExternalModel() },
+    locations?.mapNotNull { location -> location.asExternalModel() },
     cells?.map { cell -> cell.asExternalModel() },
     connectionType,
     cellularDataEnabled,
