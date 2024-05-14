@@ -3,17 +3,12 @@ package edu.gatech.cc.cellwatch.ui.main
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
-import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
@@ -22,19 +17,27 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 import com.mapbox.common.Cancelable
+import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraChangedCallback
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.ImageHolder
 import com.mapbox.maps.MapboxMap
+import com.mapbox.maps.QueriedFeature
+import com.mapbox.maps.RenderedQueryGeometry
+import com.mapbox.maps.RenderedQueryOptions
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.style.expressions.dsl.generated.interpolate
 import com.mapbox.maps.extension.style.layers.getLayer
 import com.mapbox.maps.extension.style.layers.properties.generated.Visibility
 import com.mapbox.maps.plugin.LocationPuck2D
 import com.mapbox.maps.plugin.annotation.AnnotationConfig
+import com.mapbox.maps.plugin.annotation.AnnotationSourceOptions
+import com.mapbox.maps.plugin.annotation.ClusterOptions
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.OnPointAnnotationClickListener
 import com.mapbox.maps.plugin.annotation.generated.OnPolygonAnnotationClickListener
@@ -57,9 +60,9 @@ import com.mapbox.maps.viewannotation.viewAnnotationOptions
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.databinding.ActivityMapBinding
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
-import edu.gatech.cc.cellwatch.domain.map.managers.MapAnnotationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -67,6 +70,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import okhttp3.internal.toHexString
 
 class MapActivity : AppCompatActivity() {
@@ -81,6 +86,9 @@ class MapActivity : AppCompatActivity() {
     private val measurementPointLayerId = "measurement-points"
     private val hexGridLayerId = "hex-grid"
     private val lowResHexGridLayerId = "hex-grid-low-res"
+    // based on https://github.com/mapbox/mapbox-maps-android/blob/060187f41095d23bde404401dd543ffb715ab144/plugin-annotation/src/main/java/com/mapbox/maps/plugin/annotation/AnnotationManagerImpl.kt
+    private val clusterLayerIdPrefix = "mapbox-android-cluster-"
+    private val clusterTextLayerId = "mapbox-android-cluster-text-layer"
 
     private lateinit var mapboxMap : MapboxMap
     private lateinit var pointAnnotationManager: PointAnnotationManager
@@ -114,7 +122,7 @@ class MapActivity : AppCompatActivity() {
                 binding.sheetHeader.isVisible = newState == BottomSheetBehavior.STATE_EXPANDED
                 binding.sheetHandle.isVisible = newState != BottomSheetBehavior.STATE_EXPANDED
                 if (newState == BottomSheetBehavior.STATE_HIDDEN) {
-                    model.selectedH3Address = null
+                    model.selectedGroups = null
                 }
             }
 
@@ -122,7 +130,7 @@ class MapActivity : AppCompatActivity() {
 
         })
 
-        if (model.selectedH3Address == null) {
+        if (model.selectedGroups == null) {
             sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         }
 
@@ -133,7 +141,17 @@ class MapActivity : AppCompatActivity() {
         mapboxMap = binding.mapView.mapboxMap
         mapboxMap.loadStyle(Style.LIGHT)
         pointAnnotationManager = binding.mapView.annotations.createPointAnnotationManager(
-            AnnotationConfig(layerId = measurementPointLayerId)
+            AnnotationConfig(
+                layerId = measurementPointLayerId,
+                annotationSourceOptions = AnnotationSourceOptions(
+                    clusterOptions = ClusterOptions(
+                        textColor = getColor(R.color.cw_white),
+                        textSize = 16.0,
+                        colorLevels = listOf(Pair(0, getColor(R.color.cw_blue))),
+                        clusterMaxZoom = Long.MAX_VALUE,
+                    )
+                )
+            )
         )
         polygonAnnotationManager = binding.mapView.annotations.createPolygonAnnotationManager(
             AnnotationConfig(layerId = hexGridLayerId)
@@ -204,10 +222,20 @@ class MapActivity : AppCompatActivity() {
     private var measurementPointsEnabled = false
         set(enabled) {
             field = enabled
-            mapboxMap.style?.getLayer(measurementPointLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
+            mapboxMap.style?.apply {
+                getLayer(measurementPointLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
+                styleLayers.filter { it.id.startsWith(clusterLayerIdPrefix) }.forEach {
+                    getLayer(it.id)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
+                }
+            }
 
             if(enabled) {
                 loadMapAnnotations()
+                pointAnnotationManager.addClickListener(onAnnotationClickListener)
+                mapboxMap.addOnMapClickListener(handlePointClusterClick)
+            } else {
+                pointAnnotationManager.removeClickListener(onAnnotationClickListener)
+                mapboxMap.removeOnMapClickListener(handlePointClusterClick)
             }
         }
 
@@ -230,7 +258,7 @@ class MapActivity : AppCompatActivity() {
             }
 
             if (associatedGroups.size >= 1) {
-                showBottomSheet(h3Address)
+                showBottomSheet(associatedGroups, getString(R.string.hex_index, h3Address.toHexString().lowercase()))
             }
         }
 
@@ -261,7 +289,38 @@ class MapActivity : AppCompatActivity() {
     }
 
     private val onAnnotationClickListener = OnPointAnnotationClickListener { annotation ->
-        showBottomSheet(H3Manager.getH3AddressFromPointSingleton(annotation.geometry, 8))
+        showBottomSheet(
+            listOf(decodeMeasurementGroup(annotation.getData() ?: throw RuntimeException("no annotation data!"))),
+            getString(R.string.one_measurement)
+        )
+        true
+    }
+
+    private val handlePointClusterClick = OnMapClickListener {  point ->
+        fun withClusterFeatures(cluster: QueriedFeature, fn: (features: List<Feature>) -> Unit) {
+            mapboxMap.getGeoJsonClusterLeaves( cluster.source, cluster.feature, Long.MAX_VALUE, 0 ) { res ->
+                res.onError { Log.e(TAG, "error querying for leaves: $it") }
+                res.onValue { it.featureCollection?.let { features -> fn(features) } }
+            }
+        }
+
+        mapboxMap.queryRenderedFeatures(
+            RenderedQueryGeometry(mapboxMap.pixelForCoordinate(point)),
+            RenderedQueryOptions(listOf(clusterTextLayerId), null)
+        ) { res ->
+            res.onError { Log.e(TAG, "error querying for cluster: $it") }
+            res.onValue { queriedFeatures ->
+                queriedFeatures.firstOrNull()?.let { cluster ->
+                    withClusterFeatures(cluster.queriedFeature) { features ->
+                        showBottomSheet(
+                            features.map { decodeMeasurementGroup(it.getProperty("custom_data")) },
+                            getString(R.string.x_measurements, features.size)
+                        )
+                    }
+                }
+            }
+        }
+
         true
     }
 
@@ -289,86 +348,42 @@ class MapActivity : AppCompatActivity() {
         }
     }
 
-    private fun bitmapFromDrawableRes(@DrawableRes resourceId: Int, count: Int) =
-        convertDrawableToBitmap(getDrawable(resourceId), count)
-
-    private fun convertDrawableToBitmap(sourceDrawable: Drawable?, count: Int): Bitmap? {
-        if (sourceDrawable == null) {
-            return null
-        }
-        return if (sourceDrawable is BitmapDrawable) {
-            val drawableBitMap = sourceDrawable.bitmap
-
-            val modifiedBitmap = drawableBitMap.copy(Bitmap.Config.ARGB_8888, true)
-            val canvas = Canvas(modifiedBitmap)
-
-            if (count != 1) {
-                val paint = Paint()
-                paint.color = Color.WHITE
-                paint.textAlign = Paint.Align.CENTER
-                paint.isAntiAlias = true
-
-                val textSize: Float = canvas.width * 0.5f
-                paint.textSize = textSize
-
-                canvas.drawText(
-                    count.toString(),
-                    (canvas.width / 2).toFloat(),
-                    (canvas.height / 2) + (textSize / 3),
-                    paint
-                )
-            }
-
-            modifiedBitmap
-
-        } else {
-            val constantState = sourceDrawable.constantState ?: return null
-            val drawable = constantState.newDrawable().mutate()
-            val bitmap: Bitmap = Bitmap.createBitmap(
-                drawable.intrinsicWidth, drawable.intrinsicHeight,
-                Bitmap.Config.ARGB_8888
-            )
-            val canvas = Canvas(bitmap)
-            drawable.setBounds(0, 0, canvas.width, canvas.height)
-            drawable.draw(canvas)
-
-            //Draw text overlay on bitmap if there's more than one averaged point
-            if (count != 1) {
-                val paint = Paint()
-                paint.color = Color.WHITE
-                paint.textAlign = Paint.Align.CENTER
-                paint.isAntiAlias = true
-
-                val textSize: Float = canvas.width * 0.5f
-                paint.textSize = textSize
-
-                canvas.drawText(
-                    count.toString(),
-                    (canvas.width / 2).toFloat(),
-                    (canvas.height / 2) + (textSize / 3),
-                    paint
-                )
-            }
-            bitmap
-        }
-    }
-
     private fun loadMapAnnotations() {
         if (annotations.isNotEmpty()) {
             return
         }
 
-        val coordinates = MapAnnotationManager.getAllCoordinates()
-        for (coordinate in coordinates) {
-            bitmapFromDrawableRes(R.drawable.fa_solid_location_pin, coordinate.count)?.let { bitmap ->
-                val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
-                    .withPoint(Point.fromLngLat(coordinate.long, coordinate.lat))
-                    .withIconImage(bitmap)
-                annotations.add(pointAnnotationManager.create(pointAnnotationOptions))
-            }
-        }
+        val groups = runBlocking { CellWatchApp.measurementRepository.getMeasurementGroups() }
+        val icon = AppCompatResources.getDrawable(this, R.drawable.fa_solid_location_pin)?.toBitmap()
+            ?: throw RuntimeException("no icon!")
 
-        pointAnnotationManager.addClickListener(onAnnotationClickListener)
+        for (group in groups) {
+            val location = group.latency?.locations?.firstOrNull()
+                ?: group.download?.locations?.firstOrNull()
+                ?: group.upload?.locations?.firstOrNull()
+
+            if (location == null) {
+                Log.e(TAG, "group with no location: $group")
+                continue
+            }
+
+            val options = PointAnnotationOptions()
+                .withPoint(Point.fromLngLat(location.lon, location.lat))
+                .withIconImage(icon)
+                .withData(encodeMeasurementGroup(group))
+
+            pointAnnotationManager.create(options)
+        }
+    }
+
+    private fun encodeMeasurementGroup(group: MeasurementGroup): JsonElement {
+        // MapBox requires a GSON JsonElement, but I can't get GSON to encode Kotlin Instants
+        // properly. Encode using Kotlin's JSON instead and then return as a GSON JsonString.
+        return JsonPrimitive(Json.encodeToString(group))
+    }
+
+    private fun decodeMeasurementGroup(data: JsonElement): MeasurementGroup {
+        return Json.decodeFromString(data.asString)
     }
 
     private fun loadMapH3() = CoroutineScope(Dispatchers.Default).launch {
@@ -558,22 +573,15 @@ class MapActivity : AppCompatActivity() {
         }
     }
 
-    private fun showBottomSheet(h3Address: Long) {
-        if (model.selectedH3Address == h3Address) {
-            return // it's already showing the correct address
+    private fun showBottomSheet(groups: List<MeasurementGroup>, title: String) {
+        if (model.selectedGroups == groups) {
+            return // it's already showing the correct groups
         }
 
-        model.selectedH3Address = h3Address
+        model.selectedGroups = groups
         val sheetBehavior = BottomSheetBehavior.from(binding.sheet)
         sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-        binding.sheetTitle.text = getString(R.string.hex_index, h3Address.toHexString().lowercase())
-        lifecycleScope.launch {
-            (binding.sheetContents.adapter as MeasurementAdapter).setGroups(listOf())
-            val groups = H3Manager.getMeasurementGroupsAssociatedWithH3Address(
-                h3Address,
-                H3Manager.getH3ResolutionFromAddress(h3Address),
-            )
-            (binding.sheetContents.adapter as MeasurementAdapter).setGroups(groups)
-        }
+        binding.sheetTitle.text = title
+        (binding.sheetContents.adapter as MeasurementAdapter).setGroups(groups)
     }
 }
