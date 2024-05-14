@@ -108,10 +108,7 @@ object H3Manager {
 
         for (group in allMeasurements) {
             for (measurement in listOfNotNull(group.latency, group.download, group.upload)) {
-                if (measurement.locations?.any { location ->
-                    location.lat != null && location.lon != null
-                    && h3.geoToH3(location.lat, location.lon, res) == address
-                } == true) {
+                if (measurement.locations?.any { h3.geoToH3(it.lat, it.lon, res) == address } == true) {
                     associatedGroupList.add(group)
                     break
                 }
