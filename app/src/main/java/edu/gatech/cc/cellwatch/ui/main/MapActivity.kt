@@ -69,6 +69,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.internal.toHexString
+import kotlin.math.max
 
 class MapActivity : AppCompatActivity() {
     private val TAG = this::class.simpleName
@@ -369,19 +370,14 @@ class MapActivity : AppCompatActivity() {
     }
 
     private fun getH3AddressesInView(): Collection<Long> {
-        val center = mapboxMap.cameraState.center
+        val options = CameraOptions.Builder()
+            // pretend we're a bit more zoomed out than we are to pre-load nearby hexes
+            .zoom(max(mapboxMap.cameraState.zoom - 0.5, 0.0))
+            .center(mapboxMap.cameraState.center)
+            .build()
 
-        val scale = 1.5
-        val delta = 0.0180625 * scale // Rough estimation of 2.5 miles in lat/long
-
-        // Create a bounding box using the rough estimation
-        val ne = Point.fromLngLat(center.latitude() + delta, center.longitude() + delta)
-        val sw = Point.fromLngLat(center.latitude() - delta, center.longitude() - delta)
-        val nw = Point.fromLngLat(center.latitude() - delta, center.longitude() + delta)
-        val se = Point.fromLngLat(center.latitude() + delta, center.longitude() - delta)
-
-        //Convert camera boundaries to h3 boundaries
-        return H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), H3Manager.PARENT_HEX_RES)
+        val bounds = mapboxMap.coordinateBoundsForCamera(options)
+        return H3Manager.getH3OverlayAddressesFromBounds(bounds, H3Manager.PARENT_HEX_RES)
     }
 
     private fun renderParentHexes(addresses: Collection<Long>) {
