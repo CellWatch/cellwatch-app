@@ -130,6 +130,7 @@ class MapActivity : AppCompatActivity() {
         }
 
         binding.sheetCloseBtn.setOnClickListener { sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN }
+        binding.sheet.setOnClickListener { } // prevent click events from going to UI elements underneath
         binding.sheetContents.layoutManager = LinearLayoutManager(this)
         binding.sheetContents.adapter = MeasurementAdapter()
 
@@ -568,9 +569,9 @@ class MapActivity : AppCompatActivity() {
         }
 
         model.selectedMeasurementGroupIds = groupIds.toSet()
+        (binding.sheetContents.adapter as MeasurementAdapter).setGroups(model.getMeasurementGroups(groupIds))
         val sheetBehavior = BottomSheetBehavior.from(binding.sheet)
         sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
         binding.sheetTitle.text = title
-        (binding.sheetContents.adapter as MeasurementAdapter).setGroups(model.getMeasurementGroups(groupIds))
     }
 }
