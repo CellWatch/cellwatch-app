@@ -19,7 +19,7 @@ object H3Manager {
         return measurementRepository.getMeasurementGroups()
     }
 
-    private fun h3IndexToBoundary(h3Indexes: List<Long>): MutableList<MutableList<Point>> {
+    private fun h3IndexToBoundary(h3Indexes: Collection<Long>): MutableList<MutableList<Point>> {
         /*
         Takes in a list of h3 Indexes (longs), creates a list of lists of Mapbox point coordinates associated with each of those indexes.
          */
@@ -72,7 +72,7 @@ object H3Manager {
          return h3.polyfill(geoListBoundaries, mutableListOf(), resolution)
     }
 
-    fun getH3BoundariesFromAddressList(h3Addresses: MutableList<Long>): MutableList<MutableList<Point>> {
+    fun getH3BoundariesFromAddressList(h3Addresses: Collection<Long>): MutableList<MutableList<Point>> {
         return h3IndexToBoundary(h3Addresses)
     }
 
@@ -97,14 +97,14 @@ object H3Manager {
     suspend fun getMeasurementGroupsAssociatedWithLatLong(coord: Point): MutableList<MeasurementGroup> {
         return getMeasurementGroupsAssociatedWithH3Address(
             h3.geoToH3(coord.latitude(), coord.longitude(), 8),
-            8,
         )
     }
 
-    suspend fun getMeasurementGroupsAssociatedWithH3Address(address: Long, res: Int): MutableList<MeasurementGroup> {
+    suspend fun getMeasurementGroupsAssociatedWithH3Address(address: Long): MutableList<MeasurementGroup> {
         // Takes in a h3 address, returns all measurements associated H3 hexagon that contains the point.
         val allMeasurements = getAllCoordinates()
         val associatedGroupList: MutableList<MeasurementGroup> = mutableListOf()
+        val res = getH3ResolutionFromAddress(address)
 
         for (group in allMeasurements) {
             for (measurement in listOfNotNull(group.latency, group.download, group.upload)) {
