@@ -11,8 +11,10 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -41,7 +43,6 @@ import com.mapbox.maps.plugin.annotation.ClusterOptions
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.OnPointAnnotationClickListener
 import com.mapbox.maps.plugin.annotation.generated.OnPolygonAnnotationClickListener
-import com.mapbox.maps.plugin.annotation.generated.PointAnnotation
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationManager
@@ -97,7 +98,7 @@ class MapActivity : AppCompatActivity() {
     private lateinit var viewAnnotationManager: ViewAnnotationManager
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
-    private var annotations: MutableList<PointAnnotation> = mutableListOf()
+    private val renderedMeasurementGroups = mutableSetOf<MeasurementGroup>()
     private var debounceJob: Job? = null
     private var cameraChangeSubscription: Cancelable? = null
 
@@ -186,6 +187,12 @@ class MapActivity : AppCompatActivity() {
         toggleHexGrid(binding.h3ToggleSwitch.isChecked) // initial switch function on start
 
         lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                if (!binding.h3ToggleSwitch.isChecked) refreshMeasurementGroups()
+            }
+        }
+
+        lifecycleScope.launch {
             try {
                 CellWatchApp.measurementRepository.tryUploadMeasurements()
                 CellWatchApp.measurementRepository.tryUploadFccSubmissions()
@@ -230,9 +237,9 @@ class MapActivity : AppCompatActivity() {
             }
 
             if(enabled) {
-                loadMapAnnotations()
                 pointAnnotationManager.addClickListener(onAnnotationClickListener)
                 mapboxMap.addOnMapClickListener(handlePointClusterClick)
+                lifecycleScope.launch { refreshMeasurementGroups() }
             } else {
                 pointAnnotationManager.removeClickListener(onAnnotationClickListener)
                 mapboxMap.removeOnMapClickListener(handlePointClusterClick)
@@ -348,12 +355,16 @@ class MapActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadMapAnnotations() {
-        if (annotations.isNotEmpty()) {
-            return
+    private fun refreshMeasurementGroups() {
+        lifecycleScope.launch {
+            val groups = CellWatchApp.measurementRepository.getMeasurementGroups()
+            val newGroups = mutableSetOf<MeasurementGroup>()
+            groups.forEach { if (renderedMeasurementGroups.add(it)) newGroups.add(it) }
+            renderMeasurementGroups(newGroups)
         }
+    }
 
-        val groups = runBlocking { CellWatchApp.measurementRepository.getMeasurementGroups() }
+    private fun renderMeasurementGroups(groups: Set<MeasurementGroup>) {
         val icon = AppCompatResources.getDrawable(this, R.drawable.fa_solid_location_pin)?.toBitmap()
             ?: throw RuntimeException("no icon!")
 
