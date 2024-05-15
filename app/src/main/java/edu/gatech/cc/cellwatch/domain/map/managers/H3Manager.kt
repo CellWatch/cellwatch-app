@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.map.managers
 
 import com.mapbox.geojson.Point
+import com.mapbox.maps.CoordinateBounds
 import com.uber.h3core.H3Core
 import com.uber.h3core.util.GeoCoord
 import edu.gatech.cc.cellwatch.core.util.Log
@@ -44,26 +45,17 @@ object H3Manager {
         return h3Boundaries
     }
 
-    private fun pointListToGeoCoordList(pointList: MutableList<Point>): MutableList<GeoCoord> {
-        /*
-        Takes in a list of Mapbox Points, converts to list of Uber Geocoords.
-         */
-        val geoCoordList: MutableList<GeoCoord> = mutableListOf()
-
-        pointList.forEach { point ->
-            geoCoordList.add(GeoCoord(point.longitude(), point.latitude()))
-
-        }
-        return geoCoordList
+    private fun boundsToGeoCoords(bounds: CoordinateBounds): List<GeoCoord> {
+        return listOf(
+            GeoCoord(bounds.northeast.latitude(), bounds.northeast.longitude()),
+            GeoCoord(bounds.northwest().latitude(), bounds.northwest().longitude()),
+            GeoCoord(bounds.southwest.latitude(), bounds.southwest.longitude()),
+            GeoCoord(bounds.southeast().latitude(), bounds.southeast().longitude()),
+        )
     }
 
-     fun getH3OverlayAddressesFromCoordinates(coordinates: MutableList<Point>, resolution: Int): MutableList<Long> {
-        /*
-        Takes in a list of coordinates as a boundary (eg: the camera on a map), returns all h3 hexagon boundaries within those coordinates.
-         */
-
-         val geoListBoundaries = pointListToGeoCoordList(coordinates)
-
+     fun getH3OverlayAddressesFromBounds(bounds: CoordinateBounds, resolution: Int): List<Long> {
+         val geoListBoundaries = boundsToGeoCoords(bounds)
          return h3.polyfill(geoListBoundaries, mutableListOf(), resolution)
     }
 
