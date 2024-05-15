@@ -19,9 +19,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.gson.JsonArray
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import com.mapbox.common.Cancelable
 import com.mapbox.geojson.Feature
@@ -63,7 +60,6 @@ import com.mapbox.maps.viewannotation.viewAnnotationOptions
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
-import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.databinding.ActivityMapBinding
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 import kotlinx.coroutines.CoroutineScope
@@ -72,16 +68,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import okhttp3.internal.toHexString
 
 class MapActivity : AppCompatActivity() {
     private val TAG = this::class.simpleName
     private lateinit var binding: ActivityMapBinding
     private lateinit var model: MapViewModel
-    private val parentHexRes = 8
-    private val childHexRes = 9
     private var hexFillColor = 0
     private val renderedHexAddresses = mutableSetOf<Long>()
 
@@ -99,7 +91,7 @@ class MapActivity : AppCompatActivity() {
     private lateinit var viewAnnotationManager: ViewAnnotationManager
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
-    private val renderedMeasurementGroups = mutableSetOf<MeasurementGroup>()
+    private val renderedMeasurementGroupIds = mutableSetOf<String>()
     private var debounceJob: Job? = null
     private var cameraChangeSubscription: Cancelable? = null
 
@@ -124,7 +116,7 @@ class MapActivity : AppCompatActivity() {
                 binding.sheetHeader.isVisible = newState == BottomSheetBehavior.STATE_EXPANDED
                 binding.sheetHandle.isVisible = newState != BottomSheetBehavior.STATE_EXPANDED
                 if (newState == BottomSheetBehavior.STATE_HIDDEN) {
-                    model.selectedGroups = null
+                    model.selectedMeasurementGroupIds = setOf()
                 }
             }
 
@@ -132,7 +124,7 @@ class MapActivity : AppCompatActivity() {
 
         })
 
-        if (model.selectedGroups == null) {
+        if (model.selectedMeasurementGroupIds.isEmpty()) {
             sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         }
 
@@ -156,6 +148,7 @@ class MapActivity : AppCompatActivity() {
                 )
             )
         )
+        pointAnnotationManager.addClickListener(onAnnotationClickListener)
 
         childHexAnnotationManager = binding.mapView.annotations.createPolygonAnnotationManager(
             AnnotationConfig(layerId = childHexGridLayerId)
@@ -191,11 +184,10 @@ class MapActivity : AppCompatActivity() {
         }
 
         binding.h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked -> toggleHexGrid(isChecked) }
-        toggleHexGrid(binding.h3ToggleSwitch.isChecked) // initial switch function on start
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                if (!binding.h3ToggleSwitch.isChecked) refreshMeasurementGroups()
+                toggleHexGrid(binding.h3ToggleSwitch.isChecked)
             }
         }
 
@@ -223,9 +215,7 @@ class MapActivity : AppCompatActivity() {
                 getLayer(childHexGridLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
             }
 
-            viewAnnotationManager.annotations.forEach { (view) ->
-                view.isVisible = enabled && view.tag != selectedParentHex?.first
-            }
+            viewAnnotationManager.annotations.forEach { (view) -> updateCountViewVisible(view) }
 
             if(enabled) {
                 refreshHexGrid()
@@ -245,7 +235,7 @@ class MapActivity : AppCompatActivity() {
             if(enabled) {
                 pointAnnotationManager.addClickListener(onAnnotationClickListener)
                 mapboxMap.addOnMapClickListener(handlePointClusterClick)
-                lifecycleScope.launch { refreshMeasurementGroups() }
+                refreshMeasurementGroups()
             } else {
                 pointAnnotationManager.removeClickListener(onAnnotationClickListener)
                 mapboxMap.removeOnMapClickListener(handlePointClusterClick)
@@ -262,48 +252,36 @@ class MapActivity : AppCompatActivity() {
                 removeChildHexes(old.first)
                 old.second.fillColorInt = hexFillColor
                 parentHexAnnotationManager.update(old.second)
-                viewAnnotationManager.annotations.keys.find { it.tag == old.first }?.isVisible = true
+                viewAnnotationManager.annotations.keys.find { it.tag == old.first }?.let { updateCountViewVisible(it) }
             }
 
             if (value != null) {
                 value.second.fillColorInt = 0
                 parentHexAnnotationManager.update(value.second)
-                viewAnnotationManager.annotations.keys.find { it.tag == value.first }?.isVisible = false
+                viewAnnotationManager.annotations.keys.find { it.tag == value.first }?.let { updateCountViewVisible(it) }
                 lifecycleScope.launch { renderChildHexes(value.first) }
             }
         }
 
     private val parentHexClickListener = OnPolygonAnnotationClickListener { annotation ->
-        val data = annotation.getData()?.let { decodeHexData(it) }
-        when (data) {
-            null -> Log.e(TAG, "no data for selected annotation $annotation")
-            else -> {
-                val (address, groups) = data
-                selectedParentHex = if (groups.isEmpty()) null else Pair(address, annotation)
-            }
-        }
-
+        val address = annotation.getData()?.asLong ?: throw RuntimeException("no data for parent annotation $annotation")
+        val groups = model.getHexMeasurementGroupIds(address)
+        selectedParentHex = if (groups.isEmpty()) null else Pair(address, annotation)
         true
     }
 
     private val childHexClickListener = OnPolygonAnnotationClickListener { annotation ->
-        val data = annotation.getData()?.let { decodeHexData(it) }
-        when (data) {
-            null -> Log.e(TAG, "no data for selected annotation $annotation")
-            else -> {
-                val (address, groups) = data
-                if (groups.isNotEmpty()) {
-                    showBottomSheet(groups, getString(R.string.hex_index, address.toHexString().lowercase()))
-                }
-            }
+        val address = annotation.getData()?.asLong ?: throw RuntimeException("no data for child annotation $annotation")
+        val groups = model.getHexMeasurementGroupIds(address)
+        if (groups.isNotEmpty()) {
+            showBottomSheet(groups, getString(R.string.hex_index, address.toHexString().lowercase()))
         }
-
         true
     }
 
     private val onAnnotationClickListener = OnPointAnnotationClickListener { annotation ->
         showBottomSheet(
-            listOf(decodeMeasurementGroup(annotation.getData() ?: throw RuntimeException("no annotation data!"))),
+            setOf(annotation.getData()?.asString ?: throw RuntimeException("no data for $annotation")),
             getString(R.string.one_measurement)
         )
         true
@@ -326,7 +304,7 @@ class MapActivity : AppCompatActivity() {
                 queriedFeatures.firstOrNull()?.let { cluster ->
                     withClusterFeatures(cluster.queriedFeature) { features ->
                         showBottomSheet(
-                            features.map { decodeMeasurementGroup(it.getProperty("custom_data")) },
+                            features.map { it.getProperty("custom_data").asString },
                             getString(R.string.x_measurements, features.size)
                         )
                     }
@@ -363,10 +341,30 @@ class MapActivity : AppCompatActivity() {
 
     private fun refreshHexGrid() {
         lifecycleScope.launch {
+            model.refreshMeasurementGroups()
             val visibleAddresses = getH3AddressesInView()
             val newAddresses = mutableSetOf<Long>()
-            visibleAddresses.forEach { if (renderedHexAddresses.add(it)) newAddresses.add(it) }
+            val oldAddresses = mutableSetOf<Long>()
+            visibleAddresses.forEach {
+                if (renderedHexAddresses.add(it)) {
+                    newAddresses.add(it)
+                } else {
+                    oldAddresses.add(it)
+                }
+            }
+
             renderParentHexes(newAddresses)
+            updateParentHexes(oldAddresses)
+            selectedParentHex?.let {
+                if (it.first in oldAddresses) {
+                    updateChildHexes(it.first)
+
+                    val groups = model.getHexMeasurementGroupIds(it.first)
+                    if (groups.isNotEmpty()) {
+                        (binding.sheetContents.adapter as MeasurementAdapter).setGroups(model.getMeasurementGroups(groups))
+                    }
+                }
+            }
         }
     }
 
@@ -383,53 +381,96 @@ class MapActivity : AppCompatActivity() {
         val se = Point.fromLngLat(center.latitude() + delta, center.longitude() - delta)
 
         //Convert camera boundaries to h3 boundaries
-        return H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), parentHexRes)
+        return H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), H3Manager.PARENT_HEX_RES)
     }
 
-    private suspend fun renderParentHexes(addresses: Collection<Long>) {
+    private fun renderParentHexes(addresses: Collection<Long>) {
         addresses.forEach { renderHex(it, parentHexAnnotationManager) }
     }
 
-    private suspend fun renderChildHexes(parentAddress: Long) {
-        H3Manager.getRelatedH3Hex(parentAddress, childHexRes).forEach {
+    private fun updateParentHexes(addresses: Collection<Long>) {
+        addresses.forEach { updateHex(it, parentHexAnnotationManager) }
+    }
+
+    private fun renderChildHexes(parentAddress: Long) {
+        H3Manager.getRelatedH3Hex(parentAddress, H3Manager.CHILD_HEX_RES).forEach {
             renderHex(it, childHexAnnotationManager)
         }
     }
 
-    private suspend fun renderHex(address: Long, annotationManager: PolygonAnnotationManager) {
+    private fun updateChildHexes(parentAddress: Long) {
+        H3Manager.getRelatedH3Hex(parentAddress, H3Manager.CHILD_HEX_RES).forEach {
+            updateHex(it, childHexAnnotationManager)
+        }
+    }
+
+    private fun renderHex(address: Long, annotationManager: PolygonAnnotationManager) {
         val boundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
-        val groups = H3Manager.getMeasurementGroupsAssociatedWithH3Address(address)
+        val groups = model.getHexMeasurementGroupIds(address)
 
         val options = PolygonAnnotationOptions()
             .withPoints(boundary)
-            .withData(encodeHexData(address, groups))
+            .withData(JsonPrimitive(address))
             .withFillColor(if (groups.isEmpty()) 0 else hexFillColor)
             .withFillOutlineColor(getColor(R.color.cw_blue))
 
         annotationManager.create(options)
 
         if (groups.isNotEmpty()) {
-            val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
-
-            val view = layoutInflater.inflate(R.layout.view_map_annotaton_layout, binding.mapView, false)
-            val textViewMeasurements = view.findViewById<TextView>(R.id.textView_measurements)
-            textViewMeasurements.text = groups.size.toString()
-            view.tag = address
-
-            val viewOptions = viewAnnotationOptions {
-                geometry(hexCenter)
-                allowOverlap(true)
-                allowOverlapWithPuck(true)
-            }
-            viewAnnotationManager.addViewAnnotation(view, viewOptions)
+            createHexCountView(address, groups.size)
         }
     }
 
+    private fun updateHex(address: Long, annotationManager: PolygonAnnotationManager) {
+        val annotation = annotationManager.annotations.find { it.getData()?.asLong == address }
+        if (annotation == null) {
+            Log.e(TAG, "no annotation found to update for $address")
+            return
+        }
+
+        val groups = model.getHexMeasurementGroupIds(address)
+        val fillColor = if (groups.isEmpty() || address == selectedParentHex?.first) 0 else hexFillColor
+        if (fillColor != annotation.fillColorInt) {
+            annotation.fillColorInt = fillColor
+            annotationManager.update(annotation)
+        }
+
+        if (groups.isNotEmpty()) {
+            val view = viewAnnotationManager.annotations.keys.find { it.tag == address }
+            if (view == null) {
+                createHexCountView(address, groups.size)
+            } else {
+                view.findViewById<TextView>(R.id.textView_measurements).text = groups.size.toString()
+            }
+        }
+    }
+
+    private fun createHexCountView(address: Long, count: Int) {
+        val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
+
+        val view = layoutInflater.inflate(R.layout.view_map_annotaton_layout, binding.mapView, false)
+        val textViewMeasurements = view.findViewById<TextView>(R.id.textView_measurements)
+        textViewMeasurements.text = count.toString()
+        view.tag = address
+        updateCountViewVisible(view)
+
+        val viewOptions = viewAnnotationOptions {
+            geometry(hexCenter)
+            allowOverlap(true)
+            allowOverlapWithPuck(true)
+        }
+        viewAnnotationManager.addViewAnnotation(view, viewOptions)
+    }
+
+    private fun updateCountViewVisible(view: View) {
+        view.isVisible = hexGridEnabled && view.tag != selectedParentHex?.first
+    }
+
     private fun removeChildHexes(parentAddress: Long) {
-        val childAddresses = H3Manager.getRelatedH3Hex(parentAddress, childHexRes)
+        val childAddresses = H3Manager.getRelatedH3Hex(parentAddress, H3Manager.CHILD_HEX_RES)
 
         childHexAnnotationManager.delete(childHexAnnotationManager.annotations.filter {
-            it.getData()?.let { d -> decodeHexData(d).first } in childAddresses
+            (it.getData()?.asLong ?: throw RuntimeException("no data for $it")) in childAddresses
         })
 
         viewAnnotationManager.annotations.keys
@@ -437,39 +478,21 @@ class MapActivity : AppCompatActivity() {
             .forEach { viewAnnotationManager.removeViewAnnotation(it) }
     }
 
-    private fun encodeHexData(address: Long, measurementGroups: Collection<MeasurementGroup>): JsonElement {
-        val obj = JsonObject()
-        obj.add("address", JsonPrimitive(address))
-        val groups = JsonArray()
-        measurementGroups.forEach { groups.add(encodeMeasurementGroup(it)) }
-        obj.add("groups", groups)
-        return obj
-    }
-
-    private fun decodeHexData(data: JsonElement): Pair<Long, Collection<MeasurementGroup>> {
-        val address = data.asJsonObject.get("address").asLong
-        val groups = data.asJsonObject.get("groups").asJsonArray.map { decodeMeasurementGroup(it) }
-        return Pair(address, groups)
-    }
-
     private fun refreshMeasurementGroups() {
         lifecycleScope.launch {
-            val groups = CellWatchApp.measurementRepository.getMeasurementGroups()
-            val newGroups = mutableSetOf<MeasurementGroup>()
-            groups.forEach { if (renderedMeasurementGroups.add(it)) newGroups.add(it) }
-            renderMeasurementGroups(newGroups)
+            val groupIds = model.refreshMeasurementGroups()
+            val newGroupIds = mutableSetOf<String>()
+            groupIds.forEach { if (renderedMeasurementGroupIds.add(it)) newGroupIds.add(it) }
+            renderMeasurementGroups(newGroupIds)
         }
     }
 
-    private fun renderMeasurementGroups(groups: Set<MeasurementGroup>) {
+    private fun renderMeasurementGroups(ids: Set<String>) {
         val icon = AppCompatResources.getDrawable(this, R.drawable.fa_solid_location_pin)?.toBitmap()
             ?: throw RuntimeException("no icon!")
 
-        for (group in groups) {
-            val location = group.latency?.locations?.firstOrNull()
-                ?: group.download?.locations?.firstOrNull()
-                ?: group.upload?.locations?.firstOrNull()
-
+        for (group in model.getMeasurementGroups(ids)) {
+            val location = group.location()
             if (location == null) {
                 Log.e(TAG, "group with no location: $group")
                 continue
@@ -478,20 +501,10 @@ class MapActivity : AppCompatActivity() {
             val options = PointAnnotationOptions()
                 .withPoint(Point.fromLngLat(location.lon, location.lat))
                 .withIconImage(icon)
-                .withData(encodeMeasurementGroup(group))
+                .withData(JsonPrimitive(group.id()))
 
             pointAnnotationManager.create(options)
         }
-    }
-
-    private fun encodeMeasurementGroup(group: MeasurementGroup): JsonElement {
-        // MapBox requires a GSON JsonElement, but I can't get GSON to encode Kotlin Instants
-        // properly. Encode using Kotlin's JSON instead and then return as a GSON JsonString.
-        return JsonPrimitive(Json.encodeToString(group))
-    }
-
-    private fun decodeMeasurementGroup(data: JsonElement): MeasurementGroup {
-        return Json.decodeFromString(data.asString)
     }
 
     private fun onMapReady() {
@@ -552,15 +565,15 @@ class MapActivity : AppCompatActivity() {
         }
     }
 
-    private fun showBottomSheet(groups: Collection<MeasurementGroup>, title: String) {
-        if (model.selectedGroups == groups) {
+    private fun showBottomSheet(groupIds: Collection<String>, title: String) {
+        if (model.selectedMeasurementGroupIds == groupIds) {
             return // it's already showing the correct groups
         }
 
-        model.selectedGroups = groups
+        model.selectedMeasurementGroupIds = groupIds.toSet()
         val sheetBehavior = BottomSheetBehavior.from(binding.sheet)
         sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
         binding.sheetTitle.text = title
-        (binding.sheetContents.adapter as MeasurementAdapter).setGroups(groups)
+        (binding.sheetContents.adapter as MeasurementAdapter).setGroups(model.getMeasurementGroups(groupIds))
     }
 }
