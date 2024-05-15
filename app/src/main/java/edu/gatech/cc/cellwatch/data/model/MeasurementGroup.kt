@@ -36,4 +36,17 @@ data class MeasurementGroup(
             }
         }
     }
+
+    fun id(): String {
+        return latency?.groupId
+            ?: download?.groupId
+            ?: upload?.groupId
+            ?: throw RuntimeException("group without id: $this")
+    }
+
+    fun location(): Location? {
+        return latency?.locations?.firstOrNull()
+            ?: download?.locations?.firstOrNull()
+            ?: upload?.locations?.firstOrNull()
+    }
 }
