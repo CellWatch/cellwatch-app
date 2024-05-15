@@ -3,21 +3,16 @@ package edu.gatech.cc.cellwatch.domain.map.managers
 import com.mapbox.geojson.Point
 import com.uber.h3core.H3Core
 import com.uber.h3core.util.GeoCoord
-import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.Log
-import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 
 object H3Manager {
+    const val PARENT_HEX_RES = 8
+    const val CHILD_HEX_RES = 9
 
     private val h3 = H3Core.newSystemInstance()
     /*
     Responsible for producing coordinates for the hexagon overlays.
     */
-
-    private suspend fun getAllCoordinates(): List<MeasurementGroup> {
-        val measurementRepository = CellWatchApp.measurementRepository
-        return measurementRepository.getMeasurementGroups()
-    }
 
     private fun h3IndexToBoundary(h3Indexes: Collection<Long>): MutableList<MutableList<Point>> {
         /*
@@ -72,16 +67,8 @@ object H3Manager {
          return h3.polyfill(geoListBoundaries, mutableListOf(), resolution)
     }
 
-    fun getH3BoundariesFromAddressList(h3Addresses: Collection<Long>): MutableList<MutableList<Point>> {
-        return h3IndexToBoundary(h3Addresses)
-    }
-
     fun getH3BoundaryFromAddressSingleton(h3address: Long): MutableList<MutableList<Point>> {
         return h3IndexToBoundary(mutableListOf(h3address))
-    }
-
-    fun getH3AddressFromPointSingleton(point: Point, res: Int): Long {
-        return h3.geoToH3(point.latitude(), point.longitude(), res)
     }
 
     fun getRelatedH3Hex(addr: Long, relatedRes: Int): MutableList<Long> {
@@ -94,30 +81,6 @@ object H3Manager {
         }
     }
 
-    suspend fun getMeasurementGroupsAssociatedWithLatLong(coord: Point): MutableList<MeasurementGroup> {
-        return getMeasurementGroupsAssociatedWithH3Address(
-            h3.geoToH3(coord.latitude(), coord.longitude(), 8),
-        )
-    }
-
-    suspend fun getMeasurementGroupsAssociatedWithH3Address(address: Long): MutableList<MeasurementGroup> {
-        // Takes in a h3 address, returns all measurements associated H3 hexagon that contains the point.
-        val allMeasurements = getAllCoordinates()
-        val associatedGroupList: MutableList<MeasurementGroup> = mutableListOf()
-        val res = getH3ResolutionFromAddress(address)
-
-        for (group in allMeasurements) {
-            for (measurement in listOfNotNull(group.latency, group.download, group.upload)) {
-                if (measurement.locations?.any { h3.geoToH3(it.lat, it.lon, res) == address } == true) {
-                    associatedGroupList.add(group)
-                    break
-                }
-            }
-        }
-
-        return associatedGroupList
-    }
-
     fun getH3ResolutionFromAddress(addr: Long): Int {
         return h3.h3GetResolution(addr)
     }
@@ -127,7 +90,7 @@ object H3Manager {
         return Point.fromLngLat(centerGeo.lng, centerGeo.lat)
     }
 
-    fun getH3Index(lat: Double, lon: Double, res: Int = 8): String {
-        return h3.geoToH3Address(lat, lon, res)
+    fun getH3Index(lat: Double, lon: Double, res: Int): Long {
+        return h3.geoToH3(lat, lon, res)
     }
 }
