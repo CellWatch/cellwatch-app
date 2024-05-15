@@ -546,10 +546,11 @@ class MapActivity : AppCompatActivity() {
     private fun initLocationComponent() {
         val locationComponentPlugin = binding.mapView.location
         locationComponentPlugin.updateSettings {
-            this.enabled = true
-            this.puckBearingEnabled = true
-            this.locationPuck = LocationPuck2D(
-                bearingImage = ImageHolder.Companion.from(R.drawable.mapbox_user_puck_icon),
+            enabled = true
+            puckBearingEnabled = true
+            locationPuck = LocationPuck2D(
+                topImage = ImageHolder.from(R.drawable.empty), // MapBox complains in the logs if we don't provide something
+                bearingImage = ImageHolder.from(R.drawable.mapbox_user_puck_icon),
                 shadowImage = ImageHolder.from(R.drawable.mapbox_user_icon_shadow),
                 scaleExpression = interpolate {
                     linear()
