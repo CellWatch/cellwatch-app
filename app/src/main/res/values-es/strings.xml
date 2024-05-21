@@ -61,6 +61,8 @@
     <string name="hex">Hexágono</string>
     <string name="add_measurement">Medir</string>
     <string name="search_map">Buscar en el mapa</string>
+    <string name="one_measurement">1 medición</string>
+    <string name="x_measurements">%1$d mediciones</string>
 
     <!-- pre-measure -->
     <string name="stationary_or_moving">¿Está parado al aire libre o en un vehículo en movimiento?</string>

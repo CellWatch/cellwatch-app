@@ -55,6 +55,8 @@
     <string name="hex">Hex</string>
     <string name="add_measurement">Measure</string>
     <string name="search_map">Search Map</string>
+    <string name="one_measurement">1 measurement</string>
+    <string name="x_measurements">%1$d measurements</string>
 
     <!-- pre-measure -->
     <string name="stationary_or_moving">Are you standing outdoors or in a moving vehicle?</string>

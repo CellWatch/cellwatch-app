@@ -129,11 +129,11 @@ dependencies {
     annotationProcessor "androidx.room:room-compiler:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
 
-    implementation 'com.mapbox.maps:android:10.16.0'
-    implementation "com.mapbox.search:mapbox-search-android-ui:1.0.0-rc.6"
-    implementation "com.mapbox.search:mapbox-search-android:1.0.0-rc.6"
-    implementation "com.mapbox.search:offline:1.0.0-rc.6"
-    implementation "com.mapbox.search:place-autocomplete:1.0.0-rc.6"
+    implementation 'com.mapbox.maps:android:11.3.1'
+    implementation "com.mapbox.search:mapbox-search-android-ui:2.0.0"
+    implementation "com.mapbox.search:mapbox-search-android:2.0.0"
+    implementation "com.mapbox.search:offline:2.0.0"
+    implementation "com.mapbox.search:place-autocomplete:2.0.0"
 
 
     // To use Kotlin annotation processing tool (kapt)

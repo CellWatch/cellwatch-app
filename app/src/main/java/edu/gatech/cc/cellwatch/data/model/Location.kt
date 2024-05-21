@@ -13,8 +13,8 @@ import java.util.UUID
 data class Location (
     var id: String = UUID.randomUUID().toString(),
     val timestamp: Instant? = null,
-    val lat: Double? = null,
-    val lon: Double? = null,
+    val lat: Double,
+    val lon: Double,
     val accuracy: Double? = null,
     val speed: Double? = null,
     val speedAccuracy: Double? = null,
