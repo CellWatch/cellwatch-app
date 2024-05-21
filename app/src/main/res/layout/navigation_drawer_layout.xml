@@ -55,8 +55,8 @@
         <Button
             android:id="@+id/helpButton"
             style="@style/SideMenuButton"
-            app:icon="@drawable/fa_solid_circle_question"
-            android:text="@string/help" />
+            app:icon="@drawable/fa_circle_about"
+            android:text="@string/about" />
     </LinearLayout>
 
     <Space
