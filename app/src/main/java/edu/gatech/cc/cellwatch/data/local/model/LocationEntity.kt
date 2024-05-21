@@ -40,16 +40,20 @@ data class LocationEntity(
     val updatedOn: Instant? = null
 )
 
-fun LocationEntity.asExternalModel() = Location(
-    id = id,
-    timestamp = timestamp,
-    lat = lat,
-    lon = lon,
-    accuracy = accuracy,
-    speed = speed,
-    speedAccuracy = speedAccuracy,
-    heading = heading,
-    measurementId = measurementId,
-    createdOn = createdOn,
-    updatedOn = updatedOn
-)
+fun LocationEntity.asExternalModel() = if (lat == null || lon == null) {
+    null
+} else {
+    Location(
+        id = id,
+        timestamp = timestamp,
+        lat = lat,
+        lon = lon,
+        accuracy = accuracy,
+        speed = speed,
+        speedAccuracy = speedAccuracy,
+        heading = heading,
+        measurementId = measurementId,
+        createdOn = createdOn,
+        updatedOn = updatedOn
+    )
+}

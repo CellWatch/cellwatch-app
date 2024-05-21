@@ -48,7 +48,7 @@ fun NetworkMeasurementWithData.asExternalModel() = Measurement(
     measurement.updatedOn,
     measurementData?.asExternalModel(),
     latencyData?.asExternalModel(),
-    locations?.map { location -> location.asExternalModel() },
+    locations?.mapNotNull { location -> location.asExternalModel() },
     cells?.map { cell -> cell.asExternalModel() },
     measurement.connectionType,
     measurement.cellularDataEnabled,

@@ -3,82 +3,98 @@ package edu.gatech.cc.cellwatch.ui.main
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
-import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
+import com.mapbox.common.Cancelable
+import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
+import com.mapbox.maps.CameraChangedCallback
 import com.mapbox.maps.CameraOptions
+import com.mapbox.maps.ImageHolder
 import com.mapbox.maps.MapboxMap
+import com.mapbox.maps.QueriedFeature
+import com.mapbox.maps.RenderedQueryGeometry
+import com.mapbox.maps.RenderedQueryOptions
 import com.mapbox.maps.Style
-import com.mapbox.maps.ViewAnnotationOptions
 import com.mapbox.maps.extension.style.expressions.dsl.generated.interpolate
+import com.mapbox.maps.extension.style.layers.getLayer
+import com.mapbox.maps.extension.style.layers.properties.generated.Visibility
 import com.mapbox.maps.plugin.LocationPuck2D
+import com.mapbox.maps.plugin.annotation.AnnotationConfig
+import com.mapbox.maps.plugin.annotation.AnnotationSourceOptions
+import com.mapbox.maps.plugin.annotation.ClusterOptions
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.OnPointAnnotationClickListener
 import com.mapbox.maps.plugin.annotation.generated.OnPolygonAnnotationClickListener
-import com.mapbox.maps.plugin.annotation.generated.PointAnnotation
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotation
 import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
 import com.mapbox.maps.plugin.compass.compass
-import com.mapbox.maps.plugin.delegates.listeners.OnCameraChangeListener
 import com.mapbox.maps.plugin.gestures.OnMapClickListener
 import com.mapbox.maps.plugin.gestures.addOnMapClickListener
 import com.mapbox.maps.plugin.gestures.removeOnMapClickListener
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.maps.plugin.scalebar.scalebar
 import com.mapbox.maps.viewannotation.ViewAnnotationManager
+import com.mapbox.maps.viewannotation.geometry
+import com.mapbox.maps.viewannotation.viewAnnotationOptions
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.databinding.ActivityMapBinding
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
-import edu.gatech.cc.cellwatch.domain.map.managers.MapAnnotationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import okhttp3.internal.toHexString
+import kotlin.math.max
 
 class MapActivity : AppCompatActivity() {
     private val TAG = this::class.simpleName
     private lateinit var binding: ActivityMapBinding
     private lateinit var model: MapViewModel
-    private val renderedH3Addresses = HashSet<Long>()
-    private val renderedMeasurementOverlays = HashSet<Long>()
-    private val BIGGER_HEX_TILE_RES = 8
-    private val SMALLER_HEX_TILE_RES = 9
+    private var hexFillColor = 0
+    private val renderedHexAddresses = mutableSetOf<Long>()
+
+    private val measurementPointLayerId = "measurement-points"
+    private val parentHexGridLayerId = "hex-grid"
+    private val childHexGridLayerId = "hex-grid-low-res"
+    // based on https://github.com/mapbox/mapbox-maps-android/blob/060187f41095d23bde404401dd543ffb715ab144/plugin-annotation/src/main/java/com/mapbox/maps/plugin/annotation/AnnotationManagerImpl.kt
+    private val clusterLayerIdPrefix = "mapbox-android-cluster-"
+    private val clusterTextLayerId = "mapbox-android-cluster-text-layer"
+
     private lateinit var mapboxMap : MapboxMap
-    private var pointAnnotationManager: PointAnnotationManager? = null
-    private var polygonAnnotationManager: PolygonAnnotationManager? = null
-    private var lowResPolygonAnnotationManager: PolygonAnnotationManager? = null
-    private var viewAnnotationManager: ViewAnnotationManager? = null
+    private lateinit var pointAnnotationManager: PointAnnotationManager
+    private lateinit var parentHexAnnotationManager: PolygonAnnotationManager
+    private lateinit var childHexAnnotationManager: PolygonAnnotationManager
+    private lateinit var viewAnnotationManager: ViewAnnotationManager
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private var annotations: MutableList<PointAnnotation> = mutableListOf()
+
+    private val renderedMeasurementGroupIds = mutableSetOf<String>()
     private var debounceJob: Job? = null
+    private var cameraChangeSubscription: Cancelable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -101,7 +117,7 @@ class MapActivity : AppCompatActivity() {
                 binding.sheetHeader.isVisible = newState == BottomSheetBehavior.STATE_EXPANDED
                 binding.sheetHandle.isVisible = newState != BottomSheetBehavior.STATE_EXPANDED
                 if (newState == BottomSheetBehavior.STATE_HIDDEN) {
-                    model.selectedH3Address = null
+                    model.selectedMeasurementGroupIds = setOf()
                 }
             }
 
@@ -109,16 +125,44 @@ class MapActivity : AppCompatActivity() {
 
         })
 
-        if (model.selectedH3Address == null) {
+        if (model.selectedMeasurementGroupIds.isEmpty()) {
             sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         }
 
         binding.sheetCloseBtn.setOnClickListener { sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN }
+        binding.sheet.setOnClickListener { } // prevent click events from going to UI elements underneath
         binding.sheetContents.layoutManager = LinearLayoutManager(this)
         binding.sheetContents.adapter = MeasurementAdapter()
 
-        mapboxMap = binding.mapView.getMapboxMap()
-        mapboxMap.loadStyleUri(Style.LIGHT)
+        hexFillColor = getColor(R.color.cw_green_light) - (0x80000000).toInt()
+        mapboxMap = binding.mapView.mapboxMap
+        mapboxMap.loadStyle(Style.LIGHT)
+        pointAnnotationManager = binding.mapView.annotations.createPointAnnotationManager(
+            AnnotationConfig(
+                layerId = measurementPointLayerId,
+                annotationSourceOptions = AnnotationSourceOptions(
+                    clusterOptions = ClusterOptions(
+                        textColor = getColor(R.color.cw_white),
+                        textSize = 16.0,
+                        colorLevels = listOf(Pair(0, getColor(R.color.cw_blue))),
+                        clusterMaxZoom = Long.MAX_VALUE,
+                    )
+                )
+            )
+        )
+        pointAnnotationManager.addClickListener(onAnnotationClickListener)
+
+        childHexAnnotationManager = binding.mapView.annotations.createPolygonAnnotationManager(
+            AnnotationConfig(layerId = childHexGridLayerId)
+        )
+        childHexAnnotationManager.addClickListener(childHexClickListener)
+
+        parentHexAnnotationManager = binding.mapView.annotations.createPolygonAnnotationManager(
+            AnnotationConfig(layerId = parentHexGridLayerId, belowLayerId = childHexGridLayerId)
+        )
+        parentHexAnnotationManager.addClickListener(parentHexClickListener)
+
+        viewAnnotationManager = binding.mapView.viewAnnotationManager
         onMapReady()
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -131,24 +175,6 @@ class MapActivity : AppCompatActivity() {
             centerCameraOnUser()
         }
 
-        binding.h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked ->
-            if(isChecked) {
-                pointAnnotationManager?.deleteAll()
-                loadMapH3()
-                mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
-                mapboxMap.addOnMapClickListener(onMapClickListenerH3)
-            } else {
-                polygonAnnotationManager?.deleteAll()
-                lowResPolygonAnnotationManager?.deleteAll()
-                viewAnnotationManager?.removeAllViewAnnotations()
-                renderedH3Addresses.clear()
-                renderedMeasurementOverlays.clear()
-                loadMapAnnotations()
-                mapboxMap.removeOnCameraChangeListener(onCameraChangeListener)
-                mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
-            }
-        }
-
         binding.navDrawer.setOnCloseListener { binding.root.closeDrawer(GravityCompat.START) }
         binding.navDrawer.setActiveActivity(this)
         binding.sideMenuButton.setOnClickListener {
@@ -159,11 +185,12 @@ class MapActivity : AppCompatActivity() {
             }
         }
 
-        // Initial switch function on start
-        if (binding.h3ToggleSwitch.isChecked) {
-            loadMapH3()
-        } else {
-            loadMapAnnotations()
+        binding.h3ToggleSwitch.setOnCheckedChangeListener { _, isChecked -> toggleHexGrid(isChecked) }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                toggleHexGrid(binding.h3ToggleSwitch.isChecked)
+            }
         }
 
         lifecycleScope.launch {
@@ -176,332 +203,318 @@ class MapActivity : AppCompatActivity() {
         }
     }
 
-    private val onPolygonClick: OnPolygonAnnotationClickListener = OnPolygonAnnotationClickListener { polygon ->
-        /*
-        Used when a child hexagon is clicked to display measurements associated with it.
-         */
-        val data = polygon.getData()
-        if (data == null || data.isJsonNull || !data.isJsonObject) {
-            Log.i("H3", "Skipping annotation due to null or invalid data")
-            return@OnPolygonAnnotationClickListener false // Skip if data is null or not a JsonObject
-        }
+    private fun toggleHexGrid(enabled: Boolean) {
+        hexGridEnabled = enabled
+        measurementPointsEnabled = !enabled
+    }
 
-        val h3AddressElement = data.asJsonObject.get("h3_address")
-        val h3Address = h3AddressElement?.takeIf { it.isJsonPrimitive }?.asLong
+    private var hexGridEnabled = true
+        set(enabled) {
+            field = enabled
 
-        if(h3Address?.let { H3Manager.getH3ResolutionFromAddress(it) } == SMALLER_HEX_TILE_RES) {
-            val associatedGroups = h3Address.let {
-                runBlocking { H3Manager.getMeasurementGroupsAssociatedWithH3Address(it, SMALLER_HEX_TILE_RES) }
+            mapboxMap.style?.apply {
+                getLayer(parentHexGridLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
+                getLayer(childHexGridLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
             }
 
-            if (associatedGroups.size >= 1) {
-                showBottomSheet(h3Address)
+            viewAnnotationManager.annotations.forEach { (view) -> updateCountViewVisible(view) }
+
+            if(enabled) {
+                refreshHexGrid()
             }
         }
 
+    private var measurementPointsEnabled = false
+        set(enabled) {
+            field = enabled
+            mapboxMap.style?.apply {
+                getLayer(measurementPointLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
+                styleLayers.filter { it.id.startsWith(clusterLayerIdPrefix) }.forEach {
+                    getLayer(it.id)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
+                }
+            }
+
+            if(enabled) {
+                pointAnnotationManager.addClickListener(onAnnotationClickListener)
+                mapboxMap.addOnMapClickListener(handlePointClusterClick)
+                refreshMeasurementGroups()
+            } else {
+                pointAnnotationManager.removeClickListener(onAnnotationClickListener)
+                mapboxMap.removeOnMapClickListener(handlePointClusterClick)
+            }
+        }
+
+    private var selectedParentHex: Pair<Long, PolygonAnnotation>? = null
+        set(value) {
+            if (field == value) return
+            val old = field
+            field = value
+
+            if (old != null) {
+                removeChildHexes(old.first)
+                old.second.fillColorInt = hexFillColor
+                parentHexAnnotationManager.update(old.second)
+                viewAnnotationManager.annotations.keys.find { it.tag == old.first }?.let { updateCountViewVisible(it) }
+            }
+
+            if (value != null) {
+                value.second.fillColorInt = 0
+                parentHexAnnotationManager.update(value.second)
+                viewAnnotationManager.annotations.keys.find { it.tag == value.first }?.let { updateCountViewVisible(it) }
+                lifecycleScope.launch { renderChildHexes(value.first) }
+            }
+        }
+
+    private val parentHexClickListener = OnPolygonAnnotationClickListener { annotation ->
+        val address = annotation.getData()?.asLong ?: throw RuntimeException("no data for parent annotation $annotation")
+        val groups = model.getHexMeasurementGroupIds(address)
+        selectedParentHex = if (groups.isEmpty()) null else Pair(address, annotation)
         true
     }
 
-    private val onMapClickListenerH3 = OnMapClickListener { it ->
-        val associatedMeasurements = runBlocking {
-            H3Manager.getMeasurementGroupsAssociatedWithLatLong(it)
-        }
-        val h3Address = H3Manager.getH3AddressFromPointSingleton(it, BIGGER_HEX_TILE_RES)
-        if(H3Manager.getH3ResolutionFromAddress(h3Address) == BIGGER_HEX_TILE_RES && associatedMeasurements.size > 0) {
-            polygonAnnotationManager?.annotations?.forEach { annotation ->
-                val data = annotation.getData()
-                if (data == null || !data.isJsonObject) {
-                    return@forEach
-                }
-
-                val h3AddressElement = data.asJsonObject.get("h3_address")
-                if (h3AddressElement?.takeIf { it.isJsonPrimitive }?.asLong == h3Address) {
-                    polygonAnnotationManager?.delete(annotation)
-                }
-            }
-            viewAnnotationManager?.removeAllViewAnnotations()
-            displayRes8Hexagons(it)
+    private val childHexClickListener = OnPolygonAnnotationClickListener { annotation ->
+        val address = annotation.getData()?.asLong ?: throw RuntimeException("no data for child annotation $annotation")
+        val groups = model.getHexMeasurementGroupIds(address)
+        if (groups.isNotEmpty()) {
+            showBottomSheet(groups, getString(R.string.hex_index, address.toHexString().lowercase()))
         }
         true
     }
 
     private val onAnnotationClickListener = OnPointAnnotationClickListener { annotation ->
-        showBottomSheet(H3Manager.getH3AddressFromPointSingleton(annotation.geometry, 8))
+        showBottomSheet(
+            setOf(annotation.getData()?.asString ?: throw RuntimeException("no data for $annotation")),
+            getString(R.string.one_measurement)
+        )
         true
     }
 
-    private val onCameraChangeListener = OnCameraChangeListener {
-        debounceJob?.cancel()
-        debounceJob = CoroutineScope(Dispatchers.Main).launch {
-            delay(100)
-
-            val currentZoom = mapboxMap.cameraState.zoom
-
-            //TODO Adjust as needed
-            if (currentZoom < 12.0) {
-                hideMapH3Content()
-            } else {
-                mapboxMap.addOnMapClickListener(onMapClickListenerH3)
-                loadMapH3()
+    private val handlePointClusterClick = OnMapClickListener {  point ->
+        fun withClusterFeatures(cluster: QueriedFeature, fn: (features: List<Feature>) -> Unit) {
+            mapboxMap.getGeoJsonClusterLeaves( cluster.source, cluster.feature, Long.MAX_VALUE, 0 ) { res ->
+                res.onError { Log.e(TAG, "error querying for leaves: $it") }
+                res.onValue { it.featureCollection?.let { features -> fn(features) } }
             }
         }
-    }
 
-    private fun bitmapFromDrawableRes(@DrawableRes resourceId: Int, count: Int) =
-        convertDrawableToBitmap(getDrawable(resourceId), count)
-
-    private fun convertDrawableToBitmap(sourceDrawable: Drawable?, count: Int): Bitmap? {
-        if (sourceDrawable == null) {
-            return null
-        }
-        return if (sourceDrawable is BitmapDrawable) {
-            val drawableBitMap = sourceDrawable.bitmap
-
-            val modifiedBitmap = drawableBitMap.copy(Bitmap.Config.ARGB_8888, true)
-            val canvas = Canvas(modifiedBitmap)
-
-            if (count != 1) {
-                val paint = Paint()
-                paint.color = Color.WHITE
-                paint.textAlign = Paint.Align.CENTER
-                paint.isAntiAlias = true
-
-                val textSize: Float = canvas.width * 0.5f
-                paint.textSize = textSize
-
-                canvas.drawText(
-                    count.toString(),
-                    (canvas.width / 2).toFloat(),
-                    (canvas.height / 2) + (textSize / 3),
-                    paint
-                )
-            }
-
-            modifiedBitmap
-
-        } else {
-            val constantState = sourceDrawable.constantState ?: return null
-            val drawable = constantState.newDrawable().mutate()
-            val bitmap: Bitmap = Bitmap.createBitmap(
-                drawable.intrinsicWidth, drawable.intrinsicHeight,
-                Bitmap.Config.ARGB_8888
-            )
-            val canvas = Canvas(bitmap)
-            drawable.setBounds(0, 0, canvas.width, canvas.height)
-            drawable.draw(canvas)
-
-            //Draw text overlay on bitmap if there's more than one averaged point
-            if (count != 1) {
-                val paint = Paint()
-                paint.color = Color.WHITE
-                paint.textAlign = Paint.Align.CENTER
-                paint.isAntiAlias = true
-
-                val textSize: Float = canvas.width * 0.5f
-                paint.textSize = textSize
-
-                canvas.drawText(
-                    count.toString(),
-                    (canvas.width / 2).toFloat(),
-                    (canvas.height / 2) + (textSize / 3),
-                    paint
-                )
-            }
-            bitmap
-        }
-    }
-
-    private fun loadMapAnnotations() {
-        if(this.pointAnnotationManager == null) {
-            val annotationApi = binding.mapView.annotations
-
-            pointAnnotationManager = annotationApi.createPointAnnotationManager()
-        }
-
-        val coordinates = MapAnnotationManager.getAllCoordinates()
-        for (coordinate in coordinates) {
-            bitmapFromDrawableRes(R.drawable.fa_solid_location_pin, coordinate.count)?.let { bitmap ->
-                val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
-                    .withPoint(Point.fromLngLat(coordinate.long, coordinate.lat))
-                    .withIconImage(bitmap)
-                val pointAnnotation = pointAnnotationManager?.create(pointAnnotationOptions)
-                pointAnnotation.let {
-                    if (it != null) {
-                        annotations.add(it)
+        mapboxMap.queryRenderedFeatures(
+            RenderedQueryGeometry(mapboxMap.pixelForCoordinate(point)),
+            RenderedQueryOptions(listOf(clusterTextLayerId), null)
+        ) { res ->
+            res.onError { Log.e(TAG, "error querying for cluster: $it") }
+            res.onValue { queriedFeatures ->
+                queriedFeatures.firstOrNull()?.let { cluster ->
+                    withClusterFeatures(cluster.queriedFeature) { features ->
+                        showBottomSheet(
+                            features.map { it.getProperty("custom_data").asString },
+                            getString(R.string.x_measurements, features.size)
+                        )
                     }
                 }
             }
         }
 
-        pointAnnotationManager?.addClickListener(onAnnotationClickListener)
+        true
     }
 
-    private fun loadMapH3() = CoroutineScope(Dispatchers.Default).launch {
-        val center = withContext(Dispatchers.Main) {
-            mapboxMap.cameraState.center
-        }
+    private val cameraChangedCallback = CameraChangedCallback {
+        debounceJob?.cancel()
+        if (binding.h3ToggleSwitch.isChecked) {
+            debounceJob = CoroutineScope(Dispatchers.Main).launch {
+                delay(100)
 
-        val scale = 1.5
-        val delta = 0.0180625 * scale // Rough estimation of 2.5 miles in lat/long
+                val currentZoom = mapboxMap.cameraState.zoom
 
-        // Create a bounding box using the rough estimation
-        val ne = Point.fromLngLat(center.latitude() + delta, center.longitude() + delta)
-        val sw = Point.fromLngLat(center.latitude() - delta, center.longitude() - delta)
-        val nw = Point.fromLngLat(center.latitude() - delta, center.longitude() + delta)
-        val se = Point.fromLngLat(center.latitude() + delta, center.longitude() - delta)
-
-        //Convert camera boundaries to h3 boundaries
-        val h3Addresses = H3Manager.getH3OverlayAddressesFromCoordinates(mutableListOf(ne, nw, sw, se), BIGGER_HEX_TILE_RES)
-
-        // Get all of the non rendered H3 addresses; used for when the map is moved so we don't re-render hexagons.
-        val nonRenderedH3Addresses = h3Addresses.filterNot { it in renderedH3Addresses }.toMutableList()
-
-        // Get all of the hex boundaries that we need to render.
-        val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(nonRenderedH3Addresses)
-
-        withContext(Dispatchers.Main) {
-            if (polygonAnnotationManager == null) {
-                val annotationApi = binding.mapView.annotations
-                polygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
-            }
-            if (lowResPolygonAnnotationManager == null) {
-                val annotationApi = binding.mapView.annotations
-                lowResPolygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
-            }
-            if (viewAnnotationManager == null) {
-                viewAnnotationManager = binding.mapView.viewAnnotationManager
-            }
-
-            val reusablePolygonOptions = PolygonAnnotationOptions()
-                .withFillColor("rgba(0, 0, 0, 0)") // Transparent fill color
-                .withFillOutlineColor("#0000FF") // Blue outline color
-
-
-            // Display h3 boundaries
-            h3Boundaries.forEach { boundary ->
-                val address = H3Manager.getH3AddressFromPointSingleton(boundary.first(), BIGGER_HEX_TILE_RES)
-
-                val data = JsonObject()
-                data.addProperty("h3_address", address)
-
-                renderedH3Addresses.add(address)
-                reusablePolygonOptions.withPoints(listOf(boundary))
-                polygonAnnotationManager?.create(reusablePolygonOptions.withData(data))
-            }
-
-            // Display overlays on hexagons with > 1 point within them
-            h3Addresses.forEach { address ->
-                val data = JsonObject()
-                data.addProperty("h3_address", address)
-
-                val groups = H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, BIGGER_HEX_TILE_RES)
-                if (groups.size >= 1 && !renderedMeasurementOverlays.contains(address)) {
-                    val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
-
-                    polygonAnnotationManager?.create(reusablePolygonOptions
-                        .withPoints(addressBoundary)
-                        .withFillColor("#22B14C")
-                        .withFillOpacity(.5)
-                        .withData(data))
-
-                    val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
-
-                    val view = layoutInflater.inflate(R.layout.view_map_annotaton_layout, binding.mapView, false)
-                    val textViewMeasurements = view.findViewById<TextView>(R.id.textView_measurements)
-                    textViewMeasurements.text = groups.size.toString()
-
-                    val viewAnnotationOptions = ViewAnnotationOptions.Builder()
-                        .geometry(hexCenter)
-                        .build()
-                    viewAnnotationManager?.addViewAnnotation(view, viewAnnotationOptions)
-                    renderedMeasurementOverlays.add(address)
+                //TODO Adjust as needed
+                if (currentZoom < 12.0) {
+                    if (hexGridEnabled) {
+                        hexGridEnabled = false
+                    }
+                } else {
+                    if (!hexGridEnabled) {
+                        hexGridEnabled = true // setter calls refreshHexGrid()
+                    } else {
+                        refreshHexGrid()
+                    }
                 }
             }
         }
     }
 
-    private fun hideMapH3Content() {
-        //TODO Need to figure out some way just to hide them and keep the polygons stored within the manager.
-        polygonAnnotationManager?.deleteAll()
-        lowResPolygonAnnotationManager?.deleteAll()
-        renderedH3Addresses.clear()
-        renderedMeasurementOverlays.clear()
-        viewAnnotationManager?.removeAllViewAnnotations()
+    private fun refreshHexGrid() {
+        lifecycleScope.launch {
+            model.refreshMeasurementGroups()
+            val visibleAddresses = getH3AddressesInView()
+            val newAddresses = mutableSetOf<Long>()
+            val oldAddresses = mutableSetOf<Long>()
+            visibleAddresses.forEach {
+                if (renderedHexAddresses.add(it)) {
+                    newAddresses.add(it)
+                } else {
+                    oldAddresses.add(it)
+                }
+            }
+
+            renderParentHexes(newAddresses)
+            updateParentHexes(oldAddresses)
+            selectedParentHex?.let {
+                if (it.first in oldAddresses) {
+                    updateChildHexes(it.first)
+
+                    val groups = model.getHexMeasurementGroupIds(it.first)
+                    if (groups.isNotEmpty()) {
+                        (binding.sheetContents.adapter as MeasurementAdapter).setGroups(model.getMeasurementGroups(groups))
+                    }
+                }
+            }
+        }
     }
 
-    private fun displayRes8Hexagons(point: Point) {
-        val h3Address = H3Manager.getH3AddressFromPointSingleton(point, BIGGER_HEX_TILE_RES)
-        val h3HexChildren = H3Manager.getRelatedH3Hex(h3Address, SMALLER_HEX_TILE_RES)
-        val h3Boundaries = H3Manager.getH3BoundariesFromAddressList(h3HexChildren)
+    private fun getH3AddressesInView(): Collection<Long> {
+        val options = CameraOptions.Builder()
+            // pretend we're a bit more zoomed out than we are to pre-load nearby hexes
+            .zoom(max(mapboxMap.cameraState.zoom - 0.5, 0.0))
+            .center(mapboxMap.cameraState.center)
+            .build()
 
-        if(lowResPolygonAnnotationManager == null) {
-            val annotationApi = binding.mapView.annotations
-            lowResPolygonAnnotationManager = annotationApi.createPolygonAnnotationManager()
+        val bounds = mapboxMap.coordinateBoundsForCamera(options)
+        return H3Manager.getH3OverlayAddressesFromBounds(bounds, H3Manager.PARENT_HEX_RES)
+    }
+
+    private fun renderParentHexes(addresses: Collection<Long>) {
+        addresses.forEach { renderHex(it, parentHexAnnotationManager) }
+    }
+
+    private fun updateParentHexes(addresses: Collection<Long>) {
+        addresses.forEach { updateHex(it, parentHexAnnotationManager) }
+    }
+
+    private fun renderChildHexes(parentAddress: Long) {
+        H3Manager.getRelatedH3Hex(parentAddress, H3Manager.CHILD_HEX_RES).forEach {
+            renderHex(it, childHexAnnotationManager)
         }
-        if(viewAnnotationManager == null) {
-            viewAnnotationManager = binding.mapView.viewAnnotationManager
+    }
+
+    private fun updateChildHexes(parentAddress: Long) {
+        H3Manager.getRelatedH3Hex(parentAddress, H3Manager.CHILD_HEX_RES).forEach {
+            updateHex(it, childHexAnnotationManager)
+        }
+    }
+
+    private fun renderHex(address: Long, annotationManager: PolygonAnnotationManager) {
+        val boundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
+        val groups = model.getHexMeasurementGroupIds(address)
+
+        val options = PolygonAnnotationOptions()
+            .withPoints(boundary)
+            .withData(JsonPrimitive(address))
+            .withFillColor(if (groups.isEmpty()) 0 else hexFillColor)
+            .withFillOutlineColor(getColor(R.color.cw_blue))
+
+        annotationManager.create(options)
+
+        if (groups.isNotEmpty()) {
+            createHexCountView(address, groups.size)
+        }
+    }
+
+    private fun updateHex(address: Long, annotationManager: PolygonAnnotationManager) {
+        val annotation = annotationManager.annotations.find { it.getData()?.asLong == address }
+        if (annotation == null) {
+            Log.e(TAG, "no annotation found to update for $address")
+            return
         }
 
-        val reusablePolygonOptions = PolygonAnnotationOptions()
-            .withFillColor("rgba(0, 0, 0, 0)") // Transparent fill color
-            .withFillOutlineColor("#0000FF") // Blue outline color
-
-        // Display h3 boundaries
-        h3Boundaries.forEach { boundary ->
-            reusablePolygonOptions.withPoints(listOf(boundary))
-            lowResPolygonAnnotationManager?.create(reusablePolygonOptions)
+        val groups = model.getHexMeasurementGroupIds(address)
+        val fillColor = if (groups.isEmpty() || address == selectedParentHex?.first) 0 else hexFillColor
+        if (fillColor != annotation.fillColorInt) {
+            annotation.fillColorInt = fillColor
+            annotationManager.update(annotation)
         }
 
-        // Display overlays on hexagons with > 1 point within them
-        h3HexChildren.forEach { address ->
-            val data = JsonObject()
-            data.addProperty("h3_address", address)
-
-            val groups = runBlocking {
-                H3Manager.getMeasurementGroupsAssociatedWithH3Address(address, SMALLER_HEX_TILE_RES)
+        if (groups.isNotEmpty()) {
+            val view = viewAnnotationManager.annotations.keys.find { it.tag == address }
+            if (view == null) {
+                createHexCountView(address, groups.size)
+            } else {
+                view.findViewById<TextView>(R.id.textView_measurements).text = groups.size.toString()
             }
-            val addressBoundary = H3Manager.getH3BoundaryFromAddressSingleton(address)
-            reusablePolygonOptions
-                .withPoints(addressBoundary)
-                .withFillColor("#22B14C") // Green fill color
-                .withData(data)
-
-            if (groups.size >= 1) {
-                reusablePolygonOptions.withFillOpacity(.5)
-                lowResPolygonAnnotationManager?.create(reusablePolygonOptions)
-
-                val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
-
-                // Inflate the custom view
-                val view = layoutInflater.inflate(R.layout.view_map_annotaton_layout, binding.mapView, false)
-                val textViewMeasurements = view.findViewById<TextView>(R.id.textView_measurements)
-                textViewMeasurements.text = groups.size.toString()
-
-                // Add the view as an annotation at the hexagon's center
-                val viewAnnotationOptions = ViewAnnotationOptions.Builder()
-                    .geometry(hexCenter)
-                    .build()
-                viewAnnotationManager?.addViewAnnotation(view, viewAnnotationOptions)
-            }
         }
+    }
 
-        lowResPolygonAnnotationManager?.addClickListener(onPolygonClick)
-        mapboxMap.removeOnMapClickListener(onMapClickListenerH3)
+    private fun createHexCountView(address: Long, count: Int) {
+        val hexCenter = H3Manager.getH3CenterFromAddressSingleton(address)
+
+        val view = layoutInflater.inflate(R.layout.view_map_annotaton_layout, binding.mapView, false)
+        val textViewMeasurements = view.findViewById<TextView>(R.id.textView_measurements)
+        textViewMeasurements.text = count.toString()
+        view.tag = address
+        updateCountViewVisible(view)
+
+        val viewOptions = viewAnnotationOptions {
+            geometry(hexCenter)
+            allowOverlap(true)
+            allowOverlapWithPuck(true)
+        }
+        viewAnnotationManager.addViewAnnotation(view, viewOptions)
+    }
+
+    private fun updateCountViewVisible(view: View) {
+        view.isVisible = hexGridEnabled && view.tag != selectedParentHex?.first
+    }
+
+    private fun removeChildHexes(parentAddress: Long) {
+        val childAddresses = H3Manager.getRelatedH3Hex(parentAddress, H3Manager.CHILD_HEX_RES)
+
+        childHexAnnotationManager.delete(childHexAnnotationManager.annotations.filter {
+            (it.getData()?.asLong ?: throw RuntimeException("no data for $it")) in childAddresses
+        })
+
+        viewAnnotationManager.annotations.keys
+            .filter { it.tag in childAddresses }
+            .forEach { viewAnnotationManager.removeViewAnnotation(it) }
+    }
+
+    private fun refreshMeasurementGroups() {
+        lifecycleScope.launch {
+            val groupIds = model.refreshMeasurementGroups()
+            val newGroupIds = mutableSetOf<String>()
+            groupIds.forEach { if (renderedMeasurementGroupIds.add(it)) newGroupIds.add(it) }
+            renderMeasurementGroups(newGroupIds)
+        }
+    }
+
+    private fun renderMeasurementGroups(ids: Set<String>) {
+        val icon = AppCompatResources.getDrawable(this, R.drawable.fa_solid_location_pin)?.toBitmap()
+            ?: throw RuntimeException("no icon!")
+
+        for (group in model.getMeasurementGroups(ids)) {
+            val location = group.location()
+            if (location == null) {
+                Log.e(TAG, "group with no location: $group")
+                continue
+            }
+
+            val options = PointAnnotationOptions()
+                .withPoint(Point.fromLngLat(location.lon, location.lat))
+                .withIconImage(icon)
+                .withData(JsonPrimitive(group.id()))
+
+            pointAnnotationManager.create(options)
+        }
     }
 
     private fun onMapReady() {
-        binding.mapView.getMapboxMap().setCamera(
+        mapboxMap.setCamera(
             CameraOptions.Builder()
                 .zoom(13.0)
                 .build()
         )
 
-        binding.mapView.getMapboxMap().loadStyleUri(
-            Style.LIGHT
-        ) {
+        mapboxMap.loadStyle(Style.LIGHT) {
             initLocationComponent()
-            mapboxMap.addOnCameraChangeListener(onCameraChangeListener)
-            mapboxMap.addOnMapClickListener(onMapClickListenerH3)
+            cameraChangeSubscription?.cancel()
+            cameraChangeSubscription = mapboxMap.subscribeCameraChanged(cameraChangedCallback)
 
             binding.mapView.compass.enabled = false
             binding.mapView.scalebar.enabled = false
@@ -519,7 +532,7 @@ class MapActivity : AppCompatActivity() {
             fusedLocationClient.lastLocation
                 .addOnSuccessListener { lastKnownLocation->
                     if (lastKnownLocation != null) {
-                        binding.mapView.getMapboxMap().setCamera(
+                        mapboxMap.setCamera(
                             CameraOptions.Builder()
                                 .zoom(14.0)
                                 .center(Point.fromLngLat(lastKnownLocation.longitude, lastKnownLocation.latitude))
@@ -534,42 +547,31 @@ class MapActivity : AppCompatActivity() {
     private fun initLocationComponent() {
         val locationComponentPlugin = binding.mapView.location
         locationComponentPlugin.updateSettings {
-            this.enabled = true
-            this.locationPuck = LocationPuck2D(
-                bearingImage = getDrawable(R.drawable.mapbox_user_puck_icon),
-                shadowImage = getDrawable(R.drawable.mapbox_user_icon_shadow),
+            enabled = true
+            puckBearingEnabled = true
+            locationPuck = LocationPuck2D(
+                topImage = ImageHolder.from(R.drawable.empty), // MapBox complains in the logs if we don't provide something
+                bearingImage = ImageHolder.from(R.drawable.mapbox_user_puck_icon),
+                shadowImage = ImageHolder.from(R.drawable.mapbox_user_icon_shadow),
                 scaleExpression = interpolate {
                     linear()
                     zoom()
-                    stop {
-                        literal(0.0)
-                        literal(0.6)
-                    }
-                    stop {
-                        literal(20.0)
-                        literal(1.0)
-                    }
+                    stop(0.0, 0.6)
+                    stop(20.0, 1.0)
                 }.toJson()
             )
         }
     }
 
-    private fun showBottomSheet(h3Address: Long) {
-        if (model.selectedH3Address == h3Address) {
-            return // it's already showing the correct address
+    private fun showBottomSheet(groupIds: Collection<String>, title: String) {
+        if (model.selectedMeasurementGroupIds == groupIds) {
+            return // it's already showing the correct groups
         }
 
-        model.selectedH3Address = h3Address
+        model.selectedMeasurementGroupIds = groupIds.toSet()
+        (binding.sheetContents.adapter as MeasurementAdapter).setGroups(model.getMeasurementGroups(groupIds))
         val sheetBehavior = BottomSheetBehavior.from(binding.sheet)
         sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-        binding.sheetTitle.text = getString(R.string.hex_index, h3Address?.toHexString()?.lowercase())
-        lifecycleScope.launch {
-            (binding.sheetContents.adapter as MeasurementAdapter).setGroups(listOf())
-            val groups = H3Manager.getMeasurementGroupsAssociatedWithH3Address(
-                h3Address,
-                H3Manager.getH3ResolutionFromAddress(h3Address),
-            )
-            (binding.sheetContents.adapter as MeasurementAdapter).setGroups(groups)
-        }
+        binding.sheetTitle.text = title
     }
 }

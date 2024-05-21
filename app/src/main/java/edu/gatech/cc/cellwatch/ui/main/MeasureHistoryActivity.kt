@@ -52,7 +52,7 @@ class MeasureHistoryActivity : AppCompatActivity() {
 
         createFile = registerForActivityResult(CreateExportFile()) { uri ->
             try {
-                contentResolver.openFileDescriptor(uri, "w")?.use {
+                uri?.let { contentResolver.openFileDescriptor(it, "w") }?.use {
                     model.exportData(it.fileDescriptor)
                 }
             } catch (e: Exception) {
