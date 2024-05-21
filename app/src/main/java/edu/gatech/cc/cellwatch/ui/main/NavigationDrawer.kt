@@ -28,7 +28,7 @@ class NavigationDrawer(
         binding.menuMeasureButton.setOnClickListener { switchTo(MeasureActivity::class.java) }
         binding.historyButton.setOnClickListener { switchTo(MeasureHistoryActivity::class.java) }
         binding.settingsButton.setOnClickListener { switchTo(SettingsActivity::class.java) }
-        binding.helpButton.setOnClickListener { }
+        binding.helpButton.setOnClickListener {switchTo(AboutActivity::class.java)}
     }
 
     fun setOnCloseListener(fn: () -> Unit) {

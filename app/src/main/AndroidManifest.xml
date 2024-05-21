@@ -54,5 +54,10 @@
             android:name="edu.gatech.cc.cellwatch.ui.main.OnboardingActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.CellWatch.NoActionBar" />
+
+        <activity
+            android:name="edu.gatech.cc.cellwatch.ui.main.AboutActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.CellWatch.NoActionBar" />
     </application>
 </manifest>
