@@ -11,7 +11,7 @@ class MeasurementAdapter() :
 
     private var groups = listOf<MeasurementGroup>()
 
-    fun setGroups(g: List<MeasurementGroup>) {
+    fun setGroups(g: Collection<MeasurementGroup>) {
         groups = g.sortedByDescending {
             it.latency?.timestamp ?: it.download?.timestamp ?: it.upload ?.timestamp
         }
