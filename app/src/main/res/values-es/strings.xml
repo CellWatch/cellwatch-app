@@ -37,6 +37,9 @@
     <string name="fcc_challenge_mode_description">Las mediciones se enviarán a la FCC como datos de impugnación. Puede que la FCC haga público la ubicación exacta del GPS, el proveedor y otros detalles pertinentes.</string>
     <string name="testing_mode">Modo de prueba</string>
     <string name="testing_mode_description">Las mediciones no se enviarán a la FCC.</string>
+    <string name="not_yet_fcc_approved_title">Todavia no podemos enviar sus mediciones a la FCC.</string>
+    <string name="not_yet_fcc_approved">Estamos trabajando en obtener la aprobación de la FCC para que CellWatch se use en su proceso de impugnación, pero no se ha aprobada aún. Las mediciones que se toman antes de que se apruebe no se enviarán a la FCC.</string>
+    <string name="okay">Está bien</string>
 
     <!-- fcc info -->
     <string name="fcc_info">Información para la FCC</string>
