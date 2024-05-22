@@ -68,12 +68,12 @@
             style="@style/GreenButton"
             android:layout_marginBottom="4dp"
             android:textSize="16sp"
-            android:text="Take Another Measurement" />
+            android:text="@string/take_another_measurement" />
 
         <Button
             android:id="@+id/backToMapButton"
             style="@style/GreenButton"
             android:textSize="16sp"
-            android:text="Back to Map" />
+            android:text="@string/back_to_map" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
