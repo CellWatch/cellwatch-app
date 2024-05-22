@@ -60,11 +60,19 @@
                     android:textSize="16sp"
                     android:layout_marginVertical="16dp"/>
 
+                <Button
+                    android:id="@+id/show_dep_licenses"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="@string/dep_licenses"
+                    android:layout_marginVertical="16dp"/>
+
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:text="@string/open_source_licenses_text_1"
+                    android:text="@string/abt4"
                     android:textColor="@color/cw_black"
                     android:textSize="16sp"
                     android:layout_marginVertical="16dp"/>
@@ -73,11 +81,28 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:text="@string/attribution2"
+                    android:text="@string/abt5"
                     android:textColor="@color/cw_black"
                     android:textSize="16sp"
                     android:layout_marginVertical="16dp"/>
 
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="@string/apache_license_header"
+                    android:textColor="@color/cw_black"
+                    android:textSize="16sp"
+                    android:layout_marginTop="32dp"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="@string/apache_license"
+                    android:textColor="@color/cw_black"
+                    android:textSize="12sp"
+                    android:layout_marginVertical="16dp"/>
             </LinearLayout>
         </ScrollView>
     </LinearLayout>

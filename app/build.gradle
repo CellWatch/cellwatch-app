@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'com.google.android.gms.oss-licenses-plugin'
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.serialization'
     id "org.jetbrains.kotlin.kapt"
@@ -160,4 +161,5 @@ dependencies {
 
     implementation 'com.googlecode.libphonenumber:libphonenumber:8.12.46'
     implementation 'commons-validator:commons-validator:1.7'
+    implementation 'com.google.android.gms:play-services-oss-licenses:17.0.1'
 }

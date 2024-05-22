@@ -313,9 +313,3 @@ go build ./cmd/msak-server
 ```
 
 Then, in `MeasurementFragment.kt`, uncomment the lines following `// use local server for testing` and comment out the line following `// use real M-Lab server`.
-
-## TODO
-
-- add licensing info for msak (https://github.com/robertodauria/msak)
-- add licensing info for AndroidPing (https://github.com/dburckh/AndroidPing).
-- add licensing info for m-lab/go (https://github.com/m-lab/go) -- we're copying the memoryless functionality
