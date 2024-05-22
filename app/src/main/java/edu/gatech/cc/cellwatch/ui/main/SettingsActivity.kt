@@ -64,7 +64,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.deviceIdRow.setCopyOnClick("device ID") { binding.deviceId.text }
         binding.appVersionRow.setCopyOnClick("app version") { binding.appVersion.text }
 
-       1 // enable clicking on link to show privacy policy
+        // enable clicking on link to show privacy policy
         binding.dataReminder.movementMethod = LinkMovementMethod.getInstance()
 
         setEditable(false)

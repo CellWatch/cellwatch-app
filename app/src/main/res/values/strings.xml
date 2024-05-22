@@ -133,49 +133,38 @@
     <!-- about -->
     <string name="about">About</string>
     <string name="abt1"> The CellWatch app is part of the CellWatch open-source cellular network measurement suite created by researchers at the Georgia Institute of Technology; the University of California, Santa Barbara; and Northern Arizona University. CellWatch is generously funded by the Rockefeller Foundation. </string>
-    <string name="abt2"> Learn more at our website: <a href="sites.gatech.edu/cellwatch" >sites.gatech.edu/cellwatch</a>.</string>
+    <string name="abt2"> Learn more at our website: <a href="https://sites.gatech.edu/cellwatch">sites.gatech.edu/cellwatch</a>.</string>
     <string name="abt3">CellWatch is built with many open source libraries. Their licenses and copyright notices are included below:</string>
     <string name="open_source_licenses_text_1">
-        <b>Apache License 2.0:</b> \n
-        • Firebase Crashlytics and Analytics \n
-        • Commons IO \n
-        • Conscrypt \n
-        • AndroidX Libraries \n
-        • Espresso \n
-        • OkHttp \n
-        • Gson \n
-        • Supabase \n
-        • Ktor \n
-        • Kotlinx Serialization \n
-        • EasyDeviceInfo \n
-        • Uber H3 \n
-        • Libphonenumber \n
-        • Commons Validator \n \n
+        <b>Apache License 2.0:</b>\n
+        • Firebase Crashlytics and Analytics\n
+        • Commons IO\n
+        • Conscrypt\n
+        • AndroidX Libraries\n
+        • Espresso\n
+        • OkHttp\n
+        • Gson\n
+        • Supabase\n
+        • Ktor\n
+        • Kotlinx Serialization\n
+        • EasyDeviceInfo\n
+        • Uber H3\n
+        • Libphonenumber\n
+        • Commons Validator\n\n
 
-        <b>MIT License:</b> \n
-        • Android Device Names \n
-        • Locus Android \n
-        • SpeedView \n \n
+        <b>MIT License:</b>\n
+        • Android Device Names\n
+        • Locus Android\n
+        • SpeedView\n\n
 
-        <b>Eclipse Public License 1.0:</b> \n
-        • JUnit \n \n
+        <b>Eclipse Public License 1.0:</b>\n
+        • JUnit\n\n
 
-        <b>Proprietary Google Play Services License:</b> \n
-        • Google Play Services (Maps and Location) \n \n
+        <b>Proprietary Google Play Services License:</b>\n
+        • Google Play Services (Maps and Location)\n\n
 
-        <b>Mapbox SDKs:</b> \n
+        <b>Mapbox SDKs:</b>\n
         • Mapbox Terms of Service and SDK License Agreement
     </string>
-    <string name="attribution2">
-        <b>Full Text of Licenses: </b> \n
-
-        You can view the full text of the Apache License 2.0 at <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>. \n \n
-
-        For the MIT License, you can view it here: <a href="https://opensource.org/licenses/MIT">https://opensource.org/licenses/MIT</a>. \n \n
-
-        For the Eclipse Public License 1.0, you can view it here <a href="https://opensource.org/licenses/EPL-1.0">https://opensource.org/licenses/EPL-1.0</a>. \n \n
-
-        Please refer to the respective library documentation for additional details and notices.
-    </string>
-
+    <string name="attribution2"><b>Full Text of Licenses: </b>\nYou can view the full text of the Apache License 2.0 at <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>.\n\nFor the MIT License, you can view it here: <a href="https://opensource.org/licenses/MIT">https://opensource.org/licenses/MIT</a>.\n\nFor the Eclipse Public License 1.0, you can view it here <a href="https://opensource.org/licenses/EPL-1.0">https://opensource.org/licenses/EPL-1.0</a>.\n\nPlease refer to the respective library documentation for additional details and notices.</string>
 </resources>
