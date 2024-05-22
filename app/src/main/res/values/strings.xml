@@ -98,6 +98,8 @@
     <string name="fcc_challenge_stationary">FCC Challenge (Stationary)</string>
     <string name="fcc_challenge_vehicle">FCC Challenge (In Vehicle)</string>
     <string name="testing">Testing</string>
+    <string name="take_another_measurement">Take Another Measurement</string>
+    <string name="back_to_map">Back to Map</string>
 
     <!-- measurement history -->
     <string name="measurement_history">Measurement History</string>
