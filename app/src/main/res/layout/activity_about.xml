@@ -5,75 +5,82 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <ScrollView
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
-        <LinearLayout
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_height="?attr/actionBarSize"
+            style="@style/Toolbar"
+            app:title="@string/about" />
 
-            <androidx.appcompat.widget.Toolbar
-                android:id="@+id/toolbar"
-                android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                style="@style/Toolbar"
-                app:title="@string/about" />
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/abt1"
-                android:textAlignment="center"
-                android:textColor="@color/cw_black"
-                android:textSize="16sp"
-                android:layout_marginVertical="16dp"/>
+                android:paddingHorizontal="16dp"
+                android:orientation="vertical">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/abt2"
-                android:textAlignment="center"
-                android:textColor="@color/cw_black"
-                android:textSize="16sp"
-                android:layout_marginVertical="16dp"/>
+                <ImageView
+                    android:layout_width="96dp"
+                    android:layout_height="96dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/logo" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/abt3"
-                android:textAlignment="center"
-                android:textColor="@color/cw_black"
-                android:textSize="16sp"
-                android:layout_marginVertical="16dp"/>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="@string/abt1"
+                    android:textColor="@color/cw_black"
+                    android:textSize="16sp"
+                    android:layout_marginVertical="16dp"/>
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/open_source_licenses_text_1"
-                android:textAlignment="center"
-                android:textColor="@color/cw_black"
-                android:textSize="16sp"
-                android:layout_marginVertical="16dp"/>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="@string/abt2"
+                    android:textColor="@color/cw_black"
+                    android:textSize="16sp"
+                    android:layout_marginVertical="16dp"/>
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/attribution2"
-                android:textAlignment="center"
-                android:textColor="@color/cw_black"
-                android:textSize="16sp"
-                android:layout_marginVertical="16dp"/>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="@string/abt3"
+                    android:textColor="@color/cw_black"
+                    android:textSize="16sp"
+                    android:layout_marginVertical="16dp"/>
 
-        </LinearLayout>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="@string/open_source_licenses_text_1"
+                    android:textColor="@color/cw_black"
+                    android:textSize="16sp"
+                    android:layout_marginVertical="16dp"/>
 
-    </ScrollView>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="@string/attribution2"
+                    android:textColor="@color/cw_black"
+                    android:textSize="16sp"
+                    android:layout_marginVertical="16dp"/>
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
 
     <edu.gatech.cc.cellwatch.ui.main.NavigationDrawer
         android:id="@+id/navDrawer"
