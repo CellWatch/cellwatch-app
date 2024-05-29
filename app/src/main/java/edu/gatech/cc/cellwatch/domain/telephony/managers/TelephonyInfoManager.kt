@@ -144,7 +144,7 @@ object TelephonyInfoManager {
     }
 
     private fun getCellularDataNetworkType(): Int? {
-        if (!PermissionManager.checkPermission()) return null
+        if (!PermissionManager.checkPhoneStatePermission()) return null
 
         val connectivityManager = appContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         val currentNetwork = connectivityManager.activeNetwork
@@ -218,7 +218,7 @@ object TelephonyInfoManager {
     }
 
     fun getCells(): List<Cell>? {
-        if (!PermissionManager.checkPermission()) return null
+        if (!PermissionManager.checkPhoneStatePermission()) return null
 
         val cellInfoList: List<CellInfo> = Objects.requireNonNull(telephonyManager).allCellInfo
         Log.d(TAG, "cellInfoList length = ${cellInfoList.size}")
@@ -428,7 +428,7 @@ object TelephonyInfoManager {
             val listener = object: PhoneStateListener() {
                 @Deprecated("Deprecated in Java")
                 override fun onCellInfoChanged(cellInfos: MutableList<CellInfo>) {
-                    if (!PermissionManager.checkPermission()) return
+                    if (!PermissionManager.checkPhoneStatePermission()) return
                     super.onCellInfoChanged(cellInfos)
                     onChange(getCells(cellInfos))
                 }
@@ -439,7 +439,7 @@ object TelephonyInfoManager {
     }
 
     fun isCellularDataEnabled(): Boolean? {
-        if (!PermissionManager.checkPermission()) return null
+        if (!PermissionManager.checkPhoneStatePermission()) return null
         return telephonyManager.isDataEnabled
     }
 

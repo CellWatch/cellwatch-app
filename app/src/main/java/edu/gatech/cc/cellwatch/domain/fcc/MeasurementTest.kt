@@ -1,9 +1,11 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
-import com.birjuvachhani.locus.Locus
+import com.google.android.gms.location.CurrentLocationRequest
+import com.google.android.gms.location.Granularity
+import com.google.android.gms.location.LocationServices
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
-import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.core.util.PermissionManager
 import edu.gatech.cc.cellwatch.data.model.LatencyData
 import edu.gatech.cc.cellwatch.data.model.Location
 import edu.gatech.cc.cellwatch.data.model.Measurement
@@ -12,6 +14,7 @@ import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
@@ -120,20 +123,22 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
 
     private suspend fun getLocation(): Location? = suspendCoroutine { continuation ->
         val context = CellWatchApp.applicationContext()
-        var location: Location? = null
 
-        Locus.getCurrentLocation(context) { locationResult ->
-            locationResult.location?.let { /* Received location update */
-                location = Location.fromAndroidLocation(locationResult.location)
-                Log.d(TAG,"lat/lon: ${location?.lat} / ${location?.lon}")
-                Log.d(TAG,"accuracy: ${location?.accuracy}")
-                Log.d(TAG,"heading: ${location?.heading}")
+        if (PermissionManager.checkLocationPermission()) {
+            val client = LocationServices.getFusedLocationProviderClient(context)
+            client.getCurrentLocation(
+                CurrentLocationRequest.Builder()
+                    .setGranularity(Granularity.GRANULARITY_FINE)
+                    .setMaxUpdateAgeMillis(3000)
+                    .build(),
+                null
+            ).addOnSuccessListener {
+                continuation.resume(Location.fromAndroidLocation(it))
+            }.addOnFailureListener {
+                continuation.resumeWithException(it)
             }
-            locationResult.error?.let { /* Received error! */
-                Log.e(TAG,"Got a location services error!!! ${it.message}")
-            }
-            continuation.resume(location)
+        } else {
+            continuation.resumeWithException(Exception("no location permission"))
         }
     }
-
 }
