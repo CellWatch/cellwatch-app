@@ -17,242 +17,249 @@
             style="@style/Toolbar"
             app:title="@string/settings" />
 
-        <FrameLayout
+        <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:padding="16dp">
+            android:fillViewport="true" >
 
-            <LinearLayout
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="vertical">
+                android:layout_height="wrap_content"
+                android:padding="16dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingBottom="15sp">
+                    android:layout_height="match_parent"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingBottom="15sp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:text="@string/p_info"
+                            android:textColor="@color/cw_blue"
+                            android:textSize="20sp"
+                            android:textStyle="bold" />
+
+                        <Space
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1" />
+
+                        <ImageButton
+                            android:id="@+id/settingsEditButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_gravity="center"
+                            android:contentDescription="@string/edit"
+                            android:background="@null"
+                            app:tint="@color/cw_grey_dark"
+                            android:src="@drawable/fa_solid_pen_to_square" />
+
+                    </LinearLayout>
+
+                    <TableLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <TableRow>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="start|center"
+                                android:layout_marginEnd="8dp"
+                                android:text="@string/name"
+                                android:textColor="@color/cw_blue"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/nameEditTextLayout"
+                                style="@style/TextInputLayout"
+                                android:layout_width="0dp"
+                                android:layout_gravity="center"
+                                android:layout_weight="1">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/nameEditText"
+                                    style="@style/TextInput"
+                                    android:inputType="textPersonName"/>
+                            </com.google.android.material.textfield.TextInputLayout>
+                        </TableRow>
+
+                        <TableRow>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="start|center"
+                                android:layout_marginEnd="8dp"
+                                android:text="@string/phone"
+                                android:textColor="@color/cw_blue"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/phoneEditTextLayout"
+                                style="@style/TextInputLayout"
+                                android:layout_width="0dp"
+                                android:layout_gravity="center"
+                                android:layout_weight="1">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/phoneEditText"
+                                    style="@style/TextInput"
+                                    android:inputType="phone"/>
+                            </com.google.android.material.textfield.TextInputLayout>
+                        </TableRow>
+
+                        <TableRow>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="start|center"
+                                android:layout_marginEnd="8dp"
+                                android:text="@string/email"
+                                android:textColor="@color/cw_blue"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/emailEditTextLayout"
+                                style="@style/TextInputLayout"
+                                android:layout_width="0dp"
+                                android:layout_gravity="center"
+                                android:layout_weight="1">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/emailEditText"
+                                    style="@style/TextInput"
+                                    android:inputType="textEmailAddress"/>
+                            </com.google.android.material.textfield.TextInputLayout>
+                        </TableRow>
+                    </TableLayout>
+
+                    <Button
+                        android:id="@+id/submit_edit"
+                        style="@style/GreenButton"
+                        android:text="@string/apply_changes"
+                        android:layout_marginVertical="16dp"
+                        android:visibility="gone"/>
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:text="@string/p_info"
+                        android:text="@string/collection_mode"
+                        android:paddingTop="25sp"
                         android:textColor="@color/cw_blue"
                         android:textSize="20sp"
                         android:textStyle="bold" />
 
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1" />
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/collectionModeMenu"
+                        style="@style/TextInputLayoutDropdown">
 
-                    <ImageButton
-                        android:id="@+id/settingsEditButton"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:layout_gravity="center"
-                        android:contentDescription="@string/edit"
-                        android:background="@null"
-                        app:tint="@color/cw_grey_dark"
-                        android:src="@drawable/fa_solid_pen_to_square" />
-
-                </LinearLayout>
-
-                <TableLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-
-                    <TableRow>
-                        <TextView
-                            android:layout_width="wrap_content"
+                        <AutoCompleteTextView
+                            android:id="@+id/collectionModeTextView"
+                            style="@style/TextInput"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_gravity="start|center"
-                            android:layout_marginEnd="8dp"
-                            android:text="@string/name"
-                            android:textColor="@color/cw_blue"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
+                            android:inputType="none" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/nameEditTextLayout"
-                            style="@style/TextInputLayout"
-                            android:layout_width="0dp"
-                            android:layout_gravity="center"
-                            android:layout_weight="1">
+                    <TextView
+                        android:id="@+id/dataReminder"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingTop="25dp"
+                        android:text="@string/data_reminder"
+                        android:textColor="@color/cw_black"
+                        android:textSize="16sp" />
 
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/nameEditText"
-                                style="@style/TextInput"
-                                android:inputType="textPersonName"/>
-                        </com.google.android.material.textfield.TextInputLayout>
-                    </TableRow>
-
-                    <TableRow>
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="start|center"
-                            android:layout_marginEnd="8dp"
-                            android:text="@string/phone"
-                            android:textColor="@color/cw_blue"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/phoneEditTextLayout"
-                            style="@style/TextInputLayout"
-                            android:layout_width="0dp"
-                            android:layout_gravity="center"
-                            android:layout_weight="1">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/phoneEditText"
-                                style="@style/TextInput"
-                                android:inputType="phone"/>
-                        </com.google.android.material.textfield.TextInputLayout>
-                    </TableRow>
-
-                    <TableRow>
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="start|center"
-                            android:layout_marginEnd="8dp"
-                            android:text="@string/email"
-                            android:textColor="@color/cw_blue"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/emailEditTextLayout"
-                            style="@style/TextInputLayout"
-                            android:layout_width="0dp"
-                            android:layout_gravity="center"
-                            android:layout_weight="1">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/emailEditText"
-                                style="@style/TextInput"
-                                android:inputType="textEmailAddress"/>
-                        </com.google.android.material.textfield.TextInputLayout>
-                    </TableRow>
-                </TableLayout>
-
-                <Button
-                    android:id="@+id/submit_edit"
-                    style="@style/GreenButton"
-                    android:text="@string/apply_changes"
-                    android:layout_marginVertical="16dp"
-                    android:visibility="gone"/>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/collection_mode"
-                    android:paddingTop="25sp"
-                    android:textColor="@color/cw_blue"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/collectionModeMenu"
-                    style="@style/TextInputLayoutDropdown">
-
-                    <AutoCompleteTextView
-                        android:id="@+id/collectionModeTextView"
-                        style="@style/TextInput"
+                    <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="none" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:paddingTop="10dp"
+                        android:text="@string/other_language_available"
+                        android:textColor="@color/cw_black"
+                        android:textSize="16sp" />
 
-                <TextView
-                    android:id="@+id/dataReminder"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="25dp"
-                    android:text="@string/data_reminder"
-                    android:textColor="@color/cw_black"
-                    android:textSize="16sp" />
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="12dp"
+                        android:layout_weight="1" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="10dp"
-                    android:text="@string/other_language_available"
-                    android:textColor="@color/cw_black"
-                    android:textSize="16sp" />
+                    <TableLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:stretchColumns="1"
+                        android:layout_gravity="center" >
 
-                <Space
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-                <TableLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center" >
-
-                    <TableRow
-                        android:id="@+id/deviceIdRow"
-                        android:paddingVertical="4dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
-                            android:text="@string/device_id"
-                            android:textSize="12sp"
-                            android:textColor="@color/cw_grey_dark" />
-
-                        <FrameLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content">
+                        <TableRow
+                            android:id="@+id/deviceIdRow"
+                            android:paddingVertical="4dp">
 
                             <TextView
-                                android:id="@+id/deviceId"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:drawableEnd="@drawable/fa_regular_copy"
-                                android:drawableTint="@color/cw_grey"
-                                android:drawablePadding="6dp"
-                                android:text="abcd-efgh-1234-5678"
+                                android:layout_marginEnd="8dp"
+                                android:text="@string/device_id"
                                 android:textSize="12sp"
                                 android:textColor="@color/cw_grey_dark" />
-                        </FrameLayout>
-                    </TableRow>
 
-                    <TableRow
-                        android:id="@+id/appVersionRow"
-                        android:paddingVertical="4dp">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
-                            android:text="@string/app_version"
-                            android:textSize="12sp"
-                            android:textColor="@color/cw_grey_dark" />
+                            <FrameLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content">
 
-                        <FrameLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content">
+                                <TextView
+                                    android:id="@+id/deviceId"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:drawableEnd="@drawable/fa_regular_copy"
+                                    android:drawableTint="@color/cw_grey"
+                                    android:drawablePadding="6dp"
+                                    android:text="abcd-efgh-1234-5678-123-456-789-0123-4567"
+                                    android:textSize="12sp"
+                                    android:textColor="@color/cw_grey_dark" />
+                            </FrameLayout>
+                        </TableRow>
 
+                        <TableRow
+                            android:id="@+id/appVersionRow"
+                            android:paddingVertical="4dp">
                             <TextView
-                                android:id="@+id/appVersion"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:drawableEnd="@drawable/fa_regular_copy"
-                                android:drawableTint="@color/cw_grey"
-                                android:drawablePadding="6dp"
-                                android:text="1.0.0"
+                                android:layout_marginEnd="8dp"
+                                android:text="@string/app_version"
                                 android:textSize="12sp"
                                 android:textColor="@color/cw_grey_dark" />
-                        </FrameLayout>
-                    </TableRow>
-                </TableLayout>
-            </LinearLayout>
-        </FrameLayout>
+
+                            <FrameLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content">
+
+                                <TextView
+                                    android:id="@+id/appVersion"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:drawableEnd="@drawable/fa_regular_copy"
+                                    android:drawableTint="@color/cw_grey"
+                                    android:drawablePadding="6dp"
+                                    android:text="1.0.0"
+                                    android:textSize="12sp"
+                                    android:textColor="@color/cw_grey_dark" />
+                            </FrameLayout>
+                        </TableRow>
+                    </TableLayout>
+                </LinearLayout>
+            </FrameLayout>
+        </ScrollView>
     </LinearLayout>
 
 
