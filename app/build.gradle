@@ -162,4 +162,5 @@ dependencies {
     implementation 'com.googlecode.libphonenumber:libphonenumber:8.12.46'
     implementation 'commons-validator:commons-validator:1.7'
     implementation 'com.google.android.gms:play-services-oss-licenses:17.0.1'
+    implementation 'com.google.android.flexbox:flexbox:3.0.0'
 }

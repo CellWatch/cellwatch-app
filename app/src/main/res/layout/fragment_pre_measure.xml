@@ -1,280 +1,291 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:padding="16dp"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
-    <TextView
-        android:id="@+id/testingWarning"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:text="@string/testing_warning"
-        android:textSize="20sp"
-        android:textAlignment="center"
-        android:textColor="@color/cw_black"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+    android:layout_height="match_parent"
+    android:fillViewport="true" >
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/stationaryOrMoving"
+        android:padding="16dp"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" >
+        android:layout_height="wrap_content">
 
         <TextView
-            android:id="@+id/stationaryOrMovingQuestion"
-            android:layout_width="wrap_content"
+            android:id="@+id/testingWarning"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:text="@string/testing_warning"
             android:textSize="20sp"
             android:textAlignment="center"
-            android:text="@string/stationary_or_moving"
             android:textColor="@color/cw_black"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/stationary"
+            android:id="@+id/stationaryOrMoving"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/selectable_button_bg"
-            android:orientation="horizontal"
-            android:padding="12dp"
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/stationaryOrMovingQuestion">
-
-            <ImageView
-                android:id="@+id/stationaryIcon"
-                android:layout_width="32dp"
-                android:layout_height="28dp"
-                android:src="@drawable/fa_solid_person"
-                app:tint="@color/cw_grey"
-                android:importantForAccessibility="no"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintStart_toStartOf="parent" >
 
             <TextView
-                android:id="@+id/stationaryLabel"
+                android:id="@+id/stationaryOrMovingQuestion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="@string/stationary_outdoors"
+                android:textSize="20sp"
+                android:textAlignment="center"
+                android:text="@string/stationary_or_moving"
                 android:textColor="@color/cw_black"
-                android:textSize="24sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@id/stationaryIcon"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <Space
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                app:layout_constraintEnd_toStartOf="@id/stationaryCheck"
-                app:layout_constraintStart_toEndOf="@id/stationaryLabel"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <ImageView
-                android:id="@+id/stationaryCheck"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="start"
-                android:src="@drawable/fa_solid_check"
-                app:tint="@color/cw_green"
-                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/stationary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/selectable_button_bg"
+                android:orientation="horizontal"
+                android:padding="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/stationaryOrMovingQuestion">
+
+                <ImageView
+                    android:id="@+id/stationaryIcon"
+                    android:layout_width="32dp"
+                    android:layout_height="28dp"
+                    android:src="@drawable/fa_solid_person"
+                    app:tint="@color/cw_grey"
+                    android:importantForAccessibility="no"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/stationaryLabel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/stationary_outdoors"
+                    android:textColor="@color/cw_black"
+                    android:textSize="24sp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/stationaryIcon"
+                    app:layout_constraintEnd_toStartOf="@id/stationarySpace"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <Space
+                    android:id="@+id/stationarySpace"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    app:layout_constraintEnd_toStartOf="@id/stationaryCheck"
+                    app:layout_constraintStart_toEndOf="@id/stationaryLabel"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <ImageView
+                    android:id="@+id/stationaryCheck"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="start"
+                    android:src="@drawable/fa_solid_check"
+                    app:tint="@color/cw_green"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/moving"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/selectable_button_bg"
+                android:orientation="horizontal"
+                android:padding="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/stationary">
+
+                <ImageView
+                    android:id="@+id/movingIcon"
+                    android:layout_width="32dp"
+                    android:layout_height="28dp"
+                    android:src="@drawable/fa_solid_car"
+                    app:tint="@color/cw_grey"
+                    android:importantForAccessibility="no"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/movingLabel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/moving_vehicle"
+                    android:textColor="@color/cw_black"
+                    android:textSize="24sp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/movingIcon"
+                    app:layout_constraintEnd_toStartOf="@id/movingSpace"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <Space
+                    android:id="@+id/movingSpace"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    app:layout_constraintEnd_toStartOf="@id/movingCheck"
+                    app:layout_constraintStart_toEndOf="@id/movingLabel"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <ImageView
+                    android:id="@+id/movingCheck"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="start"
+                    android:src="@drawable/fa_solid_check"
+                    app:tint="@color/cw_green"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/moving"
+        <Space
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:background="@drawable/selectable_button_bg"
-            android:orientation="horizontal"
-            android:padding="12dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/stationary">
+            android:layout_marginBottom="8dp"
+            app:layout_constraintBottom_toTopOf="@id/certifications"
+            app:layout_constraintTop_toBottomOf="@id/stationaryOrMoving" />
 
-            <ImageView
-                android:id="@+id/movingIcon"
-                android:layout_width="32dp"
-                android:layout_height="28dp"
-                android:src="@drawable/fa_solid_car"
-                app:tint="@color/cw_grey"
-                android:importantForAccessibility="no"
-                app:layout_constraintBottom_toBottomOf="parent"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/certifications"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            app:layout_constraintBottom_toTopOf="@id/dataReminder"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <TextView
+                android:id="@+id/certificationIntro"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/certification_intro"
+                android:textAlignment="center"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/cw_black"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <TextView
-                android:id="@+id/movingLabel"
-                android:layout_width="wrap_content"
+            <TableLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="@string/moving_vehicle"
-                android:textColor="@color/cw_black"
-                android:textSize="24sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@id/movingIcon"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <Space
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                app:layout_constraintEnd_toStartOf="@id/movingCheck"
-                app:layout_constraintStart_toEndOf="@id/movingLabel"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <ImageView
-                android:id="@+id/movingCheck"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="start"
-                android:src="@drawable/fa_solid_check"
-                app:tint="@color/cw_green"
-                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/certificationIntro">
+
+                <TableRow android:layout_marginVertical="2dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginVertical="4dp"
+                        android:layout_marginEnd="8dp"
+                        app:srcCompat="@drawable/fa_solid_check_circle" />
+
+                    <TextView
+                        android:layout_weight="1"
+                        android:text="@string/certify_subscriber"
+                        android:textColor="@color/cw_black"
+                        android:textSize="20sp" />
+                </TableRow>
+
+                <TableRow android:layout_marginVertical="2dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginVertical="4dp"
+                        android:layout_marginEnd="8dp"
+                        app:srcCompat="@drawable/fa_solid_check_circle" />
+
+                    <TextView
+                        android:layout_weight="1"
+                        android:text="@string/certify_outdoors"
+                        android:textColor="@color/cw_black"
+                        android:textSize="20sp" />
+                </TableRow>
+
+                <TableRow android:layout_marginVertical="2dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginVertical="4dp"
+                        android:layout_marginEnd="8dp"
+                        app:srcCompat="@drawable/fa_solid_check_circle" />
+
+                    <TextView
+                        android:layout_weight="1"
+                        android:text="@string/certify_phone_working"
+                        android:textColor="@color/cw_black"
+                        android:textSize="20sp" />
+                </TableRow>
+
+                <TableRow android:layout_marginVertical="2dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginVertical="4dp"
+                        android:layout_marginEnd="8dp"
+                        app:srcCompat="@drawable/fa_solid_check_circle" />
+
+                    <TextView
+                        android:layout_weight="1"
+                        android:text="@string/certify_statements"
+                        android:textColor="@color/cw_black"
+                        android:textSize="20sp" />
+                </TableRow>
+            </TableLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <Space
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@id/certifications"
-        app:layout_constraintTop_toBottomOf="@id/stationaryOrMoving" />
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/certifications"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@id/dataReminder"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
 
         <TextView
-            android:id="@+id/certificationIntro"
+            android:id="@+id/dataReminder"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/certification_intro"
-            android:textAlignment="center"
-            android:textSize="20sp"
-            android:textStyle="bold"
+            android:layout_marginBottom="8dp"
+            android:text="@string/data_reminder"
             android:textColor="@color/cw_black"
+            android:textAlignment="center"
+            android:textSize="16sp"
+            app:layout_constraintBottom_toTopOf="@id/go"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintStart_toStartOf="parent" />
 
-        <TableLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+        <Button
+            android:id="@+id/go"
+            style="@style/GreenButton"
+            android:layout_marginHorizontal="24dp"
+            android:padding="4dp"
+            android:text="@string/go"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/certificationIntro">
+            app:layout_constraintStart_toStartOf="parent" />
 
-            <TableRow android:layout_marginVertical="2dp">
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:layout_marginVertical="4dp"
-                    android:layout_marginEnd="8dp"
-                    app:srcCompat="@drawable/fa_solid_check_circle" />
-
-                <TextView
-                    android:layout_weight="1"
-                    android:text="@string/certify_subscriber"
-                    android:textColor="@color/cw_black"
-                    android:textSize="20sp" />
-            </TableRow>
-
-            <TableRow android:layout_marginVertical="2dp">
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:layout_marginVertical="4dp"
-                    android:layout_marginEnd="8dp"
-                    app:srcCompat="@drawable/fa_solid_check_circle" />
-
-                <TextView
-                    android:layout_weight="1"
-                    android:text="@string/certify_outdoors"
-                    android:textColor="@color/cw_black"
-                    android:textSize="20sp" />
-            </TableRow>
-
-            <TableRow android:layout_marginVertical="2dp">
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:layout_marginVertical="4dp"
-                    android:layout_marginEnd="8dp"
-                    app:srcCompat="@drawable/fa_solid_check_circle" />
-
-                <TextView
-                    android:layout_weight="1"
-                    android:text="@string/certify_phone_working"
-                    android:textColor="@color/cw_black"
-                    android:textSize="20sp" />
-            </TableRow>
-
-            <TableRow android:layout_marginVertical="2dp">
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:layout_marginVertical="4dp"
-                    android:layout_marginEnd="8dp"
-                    app:srcCompat="@drawable/fa_solid_check_circle" />
-
-                <TextView
-                    android:layout_weight="1"
-                    android:text="@string/certify_statements"
-                    android:textColor="@color/cw_black"
-                    android:textSize="20sp" />
-            </TableRow>
-        </TableLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <TextView
-        android:id="@+id/dataReminder"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:text="@string/data_reminder"
-        android:textColor="@color/cw_black"
-        android:textAlignment="center"
-        android:textSize="16sp"
-        app:layout_constraintBottom_toTopOf="@id/go"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <Button
-        android:id="@+id/go"
-        style="@style/GreenButton"
-        android:layout_marginHorizontal="24dp"
-        android:padding="4dp"
-        android:text="@string/go"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>
