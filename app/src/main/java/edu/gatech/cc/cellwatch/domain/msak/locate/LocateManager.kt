@@ -91,7 +91,7 @@ class LocateManager(client: OkHttpClient? = null, locateUrl: String? = null) {
         fullLocateUrl: String,
         site: String? = null,
     ): List<Server> = suspendCoroutine { continuation ->
-        val params = "country=US&strict=true${if (site != null) "&site=$site" else ""}"
+        val params = if (site != null) "site=$site" else ""
         val request = Request.Builder()
             .url("$fullLocateUrl?$params")
             .header("User-Agent", CellWatchApp.userAgent)
