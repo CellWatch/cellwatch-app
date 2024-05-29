@@ -1,79 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    android:fillViewport="true" >
 
-    <TextView
-        android:id="@+id/header"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="36sp"
-        android:textColor="@color/cw_blue"
-        android:textStyle="bold"
-        android:textAlignment="center"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:text="@string/measurement_complete" />
-
-    <FrameLayout
-        android:id="@+id/progressContainer"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginVertical="15dp"
-        app:layout_constraintTop_toBottomOf="@id/header"
-        app:layout_constraintBottom_toTopOf="@id/item"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <ProgressBar
-            android:id="@+id/progressBar"
-            android:layout_width="75dp"
-            android:layout_height="75dp"
-            android:indeterminate="true"
-            android:indeterminateTint="@color/cw_green"
-            android:layout_marginVertical="15dp" />
-    </FrameLayout>
-
-    <edu.gatech.cc.cellwatch.ui.main.MeasurementItem
-        android:id="@+id/item"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:layout_constraintBottom_toTopOf="@id/space"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/progressContainer" />
+        android:padding="16dp">
 
-    <Space
-        android:id="@+id/space"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        app:layout_constraintTop_toBottomOf="@id/item"
-        app:layout_constraintBottom_toTopOf="@id/buttonContainer" />
+        <TextView
+            android:id="@+id/header"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="36sp"
+            android:textColor="@color/cw_blue"
+            android:textStyle="bold"
+            android:textAlignment="center"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:text="@string/measurement_complete" />
 
-    <LinearLayout
-        android:id="@+id/buttonContainer"
-        android:orientation="vertical"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" >
+        <FrameLayout
+            android:id="@+id/progressContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="15dp"
+            app:layout_constraintTop_toBottomOf="@id/header"
+            app:layout_constraintBottom_toTopOf="@id/item"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
 
-        <Button
-            android:id="@+id/takeAnotherButton"
-            style="@style/GreenButton"
-            android:layout_marginBottom="4dp"
-            android:textSize="16sp"
-            android:text="@string/take_another_measurement" />
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="75dp"
+                android:layout_height="75dp"
+                android:indeterminate="true"
+                android:indeterminateTint="@color/cw_green"
+                android:layout_marginVertical="15dp" />
+        </FrameLayout>
 
-        <Button
-            android:id="@+id/backToMapButton"
-            style="@style/GreenButton"
-            android:textSize="16sp"
-            android:text="@string/back_to_map" />
-    </LinearLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <edu.gatech.cc.cellwatch.ui.main.MeasurementItem
+            android:id="@+id/item"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toTopOf="@id/space"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/progressContainer" />
+
+        <Space
+            android:id="@+id/space"
+            android:layout_width="match_parent"
+            android:layout_height="12dp"
+            app:layout_constraintTop_toBottomOf="@id/item"
+            app:layout_constraintBottom_toTopOf="@id/buttonContainer" />
+
+        <LinearLayout
+            android:id="@+id/buttonContainer"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" >
+
+            <Button
+                android:id="@+id/takeAnotherButton"
+                style="@style/GreenButton"
+                android:layout_marginBottom="4dp"
+                android:textSize="16sp"
+                android:text="@string/take_another_measurement" />
+
+            <Button
+                android:id="@+id/backToMapButton"
+                style="@style/GreenButton"
+                android:textSize="16sp"
+                android:text="@string/back_to_map" />
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

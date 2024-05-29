@@ -1,61 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:fillViewport="true" >
 
-    <TextView
-        android:layout_width="250dp"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:gravity="center_horizontal"
-        android:layout_marginTop="100dp"
-        android:text="@string/welcome"
-        android:textColor="@color/cw_blue"
-        android:textSize="36sp"
-        android:textStyle="bold"/>
+        android:padding="16dp"
+        android:orientation="vertical">
 
-    <ImageView
-        android:layout_width="72dp"
-        android:layout_height="72dp"
-        android:layout_gravity="center"
-        android:layout_marginVertical="10dp"
-        android:src="@drawable/logo" />
+        <Space
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
-    <TextView
-        android:layout_width="350dp"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:fontFamily="sans-serif"
-        android:gravity="center_horizontal"
-        android:text="@string/welcome_description"
-        android:textColor="@color/cw_black"
-        android:textSize="16sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:gravity="center_horizontal"
+            android:text="@string/welcome"
+            android:textColor="@color/cw_blue"
+            android:textSize="36sp"
+            android:textStyle="bold"/>
 
-    <Button
-        android:id="@+id/button_readmore"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        android:textColor="@color/cw_black"
-        android:textStyle="bold"
-        android:textAllCaps="false"
-        android:textSize="20sp"
-        android:layout_gravity="center"
-        android:layout_marginTop="20dp"
-        android:text="@string/read_more_underlined" />
+        <ImageView
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_gravity="center"
+            android:layout_marginVertical="10dp"
+            android:src="@drawable/logo" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginHorizontal="30dp"
-        android:layout_marginTop="20dp"
-        android:fontFamily="sans-serif"
-        android:text="@string/other_language_available"
-        android:textAlignment="center"
-        android:textColor="@color/cw_black"
-        android:textSize="14sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:gravity="center_horizontal"
+            android:text="@string/welcome_description"
+            android:textColor="@color/cw_black"
+            android:textSize="16sp" />
 
-</LinearLayout>
+        <Button
+            android:id="@+id/button_readmore"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:textColor="@color/cw_black"
+            android:textStyle="bold"
+            android:textAllCaps="false"
+            android:textSize="20sp"
+            android:layout_gravity="center"
+            android:layout_marginTop="20dp"
+            android:text="@string/read_more_underlined" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginHorizontal="30dp"
+            android:layout_marginTop="20dp"
+            android:text="@string/other_language_available"
+            android:textAlignment="center"
+            android:textColor="@color/cw_black"
+            android:textSize="14sp" />
+
+        <Space
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+</ScrollView>
