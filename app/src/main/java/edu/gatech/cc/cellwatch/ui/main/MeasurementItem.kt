@@ -6,6 +6,7 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
+import androidx.core.view.isVisible
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.setCopyOnClick
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
@@ -38,8 +39,11 @@ class MeasurementItem(
 
         if (expandable) {
             fun setDetailsVisibility(visible: Boolean) {
-                binding.metaContainer.visibility = if (visible) View.VISIBLE else View.GONE
-                binding.resultsContainer.visibility = if (visible) View.VISIBLE else View.GONE
+                binding.metaContainer.isVisible = visible
+                binding.resultsContainer.isVisible = visible
+                binding.sep1.isVisible = visible
+                binding.sep2.isVisible = visible
+                binding.summary.isVisible = !visible
                 binding.expandButton.rotation = if (visible) 90F else 0F
             }
 
