@@ -79,9 +79,9 @@ class MeasurementItem(
             binding.timeText.text = "-"
         }
 
-        val location = group.latency?.locations?.get(0)
-            ?: group.download?.locations?.get(0)
-            ?: group.upload?.locations?.get(0)
+        val location = group.latency?.locations?.getOrNull(0)
+            ?: group.download?.locations?.getOrNull(0)
+            ?: group.upload?.locations?.getOrNull(0)
 
         val lat = location?.lat
         val lon = location?.lon
