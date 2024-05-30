@@ -3,6 +3,7 @@ package edu.gatech.cc.cellwatch.domain.fcc
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
@@ -35,6 +36,7 @@ object MeasurementManager {
 
     suspend fun runTestSequence(
         inVehicle: Boolean,
+        mode: CollectionMode,
         onLocateStart: () -> Unit,
         onLocateComplete: (r: String) -> Unit,
         onLatencyStart: () -> Unit,
@@ -90,6 +92,7 @@ object MeasurementManager {
         onUploadComplete(uploadMeasurement)
 
         val fccSubmission = if (
+            mode == CollectionMode.FCC_CHALLENGE &&
             latencyMeasurement.connectionType != NetworkConnectionType.WIFI &&
             downloadMeasurement.connectionType != NetworkConnectionType.WIFI &&
             uploadMeasurement.connectionType != NetworkConnectionType.WIFI &&
