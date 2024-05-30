@@ -37,7 +37,7 @@
     <string name="fcc_challenge_mode_description">Las mediciones se enviarán a la FCC como datos de impugnación. Puede que la FCC haga público la ubicación exacta del GPS, el proveedor y otros detalles pertinentes.</string>
     <string name="testing_mode">Modo de prueba</string>
     <string name="testing_mode_description">Las mediciones no se enviarán a la FCC.</string>
-    <string name="not_yet_fcc_approved_title">Todavia no podemos enviar sus mediciones a la FCC.</string>
+    <string name="not_yet_fcc_approved_title">Todavía no podemos enviar sus mediciones a la FCC.</string>
     <string name="not_yet_fcc_approved">Estamos trabajando en obtener la aprobación de la FCC para que CellWatch se use en su proceso de impugnación, pero no se ha aprobada aún. Las mediciones que se toman antes de que se apruebe no se enviarán a la FCC.</string>
     <string name="okay">Está bien</string>
 
@@ -143,12 +143,12 @@
 
     <!-- about -->
     <string name="about">Sobre CellWatch</string>
-    <string name="abt1">La aplicación CellWatch es una parte de un conjunto de medición de redes celulares, también llamado CellWatch. La aplicación es de código abierto y es hecha por investigadores del Instituto de Technología de Georgia; la Universidad de California, Santa Barbara; y la Universidad del Norte de Arizona. CellWatch se financia con generosidad por la Fundación Rockefeller.</string>
+    <string name="abt1">La aplicación CellWatch es una parte de un conjunto de medición de redes celulares, también llamado CellWatch. La aplicación es de código abierto y es hecha por investigadores del Instituto de Tecnología de Georgia; la Universidad de California, Santa Barbara; y la Universidad del Norte de Arizona. CellWatch se financia con generosidad por la Fundación Rockefeller.</string>
     <string name="abt2">Aprenda más en nuestro sitio web: <a href="https://sites.gatech.edu/cellwatch">sites.gatech.edu/cellwatch</a>.</string>
     <string name="read_privacy_policy_online">Lea nuestra política de privacidad en línea: <a href="https://sites.gatech.edu/cellwatch/android-app/app-privacy-policy/">sites.gatech.edu/cellwatch/android-app/app-privacy-policy/</a></string>
     <string name="abt3">CellWatch se hace con muchos componentes de código abierto. La mayoría de sus licencias y avisos requeridos se incluyen en una lista generada automáticamente por medio del botón de abajo.</string>
-    <string name="dep_licenses">Licensias de dependencias</string>
+    <string name="dep_licenses">Licencias de dependencias</string>
     <string name="abt4">La aplicación también se hace con la ayuda de los tres componentes siguientes, todos los cuales utilizan la licensia Apache 2.0, cuyo texto se encuentra abajo:\n\n • <a href="https://github.com/robertodauria/msak">MSAK por Roberto Dauria</a>: No se provee ningún aviso de copyright.\n • <a href="https://github.com/m-lab/go">go-memoryless por M-Lab</a>: No se provee ningún aviso de copyright.\n • <a href="https://github.com/dburckh/AndroidPing">AndroidPing</a>: Copyright 2019 Charter Communications.</string>
     <string name="abt5">Por fin, la aplicación utiliza varios iconos de <a href="https://fontawesome.com">FontAwesome</a>, copyright 2024 Fonticons, Inc. Su licencia se puede encontrar en <a href="https://fontawesome.com/license/free">https://fontawesome.com/license/free</a>.</string>
-    <string name="apache_license_header">Licensia Apache 2.0</string>
+    <string name="apache_license_header">Licencia Apache 2.0</string>
 </resources>
