@@ -38,6 +38,7 @@ class MeasureViewModel: ViewModel() {
             try {
                 val group = MeasurementManager.runTestSequence(
                     prevState.inVehicle,
+                    mode,
                     { handleLocateStart() },
                     { },
                     { handleLatencyStart() },
