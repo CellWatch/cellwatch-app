@@ -78,14 +78,14 @@ class MeasureActivity : AppCompatActivity() {
         when (progress) {
             MeasureViewModel.MeasureProgress.PRE -> if (currentFragment !is PreMeasureFragment) {
                 supportFragmentManager.commit { replace(R.id.fragment_container, PreMeasureFragment()) }
-                binding.toolbar.isVisible = true
                 backPressedCallback?.remove()
             }
             else -> if (currentFragment !is MeasureFragment){
                 backPressedCallback = onBackPressedDispatcher.addCallback { /* do nothing! */ }
                 supportFragmentManager.commit { replace(R.id.fragment_container, MeasureFragment()) }
-                binding.toolbar.isVisible = false
             }
         }
+
+        binding.toolbar.isVisible = progress === MeasureViewModel.MeasureProgress.PRE
     }
 }
