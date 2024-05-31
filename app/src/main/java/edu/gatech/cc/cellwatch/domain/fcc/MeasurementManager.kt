@@ -34,6 +34,11 @@ object MeasurementManager {
         _bytesPerSecState.update { newBytesPerSec }
     }
 
+    fun checkCellular(): Boolean {
+        return TelephonyInfoManager.getConnectionType() != NetworkConnectionType.WIFI
+                && TelephonyInfoManager.isCellularDataEnabled() == true
+    }
+
     suspend fun runTestSequence(
         inVehicle: Boolean,
         mode: CollectionMode,
@@ -45,15 +50,7 @@ object MeasurementManager {
         onDownloadComplete: (m: Measurement) -> Unit,
         onUploadStart: () -> Unit,
         onUploadComplete: (m: Measurement) -> Unit,
-        failIfNotOnCellular: Boolean = true,
     ): MeasurementGroup {
-        if (failIfNotOnCellular && (
-                    TelephonyInfoManager.getConnectionType() == NetworkConnectionType.WIFI ||
-                    TelephonyInfoManager.isCellularDataEnabled() == false
-        )) {
-            throw NotOnCellularException()
-        }
-
         val measurementId: String? = if (BuildConfig.MSAK_SERVER_ENV == "local") {
             UUID.randomUUID().toString()
         } else {
@@ -243,6 +240,4 @@ object MeasurementManager {
             return Pair(server, server)
         }
     }
-
-    class NotOnCellularException: Exception()
 }

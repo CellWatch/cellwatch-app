@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.ui.main
 
-import android.app.AlertDialog
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.addCallback
@@ -14,12 +15,15 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.databinding.ActivityMeasureBinding
+import edu.gatech.cc.cellwatch.domain.fcc.MeasurementService
 import kotlinx.coroutines.launch
 
 class MeasureActivity : AppCompatActivity() {
+    private val TAG = this::class.simpleName
     private lateinit var binding: ActivityMeasureBinding
     private lateinit var model: MeasureViewModel
     private var backPressedCallback: OnBackPressedCallback? = null
+    private var boundToService = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,27 +43,43 @@ class MeasureActivity : AppCompatActivity() {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        unbindFromService()
+    }
+
+    fun bindToService() {
+        if (boundToService) return
+        val intent = Intent(this, MeasurementService::class.java)
+        bindService(intent, model.serviceConnection, Context.BIND_AUTO_CREATE)
+        boundToService = true
+    }
+
+    private fun unbindFromService() {
+        if (!boundToService) return
+        unbindService(model.serviceConnection)
+        boundToService = false
+    }
+
     private fun handleMeasureStateUpdate(progress: MeasureViewModel.MeasureProgress) {
+        if (isFinishing) {
+            return
+        }
+
         val currentFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
+
+        when (progress) {
+            MeasureViewModel.MeasureProgress.PRE,
+            MeasureViewModel.MeasureProgress.END,
+            MeasureViewModel.MeasureProgress.ERROR -> unbindFromService()
+            else -> bindToService()
+        }
 
         when (progress) {
             MeasureViewModel.MeasureProgress.PRE -> if (currentFragment !is PreMeasureFragment) {
                 supportFragmentManager.commit { replace(R.id.fragment_container, PreMeasureFragment()) }
                 binding.toolbar.isVisible = true
                 backPressedCallback?.remove()
-            }
-            MeasureViewModel.MeasureProgress.NOT_CELLULAR -> {
-                AlertDialog.Builder(this)
-                    .setMessage(R.string.not_cellular_warning)
-                    .setPositiveButton(R.string.not_cellular_proceed) { dialog, _ ->
-                        dialog.dismiss()
-                        model.startMeasurement()
-                    }
-                    .setNegativeButton(R.string.cancel) { dialog, _ ->
-                        dialog.dismiss()
-                        model.cancel()
-                    }
-                    .show()
             }
             else -> if (currentFragment !is MeasureFragment){
                 backPressedCallback = onBackPressedDispatcher.addCallback { /* do nothing! */ }

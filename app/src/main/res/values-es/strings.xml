@@ -109,6 +109,9 @@
     <string name="testing">Prueba</string>
     <string name="take_another_measurement">Medir otra vez</string>
     <string name="back_to_map">Regresar al mapa</string>
+    <string name="measurement_in_progress">Medición en curso</string>
+    <string name="measurement_notifications_name">Medición</string>
+    <string name="measurement_notifications_description">Notificaciones que se muestran para que las mediciones terminen aunque la aplicación esté cerrada.</string>
 
     <!-- measurement history -->
     <string name="measurement_history">Historial de medición</string>
