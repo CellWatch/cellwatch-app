@@ -44,9 +44,15 @@ data class MeasurementGroup(
             ?: throw RuntimeException("group without id: $this")
     }
 
-    fun location(): Location? {
-        return latency?.locations?.firstOrNull()
-            ?: download?.locations?.firstOrNull()
-            ?: upload?.locations?.firstOrNull()
+    fun centerLatLon(): Pair<Double, Double>? {
+        val latlons = listOfNotNull(latency?.centerLatLon(), download?.centerLatLon(), upload?.centerLatLon())
+        if (latlons.size < 2) {
+            return latlons.firstOrNull()
+        }
+
+        return Pair(
+            latlons.map { it.first }.average(),
+            latlons.map { it.second }.average(),
+        )
     }
 }
