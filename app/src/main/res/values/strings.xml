@@ -109,6 +109,9 @@
 
     <!-- measurement history -->
     <string name="measurement_history">Measurement History</string>
+    <string name="not_in_this_hexagon">Not in this hexagon</string>
+    <string name="not_measured">Not measured</string>
+    <string name="time">Time</string>
     <string name="location">Location</string>
     <string name="carrier">Carrier</string>
     <string name="type">Type</string>

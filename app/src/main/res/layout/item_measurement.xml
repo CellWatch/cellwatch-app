@@ -7,480 +7,234 @@
     android:orientation="vertical">
 
     <LinearLayout
-        android:id="@+id/itemHeader"
+        android:id="@+id/headerRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/measure_result_date_bg"
+        android:layout_marginBottom="8dp"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/headerIcon"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_gravity="center"
+            android:layout_marginEnd="10dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/fa_stopwatch"
+            app:tint="@color/cw_green" />
+
+        <TextView
+            android:id="@+id/headerLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="5dp"
+            android:layout_gravity="center"
+            android:text="Latency"
+            android:textColor="@color/cw_green"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/headerText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical|end"
+            android:text="20 ms"
+            android:textAlignment="textEnd"
+            android:textColor="@color/cw_green"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/details"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="12dp"
-        android:paddingTop="4dp"
-        android:paddingBottom="8dp">
+        android:layout_marginStart="16dp">
 
         <LinearLayout
+            android:id="@+id/warningRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="32dp"
+            android:layout_marginVertical="2dp"
             android:orientation="horizontal">
 
-            <ImageButton
-                android:id="@+id/expandButton"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@drawable/fa_solid_caret_right"
-                app:tint="@color/cw_green"
-                android:background="@null"
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
                 android:layout_gravity="center"
-                android:layout_marginStart="-8dp" />
+                android:layout_marginEnd="10dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/fa_solid_triangle_exclamation"
+                app:tint="@color/cw_black" />
 
-            <com.google.android.flexbox.FlexboxLayout
+            <TextView
+                android:id="@+id/warningText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="5dp"
+                android:layout_gravity="center"
+                android:text="@string/not_in_this_hexagon"
+                android:textColor="@color/cw_black"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/timeRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="2dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_gravity="center"
+                android:layout_marginEnd="10dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/fa_solid_clock"
+                app:tint="@color/cw_black" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="5dp"
+                android:layout_gravity="center"
+                android:text="@string/time"
+                android:textColor="@color/cw_black"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/timeText"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_gravity="center_vertical|end"
+                android:drawablePadding="6dp"
+                android:text="31 May 2024 2:44:45 PM"
+                android:textAlignment="textEnd"
+                android:textColor="@color/cw_black"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/locationRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="2dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
                 android:layout_gravity="center"
-                app:flexWrap="wrap"
-                app:justifyContent="space_between">
+                android:layout_marginEnd="10dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/fa_solid_map_location_dot"
+                app:tint="@color/cw_black" />
 
-                <TextView
-                    android:id="@+id/dateText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="28 Feb 2024"
-                    android:textColor="@color/cw_green"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="5dp"
+                android:layout_gravity="center"
+                android:text="@string/location"
+                android:textColor="@color/cw_black"
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/timeText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="08:19:54"
-                    android:textColor="@color/cw_green"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-            </com.google.android.flexbox.FlexboxLayout>
+            <TextView
+                android:id="@+id/locationText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_gravity="center_vertical|end"
+                android:drawableEnd="@drawable/fa_regular_copy"
+                android:drawableTint="@color/cw_grey_dark"
+                android:drawablePadding="6dp"
+                android:text="-80.123456, 30.123456"
+                android:textAlignment="textEnd"
+                android:textColor="@color/cw_black"
+                android:textSize="14sp" />
         </LinearLayout>
 
-        <com.google.android.flexbox.FlexboxLayout
-            android:id="@+id/summary"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:flexWrap="wrap"
-            app:justifyContent="space_between"
-            android:paddingStart="24dp">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:layout_marginEnd="8dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="4dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_stopwatch"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:id="@+id/summaryLatencyText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="98 ms"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:layout_marginEnd="8dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="4dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_download"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:id="@+id/summaryDownloadText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="77 Mbps"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="4dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_upload"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:id="@+id/summaryUploadText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="23 Mbps"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
-        </com.google.android.flexbox.FlexboxLayout>
-
-        <View
-            android:id="@+id/sep1"
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="12dp"
-            android:background="@color/cw_grey_dark" />
-
         <LinearLayout
-            android:id="@+id/metaContainer"
+            android:id="@+id/technologyRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_marginVertical="2dp"
+            android:orientation="horizontal">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_gravity="center"
+                android:layout_marginEnd="10dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/fa_broadcast_tower"
+                app:tint="@color/cw_black" />
+
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:layout_marginEnd="5dp"
+                android:layout_gravity="center"
+                android:text="@string/technology"
+                android:textColor="@color/cw_black"
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="5dp"
-                    android:layout_gravity="center"
-                    android:text="@string/location"
-                    android:textColor="@color/cw_black"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/locationText"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_gravity="center_vertical|end"
-                    android:drawableEnd="@drawable/fa_regular_copy"
-                    android:drawableTint="@color/cw_grey_dark"
-                    android:drawablePadding="6dp"
-                    android:text="Cell 100abcdef"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_black"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/technologyText"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="5dp"
-                    android:layout_gravity="center"
-                    android:text="@string/carrier"
-                    android:textColor="@color/cw_black"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/carrierText"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_gravity="center_vertical|end"
-                    android:text="AT&amp;T"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_black"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="5dp"
-                    android:layout_gravity="center"
-                    android:text="@string/type"
-                    android:textColor="@color/cw_black"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/typeText"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_gravity="center_vertical|end"
-                    android:text="FCC Challenge (Stationary)"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_black"
-                    android:textSize="16sp" />
-            </LinearLayout>
+                android:layout_weight="1"
+                android:layout_gravity="center_vertical|end"
+                android:text="4G"
+                android:textAlignment="textEnd"
+                android:textColor="@color/cw_black"
+                android:textSize="14sp" />
         </LinearLayout>
 
-        <View
-            android:id="@+id/sep2"
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginVertical="12dp"
-            android:background="@color/cw_grey_dark" />
-
         <LinearLayout
-            android:id="@+id/resultsContainer"
+            android:id="@+id/roamingRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_marginVertical="2dp"
+            android:orientation="horizontal">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_gravity="center"
+                android:layout_marginEnd="10dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/fa_globe"
+                app:tint="@color/cw_black" />
+
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:orientation="horizontal">
+                android:layout_marginEnd="5dp"
+                android:layout_gravity="center"
+                android:text="@string/roaming"
+                android:textColor="@color/cw_black"
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="10dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_stopwatch"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="5dp"
-                    android:layout_gravity="center"
-                    android:text="@string/latency"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/latencyText"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_gravity="center_vertical|end"
-                    android:text="20 ms"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/roamingText"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="10dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_download"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="5dp"
-                    android:layout_gravity="center"
-                    android:text="@string/download"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/downloadText"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_gravity="center_vertical|end"
-                    android:text="77 Mbps"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="10dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_upload"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="5dp"
-                    android:layout_gravity="center"
-                    android:text="@string/upload"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/uploadText"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_gravity="center_vertical|end"
-                    android:text="23 Mbps"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="10dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_broadcast_tower"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="5dp"
-                    android:layout_gravity="center"
-                    android:text="@string/technology"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/technologyText"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_gravity="center_vertical|end"
-                    android:text="4G"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="10dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_globe"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="5dp"
-                    android:layout_gravity="center"
-                    android:text="@string/roaming"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/roamingText"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_gravity="center_vertical|end"
-                    android:text="No"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="10dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_check_square"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="5dp"
-                    android:layout_gravity="center"
-                    android:text="@string/uploaded"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/uploadedText"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_gravity="center_vertical|end"
-                    android:text="24 Feb 2024 08:59:54"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
+                android:layout_weight="1"
+                android:layout_gravity="center_vertical|end"
+                android:text="No"
+                android:textAlignment="textEnd"
+                android:textColor="@color/cw_black"
+                android:textSize="14sp" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
