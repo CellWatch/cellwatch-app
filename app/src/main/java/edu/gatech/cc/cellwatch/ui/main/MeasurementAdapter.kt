@@ -18,12 +18,12 @@ class MeasurementAdapter() :
         notifyDataSetChanged()
     }
 
-    inner class MeasurementViewHolder(val item: MeasurementItem) : RecyclerView.ViewHolder(item)
+    inner class MeasurementViewHolder(val item: MeasurementGroupItem) : RecyclerView.ViewHolder(item)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MeasurementViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_measurement_history, parent, false)
-        if (view !is MeasurementItem) {
-            throw RuntimeException("expected MeasurementItem, got $view")
+        if (view !is MeasurementGroupItem) {
+            throw RuntimeException("expected MeasurementGroupItem, got $view")
         }
         return MeasurementViewHolder(view)
     }

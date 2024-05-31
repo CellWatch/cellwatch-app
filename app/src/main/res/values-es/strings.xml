@@ -115,6 +115,9 @@
 
     <!-- measurement history -->
     <string name="measurement_history">Historial de medición</string>
+    <string name="not_in_this_hexagon">No es dentro de este hexágono</string>
+    <string name="not_measured">No se midió</string>
+    <string name="time">Hora</string>
     <string name="location">Ubicación</string>
     <string name="carrier">Proveedor</string>
     <string name="type">Tipo</string>

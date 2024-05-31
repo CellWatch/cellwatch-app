@@ -43,7 +43,7 @@
                 android:layout_marginVertical="15dp" />
         </FrameLayout>
 
-        <edu.gatech.cc.cellwatch.ui.main.MeasurementItem
+        <edu.gatech.cc.cellwatch.ui.main.MeasurementGroupItem
             android:id="@+id/item"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
