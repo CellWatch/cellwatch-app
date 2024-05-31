@@ -33,8 +33,8 @@ import android.telephony.PhoneStateListener
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.text.TextUtils
-import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.core.util.PermissionManager
 import edu.gatech.cc.cellwatch.data.model.Cell
 import kotlinx.datetime.Clock
@@ -443,7 +443,7 @@ object TelephonyInfoManager {
         return telephonyManager.isDataEnabled
     }
 
-    fun getDisplayGeneration(cells: List<Cell>): String {
+    fun getDisplayGeneration(cells: List<Cell>): String? {
         return when {
             cells.find {
                 it.networkGeneration == "5G" && it.cellConnection == CONNECTION_PRIMARY_SERVING
@@ -454,7 +454,7 @@ object TelephonyInfoManager {
             else -> {
                 val cell = cells.find { it.cellConnection == CONNECTION_PRIMARY_SERVING }
                     ?: cells.getOrNull(0)
-                cell?.networkGeneration ?: ""
+                cell?.networkGeneration
             }
         }
     }
