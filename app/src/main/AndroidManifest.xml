@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <application
         android:name="edu.gatech.cc.cellwatch.CellWatchApp"
@@ -59,5 +61,10 @@
             android:name="edu.gatech.cc.cellwatch.ui.main.AboutActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.CellWatch.NoActionBar" />
+
+        <service
+            android:name=".domain.fcc.MeasurementService"
+            android:foregroundServiceType="location"
+            android:exported="false" />
     </application>
 </manifest>

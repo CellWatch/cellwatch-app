@@ -1,16 +1,17 @@
 package edu.gatech.cc.cellwatch.ui.main
 
+import android.content.ComponentName
+import android.content.ServiceConnection
+import android.os.IBinder
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.Log
-import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
-import edu.gatech.cc.cellwatch.domain.fcc.MeasurementManager
+import edu.gatech.cc.cellwatch.domain.fcc.MeasurementService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
@@ -20,56 +21,56 @@ class MeasureViewModel: ViewModel() {
     private val _state = MutableStateFlow(State(MeasureProgress.PRE, null, null, false))
     val state: StateFlow<State> = _state
 
+    val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            if (service !is MeasurementService.MeasurementBinder) {
+                Log.e(TAG, "expected MeasurementBinder, got $service")
+                return
+            }
+
+            viewModelScope.launch {
+                service.state.collect { serviceState ->
+                    when (serviceState) {
+                        null -> { /* do nothing */ }
+                        MeasurementService.State.START -> _state.update { old ->
+                            old.copy(
+                                progress = MeasureProgress.START,
+                                results = MeasurementGroup(null, null, null, null),
+                            )
+                        }
+
+                        MeasurementService.State.LOCATE -> handleLocateStart()
+                        MeasurementService.State.LATENCY -> handleLatencyStart()
+                        MeasurementService.State.DOWNLOAD -> {
+                            service.latency?.let { handleLatencyComplete(it) }
+                            handleDownloadStart()
+                        }
+
+                        MeasurementService.State.UPLOAD -> {
+                            service.download?.let { handleThroughputComplete(it) }
+                            handleUploadStart()
+                        }
+
+                        MeasurementService.State.DONE -> {
+                            service.upload?.let { handleThroughputComplete(it) }
+                            handleMeasurementComplete(service.group)
+                        }
+                    }
+                }
+            }
+        }
+
+        override fun onServiceDisconnected(className: ComponentName) {
+            Log.w(TAG, "service disconnected $className")
+        }
+    }
+
     fun setInVehicle(inVehicle: Boolean) {
         _state.update { currentState -> currentState.copy(inVehicle = inVehicle) }
     }
 
-    fun startMeasurement() {
-        viewModelScope.launch {
-            val prevState = _state.getAndUpdate { currentState ->
-                currentState.copy(
-                    progress = MeasureProgress.START,
-                    results = MeasurementGroup(null, null, null, null),
-                )
-            }
-
-            val mode = CellWatchApp.settingsRepository.getCollectionMode()
-
-            try {
-                val group = MeasurementManager.runTestSequence(
-                    prevState.inVehicle,
-                    mode,
-                    { handleLocateStart() },
-                    { },
-                    { handleLatencyStart() },
-                    { handleLatencyComplete(it) },
-                    { handleDownloadStart() },
-                    { handleThroughputComplete(it) },
-                    { handleUploadStart() },
-                    { handleThroughputComplete(it) },
-                    failIfNotOnCellular = mode === CollectionMode.FCC_CHALLENGE
-                        && prevState.progress !== MeasureProgress.NOT_CELLULAR,
-                )
-                handleMeasurementComplete(group)
-            } catch (e: MeasurementManager.NotOnCellularException) {
-                handleNotOnCellular()
-            } catch (e: Exception) {
-                Log.e(TAG, "unexpected error running test sequence", e)
-                handleMeasurementComplete(null)
-            }
-        }
-    }
-
-    fun cancel() {
-        _state.update { currentState -> currentState.copy(progress = MeasureProgress.PRE, results = null, uploadTime = null) }
-    }
-
     fun reset() {
         _state.update { State(MeasureProgress.PRE, null, null, false) }
-    }
-
-    private fun handleNotOnCellular() {
-        _state.update { currentState -> currentState.copy(progress = MeasureProgress.NOT_CELLULAR) }
     }
 
     private fun handleLocateStart() {
@@ -140,5 +141,5 @@ class MeasureViewModel: ViewModel() {
         val inVehicle: Boolean,
     )
 
-    enum class MeasureProgress { PRE, START, NOT_CELLULAR, LOCATE, LATENCY, DOWNLOAD, UPLOAD, END, ERROR }
+    enum class MeasureProgress { PRE, START, LOCATE, LATENCY, DOWNLOAD, UPLOAD, END, ERROR }
 }
