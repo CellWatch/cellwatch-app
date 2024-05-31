@@ -79,14 +79,9 @@ class MeasurementItem(
             binding.timeText.text = "-"
         }
 
-        val location = group.latency?.locations?.getOrNull(0)
-            ?: group.download?.locations?.getOrNull(0)
-            ?: group.upload?.locations?.getOrNull(0)
-
-        val lat = location?.lat
-        val lon = location?.lon
-        if (lat != null && lon != null) {
-            binding.locationText.text = context.getString(R.string.latlon, lat, lon)
+        val latlon = group.centerLatLon()
+        if (latlon != null) {
+            binding.locationText.text = context.getString(R.string.latlon, latlon.first, latlon.second)
             binding.locationText.setCopyOnClick("location") { binding.locationText.text }
         } else {
             binding.locationText.text = "-"

@@ -50,7 +50,14 @@ data class Measurement(
     // When was this record pushed to cloud storage?
     var uploadTime: Instant? = null,
     val appVersion: String? = null,
-)
+) {
+    fun centerLatLon(): Pair<Double, Double>? {
+        val locs = locations ?: return null
+        val start = locs.getOrNull(0) ?: return null
+        val end = locs.getOrNull(1) ?: return Pair(start.lat, start.lon)
+        return Pair((start.lat + end.lat) / 2, (start.lon + end.lon) / 2)
+    }
+}
 
 fun Measurement.asEntity() = MeasurementEntity(
     id,

@@ -19,8 +19,8 @@ class MapViewModel: ViewModel() {
         groups.forEach { group ->
             val id = group.id()
             if (id !in measurementGroups) {
-                group.location()?.let { location ->
-                    val address = H3Manager.getH3Index(location.lat, location.lon, H3Manager.CHILD_HEX_RES)
+                group.centerLatLon()?.let { latlon ->
+                    val address = H3Manager.getH3Index(latlon.first, latlon.second, H3Manager.CHILD_HEX_RES)
                     val ids = childHexMeasurementGroupIds[address] ?: mutableSetOf()
                     ids.add(id)
                     childHexMeasurementGroupIds[address] = ids

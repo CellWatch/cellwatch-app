@@ -489,14 +489,14 @@ class MapActivity : AppCompatActivity() {
             ?: throw RuntimeException("no icon!")
 
         for (group in model.getMeasurementGroups(ids)) {
-            val location = group.location()
-            if (location == null) {
+            val latlon = group.centerLatLon()
+            if (latlon == null) {
                 Log.e(TAG, "group with no location: $group")
                 continue
             }
 
             val options = PointAnnotationOptions()
-                .withPoint(Point.fromLngLat(location.lon, location.lat))
+                .withPoint(Point.fromLngLat(latlon.second, latlon.first))
                 .withIconImage(icon)
                 .withData(JsonPrimitive(group.id()))
 
