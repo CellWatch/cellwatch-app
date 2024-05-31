@@ -1,5 +1,7 @@
 package edu.gatech.cc.cellwatch.ui.main
 
+import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
@@ -13,11 +15,17 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.databinding.FragmentPreMeasureBinding
+import edu.gatech.cc.cellwatch.domain.fcc.MeasurementManager
+import edu.gatech.cc.cellwatch.domain.fcc.MeasurementService
 import kotlinx.coroutines.launch
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class PreMeasureFragment: Fragment() {
+    private val TAG = this::class.simpleName
     private lateinit var binding: FragmentPreMeasureBinding
     private lateinit var model: MeasureViewModel
     private var inVehicle = false
@@ -51,7 +59,7 @@ class PreMeasureFragment: Fragment() {
 
         binding.stationary.setOnClickListener { model.setInVehicle(false) }
         binding.moving.setOnClickListener { model.setInVehicle(true) }
-        binding.go.setOnClickListener { model.startMeasurement() }
+        binding.go.setOnClickListener { startMeasurement() }
 
         // enable clicking on link to show privacy policy
         binding.dataReminder.movementMethod = LinkMovementMethod.getInstance()
@@ -70,4 +78,44 @@ class PreMeasureFragment: Fragment() {
 
         return binding.root
     }
+
+    private fun startMeasurement() {
+        lifecycleScope.launch {
+            val mode = CellWatchApp.settingsRepository.getCollectionMode()
+            if (
+                mode == CollectionMode.FCC_CHALLENGE
+                && !MeasurementManager.checkCellular()
+                && !checkProceedWithoutCellular()
+            ) {
+                // skip measurement
+            } else {
+                val intent = Intent(requireContext(), MeasurementService::class.java)
+                intent.putExtra(MeasurementService.EXTRA_IN_VEHICLE, model.state.value.inVehicle)
+                intent.putExtra(MeasurementService.EXTRA_COLLECTION_MODE, mode.name)
+                requireContext().startForegroundService(intent)
+
+                val parent = activity
+                if (parent is MeasureActivity) {
+                    parent.bindToService()
+                } else {
+                    Log.e(TAG, "expected MeasureActivity, got $parent")
+                }
+            }
+        }
+    }
+
+    private suspend fun checkProceedWithoutCellular(): Boolean = suspendCoroutine { continuation ->
+        AlertDialog.Builder(requireContext())
+            .setMessage(R.string.not_cellular_warning)
+            .setPositiveButton(R.string.not_cellular_proceed) { dialog, _ ->
+                dialog.dismiss()
+                continuation.resume(true)
+            }
+            .setNegativeButton(R.string.cancel) { dialog, _ ->
+                dialog.dismiss()
+                continuation.resume(false)
+            }
+            .show()
+    }
+
 }

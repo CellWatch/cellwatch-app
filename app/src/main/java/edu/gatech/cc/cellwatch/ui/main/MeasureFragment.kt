@@ -50,6 +50,11 @@ class MeasureFragment : Fragment() {
     }
 
     private fun handleStateUpdate(state: MeasureViewModel.State) {
+        if (state.progress == MeasureViewModel.MeasureProgress.PRE) {
+            // the parent activity will remove this fragment when in the pre state anyway
+            return
+        }
+
         binding.item.setData(
             state.results ?: MeasurementGroup(null, null, null, null),
             collectionMode,
@@ -68,8 +73,7 @@ class MeasureFragment : Fragment() {
 
         binding.header.setText(when (state.progress) {
             MeasureViewModel.MeasureProgress.PRE,
-            MeasureViewModel.MeasureProgress.START,
-            MeasureViewModel.MeasureProgress.NOT_CELLULAR -> R.string.measuring
+            MeasureViewModel.MeasureProgress.START -> R.string.measuring
             MeasureViewModel.MeasureProgress.LOCATE -> R.string.finding_server
             MeasureViewModel.MeasureProgress.LATENCY -> R.string.measuring_latency
             MeasureViewModel.MeasureProgress.DOWNLOAD ->R.string.measuring_download

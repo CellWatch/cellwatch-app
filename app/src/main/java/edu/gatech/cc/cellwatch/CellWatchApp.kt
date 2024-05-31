@@ -1,6 +1,8 @@
 package edu.gatech.cc.cellwatch
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import edu.gatech.cc.cellwatch.data.core.repositories.MeasurementRepository
 import edu.gatech.cc.cellwatch.data.core.repositories.SettingsRepository
@@ -46,6 +48,17 @@ class CellWatchApp : Application() {
         }
         val settingsRepository by lazy {
             SettingsRepository(localDataStore)
+        }
+        val measurementNotificationChannel by lazy {
+            val channel = NotificationChannel(
+                "measurement_notifications",
+                applicationContext().getString(R.string.measurement_notifications_name),
+                NotificationManager.IMPORTANCE_LOW,
+            )
+            channel.description = applicationContext().getString(R.string.measurement_notifications_description)
+            val manager = applicationContext().getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(channel)
+            channel
         }
 
         val userAgent = "CellWatch/${BuildConfig.VERSION_NAME}${if (BuildConfig.DEBUG) "-debug" else ""}"
