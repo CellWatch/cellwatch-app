@@ -62,6 +62,7 @@ class MeasurementGroupItem(
         group: MeasurementGroup,
         collectionMode: CollectionMode? = null,
         inVehicle: Boolean? = null,
+        displayedHexAddress: Long? = null,
     ) {
         val timestamp = group.latency?.timestamp
             ?: group.download?.timestamp
@@ -103,9 +104,9 @@ class MeasurementGroupItem(
         val uploadTime = if (uploadTimes.all { it != null }) uploadTimes.firstOrNull() else null
         updateUploadTime(uploadTime)
 
-        binding.latencyItem.setData("latency", group.latency)
-        binding.downloadItem.setData("download", group.download)
-        binding.uploadItem.setData("upload", group.upload)
+        binding.latencyItem.setData("latency", group.latency, displayedHexAddress)
+        binding.downloadItem.setData("download", group.download, displayedHexAddress)
+        binding.uploadItem.setData("upload", group.upload, displayedHexAddress)
     }
 
     fun updateUploadTime(uploadTime: Instant?) {

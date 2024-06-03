@@ -10,11 +10,13 @@ class MeasurementAdapter() :
     RecyclerView.Adapter<MeasurementAdapter.MeasurementViewHolder>() {
 
     private var groups = listOf<MeasurementGroup>()
+    private var hexAddress: Long? = null
 
-    fun setGroups(g: Collection<MeasurementGroup>) {
+    fun setData(g: Collection<MeasurementGroup>, hexAddr: Long? = null) {
         groups = g.sortedByDescending {
             it.latency?.timestamp ?: it.download?.timestamp ?: it.upload ?.timestamp
         }
+        hexAddress = hexAddr
         notifyDataSetChanged()
     }
 
@@ -30,7 +32,7 @@ class MeasurementAdapter() :
 
     override fun onBindViewHolder(holder: MeasurementViewHolder, position: Int) {
         val group = groups[position]
-        holder.item.setData(group)
+        holder.item.setData(group, displayedHexAddress = hexAddress)
     }
 
     override fun getItemCount() = groups.size

@@ -276,7 +276,7 @@ class MapActivity : AppCompatActivity() {
         val address = annotation.getData()?.asLong ?: throw RuntimeException("no data for child annotation $annotation")
         val groups = model.getHexMeasurementGroupIds(address)
         if (groups.isNotEmpty()) {
-            showBottomSheet(groups, getString(R.string.hex_index, address.toHexString().lowercase()))
+            showBottomSheet(groups, getString(R.string.hex_index, address.toHexString().lowercase()), address)
         }
         true
     }
@@ -363,7 +363,7 @@ class MapActivity : AppCompatActivity() {
 
                     val groups = model.getHexMeasurementGroupIds(it.first)
                     if (groups.isNotEmpty()) {
-                        (binding.sheetContents.adapter as MeasurementAdapter).setGroups(model.getMeasurementGroups(groups))
+                        (binding.sheetContents.adapter as MeasurementAdapter).setData(model.getMeasurementGroups(groups))
                     }
                 }
             }
@@ -563,13 +563,16 @@ class MapActivity : AppCompatActivity() {
         }
     }
 
-    private fun showBottomSheet(groupIds: Collection<String>, title: String) {
+    private fun showBottomSheet(groupIds: Collection<String>, title: String, displayedHexAddress: Long? = null) {
         if (model.selectedMeasurementGroupIds == groupIds) {
             return // it's already showing the correct groups
         }
 
         model.selectedMeasurementGroupIds = groupIds.toSet()
-        (binding.sheetContents.adapter as MeasurementAdapter).setGroups(model.getMeasurementGroups(groupIds))
+        (binding.sheetContents.adapter as MeasurementAdapter).setData(
+            model.getMeasurementGroups(groupIds),
+            displayedHexAddress,
+        )
         val sheetBehavior = BottomSheetBehavior.from(binding.sheet)
         sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
         binding.sheetTitle.text = title

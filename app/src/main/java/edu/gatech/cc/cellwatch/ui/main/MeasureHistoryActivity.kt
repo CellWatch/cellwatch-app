@@ -45,7 +45,7 @@ class MeasureHistoryActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                model.groups.collect { adapter.setGroups(it) }
+                model.groups.collect { adapter.setData(it) }
             }
         }
         model.loadGroups()
