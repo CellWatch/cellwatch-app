@@ -85,4 +85,10 @@ object H3Manager {
     fun getH3Index(lat: Double, lon: Double, res: Int): Long {
         return h3.geoToH3(lat, lon, res)
     }
+
+    fun isInH3Hex(lat: Double, lon: Double, addr: Long): Boolean {
+        val ret = getH3Index(lat, lon, getH3ResolutionFromAddress(addr)) == addr
+        Log.d("HEX", "is in hex? $ret $addr ${getH3ResolutionFromAddress(addr)}")
+        return ret
+    }
 }

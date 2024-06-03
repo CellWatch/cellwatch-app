@@ -19,7 +19,11 @@ class MapViewModel: ViewModel() {
         groups.forEach { group ->
             val id = group.id()
             if (id !in measurementGroups) {
-                group.centerLatLon()?.let { latlon ->
+                listOfNotNull(
+                    group.latency?.centerLatLon(),
+                    group.download?.centerLatLon(),
+                    group.upload?.centerLatLon(),
+                ).forEach { latlon ->
                     val address = H3Manager.getH3Index(latlon.first, latlon.second, H3Manager.CHILD_HEX_RES)
                     val ids = childHexMeasurementGroupIds[address] ?: mutableSetOf()
                     ids.add(id)
@@ -48,5 +52,6 @@ class MapViewModel: ViewModel() {
         return H3Manager.getRelatedH3Hex(address, H3Manager.CHILD_HEX_RES)
             .mapNotNull { childHexMeasurementGroupIds[it] }
             .flatten()
+            .toSet()
     }
 }
