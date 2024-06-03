@@ -26,7 +26,7 @@ class MeasurementItem(
         true,
     )
 
-    fun setData(type: String, measurement: Measurement?, displayedHexAddress: Long? = null) {
+    fun setData(type: String, measurement: Measurement?, displayedHexAddress: Long? = null, inProgress: Boolean = false) {
         binding.headerIcon.setImageResource(when (type) {
             "latency" -> R.drawable.fa_stopwatch
             "download" -> R.drawable.fa_download
@@ -41,7 +41,7 @@ class MeasurementItem(
             else -> throw RuntimeException("unknown type $type")
         })
 
-        binding.warningRow.isVisible = measurement == null
+        binding.warningRow.isVisible = measurement == null && !inProgress
         binding.timeRow.isVisible = measurement != null
         binding.locationRow.isVisible = measurement != null
         binding.technologyRow.isVisible = measurement != null
