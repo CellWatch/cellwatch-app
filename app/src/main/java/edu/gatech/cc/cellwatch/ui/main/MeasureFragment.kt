@@ -55,17 +55,18 @@ class MeasureFragment : Fragment() {
             return
         }
 
-        binding.item.setData(
-            state.results ?: MeasurementGroup(null, null, null, null),
-            collectionMode,
-            state.inVehicle,
-        )
-
         val complete = when (state.progress) {
             MeasureViewModel.MeasureProgress.END,
             MeasureViewModel.MeasureProgress.ERROR -> true
             else -> false
         }
+
+        binding.item.setData(
+            state.results ?: MeasurementGroup(null, null, null, null),
+            collectionMode,
+            state.inVehicle,
+            inProgress = !complete
+        )
 
         binding.progressBar.isVisible = !complete
         binding.takeAnotherButton.isVisible = complete

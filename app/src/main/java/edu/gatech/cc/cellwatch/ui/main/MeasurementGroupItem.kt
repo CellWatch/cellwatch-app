@@ -7,6 +7,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
 import androidx.core.view.isVisible
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
@@ -25,6 +27,8 @@ class MeasurementGroupItem(
         true,
     )
     private val expandable: Boolean
+    private var currentGroup: MeasurementGroup? = null
+    private var model: MeasurementGroupItemViewModel? = null
 
     init {
         val arr = context.obtainStyledAttributes(attrs, R.styleable.MeasurementGroupItem)
@@ -36,15 +40,6 @@ class MeasurementGroupItem(
         super.onFinishInflate()
 
         if (expandable) {
-            fun setDetailsVisibility(visible: Boolean) {
-                binding.metaContainer.isVisible = visible
-                binding.resultsContainer.isVisible = visible
-                binding.sep1.isVisible = visible
-                binding.sep2.isVisible = visible
-                binding.summary.isVisible = !visible
-                binding.expandButton.rotation = if (visible) 90F else 0F
-            }
-
             fun toggleDetails() {
                 setDetailsVisibility(binding.metaContainer.visibility == View.GONE)
             }
@@ -58,12 +53,42 @@ class MeasurementGroupItem(
         }
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        model = this.findViewTreeViewModelStoreOwner()?.let {
+            ViewModelProvider(it)[MeasurementGroupItemViewModel::class.java]
+        }
+    }
+
+    private fun setDetailsVisibility(visible: Boolean) {
+        currentGroup?.id()?.let {
+            if (visible) {
+                model?.expandedGroupIds?.add(it)
+            } else {
+                model?.expandedGroupIds?.remove(it)
+            }
+        }
+
+        binding.metaContainer.isVisible = visible
+        binding.resultsContainer.isVisible = visible
+        binding.sep1.isVisible = visible
+        binding.sep2.isVisible = visible
+        binding.summary.isVisible = !visible
+        binding.expandButton.rotation = if (visible) 90F else 0F
+    }
+
     fun setData(
         group: MeasurementGroup,
         collectionMode: CollectionMode? = null,
         inVehicle: Boolean? = null,
         displayedHexAddress: Long? = null,
+        inProgress: Boolean = false,
     ) {
+        currentGroup = group
+        if (expandable) {
+            model?.let { setDetailsVisibility(group.id() in it.expandedGroupIds) }
+        }
+
         val timestamp = group.latency?.timestamp
             ?: group.download?.timestamp
             ?: group.upload?.timestamp
@@ -104,9 +129,9 @@ class MeasurementGroupItem(
         val uploadTime = if (uploadTimes.all { it != null }) uploadTimes.firstOrNull() else null
         updateUploadTime(uploadTime)
 
-        binding.latencyItem.setData("latency", group.latency, displayedHexAddress)
-        binding.downloadItem.setData("download", group.download, displayedHexAddress)
-        binding.uploadItem.setData("upload", group.upload, displayedHexAddress)
+        binding.latencyItem.setData("latency", group.latency, displayedHexAddress, inProgress)
+        binding.downloadItem.setData("download", group.download, displayedHexAddress, inProgress)
+        binding.uploadItem.setData("upload", group.upload, displayedHexAddress, inProgress)
     }
 
     fun updateUploadTime(uploadTime: Instant?) {
