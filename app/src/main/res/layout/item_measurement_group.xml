@@ -7,7 +7,7 @@
     android:orientation="vertical">
 
     <LinearLayout
-        android:id="@+id/itemHeader"
+        android:id="@+id/item"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/measure_result_date_bg"
@@ -17,136 +17,143 @@
         android:paddingBottom="8dp">
 
         <LinearLayout
+            android:id="@+id/itemHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="32dp"
-            android:orientation="horizontal">
+            android:orientation="vertical">
 
-            <ImageButton
-                android:id="@+id/expandButton"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@drawable/fa_solid_caret_right"
-                app:tint="@color/cw_green"
-                android:background="@null"
-                android:layout_gravity="center"
-                android:layout_marginStart="-8dp" />
-
-            <com.google.android.flexbox.FlexboxLayout
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_gravity="center"
-                app:flexWrap="wrap"
-                app:justifyContent="space_between">
+                android:minHeight="32dp"
+                android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/dateText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="28 Feb 2024"
-                    android:textColor="@color/cw_green"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
+                <ImageButton
+                    android:id="@+id/expandButton"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/fa_solid_caret_right"
+                    app:tint="@color/cw_green"
+                    android:background="@null"
+                    android:layout_gravity="center"
+                    android:layout_marginStart="-8dp" />
 
-                <TextView
-                    android:id="@+id/timeText"
-                    android:layout_width="wrap_content"
+                <com.google.android.flexbox.FlexboxLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="08:19:54"
-                    android:textColor="@color/cw_green"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
+                    android:layout_gravity="center"
+                    app:flexWrap="wrap"
+                    app:justifyContent="space_between">
+
+                    <TextView
+                        android:id="@+id/dateText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        android:text="28 Feb 2024"
+                        android:textColor="@color/cw_green"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/timeText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="08:19:54"
+                        android:textColor="@color/cw_green"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+                </com.google.android.flexbox.FlexboxLayout>
+            </LinearLayout>
+
+            <com.google.android.flexbox.FlexboxLayout
+                android:id="@+id/summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:flexWrap="wrap"
+                app:justifyContent="space_between"
+                android:paddingStart="24dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="2dp"
+                    android:layout_marginEnd="8dp"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="center"
+                        android:layout_marginEnd="4dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/fa_stopwatch"
+                        app:tint="@color/cw_green" />
+
+                    <TextView
+                        android:id="@+id/summaryLatencyText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="98 ms"
+                        android:textAlignment="textEnd"
+                        android:textColor="@color/cw_green"
+                        android:textSize="16sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="2dp"
+                    android:layout_marginEnd="8dp"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="center"
+                        android:layout_marginEnd="4dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/fa_download"
+                        app:tint="@color/cw_green" />
+
+                    <TextView
+                        android:id="@+id/summaryDownloadText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="77 Mbps"
+                        android:textAlignment="textEnd"
+                        android:textColor="@color/cw_green"
+                        android:textSize="16sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="2dp"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="center"
+                        android:layout_marginEnd="4dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/fa_upload"
+                        app:tint="@color/cw_green" />
+
+                    <TextView
+                        android:id="@+id/summaryUploadText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="23 Mbps"
+                        android:textAlignment="textEnd"
+                        android:textColor="@color/cw_green"
+                        android:textSize="16sp" />
+                </LinearLayout>
             </com.google.android.flexbox.FlexboxLayout>
         </LinearLayout>
-
-        <com.google.android.flexbox.FlexboxLayout
-            android:id="@+id/summary"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:flexWrap="wrap"
-            app:justifyContent="space_between"
-            android:paddingStart="24dp">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:layout_marginEnd="8dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="4dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_stopwatch"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:id="@+id/summaryLatencyText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="98 ms"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:layout_marginEnd="8dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="4dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_download"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:id="@+id/summaryDownloadText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="77 Mbps"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="2dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:layout_marginEnd="4dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/fa_upload"
-                    app:tint="@color/cw_green" />
-
-                <TextView
-                    android:id="@+id/summaryUploadText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="23 Mbps"
-                    android:textAlignment="textEnd"
-                    android:textColor="@color/cw_green"
-                    android:textSize="16sp" />
-            </LinearLayout>
-        </com.google.android.flexbox.FlexboxLayout>
 
         <View
             android:id="@+id/sep1"
