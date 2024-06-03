@@ -75,6 +75,7 @@ class MapActivity : AppCompatActivity() {
     private val TAG = this::class.simpleName
     private lateinit var binding: ActivityMapBinding
     private lateinit var model: MapViewModel
+    private lateinit var groupItemModel: MeasurementGroupItemViewModel
     private var hexFillColor = 0
     private val renderedHexAddresses = mutableSetOf<Long>()
 
@@ -109,6 +110,7 @@ class MapActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         model = ViewModelProvider(this)[MapViewModel::class.java]
+        groupItemModel = ViewModelProvider(this)[MeasurementGroupItemViewModel::class.java]
         val sheetBehavior = BottomSheetBehavior.from(binding.sheet)
         sheetBehavior.saveFlags = BottomSheetBehavior.SAVE_ALL
 
@@ -569,6 +571,7 @@ class MapActivity : AppCompatActivity() {
         }
 
         model.selectedMeasurementGroupIds = groupIds.toSet()
+        groupItemModel.expandedGroupIds.clear()
         (binding.sheetContents.adapter as MeasurementAdapter).setData(
             model.getMeasurementGroups(groupIds),
             displayedHexAddress,
