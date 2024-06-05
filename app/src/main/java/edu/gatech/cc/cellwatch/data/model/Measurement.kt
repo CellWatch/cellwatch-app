@@ -1,13 +1,17 @@
 package edu.gatech.cc.cellwatch.data.model
 
+import android.content.Context
+import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.data.local.model.MeasurementEntity
 import edu.gatech.cc.cellwatch.data.local.model.MeasurementWithData
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurement
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurementWithData
+import edu.gatech.cc.cellwatch.domain.fcc.ThroughputMetrics
 import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import java.util.UUID
+import kotlin.math.roundToInt
 
 /**
  * External data layer representation of a measurement
@@ -56,6 +60,23 @@ data class Measurement(
         val start = locs.getOrNull(0) ?: return null
         val end = locs.getOrNull(1) ?: return Pair(start.lat, start.lon)
         return Pair((start.lat + end.lat) / 2, (start.lon + end.lon) / 2)
+    }
+
+    fun displayValue(context: Context): CharSequence {
+        return if (success == true) {
+            if (type == "latency") {
+                latencyData?.let {
+                    context.getString(R.string.latency_ms, ((it.rtt ?: 0) / 1e3).roundToInt())
+                } ?: throw RuntimeException("missing latency data on measurement $this")
+            } else {
+                uploadDownloadData?.let {
+                    val activeMetrics = ThroughputMetrics(it.bytes ?: 0, it.duration ?: 0)
+                    context.getString(R.string.speed_mbps, (activeMetrics.bytesPerSec * 8 / 1e6).roundToInt())
+                } ?: throw RuntimeException("missing upload/download data on measurement $this")
+            }
+        } else {
+            context.getString(R.string.failed)
+        }
     }
 }
 

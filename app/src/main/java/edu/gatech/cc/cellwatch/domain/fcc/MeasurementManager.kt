@@ -40,6 +40,7 @@ object MeasurementManager {
     }
 
     suspend fun runTestSequence(
+        groupId: String,
         inVehicle: Boolean,
         mode: CollectionMode,
         onLocateStart: () -> Unit,
@@ -58,8 +59,6 @@ object MeasurementManager {
         }
 
         Log.i(TAG,"RUNNING TEST SEQUENCE with measurement id $measurementId")
-
-        val groupId: String = UUID.randomUUID().toString()
 
         val client = OkHttpClient.Builder().build()
 

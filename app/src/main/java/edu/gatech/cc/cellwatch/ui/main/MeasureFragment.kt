@@ -62,15 +62,14 @@ class MeasureFragment : Fragment() {
         }
 
         binding.item.setData(
-            state.results ?: MeasurementGroup(null, null, null, null),
+            state.results ?: MeasurementGroup(null, null, null, null, ""),
             collectionMode,
             state.inVehicle,
             inProgress = !complete
         )
 
         binding.progressBar.isVisible = !complete
-        binding.takeAnotherButton.isVisible = complete
-        binding.backToMapButton.isVisible = complete
+        binding.buttonContainer.isVisible = complete
 
         binding.header.setText(when (state.progress) {
             MeasureViewModel.MeasureProgress.PRE,

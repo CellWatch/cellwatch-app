@@ -7,9 +7,14 @@ data class MeasurementGroup(
     val download: Measurement?,
     val upload: Measurement?,
     val submission: FccSubmission?,
+    val id: String = latency?.groupId ?: download?.groupId ?: upload?.groupId ?: submission?.id
+        ?: throw RuntimeException("missing group id"),
 ) {
     init {
         if (latency != null) {
+            if (latency.groupId != id) {
+                throw RuntimeException("mismatched latency group id ${latency.groupId} != $id")
+            }
             if (latency.type != "latency") {
                 throw RuntimeException("expected measurement of type latency, got ${latency.type}")
             }
@@ -19,6 +24,9 @@ data class MeasurementGroup(
         }
 
         if (download != null) {
+            if (download.groupId != id) {
+                throw RuntimeException("mismatched download group id ${download.groupId} != $id")
+            }
             if (download.type != "download") {
                 throw RuntimeException("expected measurement of type download, got ${download.type}")
             }
@@ -28,6 +36,9 @@ data class MeasurementGroup(
         }
 
         if (upload != null) {
+            if (upload.groupId != id) {
+                throw RuntimeException("mismatched upload group id ${upload.groupId} != $id")
+            }
             if (upload.type != "upload") {
                 throw RuntimeException("expected measurement of type upload, got ${upload.type}")
             }
@@ -35,13 +46,10 @@ data class MeasurementGroup(
                 throw RuntimeException("missing upload data on measurement $upload")
             }
         }
-    }
 
-    fun id(): String {
-        return latency?.groupId
-            ?: download?.groupId
-            ?: upload?.groupId
-            ?: throw RuntimeException("group without id: $this")
+        if (submission != null && submission.id != id) {
+            throw RuntimeException("mismatched submission group id ${submission.id} != $id")
+        }
     }
 
     fun centerLatLon(): Pair<Double, Double>? {
