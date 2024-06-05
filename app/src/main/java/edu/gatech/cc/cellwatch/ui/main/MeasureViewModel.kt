@@ -35,7 +35,13 @@ class MeasureViewModel: ViewModel() {
                         MeasurementService.State.START -> _state.update { old ->
                             old.copy(
                                 progress = MeasureProgress.START,
-                                results = MeasurementGroup(null, null, null, null),
+                                results = MeasurementGroup(
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    service.groupId ?: throw RuntimeException("missing group id")
+                                ),
                             )
                         }
 

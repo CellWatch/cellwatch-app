@@ -101,8 +101,8 @@
     <string name="fcc_challenge_stationary">FCC Challenge (Stationary)</string>
     <string name="fcc_challenge_vehicle">FCC Challenge (In Vehicle)</string>
     <string name="testing">Testing</string>
-    <string name="take_another_measurement">Take Another Measurement</string>
-    <string name="back_to_map">Back to Map</string>
+    <string name="take_another_measurement">Measure again</string>
+    <string name="back_to_map">Back to map</string>
     <string name="measurement_in_progress">Measurement in progress</string>
     <string name="measurement_notifications_name">Measurement</string>
     <string name="measurement_notifications_description">Notifications shown to ensure measurements complete even when the app is closed</string>

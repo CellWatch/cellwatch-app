@@ -500,7 +500,7 @@ class MapActivity : AppCompatActivity() {
             val options = PointAnnotationOptions()
                 .withPoint(Point.fromLngLat(latlon.second, latlon.first))
                 .withIconImage(icon)
-                .withData(JsonPrimitive(group.id()))
+                .withData(JsonPrimitive(group.id))
 
             pointAnnotationManager.create(options)
         }

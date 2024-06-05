@@ -10,11 +10,9 @@ import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.setCopyOnClick
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.databinding.ItemMeasurementBinding
-import edu.gatech.cc.cellwatch.domain.fcc.ThroughputMetrics
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
-import kotlin.math.roundToInt
 
 class MeasurementItem(
     context: Context,
@@ -72,20 +70,7 @@ class MeasurementItem(
             text
         } ?: "-"
 
-        binding.headerText.text = if (measurement.success == true) {
-            if (measurement.type == "latency") {
-                measurement.latencyData?.let {
-                    context.getString(R.string.latency_ms, ((it.rtt ?: 0) / 1e3).roundToInt())
-                } ?: throw RuntimeException("missing latency data on measurement $measurement")
-            } else {
-                measurement.uploadDownloadData?.let {
-                    val activeMetrics = ThroughputMetrics(it.bytes ?: 0, it.duration ?: 0)
-                    context.getString(R.string.speed_mbps, (activeMetrics.bytesPerSec * 8 / 1e6).roundToInt())
-                } ?: throw RuntimeException("missing upload/download data on measurement $measurement")
-            }
-        } else {
-            context.getString(R.string.failed)
-        }
+        binding.headerText.text = measurement.displayValue(context)
 
         binding.technologyText.text = if (measurement.connectionType == NetworkConnectionType.WIFI) {
             context.getString(R.string.wifi)

@@ -17,7 +17,7 @@ class MapViewModel: ViewModel() {
     suspend fun refreshMeasurementGroups(): Set<String> {
         val groups = CellWatchApp.measurementRepository.getMeasurementGroups()
         groups.forEach { group ->
-            val id = group.id()
+            val id = group.id
             if (id !in measurementGroups) {
                 listOfNotNull(
                     group.latency?.centerLatLon(),
@@ -30,7 +30,7 @@ class MapViewModel: ViewModel() {
                     childHexMeasurementGroupIds[address] = ids
                 }
             }
-            measurementGroups[group.id()] = group
+            measurementGroups[group.id] = group
         }
         return measurementGroups.keys
     }

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
+import java.util.UUID
 import kotlin.concurrent.thread
 
 class MeasurementService: Service() {
@@ -29,6 +30,7 @@ class MeasurementService: Service() {
     private var download: Measurement? = null
     private var upload: Measurement? = null
     private var group: MeasurementGroup? = null
+    private var groupId: String? = null
 
     companion object {
         const val EXTRA_COLLECTION_MODE = "collection_mode"
@@ -98,8 +100,12 @@ class MeasurementService: Service() {
         download = null
         upload = null
 
+        val gid = UUID.randomUUID().toString()
+        groupId = gid
+
         try {
             val g = MeasurementManager.runTestSequence(
+                gid,
                 inVehicle,
                 mode,
                 { state.update { State.LOCATE } },
@@ -133,6 +139,9 @@ class MeasurementService: Service() {
 
         val group: MeasurementGroup?
             get() = service.group
+
+        val groupId: String?
+            get() = service.groupId
 
         val state: StateFlow<State?> = service.state
     }

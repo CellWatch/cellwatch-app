@@ -2,5 +2,6 @@
 <resources>
     <declare-styleable name="MeasurementGroupItem">
         <attr name="expandable" format="boolean" />
+        <attr name="summaryLabels" format="boolean" />
     </declare-styleable>
 </resources>
