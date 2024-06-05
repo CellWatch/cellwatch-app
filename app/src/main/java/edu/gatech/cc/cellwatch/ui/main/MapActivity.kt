@@ -207,44 +207,43 @@ class MapActivity : AppCompatActivity() {
 
     private fun toggleHexGrid(enabled: Boolean) {
         hexGridEnabled = enabled
-        measurementPointsEnabled = !enabled
+        setHexGridVisibility(enabled && hexGridZoomValid)
+        setMeasurementPointsVisibility(!enabled || !hexGridZoomValid)
     }
 
     private var hexGridEnabled = true
-        set(enabled) {
-            field = enabled
+    private var hexGridZoomValid = true
 
-            mapboxMap.style?.apply {
-                getLayer(parentHexGridLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
-                getLayer(childHexGridLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
-            }
+    private fun setHexGridVisibility(visible: Boolean) {
+        mapboxMap.style?.apply {
+            getLayer(parentHexGridLayerId)?.visibility(if (visible) Visibility.VISIBLE else Visibility.NONE)
+            getLayer(childHexGridLayerId)?.visibility(if (visible) Visibility.VISIBLE else Visibility.NONE)
+        }
 
-            viewAnnotationManager.annotations.forEach { (view) -> updateCountViewVisible(view) }
+        viewAnnotationManager.annotations.forEach { (view) -> updateCountViewVisible(view, visible) }
 
-            if(enabled) {
-                refreshHexGrid()
+        if (visible) {
+            refreshHexGrid()
+        }
+    }
+
+    private fun setMeasurementPointsVisibility(visible: Boolean) {
+        mapboxMap.style?.apply {
+            getLayer(measurementPointLayerId)?.visibility(if (visible) Visibility.VISIBLE else Visibility.NONE)
+            styleLayers.filter { it.id.startsWith(clusterLayerIdPrefix) }.forEach {
+                getLayer(it.id)?.visibility(if (visible) Visibility.VISIBLE else Visibility.NONE)
             }
         }
 
-    private var measurementPointsEnabled = false
-        set(enabled) {
-            field = enabled
-            mapboxMap.style?.apply {
-                getLayer(measurementPointLayerId)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
-                styleLayers.filter { it.id.startsWith(clusterLayerIdPrefix) }.forEach {
-                    getLayer(it.id)?.visibility(if (enabled) Visibility.VISIBLE else Visibility.NONE)
-                }
-            }
-
-            if(enabled) {
-                pointAnnotationManager.addClickListener(onAnnotationClickListener)
-                mapboxMap.addOnMapClickListener(handlePointClusterClick)
-                refreshMeasurementGroups()
-            } else {
-                pointAnnotationManager.removeClickListener(onAnnotationClickListener)
-                mapboxMap.removeOnMapClickListener(handlePointClusterClick)
-            }
+        if (visible) {
+            pointAnnotationManager.addClickListener(onAnnotationClickListener)
+            mapboxMap.addOnMapClickListener(handlePointClusterClick)
+            refreshMeasurementGroups()
+        } else {
+            pointAnnotationManager.removeClickListener(onAnnotationClickListener)
+            mapboxMap.removeOnMapClickListener(handlePointClusterClick)
         }
+    }
 
     private var selectedParentHex: Pair<Long, PolygonAnnotation>? = null
         set(value) {
@@ -321,24 +320,18 @@ class MapActivity : AppCompatActivity() {
 
     private val cameraChangedCallback = CameraChangedCallback {
         debounceJob?.cancel()
-        if (binding.h3ToggleSwitch.isChecked) {
-            debounceJob = CoroutineScope(Dispatchers.Main).launch {
-                delay(100)
+        debounceJob = CoroutineScope(Dispatchers.Main).launch {
+            delay(100)
 
-                val currentZoom = mapboxMap.cameraState.zoom
+            val currentZoom = mapboxMap.cameraState.zoom
+            val oldValid = hexGridZoomValid
+            hexGridZoomValid = currentZoom >= 12.0
 
-                //TODO Adjust as needed
-                if (currentZoom < 12.0) {
-                    if (hexGridEnabled) {
-                        hexGridEnabled = false
-                    }
-                } else {
-                    if (!hexGridEnabled) {
-                        hexGridEnabled = true // setter calls refreshHexGrid()
-                    } else {
-                        refreshHexGrid()
-                    }
-                }
+            if (oldValid != hexGridZoomValid && hexGridEnabled) {
+                setHexGridVisibility(hexGridZoomValid)
+                setMeasurementPointsVisibility(!hexGridZoomValid)
+            } else if (hexGridZoomValid && hexGridEnabled) {
+                refreshHexGrid()
             }
         }
     }
@@ -461,8 +454,8 @@ class MapActivity : AppCompatActivity() {
         viewAnnotationManager.addViewAnnotation(view, viewOptions)
     }
 
-    private fun updateCountViewVisible(view: View) {
-        view.isVisible = hexGridEnabled && view.tag != selectedParentHex?.first
+    private fun updateCountViewVisible(view: View, visible: Boolean = true) {
+        view.isVisible = visible && hexGridEnabled && hexGridZoomValid && view.tag != selectedParentHex?.first
     }
 
     private fun removeChildHexes(parentAddress: Long) {
