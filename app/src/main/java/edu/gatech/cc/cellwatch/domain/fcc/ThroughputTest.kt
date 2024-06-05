@@ -45,8 +45,10 @@ class ThroughputTest(
         // manually iterate by index to avoid ConcurrentModificationException
         var latest: ThroughputUpdate? = null
         for (i in (s.updates.size - 1) downTo 0) {
-            if (isFromReceiver(s.updates[i])) {
-                latest = s.updates[i]
+            // sometimes we get an index out of bounds exception here (not sure how) -- avoid it
+            val update = s.updates.getOrNull(i) ?: continue
+            if (isFromReceiver(update)) {
+                latest = update
                 break
             }
         }
