@@ -3,12 +3,15 @@ package edu.gatech.cc.cellwatch.ui.main
 import android.content.Context
 import android.text.format.DateFormat
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
 import androidx.core.view.isVisible
+import androidx.core.view.updateMargins
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import com.google.android.flexbox.FlexboxLayout
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
@@ -27,17 +30,39 @@ class MeasurementGroupItem(
         true,
     )
     private val expandable: Boolean
+    private val summaryLabels: Boolean
     private var currentGroup: MeasurementGroup? = null
     private var model: MeasurementGroupItemViewModel? = null
 
     init {
         val arr = context.obtainStyledAttributes(attrs, R.styleable.MeasurementGroupItem)
         expandable = arr.getBoolean(R.styleable.MeasurementGroupItem_expandable, false)
+        summaryLabels = arr.getBoolean(R.styleable.MeasurementGroupItem_summaryLabels, false)
         arr.recycle()
     }
 
     override fun onFinishInflate() {
         super.onFinishInflate()
+
+        val dp = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1F, resources.displayMetrics).toInt()
+        for (s in listOf(binding.summaryLatency, binding.summaryDownload, binding.summaryUpload)) {
+            val params = FlexboxLayout.LayoutParams(
+                if (summaryLabels) LayoutParams.MATCH_PARENT else LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT,
+            )
+
+            if (summaryLabels) {
+                params.updateMargins(top = 4 * dp, bottom = 4 * dp)
+            } else if (s !== binding.summaryUpload) {
+                params.marginEnd = 8 * dp
+            }
+
+            s.layoutParams = params
+        }
+
+        binding.summaryLatencyLabel.isVisible = summaryLabels
+        binding.summaryDownloadLabel.isVisible = summaryLabels
+        binding.summaryUploadLabel.isVisible = summaryLabels
 
         if (expandable) {
             fun toggleDetails() {
@@ -61,7 +86,7 @@ class MeasurementGroupItem(
     }
 
     private fun setDetailsVisibility(visible: Boolean) {
-        currentGroup?.id()?.let {
+        currentGroup?.id?.let {
             if (visible) {
                 model?.expandedGroupIds?.add(it)
             } else {
@@ -71,8 +96,6 @@ class MeasurementGroupItem(
 
         binding.metaContainer.isVisible = visible
         binding.resultsContainer.isVisible = visible
-        binding.sep1.isVisible = visible
-        binding.sep2.isVisible = visible
         binding.summary.isVisible = !visible
         binding.expandButton.rotation = if (visible) 90F else 0F
     }
@@ -86,7 +109,7 @@ class MeasurementGroupItem(
     ) {
         currentGroup = group
         if (expandable) {
-            model?.let { setDetailsVisibility(group.id() in it.expandedGroupIds) }
+            model?.let { setDetailsVisibility(group.id in it.expandedGroupIds) }
         }
 
         val timestamp = group.latency?.timestamp
@@ -128,6 +151,10 @@ class MeasurementGroupItem(
         }
         val uploadTime = if (uploadTimes.all { it != null }) uploadTimes.firstOrNull() else null
         updateUploadTime(uploadTime)
+
+        binding.summaryLatencyText.text = group.latency?.displayValue(context) ?: "-"
+        binding.summaryDownloadText.text = group.download?.displayValue(context) ?: "-"
+        binding.summaryUploadText.text = group.upload?.displayValue(context) ?: "-"
 
         binding.latencyItem.setData("latency", group.latency, displayedHexAddress, inProgress)
         binding.downloadItem.setData("download", group.download, displayedHexAddress, inProgress)

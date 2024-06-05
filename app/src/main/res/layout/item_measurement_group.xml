@@ -33,7 +33,7 @@
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:src="@drawable/fa_solid_caret_right"
-                    app:tint="@color/cw_green"
+                    app:tint="@color/cw_black"
                     android:background="@null"
                     android:layout_gravity="center"
                     android:layout_marginStart="-8dp" />
@@ -52,8 +52,8 @@
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="8dp"
                         android:text="28 Feb 2024"
-                        android:textColor="@color/cw_green"
-                        android:textSize="20sp"
+                        android:textColor="@color/cw_black"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -62,8 +62,8 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="08:19:54"
-                        android:textColor="@color/cw_green"
-                        android:textSize="20sp"
+                        android:textColor="@color/cw_black"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
                 </com.google.android.flexbox.FlexboxLayout>
             </LinearLayout>
@@ -77,10 +77,10 @@
                 android:paddingStart="24dp">
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:id="@+id/summaryLatency"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginVertical="2dp"
-                    android:layout_marginEnd="8dp"
                     android:orientation="horizontal">
 
                     <ImageView
@@ -93,20 +93,32 @@
                         app:tint="@color/cw_green" />
 
                     <TextView
+                        android:id="@+id/summaryLatencyLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="4dp"
+                        android:text="@string/latency"
+                        android:textStyle="bold"
+                        android:textColor="@color/cw_green"
+                        android:textSize="16sp" />
+
+                    <TextView
                         android:id="@+id/summaryLatencyText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="98 ms"
                         android:textAlignment="textEnd"
+                        android:textStyle="bold"
                         android:textColor="@color/cw_green"
                         android:textSize="16sp" />
                 </LinearLayout>
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:id="@+id/summaryDownload"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginVertical="2dp"
-                    android:layout_marginEnd="8dp"
                     android:orientation="horizontal">
 
                     <ImageView
@@ -119,17 +131,30 @@
                         app:tint="@color/cw_green" />
 
                     <TextView
+                        android:id="@+id/summaryDownloadLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="4dp"
+                        android:text="@string/download"
+                        android:textStyle="bold"
+                        android:textColor="@color/cw_green"
+                        android:textSize="16sp" />
+
+                    <TextView
                         android:id="@+id/summaryDownloadText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="77 Mbps"
                         android:textAlignment="textEnd"
+                        android:textStyle="bold"
                         android:textColor="@color/cw_green"
                         android:textSize="16sp" />
                 </LinearLayout>
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:id="@+id/summaryUpload"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginVertical="2dp"
                     android:orientation="horizontal">
@@ -144,30 +169,42 @@
                         app:tint="@color/cw_green" />
 
                     <TextView
+                        android:id="@+id/summaryUploadLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="4dp"
+                        android:text="@string/upload"
+                        android:textStyle="bold"
+                        android:textColor="@color/cw_green"
+                        android:textSize="16sp" />
+
+                    <TextView
                         android:id="@+id/summaryUploadText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="23 Mbps"
                         android:textAlignment="textEnd"
+                        android:textStyle="bold"
                         android:textColor="@color/cw_green"
                         android:textSize="16sp" />
                 </LinearLayout>
             </com.google.android.flexbox.FlexboxLayout>
         </LinearLayout>
 
-        <View
-            android:id="@+id/sep1"
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="12dp"
-            android:background="@color/cw_grey_dark" />
-
         <LinearLayout
             android:id="@+id/metaContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="12dp"
+                android:background="@color/cw_grey_dark" />
+
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -252,18 +289,17 @@
             </LinearLayout>
         </LinearLayout>
 
-        <View
-            android:id="@+id/sep2"
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginVertical="12dp"
-            android:background="@color/cw_grey_dark" />
-
         <LinearLayout
             android:id="@+id/resultsContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="12dp"
+                android:background="@color/cw_grey_dark" />
 
             <edu.gatech.cc.cellwatch.ui.main.MeasurementItem
                 android:id="@+id/latencyItem"
