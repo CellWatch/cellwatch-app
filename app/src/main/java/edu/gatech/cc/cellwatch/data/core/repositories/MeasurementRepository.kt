@@ -221,7 +221,7 @@ class MeasurementRepository(
         Log.d(TAG, "adding tcp tuple to submissions $tuple")
         fccSubmissions.forEach {
             it.sourceIp = tuple.remoteAddress
-            it.sourcePort = "${tuple.remotePort}"
+            it.sourcePort = tuple.remotePort
             it.serverTimestamp = Instant.fromEpochMilliseconds(tuple.timestamp)
         }
 
