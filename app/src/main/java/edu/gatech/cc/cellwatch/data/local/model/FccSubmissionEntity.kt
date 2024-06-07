@@ -44,6 +44,7 @@ data class FccSubmissionEntity(
     val submitted: Boolean? = false,
     val submittedOn: Instant? = null,
     val submission: String? = null,
+    val submissionResponse: String? = null,
 
     val createdOn: Instant? = null,
     val updatedOn: Instant? = null,

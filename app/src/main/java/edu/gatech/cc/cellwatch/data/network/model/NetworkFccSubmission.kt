@@ -90,6 +90,9 @@ data class NetworkFccSubmission(
 
     val submission: String? = null,
 
+    @SerialName("submission_response")
+    val submissionResponse: String? = null,
+
     @SerialName("created_on")
     val createdOn: Instant? = null,
 
@@ -126,6 +129,7 @@ fun NetworkFccSubmission.asExternalModel() = FccSubmission(
     submitted,
     submittedOn,
     submission,
+    submissionResponse,
     createdOn,
     updatedOn
 )
