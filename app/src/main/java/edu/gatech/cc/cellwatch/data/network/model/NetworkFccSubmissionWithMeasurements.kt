@@ -42,6 +42,7 @@ fun NetworkFccSubmissionWithMeasurements.asExternalModel() = FccSubmission(
     fccSubmission.submitted,
     fccSubmission.submittedOn,
     fccSubmission.submission,
+    fccSubmission.submissionResponse,
     fccSubmission.createdOn,
     fccSubmission.updatedOn,
     measurements?.map { measurement -> measurement.asExternalModel() }

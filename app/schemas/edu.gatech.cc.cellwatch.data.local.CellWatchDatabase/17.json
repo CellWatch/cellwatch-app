@@ -1,0 +1,923 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 17,
+    "identityHash": "821f557a62cd9c4395201f169afa68b4",
+    "entities": [
+      {
+        "tableName": "FccSubmissionEntity",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `challengeDataId` TEXT, `contactName` TEXT, `contactEmail` TEXT, `contactPhone` TEXT, `deviceTimestamp` INTEGER, `serverTimestamp` INTEGER, `sourceIp` TEXT, `sourcePort` INTEGER, `deviceId` TEXT, `deviceImei` TEXT, `deviceTac` TEXT, `deviceType` TEXT, `deviceManufacturer` TEXT, `deviceModel` TEXT, `deviceOsName` TEXT, `appName` TEXT, `appVersion` TEXT, `provider` TEXT, `simCountryCode` TEXT, `simNetworkCode` TEXT, `netCountryCode` TEXT, `netNetworkCode` TEXT, `inVehicle` INTEGER, `externalAntenna` INTEGER, `submitted` INTEGER, `submittedOn` INTEGER, `submission` TEXT, `submissionResponse` TEXT, `createdOn` INTEGER, `updatedOn` INTEGER, `uploadTime` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "challengeDataId",
+            "columnName": "challengeDataId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "contactName",
+            "columnName": "contactName",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "contactEmail",
+            "columnName": "contactEmail",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "contactPhone",
+            "columnName": "contactPhone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceTimestamp",
+            "columnName": "deviceTimestamp",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "serverTimestamp",
+            "columnName": "serverTimestamp",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sourceIp",
+            "columnName": "sourceIp",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sourcePort",
+            "columnName": "sourcePort",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "deviceId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceImei",
+            "columnName": "deviceImei",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceTac",
+            "columnName": "deviceTac",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceType",
+            "columnName": "deviceType",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceManufacturer",
+            "columnName": "deviceManufacturer",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceModel",
+            "columnName": "deviceModel",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceOsName",
+            "columnName": "deviceOsName",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "appName",
+            "columnName": "appName",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "appVersion",
+            "columnName": "appVersion",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "simCountryCode",
+            "columnName": "simCountryCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "simNetworkCode",
+            "columnName": "simNetworkCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "netCountryCode",
+            "columnName": "netCountryCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "netNetworkCode",
+            "columnName": "netNetworkCode",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "inVehicle",
+            "columnName": "inVehicle",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "externalAntenna",
+            "columnName": "externalAntenna",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "submitted",
+            "columnName": "submitted",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "submittedOn",
+            "columnName": "submittedOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "submission",
+            "columnName": "submission",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "submissionResponse",
+            "columnName": "submissionResponse",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdOn",
+            "columnName": "createdOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedOn",
+            "columnName": "updatedOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "uploadTime",
+            "columnName": "uploadTime",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_FccSubmissionEntity_challengeDataId",
+            "unique": false,
+            "columnNames": [
+              "challengeDataId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_FccSubmissionEntity_challengeDataId` ON `${TABLE_NAME}` (`challengeDataId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "MeasurementEntity",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `groupId` TEXT, `campaignId` TEXT, `sessionId` TEXT, `deviceId` TEXT, `deviceManufacturer` TEXT, `deviceModel` TEXT, `deviceOsName` TEXT, `deviceOsVersion` TEXT, `appName` TEXT, `provider` TEXT, `type` TEXT NOT NULL, `timestamp` INTEGER, `duration` INTEGER, `scheduled` INTEGER, `success` INTEGER, `carrierAggregation` INTEGER, `networkConnected` INTEGER, `networkAvailable` INTEGER, `networkRoaming` INTEGER, `simMcc` TEXT, `simMnc` TEXT, `netMcc` TEXT, `netMnc` TEXT, `connectionType` TEXT, `cellularDataEnabled` INTEGER, `extraData` TEXT, `createdOn` INTEGER, `updatedOn` INTEGER, `uploadTime` INTEGER, `appVersion` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "groupId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "campaignId",
+            "columnName": "campaignId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "deviceId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceManufacturer",
+            "columnName": "deviceManufacturer",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceModel",
+            "columnName": "deviceModel",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceOsName",
+            "columnName": "deviceOsName",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deviceOsVersion",
+            "columnName": "deviceOsVersion",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "appName",
+            "columnName": "appName",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "duration",
+            "columnName": "duration",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "scheduled",
+            "columnName": "scheduled",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "success",
+            "columnName": "success",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "carrierAggregation",
+            "columnName": "carrierAggregation",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "networkConnected",
+            "columnName": "networkConnected",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "networkAvailable",
+            "columnName": "networkAvailable",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "networkRoaming",
+            "columnName": "networkRoaming",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "simMcc",
+            "columnName": "simMcc",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "simMnc",
+            "columnName": "simMnc",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "netMcc",
+            "columnName": "netMcc",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "netMnc",
+            "columnName": "netMnc",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "connectionType",
+            "columnName": "connectionType",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "cellularDataEnabled",
+            "columnName": "cellularDataEnabled",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "extraData",
+            "columnName": "extraData",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdOn",
+            "columnName": "createdOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedOn",
+            "columnName": "updatedOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "uploadTime",
+            "columnName": "uploadTime",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "appVersion",
+            "columnName": "appVersion",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_MeasurementEntity_groupId",
+            "unique": false,
+            "columnNames": [
+              "groupId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MeasurementEntity_groupId` ON `${TABLE_NAME}` (`groupId`)"
+          },
+          {
+            "name": "index_MeasurementEntity_campaignId",
+            "unique": false,
+            "columnNames": [
+              "campaignId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MeasurementEntity_campaignId` ON `${TABLE_NAME}` (`campaignId`)"
+          },
+          {
+            "name": "index_MeasurementEntity_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MeasurementEntity_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          },
+          {
+            "name": "index_MeasurementEntity_deviceId",
+            "unique": false,
+            "columnNames": [
+              "deviceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MeasurementEntity_deviceId` ON `${TABLE_NAME}` (`deviceId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "UploadDownloadDataEntity",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `measurementId` TEXT, `warmupDuration` INTEGER, `warmupBytes` INTEGER, `duration` INTEGER, `bytes` INTEGER, `applicationBytes` INTEGER, `servers` TEXT, `createdOn` INTEGER, `updatedOn` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`measurementId`) REFERENCES `MeasurementEntity`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measurementId",
+            "columnName": "measurementId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "warmupDuration",
+            "columnName": "warmupDuration",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "warmupBytes",
+            "columnName": "warmupBytes",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "duration",
+            "columnName": "duration",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "bytes",
+            "columnName": "bytes",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "applicationBytes",
+            "columnName": "applicationBytes",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "servers",
+            "columnName": "servers",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdOn",
+            "columnName": "createdOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedOn",
+            "columnName": "updatedOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_UploadDownloadDataEntity_measurementId",
+            "unique": false,
+            "columnNames": [
+              "measurementId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_UploadDownloadDataEntity_measurementId` ON `${TABLE_NAME}` (`measurementId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "MeasurementEntity",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "measurementId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "LatencyDataEntity",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `measurementId` TEXT, `rtt` INTEGER, `jitter` INTEGER, `sent` INTEGER, `received` INTEGER, `servers` TEXT, `createdOn` INTEGER, `updatedOn` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`measurementId`) REFERENCES `MeasurementEntity`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measurementId",
+            "columnName": "measurementId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rtt",
+            "columnName": "rtt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "jitter",
+            "columnName": "jitter",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sent",
+            "columnName": "sent",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "received",
+            "columnName": "received",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "servers",
+            "columnName": "servers",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdOn",
+            "columnName": "createdOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedOn",
+            "columnName": "updatedOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_LatencyDataEntity_measurementId",
+            "unique": false,
+            "columnNames": [
+              "measurementId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_LatencyDataEntity_measurementId` ON `${TABLE_NAME}` (`measurementId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "MeasurementEntity",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "measurementId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "LocationEntity",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `timestamp` INTEGER, `lat` REAL, `lon` REAL, `accuracy` REAL, `speed` REAL, `speedAccuracy` REAL, `heading` REAL, `measurementId` TEXT, `createdOn` INTEGER, `updatedOn` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`measurementId`) REFERENCES `MeasurementEntity`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lat",
+            "columnName": "lat",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lon",
+            "columnName": "lon",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "accuracy",
+            "columnName": "accuracy",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "speed",
+            "columnName": "speed",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "speedAccuracy",
+            "columnName": "speedAccuracy",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "heading",
+            "columnName": "heading",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "measurementId",
+            "columnName": "measurementId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdOn",
+            "columnName": "createdOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedOn",
+            "columnName": "updatedOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_LocationEntity_measurementId",
+            "unique": false,
+            "columnNames": [
+              "measurementId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_LocationEntity_measurementId` ON `${TABLE_NAME}` (`measurementId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "MeasurementEntity",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "measurementId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "CellEntity",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `timestamp` INTEGER, `cellId` INTEGER, `physicalCellId` INTEGER, `cellConnection` INTEGER, `networkGeneration` TEXT, `networkSubtype` TEXT, `signalStrength` INTEGER, `rssi` INTEGER, `rsrp` INTEGER, `rsrq` INTEGER, `sinr` INTEGER, `csiRsrp` INTEGER, `csiRsrq` INTEGER, `csiSinr` INTEGER, `cqi` INTEGER, `spectrumBand` TEXT, `spectrumBandwidth` REAL, `arfcn` INTEGER, `measurementId` TEXT, `createdOn` INTEGER, `updatedOn` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`measurementId`) REFERENCES `MeasurementEntity`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "cellId",
+            "columnName": "cellId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "physicalCellId",
+            "columnName": "physicalCellId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "cellConnection",
+            "columnName": "cellConnection",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "networkGeneration",
+            "columnName": "networkGeneration",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "networkSubtype",
+            "columnName": "networkSubtype",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "signalStrength",
+            "columnName": "signalStrength",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rssi",
+            "columnName": "rssi",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rsrp",
+            "columnName": "rsrp",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rsrq",
+            "columnName": "rsrq",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sinr",
+            "columnName": "sinr",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "csiRsrp",
+            "columnName": "csiRsrp",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "csiRsrq",
+            "columnName": "csiRsrq",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "csiSinr",
+            "columnName": "csiSinr",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "cqi",
+            "columnName": "cqi",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "spectrumBand",
+            "columnName": "spectrumBand",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "spectrumBandwidth",
+            "columnName": "spectrumBandwidth",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "arfcn",
+            "columnName": "arfcn",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "measurementId",
+            "columnName": "measurementId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdOn",
+            "columnName": "createdOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedOn",
+            "columnName": "updatedOn",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_CellEntity_measurementId",
+            "unique": false,
+            "columnNames": [
+              "measurementId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CellEntity_measurementId` ON `${TABLE_NAME}` (`measurementId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "MeasurementEntity",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "measurementId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '821f557a62cd9c4395201f169afa68b4')"
+    ]
+  }
+}
