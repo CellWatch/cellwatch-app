@@ -10,17 +10,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
-import com.google.i18n.phonenumbers.NumberParseException
-import com.google.i18n.phonenumbers.PhoneNumberUtil
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.core.util.ContactInfoValidator
 import edu.gatech.cc.cellwatch.core.util.setCopyOnClick
 import edu.gatech.cc.cellwatch.data.core.repositories.SettingsRepository
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.databinding.ActivitySettingsBinding
 import kotlinx.coroutines.launch
-import org.apache.commons.validator.routines.EmailValidator
 
 class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
@@ -161,21 +159,23 @@ class SettingsActivity : AppCompatActivity() {
         var valid = true
 
         if (phone.isNotEmpty()) {
-            val phoneUtil = PhoneNumberUtil.getInstance()
-            val numberProto = try {
-                phoneUtil.parse(phone, "US")
-            } catch (e: NumberParseException) {
-                null
-            }
-            if (numberProto == null || !phoneUtil.isValidNumber(numberProto)) {
+            val validatedPhone = ContactInfoValidator.asValidPhoneNumber(phone)
+            if (validatedPhone != null) {
+                binding.phoneEditText.setText(validatedPhone)
+            } else {
                 binding.phoneEditText.error = getString(R.string.invalid_phone)
                 valid = false
             }
         }
 
-        if (email.isNotEmpty() && !EmailValidator.getInstance().isValid(email)) {
-            binding.emailEditText.error = getString(R.string.invalid_email)
-            valid = false
+        if (email.isNotEmpty()) {
+            val validatedEmail = ContactInfoValidator.asValidEmail(email)
+            if (validatedEmail != null) {
+                binding.emailEditText.setText(validatedEmail)
+            } else {
+                binding.emailEditText.error = getString(R.string.invalid_email)
+                valid = false
+            }
         }
 
         return valid
