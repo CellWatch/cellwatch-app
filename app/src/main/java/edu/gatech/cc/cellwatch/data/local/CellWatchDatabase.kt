@@ -6,6 +6,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import edu.gatech.cc.cellwatch.core.util.SingletonHolder
 import edu.gatech.cc.cellwatch.data.local.dao.CellDao
 import edu.gatech.cc.cellwatch.data.local.dao.FccSubmissionDao
@@ -31,10 +33,11 @@ import edu.gatech.cc.cellwatch.data.local.util.ListConverter
         LocationEntity::class,
         CellEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = true,
     autoMigrations = [
-        AutoMigration(from = 15, to = 16)
+        AutoMigration(from = 15, to = 16),
+        AutoMigration(from = 16, to = 17),
     ]
 )
 @TypeConverters(
@@ -60,6 +63,14 @@ abstract class CellWatchDatabase : RoomDatabase() {
             CellWatchDatabase::class.java,
             "cellwatch_database"
         )
+            .addMigrations(MIGRATION_ADD_SUBMISSION_RESPONSE)
             .build()
     })
+
+}
+
+val MIGRATION_ADD_SUBMISSION_RESPONSE = object : Migration(16, 17) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE FccSubmissionEntity ADD COLUMN submissionResponse TEXT")
+    }
 }

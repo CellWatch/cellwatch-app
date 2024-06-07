@@ -37,6 +37,7 @@ data class FccSubmission(
     var submitted: Boolean? = false,
     var submittedOn: Instant? = null,
     var submission: String? = null,
+    var submissionResponse: String? = null,
     val createdOn: Instant? = null,
     val updatedOn: Instant? = null,
     var measurements: List<Measurement>? = null,
@@ -73,6 +74,7 @@ fun FccSubmission.asEntity() = FccSubmissionEntity(
     submitted,
     submittedOn,
     submission,
+    submissionResponse,
     createdOn,
     updatedOn,
     uploadTime
@@ -107,6 +109,7 @@ fun FccSubmission.asNetworkModel() = NetworkFccSubmission(
     submitted,
     submittedOn,
     submission,
+    submissionResponse,
     createdOn,
     updatedOn
 )
