@@ -9,14 +9,12 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import com.google.i18n.phonenumbers.NumberParseException
-import com.google.i18n.phonenumbers.PhoneNumberUtil
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.core.util.ContactInfoValidator
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.databinding.FragmentFccInformationBinding
 import kotlinx.coroutines.launch
-import org.apache.commons.validator.routines.EmailValidator
 
 class FCCInfoFragment : Fragment() {
     private lateinit var binding: FragmentFccInformationBinding
@@ -77,18 +75,18 @@ class FCCInfoFragment : Fragment() {
             valid = false
         }
 
-        val phoneUtil = PhoneNumberUtil.getInstance()
-        val numberProto = try {
-            phoneUtil.parse(phone, "US")
-        } catch (e: NumberParseException) {
-            null
-        }
-        if (phone.isBlank() || numberProto == null || !phoneUtil.isValidNumber(numberProto)) {
+        val validatedPhone = ContactInfoValidator.asValidPhoneNumber(phone)
+        if (validatedPhone != null) {
+            binding.etPhone.setText(validatedPhone)
+        } else {
             binding.etPhone.error = getString(R.string.invalid_phone)
             valid = false
         }
 
-        if (email.isBlank() || !EmailValidator.getInstance().isValid(email)) {
+        val validatedEmail = ContactInfoValidator.asValidEmail(email)
+        if (validatedEmail != null) {
+            binding.etEmail.setText(validatedEmail)
+        } else {
             binding.etEmail.error = getString(R.string.invalid_email)
             valid = false
         }
