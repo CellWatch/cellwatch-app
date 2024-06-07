@@ -17,7 +17,7 @@ data class FccSubmission(
     val deviceTimestamp: Instant? = null,
     var serverTimestamp: Instant? = null,
     var sourceIp: String? = null,
-    var sourcePort: String? = null,
+    var sourcePort: Int? = null,
     val deviceId: String? = null,
     val deviceImei: String? = null,
     val deviceTac: String? = null,

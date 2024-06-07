@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.data.local
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -30,8 +31,11 @@ import edu.gatech.cc.cellwatch.data.local.util.ListConverter
         LocationEntity::class,
         CellEntity::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = true,
+    autoMigrations = [
+        AutoMigration(from = 15, to = 16)
+    ]
 )
 @TypeConverters(
     InstantConverter::class,

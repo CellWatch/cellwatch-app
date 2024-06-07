@@ -33,7 +33,7 @@ data class NetworkFccSubmission(
     val sourceIp: String? = null,
 
     @SerialName("source_port")
-    val sourcePort: String? = null,
+    val sourcePort: Int? = null,
 
     @SerialName("device_id")
     val deviceId: String? = null,
