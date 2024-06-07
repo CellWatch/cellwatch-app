@@ -31,7 +31,7 @@ import edu.gatech.cc.cellwatch.data.local.util.ListConverter
         CellEntity::class
     ],
     version = 15,
-    exportSchema = false,
+    exportSchema = true,
 )
 @TypeConverters(
     InstantConverter::class,
@@ -52,9 +52,10 @@ abstract class CellWatchDatabase : RoomDatabase() {
 
     companion object : SingletonHolder<CellWatchDatabase, Context>({
         Room.databaseBuilder(
-                    it.applicationContext,
-                    CellWatchDatabase::class.java,
-                    "cellwatch_database"
-                ).fallbackToDestructiveMigration().build()
+            it.applicationContext,
+            CellWatchDatabase::class.java,
+            "cellwatch_database"
+        )
+            .build()
     })
 }
