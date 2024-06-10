@@ -1,14 +1,23 @@
 package edu.gatech.cc.cellwatch.ui.main
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.location.LocationManagerCompat.requestLocationUpdates
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
@@ -21,6 +30,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.gson.JsonPrimitive
 import com.mapbox.common.Cancelable
+import com.mapbox.common.location.Location
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraChangedCallback
@@ -57,6 +67,27 @@ import com.mapbox.maps.plugin.scalebar.scalebar
 import com.mapbox.maps.viewannotation.ViewAnnotationManager
 import com.mapbox.maps.viewannotation.geometry
 import com.mapbox.maps.viewannotation.viewAnnotationOptions
+
+import com.mapbox.common.location.LocationProvider
+import com.mapbox.search.ApiType
+import com.mapbox.search.ResponseInfo
+import com.mapbox.search.SearchEngine
+import com.mapbox.search.SearchEngineSettings
+import com.mapbox.search.offline.OfflineResponseInfo
+import com.mapbox.search.offline.OfflineSearchEngine
+import com.mapbox.search.offline.OfflineSearchEngineSettings
+import com.mapbox.search.offline.OfflineSearchResult
+import com.mapbox.search.record.HistoryRecord
+import com.mapbox.search.result.SearchAddress
+import com.mapbox.search.result.SearchResult
+import com.mapbox.search.result.SearchSuggestion
+import com.mapbox.search.ui.adapter.engines.SearchEngineUiAdapter
+import com.mapbox.search.ui.view.CommonSearchViewConfiguration
+import com.mapbox.search.ui.view.DistanceUnitType
+import com.mapbox.search.ui.view.SearchResultsView
+import com.mapbox.search.ui.view.place.SearchPlace
+import com.mapbox.search.ui.view.place.SearchPlaceBottomSheetView
+
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
@@ -92,9 +123,31 @@ class MapActivity : AppCompatActivity() {
     private lateinit var viewAnnotationManager: ViewAnnotationManager
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
+
     private val renderedMeasurementGroupIds = mutableSetOf<String>()
     private var debounceJob: Job? = null
     private var cameraChangeSubscription: Cancelable? = null
+
+    private lateinit var searchResultsView: SearchResultsView
+    private lateinit var searchEngine : SearchEngine
+    private lateinit var searchEngineUiAdapter : SearchEngineUiAdapter
+    private lateinit var locationProvider: LocationProvider
+    private lateinit var queryEditText: EditText
+    private lateinit var searchPlaceView: SearchPlaceBottomSheetView
+
+    private val onBackPressedCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            when {
+                !searchPlaceView.isHidden() -> {
+                    searchPlaceView.hide()
+                }
+                else -> {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -177,6 +230,7 @@ class MapActivity : AppCompatActivity() {
 
         binding.navDrawer.setOnCloseListener { binding.root.closeDrawer(GravityCompat.START) }
         binding.navDrawer.setActiveActivity(this)
+
         binding.sideMenuButton.setOnClickListener {
             if (binding.root.isDrawerOpen(GravityCompat.START)) {
                 binding.root.closeDrawer(GravityCompat.START)
@@ -201,7 +255,198 @@ class MapActivity : AppCompatActivity() {
                 Log.d(TAG, "failed to upload measurements and submissions", e)
             }
         }
+
+
+        onBackPressedDispatcher.addCallback(onBackPressedCallback)
+
+
+        queryEditText = binding.queryEditText
+        queryEditText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                // Do nothing
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                // Do nothing
+            }
+
+            override fun afterTextChanged(s: Editable?) {
+                s?.toString()?.let { query ->
+                    Log.d(TAG, "Query text changed: $query")
+                    searchEngineUiAdapter.search(query)
+                }
+            }
+        })
+
+        searchResultsView = findViewById<SearchResultsView>(R.id.search_results_view).apply {
+            initialize(
+                SearchResultsView.Configuration(CommonSearchViewConfiguration(DistanceUnitType.IMPERIAL))
+            )
+            isVisible = false
+        }
+
+        val searchEngineSettings = SearchEngineSettings()
+        locationProvider = searchEngineSettings.locationProvider ?: throw IllegalStateException("No location provider found")
+
+        val searchEngine = SearchEngine.createSearchEngineWithBuiltInDataProviders(
+            apiType = ApiType.SEARCH_BOX,
+            settings = searchEngineSettings
+        )
+
+        val offlineSearchEngine = OfflineSearchEngine.create(
+            OfflineSearchEngineSettings(locationProvider = locationProvider)
+        )
+
+        searchEngineUiAdapter = SearchEngineUiAdapter(
+            view = searchResultsView,
+            searchEngine = searchEngine,
+            offlineSearchEngine = offlineSearchEngine,
+        )
+
+        searchEngineUiAdapter.addSearchListener(object : SearchEngineUiAdapter.SearchListener {
+
+            override fun onSuggestionsShown(suggestions: List<SearchSuggestion>, responseInfo: ResponseInfo) {
+                Log.d(TAG, "Suggestions shown: $suggestions")
+                searchResultsView.isVisible = true
+            }
+
+            override fun onSearchResultsShown(
+                suggestion: SearchSuggestion,
+                results: List<SearchResult>,
+                responseInfo: ResponseInfo
+            ) {
+                Log.d(TAG, "Search results shown for suggestion: $suggestion, results: $results")
+                if (results.isNotEmpty()) {
+                    val firstResult = results[0]
+                    val coordinate = firstResult.coordinate
+                    mapboxMap.setCamera(
+                        CameraOptions.Builder()
+                            .center(coordinate)
+                            .zoom(14.0)
+                            .build()
+                    )
+                }
+            }
+
+            override fun onOfflineSearchResultsShown(results: List<OfflineSearchResult>, responseInfo: OfflineResponseInfo) {
+                // Handle offline search results (e.g., move camera to result)
+                Log.d(TAG, "Offline search results shown: $results")
+                if (results.isNotEmpty()) {
+                    val firstResult = results[0]
+                    val coordinate = firstResult.coordinate
+                    mapboxMap.setCamera(
+                        CameraOptions.Builder()
+                            .center(coordinate)
+                            .zoom(14.0)
+                            .build()
+                    )
+                    searchResultsView.isVisible = false
+                }
+            }
+
+            override fun onSuggestionSelected(searchSuggestion: SearchSuggestion): Boolean {
+                Log.d(TAG, "Suggestion selected: $searchSuggestion")
+                return false
+            }
+
+            override fun onSearchResultSelected(searchResult: SearchResult, responseInfo: ResponseInfo) {
+                Log.d(TAG, "Search result selected: $searchResult")
+                //searchPlaceView.open(SearchPlace.createFromSearchResult(searchResult, responseInfo))
+                val coordinate = searchResult.coordinate
+                mapboxMap.setCamera(
+                    CameraOptions.Builder()
+                        .center(coordinate)
+                        .zoom(14.0)
+                        .build()
+                )
+                searchResultsView.isVisible = false
+                hideKeyboard()
+            }
+
+            override fun onOfflineSearchResultSelected(searchResult: OfflineSearchResult, responseInfo: OfflineResponseInfo) {
+                Log.d(TAG, "Offline search result selected: $searchResult")
+                //searchPlaceView.open(SearchPlace.createFromOfflineSearchResult(searchResult))
+                val coordinate = searchResult.coordinate
+                mapboxMap.setCamera(
+                    CameraOptions.Builder()
+                        .center(coordinate)
+                        .zoom(14.0)
+                        .build()
+                )
+                searchResultsView.isVisible = false
+                hideKeyboard()
+            }
+
+            override fun onError(e: Exception) {
+                //TODO Better error handling?
+                Log.e(TAG, "Error occurred: $e")
+                Toast.makeText(applicationContext, "Error happened: $e", Toast.LENGTH_SHORT).show()
+            }
+
+            override fun onHistoryItemClick(historyRecord: HistoryRecord) {
+                Log.d(TAG, "History item clicked: $historyRecord")
+                //searchPlaceView.open(SearchPlace.createFromIndexableRecord(historyRecord, distanceMeters = null))
+                val coordinate = historyRecord.coordinate
+                mapboxMap.setCamera(
+                    CameraOptions.Builder()
+                        .center(coordinate)
+                        .zoom(14.0)
+                        .build()
+                )
+                searchResultsView.isVisible = false
+                hideKeyboard()
+            }
+
+            override fun onPopulateQueryClick(suggestion: SearchSuggestion, responseInfo: ResponseInfo) {
+                Log.d(TAG, "Populate query click: $suggestion")
+                queryEditText.setText(suggestion.name)
+            }
+
+            override fun onFeedbackItemClick(responseInfo: ResponseInfo) {
+                // Not implemented
+            }
+        })
+
+        searchPlaceView = binding.searchPlaceView
+        searchPlaceView.initialize(CommonSearchViewConfiguration(DistanceUnitType.IMPERIAL))
+
+        searchPlaceView.addOnCloseClickListener {
+            searchPlaceView.hide()
+        }
+
+        searchPlaceView.addOnNavigateClickListener { searchPlace ->
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${searchPlace.coordinate.latitude()}, ${searchPlace.coordinate.longitude()}")))
+        }
+
+        searchPlaceView.addOnShareClickListener { searchPlace ->
+            val text = "${searchPlace.name}. " +
+                    "Address: ${searchPlace.address?.formattedAddress(SearchAddress.FormatStyle.Short) ?: "unknown"}. " +
+                    "Geo coordinate: (lat=${searchPlace.coordinate.latitude()}, lon=${searchPlace.coordinate.longitude()})"
+
+            startActivity(Intent().apply {
+                action = Intent.ACTION_SEND
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, text)
+               })
+        }
+
+        searchPlaceView.addOnBottomSheetStateChangedListener { _, _ ->
+            updateOnBackPressedCallbackEnabled()
+        }
     }
+
+    private fun updateOnBackPressedCallbackEnabled() {
+        onBackPressedCallback.isEnabled = !searchPlaceView.isHidden()
+    }
+
+    private fun hideKeyboard() {
+        val view = this.currentFocus
+        view?.let {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+        }
+    }
+
 
     private fun toggleHexGrid(enabled: Boolean) {
         hexGridEnabled = enabled
