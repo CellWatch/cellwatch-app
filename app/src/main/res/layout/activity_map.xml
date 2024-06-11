@@ -73,6 +73,20 @@
                     android:inputType="text" />
             </LinearLayout>
 
+            <com.mapbox.search.ui.view.SearchResultsView
+                android:id="@+id/search_results_view"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="8dp"
+                android:paddingVertical="16dp"
+                android:background="@color/cw_white"
+                android:clipToPadding="false"
+                android:elevation="20dp"
+                app:layout_constraintTop_toBottomOf="@id/search_container"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
             <!-- LinearLayout for action buttons -->
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -124,20 +138,6 @@
                 android:textColor="@color/cw_green"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent" />
-
-            <com.mapbox.search.ui.view.SearchResultsView
-                android:id="@+id/search_results_view"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="56dp"
-                android:paddingVertical="16dp"
-                android:background="@color/cw_white"
-                android:clipToPadding="false"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/search_container" />
-
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <LinearLayout
