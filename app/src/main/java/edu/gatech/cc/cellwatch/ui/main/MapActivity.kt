@@ -129,7 +129,6 @@ class MapActivity : AppCompatActivity() {
     private var cameraChangeSubscription: Cancelable? = null
 
     private lateinit var searchResultsView: SearchResultsView
-    private lateinit var searchEngine : SearchEngine
     private lateinit var searchEngineUiAdapter : SearchEngineUiAdapter
     private lateinit var locationProvider: LocationProvider
     private lateinit var queryEditText: EditText
@@ -256,10 +255,8 @@ class MapActivity : AppCompatActivity() {
             }
         }
 
-
+        // Search Implementation
         onBackPressedDispatcher.addCallback(onBackPressedCallback)
-
-
         queryEditText = binding.queryEditText
         queryEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
@@ -278,7 +275,7 @@ class MapActivity : AppCompatActivity() {
             }
         })
 
-        searchResultsView = findViewById<SearchResultsView>(R.id.search_results_view).apply {
+        searchResultsView = binding.searchResultsView.apply {
             initialize(
                 SearchResultsView.Configuration(CommonSearchViewConfiguration(DistanceUnitType.IMPERIAL))
             )
@@ -319,12 +316,7 @@ class MapActivity : AppCompatActivity() {
                 if (results.isNotEmpty()) {
                     val firstResult = results[0]
                     val coordinate = firstResult.coordinate
-                    mapboxMap.setCamera(
-                        CameraOptions.Builder()
-                            .center(coordinate)
-                            .zoom(14.0)
-                            .build()
-                    )
+                    centerCameraOnPoint(coordinate)
                 }
             }
 
@@ -334,12 +326,7 @@ class MapActivity : AppCompatActivity() {
                 if (results.isNotEmpty()) {
                     val firstResult = results[0]
                     val coordinate = firstResult.coordinate
-                    mapboxMap.setCamera(
-                        CameraOptions.Builder()
-                            .center(coordinate)
-                            .zoom(14.0)
-                            .build()
-                    )
+                    centerCameraOnPoint(coordinate)
                     searchResultsView.isVisible = false
                 }
             }
@@ -353,12 +340,7 @@ class MapActivity : AppCompatActivity() {
                 Log.d(TAG, "Search result selected: $searchResult")
                 //searchPlaceView.open(SearchPlace.createFromSearchResult(searchResult, responseInfo))
                 val coordinate = searchResult.coordinate
-                mapboxMap.setCamera(
-                    CameraOptions.Builder()
-                        .center(coordinate)
-                        .zoom(14.0)
-                        .build()
-                )
+                centerCameraOnPoint(coordinate)
                 searchResultsView.isVisible = false
                 hideKeyboard()
             }
@@ -367,12 +349,7 @@ class MapActivity : AppCompatActivity() {
                 Log.d(TAG, "Offline search result selected: $searchResult")
                 //searchPlaceView.open(SearchPlace.createFromOfflineSearchResult(searchResult))
                 val coordinate = searchResult.coordinate
-                mapboxMap.setCamera(
-                    CameraOptions.Builder()
-                        .center(coordinate)
-                        .zoom(14.0)
-                        .build()
-                )
+                centerCameraOnPoint(coordinate)
                 searchResultsView.isVisible = false
                 hideKeyboard()
             }
@@ -387,12 +364,7 @@ class MapActivity : AppCompatActivity() {
                 Log.d(TAG, "History item clicked: $historyRecord")
                 //searchPlaceView.open(SearchPlace.createFromIndexableRecord(historyRecord, distanceMeters = null))
                 val coordinate = historyRecord.coordinate
-                mapboxMap.setCamera(
-                    CameraOptions.Builder()
-                        .center(coordinate)
-                        .zoom(14.0)
-                        .build()
-                )
+                centerCameraOnPoint(coordinate)
                 searchResultsView.isVisible = false
                 hideKeyboard()
             }
@@ -446,7 +418,6 @@ class MapActivity : AppCompatActivity() {
             imm.hideSoftInputFromWindow(view.windowToken, 0)
         }
     }
-
 
     private fun toggleHexGrid(enabled: Boolean) {
         hexGridEnabled = enabled
@@ -766,6 +737,16 @@ class MapActivity : AppCompatActivity() {
 
             centerCameraOnUser()
         }
+    }
+
+
+    private fun centerCameraOnPoint(point: Point) {
+        mapboxMap.setCamera(
+            CameraOptions.Builder()
+                .zoom(14.0)
+                .center(point)
+                .build()
+        )
     }
 
     private fun centerCameraOnUser() {
