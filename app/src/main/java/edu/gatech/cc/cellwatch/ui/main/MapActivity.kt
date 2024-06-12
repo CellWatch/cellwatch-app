@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.graphics.drawable.toBitmap
@@ -27,10 +28,11 @@ import com.mapbox.maps.CameraChangedCallback
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.ImageHolder
 import com.mapbox.maps.MapboxMap
-import com.mapbox.maps.QueriedFeature
 import com.mapbox.maps.RenderedQueryGeometry
 import com.mapbox.maps.RenderedQueryOptions
 import com.mapbox.maps.Style
+import com.mapbox.maps.coroutine.getGeoJsonClusterChildren
+import com.mapbox.maps.coroutine.queryRenderedFeatures
 import com.mapbox.maps.extension.style.expressions.dsl.generated.interpolate
 import com.mapbox.maps.extension.style.layers.getLayer
 import com.mapbox.maps.extension.style.layers.properties.generated.Visibility
@@ -290,28 +292,63 @@ class MapActivity : AppCompatActivity() {
         true
     }
 
-    private val handlePointClusterClick = OnMapClickListener {  point ->
-        fun withClusterFeatures(cluster: QueriedFeature, fn: (features: List<Feature>) -> Unit) {
-            mapboxMap.getGeoJsonClusterLeaves( cluster.source, cluster.feature, Long.MAX_VALUE, 0 ) { res ->
-                res.onError { Log.e(TAG, "error querying for leaves: $it") }
-                res.onValue { it.featureCollection?.let { features -> fn(features) } }
+    private suspend fun getClusterFeatures(cluster: Feature, source: String): Pair<Collection<Feature>, Boolean> {
+        var complete = true
+
+        val children = mapboxMap.getGeoJsonClusterChildren(source, cluster).mapValue {
+            it.featureCollection ?: listOf()
+        }.getValueOrElse {
+            Log.e(TAG, "failed to get cluster children: $it")
+            complete = false
+            listOf()
+        }
+
+        val features = children.flatMap { feature ->
+            val isCluster = feature.properties()?.let {
+                it.has("cluster") && it.get("cluster").asBoolean
+            } ?: false
+
+            if (isCluster) {
+                val (f, c) = getClusterFeatures(feature, source)
+                complete = complete && c
+                f
+            } else {
+                listOf(feature)
             }
         }
 
-        mapboxMap.queryRenderedFeatures(
-            RenderedQueryGeometry(mapboxMap.pixelForCoordinate(point)),
-            RenderedQueryOptions(listOf(clusterTextLayerId), null)
-        ) { res ->
-            res.onError { Log.e(TAG, "error querying for cluster: $it") }
-            res.onValue { queriedFeatures ->
-                queriedFeatures.firstOrNull()?.let { cluster ->
-                    withClusterFeatures(cluster.queriedFeature) { features ->
-                        showBottomSheet(
-                            features.map { it.getProperty("custom_data").asString },
-                            getString(R.string.x_measurements, features.size)
-                        )
-                    }
+        return Pair(features, complete)
+    }
+
+    private val handlePointClusterClick = OnMapClickListener {  point ->
+        val context = this
+
+        lifecycleScope.launch {
+            try {
+                val queriedFeatures = mapboxMap.queryRenderedFeatures(
+                    RenderedQueryGeometry(mapboxMap.pixelForCoordinate(point)),
+                    RenderedQueryOptions(listOf(clusterTextLayerId), null)
+                ).getValueOrElse { throw Exception("error querying rendered features: $it") }
+
+                var complete = true
+                val features = queriedFeatures.flatMap {
+                    val (f, c) = getClusterFeatures(it.queriedFeature.feature, it.queriedFeature.source)
+                    complete = complete && c
+                    f
                 }
+
+                if (features.isNotEmpty()) {
+                    showBottomSheet(
+                        features.map { it.getProperty("custom_data").asString },
+                        getString(R.string.x_measurements, features.size)
+                    )
+                }
+
+                if (!complete) {
+                    Toast.makeText(context, R.string.failed_load_all_measurements, Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "failed to handle point cluster click", e)
             }
         }
 

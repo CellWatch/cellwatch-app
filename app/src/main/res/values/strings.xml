@@ -60,6 +60,7 @@
     <string name="search_map">Search Map</string>
     <string name="one_measurement">1 measurement</string>
     <string name="x_measurements">%1$d measurements</string>
+    <string name="failed_load_all_measurements">Something went wrong and we\'re only able to show you some of the selected measurements.</string>
 
     <!-- pre-measure -->
     <string name="stationary_or_moving">Are you standing outdoors or in a moving vehicle?</string>
