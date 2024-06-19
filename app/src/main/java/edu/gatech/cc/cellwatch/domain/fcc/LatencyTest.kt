@@ -1,8 +1,8 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
 import edu.gatech.cc.cellwatch.core.util.Log
-import edu.gatech.cc.cellwatch.domain.msak.Server
-import edu.gatech.cc.cellwatch.domain.msak.latency.LatencyTest
+import edu.gatech.cc.cellwatch.msak.Server
+import edu.gatech.cc.cellwatch.msak.latency.LatencyTest
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
@@ -32,9 +32,9 @@ class LatencyTest(
 
             msakTest.start()
 
-            msakTest.updatesChan.consumeEach {
-                if (it.message.LastRTT != null) {
-                    val result = _rttChan.trySend(it.message.LastRTT)
+            msakTest.updatesChan.consumeEach { update ->
+                update.message.LastRTT?.let {
+                    val result = _rttChan.trySend(it)
                     if (!result.isSuccess) {
                         Log.d(TAG, "failed to send rtt on channel: $result")
                     }
