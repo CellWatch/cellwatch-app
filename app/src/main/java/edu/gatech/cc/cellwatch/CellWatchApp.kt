@@ -16,7 +16,7 @@ class CellWatchApp : Application() {
     init {
         instance = this
 
-        // Using Conscrypt somehow makes the CountableSocket work with TLS sockets --
+        // Using Conscrypt somehow makes the msak CountableSocket work with TLS sockets --
         // it doesn't otherwise. I found a project on GitHub trying to count socket bytes
         // (https://github.com/dave-r12/okhttp-byte-counter) and then found a linked
         // issue (https://github.com/google/conscrypt/issues/65) that suggests Conscrypt

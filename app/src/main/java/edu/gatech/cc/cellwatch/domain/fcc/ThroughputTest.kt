@@ -3,11 +3,11 @@ package edu.gatech.cc.cellwatch.domain.fcc
 import android.os.Handler
 import android.os.Looper
 import edu.gatech.cc.cellwatch.core.util.Log
-import edu.gatech.cc.cellwatch.domain.msak.Server
-import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputDirection
-import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputStream
-import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputTest
-import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputUpdate
+import edu.gatech.cc.cellwatch.msak.Server
+import edu.gatech.cc.cellwatch.msak.throughput.ThroughputDirection
+import edu.gatech.cc.cellwatch.msak.throughput.ThroughputStream
+import edu.gatech.cc.cellwatch.msak.throughput.ThroughputTest
+import edu.gatech.cc.cellwatch.msak.throughput.ThroughputUpdate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
