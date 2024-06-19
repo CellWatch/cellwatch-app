@@ -1,6 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
-import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputMeasurement
+import edu.gatech.cc.cellwatch.msak.throughput.ThroughputMeasurement
 import kotlinx.serialization.Serializable
 
 @Serializable

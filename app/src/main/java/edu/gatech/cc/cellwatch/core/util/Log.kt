@@ -4,9 +4,11 @@ import com.google.firebase.Firebase
 import com.google.firebase.crashlytics.crashlytics
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.msak.Logger
+import edu.gatech.cc.cellwatch.msak.setLogger
 import kotlinx.coroutines.runBlocking
 
-object Log {
+object Log : Logger {
     const val VERBOSE = android.util.Log.VERBOSE
     const val DEBUG = android.util.Log.DEBUG
     const val INFO = android.util.Log.INFO
@@ -17,6 +19,8 @@ object Log {
         Firebase.crashlytics.setCustomKey("debug", BuildConfig.DEBUG)
         val deviceId = runBlocking { CellWatchApp.settingsRepository.getDeviceId() }
         Firebase.crashlytics.setCustomKey("device_id", deviceId ?: "NULL")
+
+        setLogger(this)
     }
 
     private fun log(level: Int, tag: String?, message: String?, throwable: Throwable?) {
@@ -34,23 +38,23 @@ object Log {
         }
     }
 
-    fun v(tag: String?, message: String?, throwable: Throwable? = null) {
+    override fun v(tag: String?, message: String?, throwable: Throwable?) {
         log(VERBOSE, tag, message, throwable)
     }
 
-    fun d(tag: String?, message: String?, throwable: Throwable? = null) {
+    override fun d(tag: String?, message: String?, throwable: Throwable?) {
         log(DEBUG, tag, message, throwable)
     }
 
-    fun i(tag: String?, message: String?, throwable: Throwable? = null) {
+    override fun i(tag: String?, message: String?, throwable: Throwable?) {
         log(INFO, tag, message, throwable)
     }
 
-    fun w(tag: String?, message: String?, throwable: Throwable? = null) {
+    override fun w(tag: String?, message: String?, throwable: Throwable?) {
         log(WARN, tag, message, throwable)
     }
 
-    fun e(tag: String?, message: String?, throwable: Throwable? = null) {
+    override fun e(tag: String?, message: String?, throwable: Throwable?) {
         log(ERROR, tag, message, throwable)
     }
 }
