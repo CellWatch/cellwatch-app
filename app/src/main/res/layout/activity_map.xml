@@ -28,7 +28,7 @@
 
             <LinearLayout
                 android:id="@+id/search_container"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_margin="16dp"
                 android:orientation="horizontal"
@@ -75,17 +75,16 @@
 
             <com.mapbox.search.ui.view.SearchResultsView
                 android:id="@+id/search_results_view"
-                android:layout_width="match_parent"
+                android:theme="@style/CustomSearchSdkTheme"
+                android:layout_width="0dp"
                 android:layout_height="0dp"
-                android:layout_marginTop="8dp"
-                android:paddingVertical="16dp"
-                android:background="@color/cw_white"
-                android:clipToPadding="false"
                 android:elevation="20dp"
-                app:layout_constraintTop_toBottomOf="@id/search_container"
+                android:background="@color/cw_white"
+                android:paddingVertical="16dp"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent" />
+                app:layout_constraintEnd_toEndOf="@id/search_container"
+                app:layout_constraintStart_toStartOf="@id/search_container"
+                app:layout_constraintTop_toBottomOf="@id/search_container" />
 
             <!-- LinearLayout for action buttons -->
             <LinearLayout
@@ -200,21 +199,6 @@
                 android:padding="16dp"
                 android:scrollbars="vertical" />
         </LinearLayout>
-    </androidx.coordinatorlayout.widget.CoordinatorLayout>
-
-    <androidx.coordinatorlayout.widget.CoordinatorLayout
-        android:id="@+id/search_container_view"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <com.mapbox.search.ui.view.place.SearchPlaceBottomSheetView
-            android:id="@+id/search_place_view"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal" />
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <edu.gatech.cc.cellwatch.ui.main.NavigationDrawer
