@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.TextView
@@ -132,21 +133,7 @@ class MapActivity : AppCompatActivity() {
     private lateinit var searchEngineUiAdapter : SearchEngineUiAdapter
     private lateinit var locationProvider: LocationProvider
     private lateinit var queryEditText: EditText
-    private lateinit var searchPlaceView: SearchPlaceBottomSheetView
 
-    private val onBackPressedCallback = object : OnBackPressedCallback(false) {
-        override fun handleOnBackPressed() {
-            when {
-                !searchPlaceView.isHidden() -> {
-                    searchPlaceView.hide()
-                }
-                else -> {
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
-                }
-            }
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -256,7 +243,6 @@ class MapActivity : AppCompatActivity() {
         }
 
         // Search Implementation
-        onBackPressedDispatcher.addCallback(onBackPressedCallback)
         queryEditText = binding.queryEditText
         queryEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
@@ -281,6 +267,7 @@ class MapActivity : AppCompatActivity() {
             )
             isVisible = false
         }
+
 
         val searchEngineSettings = SearchEngineSettings()
         locationProvider = searchEngineSettings.locationProvider ?: throw IllegalStateException("No location provider found")
@@ -321,7 +308,6 @@ class MapActivity : AppCompatActivity() {
             }
 
             override fun onOfflineSearchResultsShown(results: List<OfflineSearchResult>, responseInfo: OfflineResponseInfo) {
-                // Handle offline search results (e.g., move camera to result)
                 Log.d(TAG, "Offline search results shown: $results")
                 if (results.isNotEmpty()) {
                     val firstResult = results[0]
@@ -338,7 +324,6 @@ class MapActivity : AppCompatActivity() {
 
             override fun onSearchResultSelected(searchResult: SearchResult, responseInfo: ResponseInfo) {
                 Log.d(TAG, "Search result selected: $searchResult")
-                //searchPlaceView.open(SearchPlace.createFromSearchResult(searchResult, responseInfo))
                 val coordinate = searchResult.coordinate
                 centerCameraOnPoint(coordinate)
                 searchResultsView.isVisible = false
@@ -347,7 +332,6 @@ class MapActivity : AppCompatActivity() {
 
             override fun onOfflineSearchResultSelected(searchResult: OfflineSearchResult, responseInfo: OfflineResponseInfo) {
                 Log.d(TAG, "Offline search result selected: $searchResult")
-                //searchPlaceView.open(SearchPlace.createFromOfflineSearchResult(searchResult))
                 val coordinate = searchResult.coordinate
                 centerCameraOnPoint(coordinate)
                 searchResultsView.isVisible = false
@@ -362,7 +346,6 @@ class MapActivity : AppCompatActivity() {
 
             override fun onHistoryItemClick(historyRecord: HistoryRecord) {
                 Log.d(TAG, "History item clicked: $historyRecord")
-                //searchPlaceView.open(SearchPlace.createFromIndexableRecord(historyRecord, distanceMeters = null))
                 val coordinate = historyRecord.coordinate
                 centerCameraOnPoint(coordinate)
                 searchResultsView.isVisible = false
@@ -379,36 +362,7 @@ class MapActivity : AppCompatActivity() {
             }
         })
 
-        searchPlaceView = binding.searchPlaceView
-        searchPlaceView.initialize(CommonSearchViewConfiguration(DistanceUnitType.IMPERIAL))
 
-        searchPlaceView.addOnCloseClickListener {
-            searchPlaceView.hide()
-        }
-
-        searchPlaceView.addOnNavigateClickListener { searchPlace ->
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${searchPlace.coordinate.latitude()}, ${searchPlace.coordinate.longitude()}")))
-        }
-
-        searchPlaceView.addOnShareClickListener { searchPlace ->
-            val text = "${searchPlace.name}. " +
-                    "Address: ${searchPlace.address?.formattedAddress(SearchAddress.FormatStyle.Short) ?: "unknown"}. " +
-                    "Geo coordinate: (lat=${searchPlace.coordinate.latitude()}, lon=${searchPlace.coordinate.longitude()})"
-
-            startActivity(Intent().apply {
-                action = Intent.ACTION_SEND
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, text)
-               })
-        }
-
-        searchPlaceView.addOnBottomSheetStateChangedListener { _, _ ->
-            updateOnBackPressedCallbackEnabled()
-        }
-    }
-
-    private fun updateOnBackPressedCallbackEnabled() {
-        onBackPressedCallback.isEnabled = !searchPlaceView.isHidden()
     }
 
     private fun hideKeyboard() {
