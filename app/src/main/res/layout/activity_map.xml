@@ -77,11 +77,10 @@
                 android:id="@+id/search_results_view"
                 android:theme="@style/CustomSearchSdkTheme"
                 android:layout_width="0dp"
-                android:layout_height="0dp"
+                android:layout_height="wrap_content"
                 android:elevation="20dp"
                 android:background="@color/cw_white"
                 android:paddingVertical="16dp"
-                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="@id/search_container"
                 app:layout_constraintStart_toStartOf="@id/search_container"
                 app:layout_constraintTop_toBottomOf="@id/search_container" />
