@@ -30,6 +30,8 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.gson.JsonPrimitive
+import com.mapbox.android.gestures.MoveGestureDetector
+import com.mapbox.android.gestures.StandardScaleGestureDetector
 import com.mapbox.common.Cancelable
 import com.mapbox.common.location.Location
 import com.mapbox.geojson.Feature
@@ -85,6 +87,7 @@ import com.mapbox.search.result.SearchSuggestion
 import com.mapbox.search.ui.adapter.engines.SearchEngineUiAdapter
 import com.mapbox.search.ui.view.CommonSearchViewConfiguration
 import com.mapbox.search.ui.view.DistanceUnitType
+import com.mapbox.search.ui.view.SearchResultAdapterItem
 import com.mapbox.search.ui.view.SearchResultsView
 import com.mapbox.search.ui.view.place.SearchPlace
 import com.mapbox.search.ui.view.place.SearchPlaceBottomSheetView
@@ -243,6 +246,14 @@ class MapActivity : AppCompatActivity() {
         }
 
         // Search Implementation
+        searchResultsView = binding.searchResultsView.apply {
+            initialize(
+                SearchResultsView.Configuration(CommonSearchViewConfiguration(DistanceUnitType.IMPERIAL))
+            )
+            isVisible = false
+        }
+
+
         queryEditText = binding.queryEditText
         queryEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
@@ -254,19 +265,15 @@ class MapActivity : AppCompatActivity() {
             }
 
             override fun afterTextChanged(s: Editable?) {
+                if(s?.toString()?.isEmpty() == true) {
+                    searchResultsView.isVisible = false
+                }
                 s?.toString()?.let { query ->
                     Log.d(TAG, "Query text changed: $query")
                     searchEngineUiAdapter.search(query)
                 }
             }
         })
-
-        searchResultsView = binding.searchResultsView.apply {
-            initialize(
-                SearchResultsView.Configuration(CommonSearchViewConfiguration(DistanceUnitType.IMPERIAL))
-            )
-            isVisible = false
-        }
 
 
         val searchEngineSettings = SearchEngineSettings()
@@ -358,11 +365,22 @@ class MapActivity : AppCompatActivity() {
             }
 
             override fun onFeedbackItemClick(responseInfo: ResponseInfo) {
-                // Not implemented
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://labs.mapbox.com/contribute"))
+                startActivity(intent)
             }
         })
 
 
+    }
+
+    override fun onBackPressed() {
+        hideSearchResultsView()
+    }
+
+    private fun hideSearchResultsView() {
+        if (searchResultsView.isVisible) {
+            searchResultsView.isVisible = false
+        }
     }
 
     private fun hideKeyboard() {
@@ -488,6 +506,7 @@ class MapActivity : AppCompatActivity() {
     }
 
     private val cameraChangedCallback = CameraChangedCallback {
+        hideSearchResultsView()
         debounceJob?.cancel()
         if (binding.h3ToggleSwitch.isChecked) {
             debounceJob = CoroutineScope(Dispatchers.Main).launch {
@@ -744,6 +763,8 @@ class MapActivity : AppCompatActivity() {
     }
 
     private fun showBottomSheet(groupIds: Collection<String>, title: String) {
+        hideSearchResultsView() //Make sure we're not searching while we're showing this sheet
+
         if (model.selectedMeasurementGroupIds == groupIds) {
             return // it's already showing the correct groups
         }
