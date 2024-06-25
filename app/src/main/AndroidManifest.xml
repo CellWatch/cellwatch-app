@@ -27,7 +27,8 @@
             android:exported="true"
             android:screenOrientation="portrait"
             android:launchMode="singleTask"
-            android:theme="@style/Theme.CellWatch.NoActionBar">
+            android:theme="@style/Theme.CellWatch.NoActionBar"
+            android:windowSoftInputMode="adjustPan">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
