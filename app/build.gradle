@@ -21,8 +21,8 @@ android {
         applicationId "edu.gatech.cc.cellwatch"
         minSdk 29
         targetSdk 34
-        versionCode 3
-        versionName "1.0.0-alpha.9"
+        versionCode 4
+        versionName "1.0.0-alpha.10"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
