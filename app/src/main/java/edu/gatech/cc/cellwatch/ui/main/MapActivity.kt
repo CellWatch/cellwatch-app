@@ -180,7 +180,7 @@ class MapActivity : AppCompatActivity() {
                         textColor = getColor(R.color.cw_white),
                         textSize = 16.0,
                         colorLevels = listOf(Pair(0, getColor(R.color.cw_blue))),
-                        clusterMaxZoom = Long.MAX_VALUE,
+                        clusterMaxZoom = 30L,
                     )
                 )
             )
