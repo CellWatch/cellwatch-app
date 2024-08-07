@@ -31,8 +31,8 @@ class MeasureViewModel: ViewModel() {
             viewModelScope.launch {
                 service.state.collect { serviceState ->
                     when (serviceState) {
-                        null -> { /* do nothing */ }
-                        MeasurementService.State.START -> _state.update { old ->
+                        null, MeasurementService.State.STARTING -> { /* do nothing */ }
+                        MeasurementService.State.STARTED -> _state.update { old ->
                             old.copy(
                                 progress = MeasureProgress.START,
                                 results = MeasurementGroup(
@@ -40,7 +40,7 @@ class MeasureViewModel: ViewModel() {
                                     null,
                                     null,
                                     null,
-                                    service.groupId ?: throw RuntimeException("missing group id")
+                                    service.groupId ?: throw RuntimeException("missing service group id")
                                 ),
                             )
                         }

@@ -8,7 +8,7 @@ data class MeasurementGroup(
     val upload: Measurement?,
     val submission: FccSubmission?,
     val id: String = latency?.groupId ?: download?.groupId ?: upload?.groupId ?: submission?.id
-        ?: throw RuntimeException("missing group id"),
+        ?: throw RuntimeException("cannot create measurement group without id"),
 ) {
     init {
         if (latency != null) {
