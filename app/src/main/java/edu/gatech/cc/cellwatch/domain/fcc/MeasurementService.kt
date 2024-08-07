@@ -89,7 +89,7 @@ class MeasurementService: Service() {
     }
 
     private suspend fun runTest(mode: CollectionMode, inVehicle: Boolean) {
-        val starting = state.compareAndSet(null, State.START) || state.compareAndSet(State.DONE, State.START)
+        val starting = state.compareAndSet(null, State.STARTING) || state.compareAndSet(State.DONE, State.STARTING)
         if (!starting) {
             Log.e(TAG, "measurement already running")
             return
@@ -102,6 +102,8 @@ class MeasurementService: Service() {
 
         val gid = UUID.randomUUID().toString()
         groupId = gid
+
+        state.update { State.STARTED }
 
         try {
             val g = MeasurementManager.runTestSequence(
@@ -125,7 +127,7 @@ class MeasurementService: Service() {
         }
     }
 
-    enum class State {START, LOCATE, LATENCY, DOWNLOAD, UPLOAD, DONE}
+    enum class State {STARTING, STARTED, LOCATE, LATENCY, DOWNLOAD, UPLOAD, DONE}
 
     class MeasurementBinder(private val service: MeasurementService): Binder() {
         val latency: Measurement?
