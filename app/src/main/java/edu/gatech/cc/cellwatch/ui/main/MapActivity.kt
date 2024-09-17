@@ -11,6 +11,7 @@ import android.text.TextWatcher
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -128,6 +129,7 @@ class MapActivity : AppCompatActivity() {
     private lateinit var searchEngineUiAdapter : SearchEngineUiAdapter
     private lateinit var locationProvider: LocationProvider
     private lateinit var queryEditText: EditText
+    private lateinit var searchClearbutton: ImageButton
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -268,6 +270,11 @@ class MapActivity : AppCompatActivity() {
             }
         })
 
+        searchClearbutton = binding.clearButton
+        searchClearbutton.setOnClickListener {
+            queryEditText.text.clear();
+            hideKeyboard()
+        }
 
         val searchEngineSettings = SearchEngineSettings()
         locationProvider = searchEngineSettings.locationProvider ?: throw IllegalStateException("No location provider found")
@@ -534,6 +541,7 @@ class MapActivity : AppCompatActivity() {
 
     private val cameraChangedCallback = CameraChangedCallback {
         hideSearchResultsView()
+        hideKeyboard()
         debounceJob?.cancel()
         debounceJob = CoroutineScope(Dispatchers.Main).launch {
             delay(100)
@@ -756,6 +764,7 @@ class MapActivity : AppCompatActivity() {
                             CameraOptions.Builder()
                                 .zoom(14.0)
                                 .center(Point.fromLngLat(lastKnownLocation.longitude, lastKnownLocation.latitude))
+                                .bearing(0.0)
                                 .build()
                         )
                     }

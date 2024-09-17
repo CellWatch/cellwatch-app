@@ -71,6 +71,18 @@
                     android:hint="@string/search_map"
                     android:textColor="@color/cw_black"
                     android:inputType="text" />
+
+                <ImageButton
+                    android:id="@+id/clearButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:layout_gravity="center"
+                    android:layout_marginStart="8dp"
+                    android:background="?android:selectableItemBackground"
+                    android:src="@drawable/fa_solid_xmark"
+                    app:tint="@color/cw_blue" />
+
             </LinearLayout>
 
             <com.mapbox.search.ui.view.SearchResultsView
