@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
+import edu.gatech.cc.cellwatch.data.model.CollectionMode
 
 class MeasurementAdapter() :
     RecyclerView.Adapter<MeasurementAdapter.MeasurementViewHolder>() {
@@ -33,6 +34,15 @@ class MeasurementAdapter() :
     override fun onBindViewHolder(holder: MeasurementViewHolder, position: Int) {
         val group = groups[position]
         holder.item.setData(group, displayedHexAddress = hexAddress)
+
+        if(group.submission == null){
+            holder.item.setMeasurementTypeText("Test")
+        } else {
+            holder.item.setItemBackground(R.drawable.measure_result_date_challenge)
+            holder.item.setIcon(R.drawable.fa_circle_nodes_solid)
+            holder.item.setMeasurementTypeText("Challenge")
+        }
+
     }
 
     override fun getItemCount() = groups.size

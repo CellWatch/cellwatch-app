@@ -65,6 +65,34 @@
                         android:textColor="@color/cw_black"
                         android:textSize="16sp"
                         android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical|end">
+
+
+                        <ImageView
+                            android:id="@+id/measureTypeIcon"
+                            android:layout_width="15dp"
+                            android:layout_height="15dp"
+                            android:layout_gravity="center_vertical"
+                            android:visibility="gone"/>
+
+                        <TextView
+                            android:id="@+id/measureTypeText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="8dp"
+                            android:text="Test"
+                            android:gravity="center_vertical|end"
+                            android:textColor="@color/cw_black"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+
+                    </LinearLayout>
                 </com.google.android.flexbox.FlexboxLayout>
             </LinearLayout>
 
