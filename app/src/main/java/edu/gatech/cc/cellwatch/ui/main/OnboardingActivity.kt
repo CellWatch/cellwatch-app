@@ -4,6 +4,8 @@ import SettingsSetupFragment
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.view.GestureDetector
+import android.view.MotionEvent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -30,11 +32,14 @@ class OnboardingActivity : AppCompatActivity(),
     private lateinit var binding: ActivityHomeBinding
     private var screen = Screen.WELCOME
     private var collectionMode: CollectionMode = CollectionMode.FCC_CHALLENGE
+    private lateinit var gestureDetector: GestureDetector
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        gestureDetector = GestureDetector(this, SwipeGestureListener())
 
         supportFragmentManager.addFragmentOnAttachListener { _, fragment -> handleFragmentChange(fragment) }
         supportFragmentManager.addOnBackStackChangedListener { handleFragmentChange(supportFragmentManager.findFragmentById(R.id.content_frame)) }
@@ -125,6 +130,44 @@ class OnboardingActivity : AppCompatActivity(),
         if (s != null) {
             screen = s
             updateNav(screen.isNavVisible(), screen.toNavPosition())
+        }
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        gestureDetector.onTouchEvent(ev)
+        return super.dispatchTouchEvent(ev)
+    }
+
+    inner class SwipeGestureListener : GestureDetector.SimpleOnGestureListener() {
+        private val SWIPE_THRESHOLD = 100
+        private val SWIPE_VELOCITY_THRESHOLD = 100
+
+        override fun onDown(e: MotionEvent): Boolean {
+            return true
+        }
+
+        override fun onFling(
+            e1: MotionEvent?,
+            e2: MotionEvent,
+            velocityX: Float,
+            velocityY: Float
+        ): Boolean {
+            if (e1 == null) return false
+
+            val diffX = e2.x - e1.x
+            val diffY = e2.y - e1.y
+
+            if (kotlin.math.abs(diffX) > kotlin.math.abs(diffY)) {
+                if (kotlin.math.abs(diffX) > SWIPE_THRESHOLD && kotlin.math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
+                    if (diffX > 0) {
+                        goPrev()
+                    } else {
+                        goNext()
+                    }
+                    return true
+                }
+            }
+            return false
         }
     }
 
