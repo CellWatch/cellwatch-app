@@ -272,7 +272,7 @@ class MapActivity : AppCompatActivity() {
 
         searchClearbutton = binding.clearButton
         searchClearbutton.setOnClickListener {
-            queryEditText.text.clear();
+            queryEditText.text.clear()
             hideKeyboard()
         }
 
@@ -369,8 +369,6 @@ class MapActivity : AppCompatActivity() {
                 startActivity(intent)
             }
         })
-
-
     }
 
     override fun onBackPressed() {
@@ -779,7 +777,7 @@ class MapActivity : AppCompatActivity() {
             enabled = true
             puckBearingEnabled = true
             locationPuck = LocationPuck2D(
-                topImage = ImageHolder.from(R.drawable.empty), // MapBox complains in the logs if we don't provide something
+                topImage = ImageHolder.from(R.drawable.empty),
                 bearingImage = ImageHolder.from(R.drawable.mapbox_user_puck_icon),
                 shadowImage = ImageHolder.from(R.drawable.mapbox_user_icon_shadow),
                 scaleExpression = interpolate {
@@ -789,6 +787,7 @@ class MapActivity : AppCompatActivity() {
                     stop(20.0, 1.0)
                 }.toJson()
             )
+            layerAbove = measurementPointLayerId
         }
     }
 
