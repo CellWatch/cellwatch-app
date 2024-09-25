@@ -1,12 +1,14 @@
 package edu.gatech.cc.cellwatch.ui.main
 
 import android.content.Context
+import android.graphics.Color
 import android.text.format.DateFormat
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateMargins
 import androidx.lifecycle.ViewModelProvider
@@ -167,5 +169,23 @@ class MeasurementGroupItem(
         } else {
             DateFormat.format("d MMM yyyy h:mm:ss a", uploadTime.toEpochMilliseconds())
         }
+    }
+
+    /*
+    TESTING BACKGROUNDS/ICONS/TEXT FOR DISTINGUISHING MEASUREMENTS
+     */
+    fun setItemBackground(backgroundResId: Int) {
+        val drawable = ContextCompat.getDrawable(context, backgroundResId)
+        binding.item.background = drawable
+    }
+
+    fun setIcon(iconResId: Int) {
+        binding.measureTypeIcon.setImageResource(iconResId)
+        binding.measureTypeIcon.isVisible = true
+    }
+
+    fun setMeasurementTypeText(text: String) {
+        binding.measureTypeText.text = text
+        binding.measureTypeText.isVisible = true
     }
 }
