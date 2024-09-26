@@ -73,12 +73,7 @@
                         android:gravity="center_vertical|end">
 
 
-                        <ImageView
-                            android:id="@+id/measureTypeIcon"
-                            android:layout_width="15dp"
-                            android:layout_height="15dp"
-                            android:layout_gravity="center_vertical"
-                            android:visibility="gone"/>
+
 
                         <TextView
                             android:id="@+id/measureTypeText"
@@ -90,6 +85,13 @@
                             android:textColor="@color/cw_black"
                             android:textSize="14sp"
                             android:textStyle="bold" />
+
+                        <ImageView
+                            android:id="@+id/measureTypeIcon"
+                            android:layout_width="15dp"
+                            android:layout_height="15dp"
+                            android:layout_gravity="center_vertical"
+                            android:visibility="gone"/>
 
 
                     </LinearLayout>
