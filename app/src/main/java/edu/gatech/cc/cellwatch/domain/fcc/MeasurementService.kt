@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Binder
@@ -22,6 +23,8 @@ import kotlinx.coroutines.runBlocking
 import java.util.UUID
 import kotlin.concurrent.thread
 
+import android.os.PowerManager
+
 class MeasurementService: Service() {
     private val TAG = this::class.simpleName
     private var state = MutableStateFlow<State?>(null)
@@ -32,12 +35,15 @@ class MeasurementService: Service() {
     private var group: MeasurementGroup? = null
     private var groupId: String? = null
 
+    private lateinit var wakeLock: PowerManager.WakeLock
+
     companion object {
         const val EXTRA_COLLECTION_MODE = "collection_mode"
         const val EXTRA_IN_VEHICLE = "in_vehicle"
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        acquireWakeLock()
         startForeground()
 
         val mode = intent?.extras?.getString(EXTRA_COLLECTION_MODE)?.let { CollectionMode.valueOf(it) }
@@ -57,6 +63,7 @@ class MeasurementService: Service() {
                         } finally {
                             stopSelf()
                             Looper.myLooper()?.quitSafely()
+                            releaseWakeLock()
                         }
                     }
                 }
@@ -122,8 +129,24 @@ class MeasurementService: Service() {
             group = g
         } catch (e: Exception) {
             Log.e(TAG, "running test failed", e)
+            releaseWakeLock()
         } finally {
             state.update { State.DONE }
+            wakeLock.release()
+        }
+    }
+
+    private fun acquireWakeLock() {
+        Log.i(TAG, "Setting Wakelock")
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName::MeasurementServiceWakeLock")
+        wakeLock.acquire(10*60*1000L /*10 minutes*/)
+    }
+
+    private fun releaseWakeLock() {
+        Log.i(TAG, "Releasing Wakelock")
+        if (wakeLock.isHeld) {
+            wakeLock.release()
         }
     }
 
