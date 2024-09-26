@@ -171,9 +171,6 @@ class MeasurementGroupItem(
         }
     }
 
-    /*
-    TESTING BACKGROUNDS/ICONS/TEXT FOR DISTINGUISHING MEASUREMENTS
-     */
     fun setItemBackground(backgroundResId: Int) {
         val drawable = ContextCompat.getDrawable(context, backgroundResId)
         binding.item.background = drawable
