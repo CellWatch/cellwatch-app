@@ -248,7 +248,6 @@ class MapActivity : AppCompatActivity() {
             isVisible = false
         }
 
-
         queryEditText = binding.queryEditText
         queryEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
