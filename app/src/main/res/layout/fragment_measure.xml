@@ -30,13 +30,31 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 android:text="@string/measurement_complete" />
 
+            <edu.gatech.cc.cellwatch.ui.main.MeasurementGroupItem
+                android:id="@+id/item"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_constraintBottom_toTopOf="@id/space_first"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/header"
+                app:expandable="true"
+                app:summaryLabels="true" />
+
+            <Space
+                android:id="@+id/space_first"
+                android:layout_width="match_parent"
+                android:layout_height="5dp"
+                app:layout_constraintTop_toBottomOf="@id/item"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
             <FrameLayout
                 android:id="@+id/progressContainer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginVertical="15dp"
-                app:layout_constraintTop_toBottomOf="@id/header"
-                app:layout_constraintBottom_toTopOf="@id/item"
+                app:layout_constraintTop_toBottomOf="@id/space_first"
+                app:layout_constraintBottom_toTopOf="@id/space"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent">
 
@@ -48,17 +66,6 @@
                     android:indeterminateTint="@color/cw_green"
                     android:layout_marginVertical="15dp" />
             </FrameLayout>
-
-            <edu.gatech.cc.cellwatch.ui.main.MeasurementGroupItem
-                android:id="@+id/item"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:layout_constraintBottom_toTopOf="@id/space"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/progressContainer"
-                app:expandable="true"
-                app:summaryLabels="true" />
 
             <Space
                 android:id="@+id/space"
