@@ -75,7 +75,8 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     android:text="@string/dep_licenses"
-                    android:layout_marginVertical="16dp"/>
+                    android:layout_marginVertical="16dp"
+                    android:stateListAnimator="@null"/>
 
                 <TextView
                     android:layout_width="match_parent"
