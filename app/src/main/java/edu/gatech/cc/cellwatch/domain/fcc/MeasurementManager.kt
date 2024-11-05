@@ -7,11 +7,11 @@ import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
+import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
+import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import edu.gatech.cc.cellwatch.msak.Server
 import edu.gatech.cc.cellwatch.msak.locate.LocateManager
 import edu.gatech.cc.cellwatch.msak.throughput.ThroughputDirection
-import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
-import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import io.ktor.http.Url
 import kotlinx.coroutines.Dispatchers
@@ -209,7 +209,15 @@ object MeasurementManager {
     }
 
     private suspend fun chooseMsakServers(client: OkHttpClient? = null): Pair<Server, Server> {
-        val manager = LocateManager(client)
+        val manager = LocateManager(
+            client,
+            LocateManager.ServerEnv.valueOf(BuildConfig.MSAK_SERVER_ENV.uppercase()),
+            null,
+            CellWatchApp.userAgent,
+            BuildConfig.MSAK_LOCAL_SERVER_HOST,
+            BuildConfig.MSAK_LOCAL_SERVER_SECURE,
+        )
+
         try {
             val throughputServers = manager.locateThroughputServers()
 
