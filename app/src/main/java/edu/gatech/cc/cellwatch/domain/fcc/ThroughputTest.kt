@@ -2,6 +2,7 @@ package edu.gatech.cc.cellwatch.domain.fcc
 
 import android.os.Handler
 import android.os.Looper
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.msak.Server
 import edu.gatech.cc.cellwatch.msak.throughput.ThroughputDirection
@@ -34,7 +35,8 @@ class ThroughputTest(
         streams,
         maxWarmupTime + maxActiveTime,
         0,
-        measurementId
+        measurementId,
+        userAgent = CellWatchApp.userAgent,
     )
     private var activeStartTime: Instant? = null
     private val readyForActive = MutableList(streams) { false }
