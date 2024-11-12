@@ -6,7 +6,6 @@ import edu.gatech.cc.cellwatch.data.local.model.MeasurementEntity
 import edu.gatech.cc.cellwatch.data.local.model.MeasurementWithData
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurement
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurementWithData
-import edu.gatech.cc.cellwatch.domain.fcc.ThroughputMetrics
 import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
@@ -70,8 +69,13 @@ data class Measurement(
                 } ?: throw RuntimeException("missing latency data on measurement $this")
             } else {
                 uploadDownloadData?.let {
-                    val activeMetrics = ThroughputMetrics(it.bytes ?: 0, it.duration ?: 0)
-                    context.getString(R.string.speed_mbps, (activeMetrics.bytesPerSec * 8 / 1e6).roundToInt())
+                    val bytesPerSec = it.bytesPerSec ?: if (it.bytes != null && it.duration != null && it.duration > 0) {
+                        it.bytes.toDouble() / (it.duration.toDouble() / 1e6)
+                    } else {
+                        0.0
+                    }
+
+                    context.getString(R.string.speed_mbps, (bytesPerSec * 8 / 1e6).roundToInt())
                 } ?: throw RuntimeException("missing upload/download data on measurement $this")
             }
         } else {

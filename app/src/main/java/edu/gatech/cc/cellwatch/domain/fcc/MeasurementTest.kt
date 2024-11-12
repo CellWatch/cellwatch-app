@@ -102,6 +102,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
                     warmupBytes = result.warmupMetrics.bytes,
                     duration = result.activeMetrics.usecs,
                     bytes = result.activeMetrics.bytes,
+                    bytesPerSec = result.activeMetrics.bytesPerSec,
                     servers = listOf(result.targetHost),
                 )
             } else null,

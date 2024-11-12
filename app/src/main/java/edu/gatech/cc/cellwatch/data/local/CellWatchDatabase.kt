@@ -33,11 +33,12 @@ import edu.gatech.cc.cellwatch.data.local.util.ListConverter
         LocationEntity::class,
         CellEntity::class
     ],
-    version = 17,
+    version = 18,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 15, to = 16),
         AutoMigration(from = 16, to = 17),
+        AutoMigration(from = 17, to = 18),
     ]
 )
 @TypeConverters(
@@ -64,6 +65,7 @@ abstract class CellWatchDatabase : RoomDatabase() {
             "cellwatch_database"
         )
             .addMigrations(MIGRATION_ADD_SUBMISSION_RESPONSE)
+            .addMigrations(MIGRATION_ADD_BYTES_PER_SEC)
             .build()
     })
 
@@ -72,5 +74,16 @@ abstract class CellWatchDatabase : RoomDatabase() {
 val MIGRATION_ADD_SUBMISSION_RESPONSE = object : Migration(16, 17) {
     override fun migrate(database: SupportSQLiteDatabase) {
         database.execSQL("ALTER TABLE FccSubmissionEntity ADD COLUMN submissionResponse TEXT")
+    }
+}
+
+val MIGRATION_ADD_BYTES_PER_SEC = object : Migration(17, 18) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE UploadDownloadDataEntity ADD COLUMN bytesPerSec REAL")
+        database.execSQL("ALTER TABLE UploadDownloadDataEntity ADD COLUMN applicationBytesPerSec REAL")
+
+        // intentionally don't calculate bytes per sec for old records -- if it's null, that means
+        // the best we can do is calculate based on bytes and duration, but it won't be entirely
+        // accurate
     }
 }

@@ -33,7 +33,11 @@ data class UploadDownloadDataEntity(
 
     val bytes: Long? = null,
 
+    val bytesPerSec: Double? = null,
+
     val applicationBytes: Long? = null,
+
+    val applicationBytesPerSec: Double? = null,
 
     val servers: List<String>? = null,
 
@@ -43,5 +47,16 @@ data class UploadDownloadDataEntity(
 )
 
 fun UploadDownloadDataEntity.asExternalModel() = UploadDownloadData(
-    id, measurementId, warmupDuration, warmupBytes, duration, bytes, applicationBytes, servers, createdOn, updatedOn
+    id,
+    measurementId,
+    warmupDuration,
+    warmupBytes,
+    duration,
+    bytes,
+    bytesPerSec,
+    applicationBytes,
+    applicationBytesPerSec,
+    servers,
+    createdOn,
+    updatedOn
 )

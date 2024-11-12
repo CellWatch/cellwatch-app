@@ -23,8 +23,14 @@ data class NetworkUploadDownloadData(
 
     val bytes: Long? = null,
 
+    @SerialName("bytes_per_sec")
+    val bytesPerSec: Double? = null,
+
     @SerialName("application_bytes")
     val applicationBytes: Long? = null,
+
+    @SerialName("application_bytes_per_sec")
+    val applicationBytesPerSec: Double? = null,
 
     val servers: List<String>? = null,
 
@@ -36,5 +42,16 @@ data class NetworkUploadDownloadData(
 )
 
 fun NetworkUploadDownloadData.asExternalModel() = UploadDownloadData(
-    id, measurementId, warmupDuration, warmupBytes, duration, bytes, applicationBytes, servers, createdOn, updatedOn
+    id,
+    measurementId,
+    warmupDuration,
+    warmupBytes,
+    duration,
+    bytes,
+    bytesPerSec,
+    applicationBytes,
+    applicationBytesPerSec,
+    servers,
+    createdOn,
+    updatedOn,
 )
