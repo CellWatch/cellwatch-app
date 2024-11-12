@@ -17,14 +17,27 @@ data class UploadDownloadData(
     val warmupBytes: Long? = null,
     val duration: Long? = null,
     val bytes: Long? = null,
+    val bytesPerSec: Double? = null,
     val applicationBytes: Long? = null,
+    val applicationBytesPerSec: Double? = null,
     val servers: List<String>? = null,
     val createdOn: Instant? = null,
     val updatedOn: Instant? = null
 )
 
 fun UploadDownloadData.asEntity() = UploadDownloadDataEntity(
-    id, measurementId, warmupDuration, warmupBytes, duration, bytes, applicationBytes, servers, createdOn, updatedOn
+    id,
+    measurementId,
+    warmupDuration,
+    warmupBytes,
+    duration,
+    bytes,
+    bytesPerSec,
+    applicationBytes,
+    applicationBytesPerSec,
+    servers,
+    createdOn,
+    updatedOn,
 )
 
 fun UploadDownloadData.asNetworkModel() = NetworkUploadDownloadData(
@@ -34,7 +47,9 @@ fun UploadDownloadData.asNetworkModel() = NetworkUploadDownloadData(
     warmupBytes,
     duration,
     bytes,
+    bytesPerSec,
     applicationBytes,
+    applicationBytesPerSec,
     servers,
     createdOn,
     updatedOn
