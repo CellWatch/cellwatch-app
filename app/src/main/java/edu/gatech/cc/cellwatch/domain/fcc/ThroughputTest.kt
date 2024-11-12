@@ -70,7 +70,13 @@ class ThroughputTest(
     override suspend fun measure(): ThroughputResult {
         try {
             if (server is UnreachableServer) {
-                return ThroughputResult(server.machine, false, Clock.System.now(), ThroughputMetrics(0, 0), ThroughputMetrics(0, 0))
+                return ThroughputResult(
+                    server.machine,
+                    false,
+                    Clock.System.now(),
+                    ThroughputMetrics(0, 0, 0.0),
+                    ThroughputMetrics(0, 0, 0.0),
+                )
             }
 
             msakTest.start()
@@ -93,7 +99,7 @@ class ThroughputTest(
                     latest,
                     lastWarmupUpdates,
                 )
-            } else ThroughputMetrics(0, 0)
+            } else ThroughputMetrics(0, 0, 0.0)
 
             // According to the FCC, a test is successful if it transmitted >0 bytes of data, even
             // if it ends prematurely, for example because of a network error. Throw non-network
@@ -209,8 +215,8 @@ class ThroughputTest(
             return false
         }
 
-        val curBPS = ThroughputMetrics.fromMeasurement(updates[updates.size - 1].measurement).bytesPerSec
-        val lastBPS = ThroughputMetrics.fromMeasurement(updates[updates.size - 2].measurement).bytesPerSec
+        val curBPS = calcBytesPerSec(updates[updates.size - 1])
+        val lastBPS = calcBytesPerSec(updates[updates.size - 2])
 
         return curBPS > 0 && lastBPS > 0 && curBPS <= lastBPS
     }
@@ -224,23 +230,39 @@ class ThroughputTest(
         lastUpdates: List<ThroughputUpdate?>,
         firstUpdates: List<ThroughputUpdate>? = null,
     ): ThroughputMetrics {
-        val curMetrics = lastUpdates.map {
-            if (it == null) {
-                ThroughputMetrics(0, 0)
+        val streamMetrics = lastUpdates.mapIndexed { i, lastUpdate ->
+            val firstUpdate = firstUpdates?.getOrNull(i)
+
+            if (lastUpdate == null) {
+                ThroughputMetrics(0, 0, 0.0)
+            } else if (firstUpdate == null) {
+                val bytes = getBytesReceived(lastUpdate)
+                ThroughputMetrics(bytes, usecs, calcBytesPerSec(bytes, lastUpdate.measurement.ElapsedTime))
             } else {
-                ThroughputMetrics.fromMeasurement(it.measurement)
+                val lastBytes = getBytesReceived(lastUpdate)
+                val firstBytes = getBytesReceived(firstUpdate)
+                val bytes = lastBytes - firstBytes
+                val elapsedUsecs = lastUpdate.measurement.ElapsedTime - firstUpdate.measurement.ElapsedTime
+
+                ThroughputMetrics(bytes, usecs, calcBytesPerSec(bytes, elapsedUsecs))
             }
-        }
-        val effectiveMetrics = if (firstUpdates != null) {
-            curMetrics.mapIndexed { i, m ->
-                m - ThroughputMetrics.fromMeasurement(firstUpdates[i].measurement)
-            }
-        } else {
-            curMetrics
         }
 
-        val totalBytes = effectiveMetrics.sumOf { it.bytes }
-        return ThroughputMetrics(totalBytes, usecs)
+        val totalBytes = streamMetrics.sumOf { it.bytes }
+        val totalBytesPerSec = streamMetrics.sumOf { it.bytesPerSec }
+        return ThroughputMetrics(totalBytes, usecs, totalBytesPerSec)
+    }
+
+    private fun calcBytesPerSec(bytes: Long, usecs: Long): Double {
+        return bytes.toDouble() / (usecs.toDouble() / 1000000.0)
+    }
+
+    private fun calcBytesPerSec(update: ThroughputUpdate): Double {
+        return calcBytesPerSec(getBytesReceived(update), update.measurement.ElapsedTime)
+    }
+
+    private fun getBytesReceived(update: ThroughputUpdate): Long {
+        return (update.measurement.Network ?: update.measurement.Application).BytesReceived
     }
 
     private fun catchErrors(fn: () -> Unit) {
