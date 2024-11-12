@@ -1,5 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
+import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.msak.Server
 import edu.gatech.cc.cellwatch.msak.latency.LatencyTest
@@ -18,7 +19,7 @@ class LatencyTest(
 ): MeasurementTest<LatencyResult>(groupId, "latency") {
     private val TAG = this::class.simpleName
     private val _rttChan = Channel<Int>(32)
-    val msakTest = LatencyTest(server, client, measurementId)
+    val msakTest = LatencyTest(server, client, measurementId, userAgent = CellWatchApp.userAgent)
 
     val rttChan: ReceiveChannel<Int> = _rttChan
 
