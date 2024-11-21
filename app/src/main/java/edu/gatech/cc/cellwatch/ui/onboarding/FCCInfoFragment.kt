@@ -1,6 +1,5 @@
 package edu.gatech.cc.cellwatch.ui.onboarding
 
-import android.app.AlertDialog
 import android.os.Bundle
 import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
@@ -56,12 +55,6 @@ class FCCInfoFragment : Fragment() {
             setFccSharingAcknowledged(binding.cbAcknowledgement.isChecked)
             setCollectionMode(CollectionMode.FCC_CHALLENGE)
         }
-
-        AlertDialog.Builder(context)
-            .setTitle(R.string.not_yet_fcc_approved_title)
-            .setMessage(R.string.not_yet_fcc_approved)
-            .setNeutralButton(R.string.okay) { _, _ -> /* do nothing */ }
-            .show()
     }
 
     fun validateInputs(): Boolean {
