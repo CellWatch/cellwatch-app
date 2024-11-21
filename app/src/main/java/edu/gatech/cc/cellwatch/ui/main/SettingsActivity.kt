@@ -141,12 +141,6 @@ class SettingsActivity : AppCompatActivity() {
 
         try {
             CellWatchApp.settingsRepository.setCollectionMode(CollectionMode.FCC_CHALLENGE)
-
-            AlertDialog.Builder(this)
-                .setTitle(R.string.not_yet_fcc_approved_title)
-                .setMessage(R.string.not_yet_fcc_approved)
-                .setNeutralButton(R.string.okay) { _, _ -> /* do nothing */ }
-                .show()
         } catch (e: SettingsRepository.MissingFccInfoException) {
             Toast.makeText(this, getString(R.string.missing_fcc_info_error), Toast.LENGTH_LONG).show()
             binding.collectionModeTextView.setText(collectionModeToString[CollectionMode.TESTING], false)
