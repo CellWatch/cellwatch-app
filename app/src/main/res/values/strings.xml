@@ -31,8 +31,6 @@
     <string name="fcc_challenge_mode_description">Measurements will be sent to the FCC as challenge data. The FCC may make public your exact GPS location, provider, and other relevant details.</string>
     <string name="testing_mode">Testing Mode</string>
     <string name="testing_mode_description">Measurements will not be sent to the FCC.</string>
-    <string name="not_yet_fcc_approved_title">We can\'t send your measurements to the FCC yet.</string>
-    <string name="not_yet_fcc_approved">We\'re working on getting CellWatch approved by the FCC for their challenge process, but we don\'t have official approval yet. Any measurements you take before we get FCC approval will not be sent to the FCC.</string>
     <string name="okay">Okay</string>
 
     <!-- fcc info -->
