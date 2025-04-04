@@ -3,7 +3,9 @@ package edu.gatech.cc.cellwatch.ui.main
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.data.model.FccExportBundle
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
+import edu.gatech.cc.cellwatch.data.model.toFccSubmissionExport
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -26,6 +28,15 @@ class MeasureHistoryViewModel : ViewModel() {
 
     fun exportData(fd: FileDescriptor) {
         val data = groups.value
-        FileOutputStream(fd).use { Json.encodeToStream(data, FileOutputStream(fd)) }
+        val fccValid = data.filter { it.submission != null }
+            .mapNotNull { it.toFccSubmissionExport() }
+
+        val others = data.filter { it.submission == null }
+
+        val export = FccExportBundle(fcc_valid = fccValid, others = others)
+
+        FileOutputStream(fd).use {
+            Json.encodeToStream(export, it)
+        }
     }
 }

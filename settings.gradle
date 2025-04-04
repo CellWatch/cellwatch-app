@@ -8,6 +8,7 @@ pluginManagement {
 
 def cellwatchProperties = new Properties()
 file("cellwatch.properties").withInputStream { cellwatchProperties.load(it) }
+def mapboxToken = cellwatchProperties.getProperty("MAPBOX_DOWNLOADS_TOKEN")
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
@@ -23,7 +24,7 @@ dependencyResolutionManagement {
             credentials {
                 // This should always be `mapbox` (not your username).
                 username = 'mapbox'
-                password = 'sk.eyJ1Ijoic2xyb2JlcnRzb242OSIsImEiOiJjbG5scWhqaWoxZGljMnJxaTF1bm1nbTNqIn0.Cqrrxm_03CcRBor8f0WR6Q'
+                password = mapboxToken
             }
         }
     }
