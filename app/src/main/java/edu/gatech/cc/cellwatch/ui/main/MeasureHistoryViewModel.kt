@@ -3,17 +3,30 @@ package edu.gatech.cc.cellwatch.ui.main
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.gatech.cc.cellwatch.CellWatchApp
-import edu.gatech.cc.cellwatch.data.model.FccExportBundle
-import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
-import edu.gatech.cc.cellwatch.data.model.toFccSubmissionExport
+import edu.gatech.cc.cellwatch.data.model.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
 import java.io.FileDescriptor
 import java.io.FileOutputStream
+
+@Serializable
+data class FccSubmissionExportBundle(
+    val contact: Contact,
+    val submission_category: String,
+    val submissions: List<FccSubmissionExport>
+)
+
+@Serializable
+data class Contact(
+    val name: String? = null,
+    val email: String? = null,
+    val phone: String? = null
+)
 
 class MeasureHistoryViewModel : ViewModel() {
     private var _groups = MutableStateFlow(listOf<MeasurementGroup>())
@@ -27,16 +40,25 @@ class MeasureHistoryViewModel : ViewModel() {
     }
 
     fun exportData(fd: FileDescriptor) {
-        val data = groups.value
-        val fccValid = data.filter { it.submission != null }
-            .mapNotNull { it.toFccSubmissionExport() }
+        viewModelScope.launch {
+            val validGroups = groups.value.filter { it.submission != null }
+            val exports = validGroups.mapNotNull { it.toFccSubmissionExport() }
 
-        val others = data.filter { it.submission == null }
+            val representative = validGroups.firstOrNull()?.submission
 
-        val export = FccExportBundle(fcc_valid = fccValid, others = others)
+            val exportBundle = FccSubmissionExportBundle(
+                contact = Contact(
+                    name = representative?.contactName,
+                    email = representative?.contactEmail,
+                    phone = representative?.contactPhone
+                ),
+                submission_category = representative?.submission ?: "Consumer Challenge",
+                submissions = exports
+            )
 
-        FileOutputStream(fd).use {
-            Json.encodeToStream(export, it)
+            FileOutputStream(fd).use {
+                Json { prettyPrint = true }.encodeToStream(exportBundle, it)
+            }
         }
     }
 }
