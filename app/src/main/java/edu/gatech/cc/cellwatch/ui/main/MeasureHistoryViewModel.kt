@@ -57,7 +57,9 @@ class MeasureHistoryViewModel : ViewModel() {
             )
 
             FileOutputStream(fd).use {
-                Json { prettyPrint = true }.encodeToStream(exportBundle, it)
+                Json { prettyPrint = true
+                       encodeDefaults = true
+                       explicitNulls = true  }.encodeToStream(exportBundle, it)
             }
         }
     }
