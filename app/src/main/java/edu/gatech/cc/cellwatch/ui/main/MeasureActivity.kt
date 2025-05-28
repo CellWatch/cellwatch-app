@@ -17,6 +17,15 @@ import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.databinding.ActivityMeasureBinding
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementService
 import kotlinx.coroutines.launch
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.appcompat.app.AlertDialog
+import android.provider.Settings
+import android.net.Uri
+import android.os.Build
+import android.util.Log
+
 
 class MeasureActivity : AppCompatActivity() {
     private val TAG = this::class.simpleName
@@ -30,6 +39,9 @@ class MeasureActivity : AppCompatActivity() {
         binding = ActivityMeasureBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        Log.i("MeasureActivity", "ensureForegroundserviceLocationPermission")
+        ensureForegroundServiceLocationPermission()
+
         binding.navDrawer.setOnCloseListener { binding.root.closeDrawer(GravityCompat.START) }
         binding.navDrawer.setActiveActivity(this)
         setSupportActionBar(binding.toolbar)
@@ -40,6 +52,27 @@ class MeasureActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 model.state.collect { handleMeasureStateUpdate(it.progress) }
             }
+        }
+    }
+
+    private fun ensureForegroundServiceLocationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.FOREGROUND_SERVICE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.permission_required)
+                .setMessage(R.string.fgs_location_permission_rationale)
+                .setPositiveButton(R.string.open_settings) { _, _ ->
+                    val intent = Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", packageName, null)
+                    )
+                    startActivity(intent)
+                }
+                .setCancelable(false)
+                .show()
         }
     }
 

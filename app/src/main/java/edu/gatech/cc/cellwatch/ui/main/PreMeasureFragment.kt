@@ -1,12 +1,18 @@
 package edu.gatech.cc.cellwatch.ui.main
 
+import android.Manifest
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
@@ -81,6 +87,22 @@ class PreMeasureFragment: Fragment() {
 
     private fun startMeasurement() {
         lifecycleScope.launch {
+            if (!hasForegroundServiceLocationPermission()) {
+                AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.permission_required)
+                    .setMessage(R.string.fgs_location_permission_rationale)
+                    .setPositiveButton(R.string.open_settings) { _, _ ->
+                        val intent = Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.fromParts("package", requireContext().packageName, null)
+                        )
+                        startActivity(intent)
+                    }
+                    .setCancelable(true)
+                    .show()
+                return@launch
+            }
+
             val mode = CellWatchApp.settingsRepository.getCollectionMode()
             if (
                 mode == CollectionMode.FCC_CHALLENGE
@@ -104,6 +126,17 @@ class PreMeasureFragment: Fragment() {
         }
     }
 
+    private fun hasForegroundServiceLocationPermission(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+                (
+                        ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.FOREGROUND_SERVICE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
+                                (
+                                        ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                                                ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                                        )
+                        )
+    }
+
     private suspend fun checkProceedWithoutCellular(): Boolean = suspendCoroutine { continuation ->
         AlertDialog.Builder(requireContext())
             .setMessage(R.string.not_cellular_warning)
@@ -117,5 +150,4 @@ class PreMeasureFragment: Fragment() {
             }
             .show()
     }
-
 }
