@@ -163,4 +163,11 @@
     <string name="export_button">Export</string>
     <string name="cancel_button">Cancel</string>
 
+    <!-- no permissions when running measurement dialogue -->
+    <string name="permission_required">Location permission required</string>
+    <string name="fgs_location_permission_rationale">
+        This app needs foreground location permission to measure network location. Please enable it in Settings.
+    </string>
+    <string name="open_settings">Open settings</string>
+
 </resources>

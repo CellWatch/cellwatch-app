@@ -157,7 +157,7 @@
     <string name="abt5">Por fin, la aplicación utiliza varios iconos de <a href="https://fontawesome.com">FontAwesome</a>, copyright 2024 Fonticons, Inc. Su licencia se puede encontrar en <a href="https://fontawesome.com/license/free">https://fontawesome.com/license/free</a>.</string>
     <string name="apache_license_header">Licencia Apache 2.0</string>
 
-
+    <!-- export measurements dialogue -->
     <string name="export_dialog_title">Exportar pruebas del desafío</string>
     <string name="export_dialog_message">
         Tus mediciones recopiladas en el modo Desafío se exportarán en un formato de datos compatible con el proceso de Desafío de Disponibilidad Móvil Masiva de la FCC.
@@ -167,4 +167,11 @@
     </string>
     <string name="export_button">Exportar</string>
     <string name="cancel_button">Cancelar</string>
+
+    <!-- no permissions when running measurement dialogue -->
+    <string name="permission_required">Permiso de ubicación requerido</string>
+    <string name="fgs_location_permission_rationale">
+        Esta aplicación necesita permiso de ubicación en primer plano para medir la ubicación de la red. Por favor, actívalo en Configuración.
+    </string>
+    <string name="open_settings">Abrir configuración</string>
 </resources>
