@@ -64,6 +64,7 @@ data class MeasurementEntity(
     val netMnc: String? = null,
 
     val connectionType: NetworkConnectionType?,
+
     val cellularDataEnabled: Boolean?,
 
     val extraData: String? = null,

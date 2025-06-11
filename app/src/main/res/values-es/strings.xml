@@ -156,4 +156,15 @@
     <string name="abt4">La aplicación también se hace con la ayuda de los tres componentes siguientes, todos los cuales utilizan la licensia Apache 2.0, cuyo texto se encuentra abajo:\n\n • <a href="https://github.com/robertodauria/msak">MSAK por Roberto Dauria</a>: No se provee ningún aviso de copyright.\n • <a href="https://github.com/m-lab/go">go-memoryless por M-Lab</a>: No se provee ningún aviso de copyright.\n • <a href="https://github.com/dburckh/AndroidPing">AndroidPing</a>: Copyright 2019 Charter Communications.</string>
     <string name="abt5">Por fin, la aplicación utiliza varios iconos de <a href="https://fontawesome.com">FontAwesome</a>, copyright 2024 Fonticons, Inc. Su licencia se puede encontrar en <a href="https://fontawesome.com/license/free">https://fontawesome.com/license/free</a>.</string>
     <string name="apache_license_header">Licencia Apache 2.0</string>
+
+
+    <string name="export_dialog_title">Exportar pruebas del desafío</string>
+    <string name="export_dialog_message">
+        Tus mediciones recopiladas en el modo Desafío se exportarán en un formato de datos compatible con el proceso de Desafío de Disponibilidad Móvil Masiva de la FCC.
+
+        Obtén más información sobre el proceso de Desafío de Disponibilidad Móvil Masiva de la FCC:
+        https://help.bdc.fcc.gov/hc/en-us/articles/10482866475547-Bulk-Mobile-Challenge-Process-Overview
+    </string>
+    <string name="export_button">Exportar</string>
+    <string name="cancel_button">Cancelar</string>
 </resources>

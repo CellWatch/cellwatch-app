@@ -1,5 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
+import android.os.Build
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.Granularity
 import com.google.android.gms.location.LocationServices
@@ -67,7 +68,7 @@ abstract class MeasurementTest<T: Any>(val groupId: String, val type: String) {
             groupId = groupId,
             deviceId = CellWatchApp.settingsRepository.getDeviceId(),
             deviceManufacturer = deviceMod.manufacturer,
-            deviceModel = deviceMod.model,
+            deviceModel = Build.MODEL,
             deviceOsName = "Android",
             deviceOsVersion = deviceMod.osVersion,
             appName = appMod.appName,

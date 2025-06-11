@@ -1,15 +1,19 @@
 package edu.gatech.cc.cellwatch.ui.main
 
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.text.method.LinkMovementMethod
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts.CreateDocument
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
+import androidx.core.text.HtmlCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -37,7 +41,7 @@ class MeasureHistoryActivity : AppCompatActivity() {
         binding.navDrawer.setOnCloseListener { binding.root.closeDrawer(GravityCompat.START) }
         binding.navDrawer.setActiveActivity(this)
         setSupportActionBar(binding.toolbar)
-        binding.toolbar.setNavigationOnClickListener {binding.root.openDrawer(GravityCompat.START) }
+        binding.toolbar.setNavigationOnClickListener { binding.root.openDrawer(GravityCompat.START) }
 
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         adapter = MeasurementAdapter()
@@ -68,15 +72,30 @@ class MeasureHistoryActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.export) {
-            createFile.launch("cellwatch-measurements.json")
-            return true
+        return when (item.itemId) {
+            R.id.export -> {
+                showExportDialog()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
-
-        return super.onOptionsItemSelected(item)
     }
 
-    private class CreateExportFile: CreateDocument() {
+    private fun showExportDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_export_confirmation, null)
+        val messageView = dialogView.findViewById<TextView>(R.id.exportDialogMessage)
+        messageView.movementMethod = LinkMovementMethod.getInstance()
+
+        AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setPositiveButton(R.string.export_button) { _, _ ->
+                createFile.launch("cellwatch-measurements.json")
+            }
+            .setNegativeButton(R.string.cancel_button, null)
+            .show()
+    }
+
+    private class CreateExportFile : CreateDocument() {
         override fun createIntent(context: Context, input: String): Intent {
             return super.createIntent(context, input).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
