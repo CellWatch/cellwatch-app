@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
 import java.io.FileDescriptor
 import java.io.FileOutputStream
+import edu.gatech.cc.cellwatch.data.core.repositories.SettingsRepository
 
 @Serializable
 data class FccSubmissionExportBundle(
@@ -48,9 +49,9 @@ class MeasureHistoryViewModel : ViewModel() {
 
             val exportBundle = FccSubmissionExportBundle(
                 contact = Contact(
-                    name = representative?.contactName,
-                    email = representative?.contactEmail,
-                    phone = representative?.contactPhone
+                    name = CellWatchApp.settingsRepository.getName(),
+                    email = CellWatchApp.settingsRepository.getEmail(),
+                    phone = CellWatchApp.settingsRepository.getPhoneNumber()
                 ),
                 submission_category = representative?.submission ?: "Consumer Challenge",
                 submissions = exports

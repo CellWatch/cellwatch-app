@@ -16,6 +16,7 @@ import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
+import edu.gatech.cc.cellwatch.core.util.HttpUtil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -25,7 +26,8 @@ import kotlin.concurrent.thread
 
 import android.os.PowerManager
 
-class MeasurementService: Service() {
+class
+MeasurementService: Service() {
     private val TAG = this::class.simpleName
     private var state = MutableStateFlow<State?>(null)
     private var machine: String? = null
@@ -34,6 +36,10 @@ class MeasurementService: Service() {
     private var upload: Measurement? = null
     private var group: MeasurementGroup? = null
     private var groupId: String? = null
+
+    var lastErrorCode: Int? = null
+    var lastErrorMessage: String? = null
+
 
     private lateinit var wakeLock: PowerManager.WakeLock
 
@@ -129,6 +135,8 @@ class MeasurementService: Service() {
             group = g
         } catch (e: Exception) {
             Log.e(TAG, "running test failed", e)
+            lastErrorMessage = e.message ?: e.toString()
+            lastErrorCode = HttpUtil.code(e, lastErrorMessage)
             releaseWakeLock()
         } finally {
             state.update { State.DONE }
@@ -139,8 +147,11 @@ class MeasurementService: Service() {
     private fun acquireWakeLock() {
         Log.i(TAG, "Setting Wakelock")
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName::MeasurementServiceWakeLock")
-        wakeLock.acquire(10*60*1000L /*10 minutes*/)
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "$packageName::MeasurementServiceWakeLock"
+        )
+        wakeLock.acquire(10 * 60 * 1000L /*10 minutes*/)
     }
 
     private fun releaseWakeLock() {
@@ -153,6 +164,9 @@ class MeasurementService: Service() {
     enum class State {STARTING, STARTED, LOCATE, LATENCY, DOWNLOAD, UPLOAD, DONE}
 
     class MeasurementBinder(private val service: MeasurementService): Binder() {
+        val lastErrorCode get() = service.lastErrorCode
+        val lastErrorMessage get() = service.lastErrorMessage
+
         val latency: Measurement?
             get() = service.latency
 

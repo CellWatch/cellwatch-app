@@ -18,7 +18,7 @@ import kotlinx.datetime.Instant
 
 class MeasureViewModel: ViewModel() {
     private val TAG = this::class.simpleName
-    private val _state = MutableStateFlow(State(MeasureProgress.PRE, null, null, false))
+    private val _state = MutableStateFlow(State(MeasureProgress.PRE, null, null, false, null))
     val state: StateFlow<State> = _state
 
     val serviceConnection = object : ServiceConnection {
@@ -42,6 +42,7 @@ class MeasureViewModel: ViewModel() {
                                     null,
                                     service.groupId ?: throw RuntimeException("missing service group id")
                                 ),
+                                errorMessage = null
                             )
                         }
 
@@ -59,7 +60,11 @@ class MeasureViewModel: ViewModel() {
 
                         MeasurementService.State.DONE -> {
                             service.upload?.let { handleThroughputComplete(it) }
-                            handleMeasurementComplete(service.group)
+                            handleMeasurementComplete(
+                                service.group,
+                                service.lastErrorCode,
+                                service.lastErrorMessage
+                            )
                         }
                     }
                 }
@@ -76,7 +81,7 @@ class MeasureViewModel: ViewModel() {
     }
 
     fun reset() {
-        _state.update { State(MeasureProgress.PRE, null, null, false) }
+        _state.update { State(MeasureProgress.PRE, null, null, false, null) }
     }
 
     private fun handleLocateStart() {
@@ -118,9 +123,13 @@ class MeasureViewModel: ViewModel() {
         }
     }
 
-    private fun handleMeasurementComplete(group: MeasurementGroup?) {
+    private fun handleMeasurementComplete(group: MeasurementGroup?, errorCode: Int?, errorText: String?) {
         if (group == null) {
-            _state.update { currentState -> currentState.copy(progress = MeasureProgress.ERROR) }
+            val msg = when (errorCode) {
+                429 -> "You’re temporarily rate-limited by the test servers. Please wait a few minutes and try again."
+                else -> errorText ?: "Measurement failed. Please try again."
+            }
+            _state.update { currentState -> currentState.copy(progress = MeasureProgress.ERROR, errorMessage = msg) }
             return
         }
 
@@ -145,6 +154,7 @@ class MeasureViewModel: ViewModel() {
         val results: MeasurementGroup?,
         val uploadTime: Instant?,
         val inVehicle: Boolean,
+        val errorMessage: String?
     )
 
     enum class MeasureProgress { PRE, START, LOCATE, LATENCY, DOWNLOAD, UPLOAD, END, ERROR }
