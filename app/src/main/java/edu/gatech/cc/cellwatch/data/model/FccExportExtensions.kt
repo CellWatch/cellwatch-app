@@ -118,8 +118,8 @@ data class LatencySubmissionTest(
 @Serializable
 data class ExportLocation(
     val timestamp: String,
-    val latitude: Double,
-    val longitude: Double,
+    val latitude: String,
+    val longitude: String,
     val horizontal_accuracy: Double? = null,
     val speed: Double? = null,
     val speed_accuracy: Double? = null
@@ -165,8 +165,8 @@ fun Measurement.toUDSubmissionTest(): UDSubmissionTest? {
             val ts = loc.timestamp?.toString() ?: return@mapNotNull null
             ExportLocation(
                 timestamp = ts,
-                latitude = String.format("%.6f", loc.lat).toDouble(),
-                longitude = String.format("%.6f", loc.lon).toDouble(),
+                latitude = String.format("%.6f", loc.lat),
+                longitude = String.format("%.6f", loc.lon),
                 horizontal_accuracy = loc.accuracy,
                 speed = loc.speed,
                 speed_accuracy = loc.speedAccuracy
@@ -219,8 +219,8 @@ fun Measurement.toSubmissionTestLatency(): LatencySubmissionTest? {
             val ts = loc.timestamp?.toString() ?: return@mapNotNull null
             ExportLocation(
                 timestamp = ts,
-                latitude = String.format("%.6f", loc.lat).toDouble(),
-                longitude = String.format("%.6f", loc.lon).toDouble(),
+                latitude = String.format("%.6f", loc.lat),
+                longitude = String.format("%.6f", loc.lon),
                 horizontal_accuracy = loc.accuracy,
                 speed = loc.speed,
                 speed_accuracy = loc.speedAccuracy

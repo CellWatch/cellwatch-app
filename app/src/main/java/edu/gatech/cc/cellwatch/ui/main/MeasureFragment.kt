@@ -71,16 +71,20 @@ class MeasureFragment : Fragment() {
         binding.progressBar.isVisible = !complete
         binding.buttonContainer.isVisible = complete
 
-        binding.header.setText(when (state.progress) {
+        binding.header.text = when (state.progress) {
             MeasureViewModel.MeasureProgress.PRE,
-            MeasureViewModel.MeasureProgress.START -> R.string.measuring
-            MeasureViewModel.MeasureProgress.LOCATE -> R.string.finding_server
-            MeasureViewModel.MeasureProgress.LATENCY -> R.string.measuring_latency
-            MeasureViewModel.MeasureProgress.DOWNLOAD ->R.string.measuring_download
-            MeasureViewModel.MeasureProgress.UPLOAD -> R.string.measuring_upload
-            MeasureViewModel.MeasureProgress.END -> R.string.measurement_complete
-            MeasureViewModel.MeasureProgress.ERROR -> R.string.measurement_failed
-        })
+            MeasureViewModel.MeasureProgress.START -> getString(R.string.measuring)
+            MeasureViewModel.MeasureProgress.LOCATE -> getString(R.string.finding_server)
+            MeasureViewModel.MeasureProgress.LATENCY -> getString(R.string.measuring_latency)
+            MeasureViewModel.MeasureProgress.DOWNLOAD -> getString(R.string.measuring_download)
+            MeasureViewModel.MeasureProgress.UPLOAD -> getString(R.string.measuring_upload)
+            MeasureViewModel.MeasureProgress.END -> getString(R.string.measurement_complete)
+            MeasureViewModel.MeasureProgress.ERROR -> {
+                val base = getString(R.string.measurement_failed)
+                val msg = state.errorMessage
+                if (msg.isNullOrBlank()) base else "$base: $msg"
+            }
+        }
 
         binding.item.updateUploadTime(state.uploadTime)
     }
