@@ -371,6 +371,7 @@ class MapActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
+        super.onBackPressed()
         hideSearchResultsView()
     }
 
