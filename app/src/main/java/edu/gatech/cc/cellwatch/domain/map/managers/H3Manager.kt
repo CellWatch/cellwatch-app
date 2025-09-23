@@ -46,11 +46,17 @@ object H3Manager {
     }
 
     private fun boundsToGeoCoords(bounds: CoordinateBounds): List<GeoCoord> {
+        val ne = bounds.northeast
+        val sw = bounds.southwest
+        val nwLat = ne.latitude()
+        val nwLng = sw.longitude()
+        val seLat = sw.latitude()
+        val seLng = ne.longitude()
         return listOf(
-            GeoCoord(bounds.northeast.latitude(), bounds.northeast.longitude()),
-            GeoCoord(bounds.northwest().latitude(), bounds.northwest().longitude()),
-            GeoCoord(bounds.southwest.latitude(), bounds.southwest.longitude()),
-            GeoCoord(bounds.southeast().latitude(), bounds.southeast().longitude()),
+            GeoCoord(ne.latitude(), ne.longitude()),
+            GeoCoord(nwLat, nwLng),
+            GeoCoord(sw.latitude(), sw.longitude()),
+            GeoCoord(seLat, seLng)
         )
     }
 
