@@ -18,7 +18,9 @@
 local.properties
 /.idea/.name
 .idea/misc.xml
+.idea/artifacts
 /cellwatch.properties
 /keystore/
 /app/release/
 *.apk
+.kotlin

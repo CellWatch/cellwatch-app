@@ -1,0 +1,53 @@
+-- Table(s) for the Cell aggregate
+CREATE TABLE IF NOT EXISTS MeasurementEntity(
+  id TEXT NOT NULL PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS CellEntity(
+  id TEXT NOT NULL PRIMARY KEY,
+  timestamp INTEGER,
+  cellId INTEGER,
+  physicalCellId INTEGER,
+  cellConnection INTEGER,
+  networkGeneration TEXT,
+  networkSubtype TEXT,
+  signalStrength INTEGER,
+  rssi INTEGER,
+  rsrp INTEGER,
+  rsrq INTEGER,
+  sinr INTEGER,
+  csiRsrp INTEGER,
+  csiRsrq INTEGER,
+  csiSinr INTEGER,
+  cqi INTEGER,
+  spectrumBand TEXT,
+  spectrumBandwidth REAL,
+  arfcn INTEGER,
+  measurementId TEXT,
+  createdOn INTEGER,
+  updatedOn INTEGER,
+  FOREIGN KEY(measurementId) REFERENCES MeasurementEntity(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS CellEntity_measurementId_idx
+ON CellEntity(measurementId);
+
+-- Queries for Cell
+insertOrReplaceCell:
+INSERT OR REPLACE INTO CellEntity(
+  id, timestamp, cellId, physicalCellId, cellConnection,
+  networkGeneration, networkSubtype, signalStrength, rssi, rsrp, rsrq, sinr,
+  csiRsrp, csiRsrq, csiSinr, cqi, spectrumBand, spectrumBandwidth, arfcn,
+  measurementId, createdOn, updatedOn
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteCellById:
+DELETE FROM CellEntity WHERE id = ?;
+
+selectCellById:
+SELECT * FROM CellEntity WHERE id = ?;
+
+selectCellsByMeasurement:
+SELECT * FROM CellEntity WHERE measurementId = ? ORDER BY timestamp DESC;
