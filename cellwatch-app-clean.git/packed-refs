@@ -1,0 +1,25 @@
+# pack-refs with: peeled fully-peeled sorted 
+3dc7f876f65c1f1812da51589d3c4b6fe2aadd10 refs/heads/bulk-data-submissions
+bcf472bfdaf9d85ac9388f42a5137bd85b601fec refs/heads/fcc_changes_july
+0783cfe5cc0a1c8f4d0fee482f95d6fe01e89aa2 refs/heads/main
+344bd1f1ab9bec9e3ace87f5cf6175880f21036e refs/heads/permissions-fix
+3dc7f876f65c1f1812da51589d3c4b6fe2aadd10 refs/pull/100/head
+344bd1f1ab9bec9e3ace87f5cf6175880f21036e refs/pull/101/head
+684e365cc652a107fb303defc75423c369a99405 refs/pull/66/head
+d9b5a72f6a3112f8d41cacd5b949f863c99d8032 refs/pull/67/head
+31860380b5fcd43ab6d48cb4462aa93a7bc2e2ad refs/tags/v0.1
+1fff43a46c84b3cee13506566629d6d18d493210 refs/tags/v1.0-alpha.0
+3ee6949698858ea930b6ce9921117c2bc314e930 refs/tags/v1.0.0
+bd188c8507e2ffdec497a0e929b001bc058c16f0 refs/tags/v1.0.0-alpha.1
+bb37279c718505e3c1fb3d9db06f984c69612bb8 refs/tags/v1.0.0-alpha.10
+a8a587252a9bbe8c7561e6d872e0f84e5fd6cb3c refs/tags/v1.0.0-alpha.2
+ea434219030c20d15d16c63b1d24fcbe2a4c3cba refs/tags/v1.0.0-alpha.3
+898214e5cf4e0a5de0f85d1d53739386f19034f9 refs/tags/v1.0.0-alpha.4
+ecad1095d347335f360d5ddb4f75eddb02badb1a refs/tags/v1.0.0-alpha.5
+d0d6ef40ec899d151318a3d189f1ab70d795abd6 refs/tags/v1.0.0-alpha.6
+7ce33a60343b098a125b470a5d2497c4f47f8eaf refs/tags/v1.0.0-alpha.7
+c66b7566b7157c44f348ca3abe2c8c61fb180340 refs/tags/v1.0.0-alpha.8
+233116dc0d61ee510b2772a57dc1a4ea62d72f5e refs/tags/v1.0.0-alpha.9
+fc4e5cba0e3e80ede1b70af34721f8a9625c9782 refs/tags/v1.0.0-beta.0
+5fea834998b3832097bd4e0d800dc0ce49462193 refs/tags/v1.0.0-beta.1
+e5fcdaeb366e9de694bc9b8095649cf01a77d0a3 refs/tags/v1.0.0-beta.2
