@@ -2,7 +2,7 @@
 
 Network measurement for Android. It collects, visualizes, and exports cellular performance data with FCC BDC compliant bulk submissions.
 
-- Android client for passive/active measurements (download, upload, latency)
+- Android client for active measurements (download, upload, latency)
 - Supabase backend for storage, APIs, and server-side processing
 - One-click JSON export aligned with FCC Broadband Data Collection (BDC) mobile speed test spec
 
