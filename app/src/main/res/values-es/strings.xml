@@ -72,7 +72,7 @@
     <string name="moving_vehicle">En un vehículo en movimiento</string>
     <string name="certification_intro">Al hacer clic en Empezar, declaro que según mi conocimiento:</string>
     <string name="certify_subscriber">Soy suscriptor del proveedor al cual se impugna</string>
-    <string name="certify_outdoors">Estoy al aire libre</string>
+    <string name="certify_location"> Estoy en la location seleccionada arriba. </string>
     <string name="certify_phone_working">Mi teléfono funciona</string>
     <string name="certify_statements">Todas las declaraciones en este envío son verdaderas y correctas</string>
     <string name="testing_warning">El modo de prueba está activo, así que esta medición no se enviará a la FCC. Se puede cambiar el modo de recopilación en los Ajustes.</string>

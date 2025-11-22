@@ -66,7 +66,7 @@
     <string name="moving_vehicle">In Moving Vehicle</string>
     <string name="certification_intro">By clicking "Go", I certify to the best of my ability that:</string>
     <string name="certify_subscriber">I am a subscriber of the provider being challenged</string>
-    <string name="certify_outdoors">I am outdoors</string>
+    <string name="certify_location">I am in the location selected above</string>
     <string name="certify_phone_working">My phone is in working order</string>
     <string name="certify_statements">All statements in this submission are true and correct</string>
     <string name="testing_warning">You are currently in Testing mode, so this measurement will not be submitted to the FCC. You can change the collection mode in Settings.</string>
