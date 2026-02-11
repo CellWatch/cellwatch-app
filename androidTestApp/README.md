@@ -1,12 +1,24 @@
 # androidTestApp
 
-This directory is reserved for Android-side KMP integration/testing work so the legacy `app/` module stays untouched.
+Isolated Android harness app for KMP/shared sync parity work.
 
-Current status:
-- Scaffold only (not wired into Gradle settings yet)
-- Intended to host future Android test harness/app wiring for shared KMP sync
+What it provides:
+- Runnable UI harness (`MainActivity`) with three actions:
+  - `Seed + Run Map-Start Sync`
+  - `Run Measurement-Complete Sync`
+  - `Run Map-Start Sync (No Seed)`
+- Shared sync driver wiring via `AndroidTestSyncDriverFactory`
+- Local Supabase default target enforcement via `SupabaseTarget.LOCAL`
+- Robolectric/unit test coverage for driver behavior and environment guardrails
 
-Planned contents:
-- dedicated Android module build files
-- adapter wiring to shared sync service
-- local-Supabase smoke/integration entrypoints
+Run tests:
+
+```bash
+./gradlew :androidTestApp:testDebugUnitTest
+```
+
+Run app build:
+
+```bash
+./gradlew :androidTestApp:assembleDebug
+```

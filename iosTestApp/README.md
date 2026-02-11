@@ -6,6 +6,10 @@ Covers:
 - `sharedKit` Keychain-backed secure storage integration
 - local/remote Supabase environment guardrail behavior (unit tests)
 - sync harness driver behavior (partial success, blocked submission, error propagation)
+- runnable UI harness (`HarnessViewController`) with:
+  - local environment resolve action
+  - map-start sync simulation action
+  - measurement-complete simulation action
 
 Run hosted tests:
 
