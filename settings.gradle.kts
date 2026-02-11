@@ -1,6 +1,7 @@
 import java.util.Properties
 
 include(":shared")
+include(":androidTestApp")
 
 
 pluginManagement {
