@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.gradle.api.tasks.testing.Test
 import java.io.File
 
 plugins {
@@ -7,7 +8,6 @@ plugins {
     alias(libs.plugins.sqldelight)
     alias(libs.plugins.kotlin.serialization)
 }
-
 
 kotlin {
 
@@ -61,6 +61,7 @@ kotlin {
                 implementation(libs.kotlinx.datetime)
                 implementation(libs.serialization.core)
                 implementation(libs.serialization.json)
+                implementation(libs.supabase)
                 // Add KMP dependencies here
                 implementation(libs.sqldelight.runtime)
                 implementation(libs.sqldelight.coroutines)
@@ -134,6 +135,7 @@ kotlin {
         jvmMain {
             dependencies {
                 implementation(libs.cryptography.provider.jdk)
+                implementation(libs.ktor.client.cio)
             }
         }
     }
@@ -225,6 +227,27 @@ tasks.register("verifyLightweightPlatforms") {
     description = "Tier 1: fast checks (Android unit + JVM + iOS simulator K/N tests)."
     group = "verification"
     dependsOn("verifyAllPlatforms")
+}
+
+tasks.named<Test>("jvmTest") {
+    exclude("**/*LocalSupabaseIntegrationTest*")
+}
+
+tasks.register<Test>("jvmLocalSupabaseIntegrationTest") {
+    description = "Runs JVM tests that exercise local Docker Supabase integration."
+    group = "verification"
+
+    val jvmTest = tasks.named<Test>("jvmTest").get()
+    testClassesDirs = jvmTest.testClassesDirs
+    classpath = jvmTest.classpath
+    include("**/*LocalSupabaseIntegrationTest*")
+    shouldRunAfter(jvmTest)
+}
+
+tasks.register("verifyLocalSupabaseJvmIntegration") {
+    description = "Runs shared JVM local Supabase integration tests (local Docker only)."
+    group = "verification"
+    dependsOn("jvmLocalSupabaseIntegrationTest")
 }
 
 tasks.register("verifyIosHostedKeychain") {
