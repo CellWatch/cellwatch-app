@@ -9,6 +9,7 @@ import edu.gatech.cc.cellwatch.data.core.repositories.SettingsRepository
 import edu.gatech.cc.cellwatch.data.datastore.LocalDataStore
 import edu.gatech.cc.cellwatch.data.local.CellWatchDatabase
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
+import edu.gatech.cc.cellwatch.data.sync.AndroidSharedSyncServiceFactory
 import org.conscrypt.Conscrypt
 import java.security.Security
 
@@ -48,6 +49,13 @@ class CellWatchApp : Application() {
         }
         val settingsRepository by lazy {
             SettingsRepository(localDataStore)
+        }
+        val sharedMeasurementSyncService by lazy {
+            AndroidSharedSyncServiceFactory.create(
+                database = database,
+                localDataStore = localDataStore,
+                userAgent = userAgent,
+            )
         }
         val measurementNotificationChannel by lazy {
             val channel = NotificationChannel(
