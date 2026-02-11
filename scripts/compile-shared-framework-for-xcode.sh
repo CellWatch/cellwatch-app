@@ -51,6 +51,9 @@ if [[ -n "${JAVA_HOME:-}" ]]; then
   args+=("-Dorg.gradle.java.home=$JAVA_HOME")
 fi
 
+# Optional composite-source mode for Xcode-driven iOS builds.
+# Default behavior should remain Maven artifact resolution.
+# Enable only when you need direct source substitution from a local msak checkout.
 case "${CELLWATCH_USE_LOCAL_MSAK_COMPOSITE:-}" in
   1|true|TRUE|yes|YES)
     args+=("-Pcellwatch.useLocalMsak=true")
