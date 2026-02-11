@@ -6,7 +6,8 @@ This repository currently contains:
 - A production Android app (`app/`)
 - A Kotlin Multiplatform shared module (`shared/`) under active migration
 - An isolated Android KMP test harness module (`androidTestApp/`) for shared-sync integration work without modifying legacy `app/`
-- An iOS host integration test app (`iosSharedIntegrationHost/`) used to validate platform-specific behavior such as Keychain access
+- An isolated iOS host integration app (`iosTestApp/`) for parity testing of keychain and sync-harness behaviors
+- A legacy iOS host integration app (`iosSharedIntegrationHost/`) retained for backward compatibility
 
 ## Current Project Status
 
@@ -20,6 +21,7 @@ The project is mid-migration from Android-only Kotlin to KMP:
 - `app/`: Android application (legacy + active production app code)
 - `shared/`: KMP shared module (common/domain/data/util, SQLDelight schema and tests)
 - `androidTestApp/`: isolated Android module for shared/KMP sync wiring and local Supabase smoke tests
+- `iosTestApp/`: isolated iOS host app + XCTest target for parity testing (`sharedKit.framework` integration)
 - `iosSharedIntegrationHost/`: Minimal iOS app + XCTest target for hosted integration tests against `sharedKit.framework`
 - `doc/`: Supporting documentation (including architecture notes)
 
@@ -145,7 +147,8 @@ Command:
 
 If run separately:
 - Android realistic only: `./gradlew :shared:verifyAndroidEmulator`
-- iOS realistic only: `./gradlew :shared:verifyIosHostedKeychain`
+- iOS realistic (new parity host) only: `./gradlew :shared:verifyIosTestAppHosted`
+- iOS realistic (legacy host) only: `./gradlew :shared:verifyIosHostedKeychain`
 - Local Supabase JVM integration only: `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
   - Includes remote adapter RPC/table checks and end-to-end `MeasurementSyncUseCase` store-and-forward validation against local Docker Supabase
 - Android isolated harness smoke test: `./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.LocalSupabaseSharedSyncSmokeTest"`

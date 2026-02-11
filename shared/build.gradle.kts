@@ -278,11 +278,39 @@ tasks.register("verifyIosHostedKeychain") {
     }
 }
 
+tasks.register("verifyIosTestAppHosted") {
+    description = "Tier 2: iOS host-app parity tests in iosTestApp (Keychain + sync harness behaviors)."
+    group = "verification"
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException(
+                "Missing iOS hosted test project at ${projectPath.absolutePath}."
+            )
+        }
+    }
+    doLast {
+        exec {
+            commandLine(
+                "xcodebuild",
+                "-project",
+                projectPath.absolutePath,
+                "-scheme",
+                "iosTestApp",
+                "-destination",
+                "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                "test",
+            )
+            workingDir = rootProject.projectDir
+        }
+    }
+}
+
 tasks.register("verifyRealisticPlatforms") {
-    description = "Tier 2: realistic platform checks (Android emulator/device + iOS hosted Keychain tests)."
+    description = "Tier 2: realistic platform checks (Android emulator/device + iOS hosted app tests)."
     group = "verification"
     dependsOn(
         "verifyAndroidEmulator",
-        "verifyIosHostedKeychain",
+        "verifyIosTestAppHosted",
     )
 }
