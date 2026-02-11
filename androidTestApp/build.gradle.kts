@@ -28,6 +28,7 @@ android {
 dependencies {
     implementation(project(":shared"))
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.datetime)
     implementation(libs.sqldelight.android.driver)
     implementation(libs.ktor.client.cio)
 
