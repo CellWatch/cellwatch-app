@@ -1,7 +1,10 @@
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.library)
     alias(libs.plugins.sqldelight)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 
@@ -14,6 +17,7 @@ kotlin {
 // which platforms this KMP module supports.
 // See: https://kotlinlang.org/docs/multiplatform-discover-project.html#targets
     androidTarget()
+    jvm()
 
 // For iOS targets, this is also where you should
 // configure native binary output. For more information, see:
@@ -54,9 +58,15 @@ kotlin {
             dependencies {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.datetime)
+                implementation(libs.serialization.core)
+                implementation(libs.serialization.json)
                 // Add KMP dependencies here
                 implementation(libs.sqldelight.runtime)
                 implementation(libs.sqldelight.coroutines)
+                implementation(libs.benasher.uuid)
+//                implementation(libs.cryptography.core)
+//                implementation(libs.cryptography.provider.optimal)
+                implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.2.0")
             }
         }
 
@@ -86,8 +96,6 @@ kotlin {
             }
         }
 
-
-
         iosMain {
             dependencies {
                 // Add iOS-specific dependencies here. This a source set created by Kotlin Gradle
@@ -96,6 +104,24 @@ kotlin {
                 // on common by default and will correctly pull the iOS artifacts of any
                 // KMP dependencies declared in commonMain.
                 implementation(libs.sqldelight.native.driver)
+            }
+        }
+        iosTest {
+            dependencies {
+                implementation(libs.kotlin.test)
+                implementation(libs.sqldelight.native.driver)
+            }
+        }
+
+        val jvmTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+                implementation(libs.sqldelight.sqlite.driver)
+            }
+        }
+
+        jvmMain {
+            dependencies {
             }
         }
     }
