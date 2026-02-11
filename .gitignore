@@ -11,6 +11,7 @@
 /.idea/deploymentTargetDropDown.xml
 .DS_Store
 /build
+**/build/
 /release
 /captures
 .externalNativeBuild
