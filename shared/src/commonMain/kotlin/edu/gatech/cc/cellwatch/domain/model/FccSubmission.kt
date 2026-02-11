@@ -1,0 +1,40 @@
+package edu.gatech.cc.cellwatch.domain.model
+
+import com.benasher44.uuid.uuid4
+import kotlinx.datetime.Instant
+
+data class FccSubmission(
+    var id: String = uuid4().toString(),
+    val challengeDataId: String? = null,
+    val contactName: String? = null,
+    val contactEmail: String? = null,
+    val contactPhone: String? = null,
+    val deviceTimestamp: Instant? = null,
+    var serverTimestamp: Instant? = null,
+    var sourceIp: String? = null,
+    var sourcePort: Int? = null,
+    val deviceId: String? = null,
+    val deviceImei: String? = null,
+    val deviceTac: String? = null,
+    val deviceType: String? = null,
+    val deviceManufacturer: String? = null,
+    val deviceModel: String? = null,
+    val deviceOsName: String? = null,
+    val appName: String? = null,
+    val appVersion: String? = null,
+    val provider: String? = null,
+    var simCountryCode: String? = null,
+    var simNetworkCode: String? = null,
+    var netCountryCode: String? = null,
+    var netNetworkCode: String? = null,
+    val inVehicle: Boolean? = null,
+    val externalAntenna: Boolean? = null,
+    var submitted: Boolean? = false,
+    var submittedOn: Instant? = null,
+    var submission: String? = null,
+    var submissionResponse: String? = null,
+    val createdOn: Instant? = null,
+    val updatedOn: Instant? = null,
+    var measurements: List<Measurement>? = null,
+    var uploadTime: Instant? = null,
+)

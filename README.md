@@ -116,3 +116,74 @@ Then in `MeasurementFragment.kt`, follow the existing comments for local-server 
 
 Historical Clean Architecture notes were moved out of the root README:
 - `doc/CLEAN_ARCHITECTURE_NOTES.md`
+
+## Porting Gap Snapshot (`app/` -> `shared/`)
+
+Already ported in `shared/`:
+- Core models and mappers (`Cell`, `Device`, `ChallengeData`, `Measurement`, `Location`, `LatencyData`, `UploadDownloadData`, `FccSubmission`)
+- SQLDelight schema + repository implementations for those entities
+- Shared encryption + secure key storage abstraction (`SecureKeyStore`) with Android/iOS/JVM actuals
+
+Not yet ported (still Android-only in `app/`):
+- Measurement pipeline and FCC flow (`domain/fcc/*`)
+- Network datasource stack for measurements/submissions
+- Telephony and map managers
+- Android UI/viewmodels/navigation
+
+## Progressive KMP Porting Plan
+
+### Phase 1: Data model and storage parity
+- Status: completed on February 11, 2026
+- Delivered:
+  - Shared domain model parity for `Measurement`, `Location`, `LatencyData`, `UploadDownloadData`, `FccSubmission`, `ChallengeData` and supporting types
+  - SQLDelight schema + repository interfaces/implementations for these entities
+  - Cross-platform query contracts and mapper round-trip tests (Android unit, JVM, iOS simulator via Tier 1)
+  - Cross-platform Phase 1 integration-style data-flow contract (`Phase1DataFlowContract`) validating:
+    - persistence and hydration of a full measurement group (latency/download/upload + child tables + FCC submission)
+    - `MeasurementGroup` reconstruction invariants
+    - foreign-key cascade behavior for measurement child records
+- Tier 1 tests:
+  - `./gradlew :shared:verifyLightweightPlatforms`
+- Tier 2 tests:
+  - Not required yet unless secure-storage/encryption behavior changes
+
+### Phase 2: Shared network and submission contracts
+- Port `data/network` models and datasource interfaces into `shared/`
+- Implement platform-neutral HTTP client adapters in `shared/` with platform bindings where needed
+- Port repository orchestration currently in `MeasurementRepository`
+- Tier 1 tests:
+  - Contract tests for network mapping + error handling in `commonTest`
+  - Existing lightweight platform suite
+- Tier 2 tests:
+  - Optional smoke integration against test endpoint if available
+
+### Phase 3: Measurement engine extraction
+- Split `domain/fcc` into:
+  - Pure shared logic (metrics aggregation, challenge orchestration, payload assembly)
+  - Platform adapters for network sockets/timing/device signals
+- Define expect/actual seams for platform-specific primitives
+- Tier 1 tests:
+  - Deterministic shared engine tests in `commonTest`
+- Tier 2 tests:
+  - Android instrumented smoke test for real runtime behavior
+  - iOS hosted integration smoke test when iOS adapter is added
+
+### Phase 4: Platform capability adapters
+- Introduce shared interfaces for telephony/map/device capability reads
+- Keep implementations in app layers:
+  - Android actuals in `shared/androidMain` or Android app module
+  - iOS actuals in iOS app target
+- Tier 1 tests:
+  - Contract tests with fakes in `commonTest`
+- Tier 2 tests:
+  - Android instrumentation for telephony-backed paths
+  - iOS hosted tests for CoreTelephony-backed paths (when wired)
+
+### Phase 5: App-layer convergence
+- Keep Android UI in `app/` but consume shared repositories/use-cases
+- Stand up iOS app UI against the same shared APIs
+- Remove duplicated business logic from Android-only layer as each slice is migrated
+- Tier 1 tests:
+  - Shared regression suite + Android unit/UI unit tests
+- Tier 2 tests:
+  - Android instrumentation + iOS hosted integration checks in CI/release gates

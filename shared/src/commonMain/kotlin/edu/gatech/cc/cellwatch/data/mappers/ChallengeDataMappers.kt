@@ -2,11 +2,12 @@ package edu.gatech.cc.cellwatch.data.mappers
 
 import edu.gatech.cc.cellwatch.domain.model.ChallengeData
 import edu.gatech.cc.cellwatch.data.transport.NetworkChallengeData
-import com.benasher44.uuid.uuidFrom
+import edu.gatech.cc.cellwatch.db.ChallengeDataEntity
+import kotlinx.datetime.Instant
 
 fun ChallengeData.toNetwork(): NetworkChallengeData =
     NetworkChallengeData(
-        id = id.toString(),
+        id = id,
         submissionCategory = submissionCategory,
         contactName = contactName,
         contactEmail = contactEmail,
@@ -18,7 +19,7 @@ fun ChallengeData.toNetwork(): NetworkChallengeData =
 
 fun NetworkChallengeData.toDomain(): ChallengeData =
     ChallengeData(
-        id = uuidFrom(id),
+        id = id,
         submissionCategory = submissionCategory,
         contactName = contactName,
         contactEmail = contactEmail,
@@ -26,4 +27,28 @@ fun NetworkChallengeData.toDomain(): ChallengeData =
         dataSharingAcknowledgement = dataSharingAcknowledgement,
         createdOn = createdOn,
         updatedOn = updatedOn
+    )
+
+fun ChallengeDataEntity.toDomain(): ChallengeData =
+    ChallengeData(
+        id = id,
+        submissionCategory = submissionCategory,
+        contactName = contactName,
+        contactEmail = contactEmail,
+        contactPhone = contactPhone,
+        dataSharingAcknowledgement = dataSharingAcknowledgement.toBooleanOrNull(),
+        createdOn = createdOn?.let(Instant::fromEpochMilliseconds),
+        updatedOn = updatedOn?.let(Instant::fromEpochMilliseconds),
+    )
+
+fun ChallengeData.toRow(): ChallengeDataEntity =
+    ChallengeDataEntity(
+        id = id,
+        submissionCategory = submissionCategory,
+        contactName = contactName,
+        contactEmail = contactEmail,
+        contactPhone = contactPhone,
+        dataSharingAcknowledgement = dataSharingAcknowledgement.toSqlBoolean(),
+        createdOn = createdOn?.toEpochMilliseconds(),
+        updatedOn = updatedOn?.toEpochMilliseconds(),
     )

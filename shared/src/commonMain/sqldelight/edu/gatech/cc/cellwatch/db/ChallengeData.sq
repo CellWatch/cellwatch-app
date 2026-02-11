@@ -1,0 +1,25 @@
+CREATE TABLE IF NOT EXISTS ChallengeDataEntity(
+  id TEXT NOT NULL PRIMARY KEY,
+  submissionCategory TEXT NOT NULL,
+  contactName TEXT,
+  contactEmail TEXT,
+  contactPhone TEXT,
+  dataSharingAcknowledgement INTEGER,
+  createdOn INTEGER,
+  updatedOn INTEGER
+);
+
+insertOrReplaceChallengeData:
+INSERT OR REPLACE INTO ChallengeDataEntity(
+  id, submissionCategory, contactName, contactEmail, contactPhone, dataSharingAcknowledgement,
+  createdOn, updatedOn
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteChallengeDataById:
+DELETE FROM ChallengeDataEntity WHERE id = ?;
+
+selectChallengeDataById:
+SELECT * FROM ChallengeDataEntity WHERE id = ?;
+
+selectAllChallengeData:
+SELECT * FROM ChallengeDataEntity ORDER BY createdOn DESC;

@@ -1,0 +1,55 @@
+CREATE TABLE IF NOT EXISTS FccSubmissionEntity(
+  id TEXT NOT NULL PRIMARY KEY,
+  challengeDataId TEXT,
+  contactName TEXT,
+  contactEmail TEXT,
+  contactPhone TEXT,
+  deviceTimestamp INTEGER,
+  serverTimestamp INTEGER,
+  sourceIp TEXT,
+  sourcePort INTEGER,
+  deviceId TEXT,
+  deviceImei TEXT,
+  deviceTac TEXT,
+  deviceType TEXT,
+  deviceManufacturer TEXT,
+  deviceModel TEXT,
+  deviceOsName TEXT,
+  appName TEXT,
+  appVersion TEXT,
+  provider TEXT,
+  simCountryCode TEXT,
+  simNetworkCode TEXT,
+  netCountryCode TEXT,
+  netNetworkCode TEXT,
+  inVehicle INTEGER,
+  externalAntenna INTEGER,
+  submitted INTEGER,
+  submittedOn INTEGER,
+  submission TEXT,
+  submissionResponse TEXT,
+  createdOn INTEGER,
+  updatedOn INTEGER,
+  uploadTime INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS FccSubmissionEntity_submitted_idx
+ON FccSubmissionEntity(submitted);
+
+insertOrReplaceFccSubmission:
+INSERT OR REPLACE INTO FccSubmissionEntity(
+  id, challengeDataId, contactName, contactEmail, contactPhone, deviceTimestamp, serverTimestamp,
+  sourceIp, sourcePort, deviceId, deviceImei, deviceTac, deviceType, deviceManufacturer, deviceModel,
+  deviceOsName, appName, appVersion, provider, simCountryCode, simNetworkCode, netCountryCode,
+  netNetworkCode, inVehicle, externalAntenna, submitted, submittedOn, submission, submissionResponse,
+  createdOn, updatedOn, uploadTime
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteFccSubmissionById:
+DELETE FROM FccSubmissionEntity WHERE id = ?;
+
+selectFccSubmissionById:
+SELECT * FROM FccSubmissionEntity WHERE id = ?;
+
+selectUnsubmittedFccSubmissions:
+SELECT * FROM FccSubmissionEntity WHERE submitted IS NULL OR submitted = 0 ORDER BY createdOn ASC;

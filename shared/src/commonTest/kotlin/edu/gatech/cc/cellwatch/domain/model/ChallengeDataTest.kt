@@ -1,6 +1,5 @@
 package edu.gatech.cc.cellwatch.domain.model
 
-import com.benasher44.uuid.uuid4
 import kotlinx.datetime.Clock
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -24,9 +23,9 @@ class ChallengeDataTest {
     @Test
     fun supportsCustomValues() {
         val now = Clock.System.now()
-        val uuid = uuid4()
+        val id = "123e4567-e89b-12d3-a456-426614174000"
         val custom = ChallengeData(
-            id = uuid,
+            id = id,
             submissionCategory = "CUSTOM",
             contactName = "Ada Lovelace",
             dataSharingAcknowledgement = true,
@@ -34,7 +33,7 @@ class ChallengeDataTest {
             updatedOn = now
         )
 
-        assertEquals(uuid, custom.id)
+        assertEquals(id, custom.id)
         assertEquals("Ada Lovelace", custom.contactName)
         assertEquals(true, custom.dataSharingAcknowledgement)
         assertEquals(now, custom.createdOn)

@@ -2,20 +2,21 @@ package edu.gatech.cc.cellwatch.db
 
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import com.benasher44.uuid.uuid4
+import kotlinx.coroutines.runBlocking
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
-class DeviceQueriesIosTest {
+class Phase1DataFlowIosTest {
 
     private lateinit var driver: NativeSqliteDriver
     private lateinit var db: CellwatchDatabase
 
     @BeforeTest
     fun setUp() {
-        driver = NativeSqliteDriver(CellwatchDatabase.Schema, "device-ios-test-${uuid4()}.db")
+        driver = NativeSqliteDriver(CellwatchDatabase.Schema, "phase1-data-flow-${uuid4()}.db")
+        driver.execute(null, "PRAGMA foreign_keys=ON", 0) {}
         db = CellwatchDatabase(driver)
-        driver.execute(null, "DELETE FROM DeviceEntity", 0) {}
     }
 
     @AfterTest
@@ -26,12 +27,7 @@ class DeviceQueriesIosTest {
     }
 
     @Test
-    fun insert_and_select_by_id() = DeviceQueriesContract.assertInsertAndSelectById(db)
-
-    @Test
-    fun select_all_returns_all_inserted_devices() =
-        DeviceQueriesContract.assertSelectAllReturnsAllInsertedDevices(db)
-
-    @Test
-    fun delete_by_id_removes_row() = DeviceQueriesContract.assertDeleteByIdRemovesRow(db)
+    fun measurement_group_lifecycle_round_trip() = runBlocking {
+        Phase1DataFlowContract.assertMeasurementGroupLifecycle(db)
+    }
 }

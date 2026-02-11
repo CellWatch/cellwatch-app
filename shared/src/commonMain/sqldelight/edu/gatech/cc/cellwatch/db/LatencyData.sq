@@ -1,0 +1,34 @@
+CREATE TABLE IF NOT EXISTS LatencyDataEntity(
+  id TEXT NOT NULL PRIMARY KEY,
+  measurementId TEXT,
+  rtt INTEGER,
+  jitter INTEGER,
+  sent INTEGER,
+  received INTEGER,
+  servers TEXT,
+  createdOn INTEGER,
+  updatedOn INTEGER,
+  FOREIGN KEY(measurementId) REFERENCES MeasurementEntity(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS LatencyDataEntity_measurementId_idx
+ON LatencyDataEntity(measurementId);
+
+insertOrReplaceLatencyData:
+INSERT OR REPLACE INTO LatencyDataEntity(
+  id, measurementId, rtt, jitter, sent, received, servers, createdOn, updatedOn
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteLatencyDataById:
+DELETE FROM LatencyDataEntity WHERE id = ?;
+
+deleteLatencyDataByMeasurement:
+DELETE FROM LatencyDataEntity WHERE measurementId = ?;
+
+selectLatencyDataById:
+SELECT * FROM LatencyDataEntity WHERE id = ?;
+
+selectLatencyDataByMeasurement:
+SELECT * FROM LatencyDataEntity WHERE measurementId = ? ORDER BY createdOn DESC;
