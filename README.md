@@ -412,6 +412,10 @@ Not yet ported (still Android-only in `app/`):
 - Status: in progress
 - Delivered (February 11, 2026):
   - Shared sync contracts and orchestration use case in `shared/domain/sync` (`MeasurementSyncUseCase`, `SyncReport`, remote/local/TCP tuple interfaces)
+  - Shared remote transport profile boundary in `shared/data/sync`:
+    - `SyncRemoteProfile` (currently `Supabase`)
+    - `SyncRemoteDataSourceFactory` + `DefaultSyncRemoteDataSourceFactory`
+    - generic `MeasurementSyncServiceFactory.createUploadTriggerUseCase(...)` that consumes profile + factory
   - Shared network transport models in `shared/data/transport` for measurement and FCC submission payloads:
     - `NetworkMeasurement`, `NetworkMeasurementWithData`, `NetworkLatencyData`, `NetworkUploadDownloadData`, `NetworkLocation`, `NetworkCell`, `NetworkFccSubmission`
   - Shared repository-backed sync local-store adapter in `shared/data/sync/RepositoryBackedMeasurementSyncLocalStore.kt`

@@ -1,9 +1,11 @@
 package edu.gatech.cc.cellwatch.androidtestapp.sync
 
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
+import edu.gatech.cc.cellwatch.data.sync.DefaultSyncRemoteDataSourceFactory
 import edu.gatech.cc.cellwatch.data.sync.MeasurementSyncServiceFactory
-import edu.gatech.cc.cellwatch.data.sync.SupabaseSyncRemoteDataSourceProvider
+import edu.gatech.cc.cellwatch.data.sync.SyncRemoteProfile
 import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
+import edu.gatech.cc.cellwatch.data.sync.SupabaseSyncRemoteDataSourceProvider
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import kotlinx.datetime.Clock
@@ -19,12 +21,15 @@ class AndroidTestSyncDriverFactory(
     private val clock: Clock = Clock.System,
 ) {
     fun create(target: SupabaseTarget = SupabaseTarget.LOCAL): AndroidTestSyncDriver {
-        val uploadTriggerUseCase = MeasurementSyncServiceFactory.createSupabaseUploadTriggerUseCase(
+        val remoteProvider = SupabaseSyncRemoteDataSourceProvider(deviceAuthStore)
+        val uploadTriggerUseCase = MeasurementSyncServiceFactory.createUploadTriggerUseCase(
             database = database,
             io = io,
-            supabaseConfigResolver = environmentProvider,
-            transportTarget = target.toTransportTarget(),
-            remoteProvider = SupabaseSyncRemoteDataSourceProvider(deviceAuthStore),
+            remoteProfile = SyncRemoteProfile.Supabase(
+                configResolver = environmentProvider,
+                target = target.toTransportTarget(),
+            ),
+            remoteFactory = DefaultSyncRemoteDataSourceFactory(remoteProvider),
             tcpTupleProvider = tcpTupleProvider,
             clock = clock,
         )
