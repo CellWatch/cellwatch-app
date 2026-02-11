@@ -137,7 +137,8 @@ class MeasureViewModel: ViewModel() {
 
         viewModelScope.launch {
             val uploadTime = try {
-                CellWatchApp.sharedMeasurementSyncService.syncAll()
+                CellWatchApp.measurementRepository.tryUploadMeasurements()
+                CellWatchApp.measurementRepository.tryUploadFccSubmissions()
                 CellWatchApp.measurementRepository.getUploadTime(group)
             } catch (e: Exception) {
                 Log.d(TAG, "failed to upload measurements and submission", e)
