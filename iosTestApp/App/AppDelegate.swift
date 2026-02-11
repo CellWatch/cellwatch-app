@@ -49,12 +49,17 @@ private final class HarnessViewController: UIViewController {
         completeButton.addTarget(self, action: #selector(runMeasurementComplete), for: .touchUpInside)
         completeButton.translatesAutoresizingMaskIntoConstraints = false
 
+        let selectServersButton = UIButton(type: .system)
+        selectServersButton.setTitle("Select MSAK Servers (Shared Selector)", for: .normal)
+        selectServersButton.addTarget(self, action: #selector(runServerSelection), for: .touchUpInside)
+        selectServersButton.translatesAutoresizingMaskIntoConstraints = false
+
         statusLabel.text = "Ready. Remote target is blocked unless explicitly enabled."
         statusLabel.numberOfLines = 0
         statusLabel.font = UIFont.preferredFont(forTextStyle: .body)
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let stack = UIStackView(arrangedSubviews: [title, localEnvButton, mapStartButton, completeButton, statusLabel])
+        let stack = UIStackView(arrangedSubviews: [title, localEnvButton, mapStartButton, completeButton, selectServersButton, statusLabel])
         stack.axis = .vertical
         stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -109,6 +114,30 @@ private final class HarnessViewController: UIViewController {
             }
             let uploadMs = result?.uploadTimeEpochMs?.int64Value ?? -1
             self.statusLabel.text = "measurement-complete group=\(groupId)\nuploadTimeEpochMs=\(uploadMs)"
+        }
+    }
+
+    @objc private func runServerSelection() {
+        let config = MsakLocateConfig(
+            environment: MsakLocateEnvironment.prod,
+            userAgent: "ios-test-app-harness",
+            localServerHost: nil,
+            localServerSecure: false
+        )
+        let harness = MsakServerSelectionHarness(config: config)
+        harness.runDefaultScenario { result, error in
+            if let error = error {
+                self.statusLabel.text = "server-select failed: \(error)"
+                return
+            }
+            guard let value = result else {
+                self.statusLabel.text = "server-select failed: no result"
+                return
+            }
+            self.statusLabel.text =
+                "server-select throughput=\(value.throughputMachine)\n" +
+                "latency=\(value.latencyMachine)\n" +
+                "fallback=\(value.fallbackUsed)"
         }
     }
 }
