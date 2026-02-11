@@ -2,6 +2,7 @@ package edu.gatech.cc.cellwatch.androidtestapp
 
 import edu.gatech.cc.cellwatch.androidtestapp.sync.CellwatchPropertiesSupabaseEnvironmentProvider
 import edu.gatech.cc.cellwatch.androidtestapp.sync.SupabaseTarget
+import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -85,5 +86,47 @@ class SupabaseEnvironmentProviderTest {
         assertEquals(SupabaseTarget.REMOTE, env.target)
         assertEquals("https://example.supabase.co", env.url)
         assertEquals("remote-key", env.apiKey)
+    }
+
+    @Test
+    fun transportResolver_local_mapsToLocalEnvironment() {
+        val tmp = Files.createTempDirectory("cw-supa-local-resolver").toFile()
+        tmp.resolve("cellwatch.properties").writeText(
+            """
+            SUPABASE_LOCAL_URL="http://10.0.2.2:54321"
+            SUPABASE_LOCAL_API_KEY="local-key"
+            """.trimIndent()
+        )
+        val provider = CellwatchPropertiesSupabaseEnvironmentProvider(
+            workingDir = tmp,
+            allowRemote = false,
+        )
+
+        val cfg = provider.resolve(SyncTransportTarget.LOCAL)
+
+        assertEquals("http://127.0.0.1:54321", cfg.url)
+        assertEquals("local-key", cfg.apiKey)
+    }
+
+    @Test
+    fun transportResolver_remote_respectsRemoteBlock() {
+        val tmp = Files.createTempDirectory("cw-supa-remote-resolver").toFile()
+        tmp.resolve("cellwatch.properties").writeText(
+            """
+            SUPABASE_URL="https://example.supabase.co"
+            SUPABASE_API_KEY="remote-key"
+            """.trimIndent()
+        )
+        val provider = CellwatchPropertiesSupabaseEnvironmentProvider(
+            workingDir = tmp,
+            allowRemote = false,
+        )
+
+        try {
+            provider.resolve(SyncTransportTarget.REMOTE)
+            throw AssertionError("expected resolver to block remote")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message!!.contains("blocked"))
+        }
     }
 }

@@ -119,6 +119,25 @@ object MeasurementSyncServiceFactory {
         )
     }
 
+    fun createSupabaseUploadTriggerUseCase(
+        database: CellwatchDatabase,
+        io: CoroutineContext = EmptyCoroutineContext,
+        supabaseConfigResolver: SyncSupabaseConfigResolver,
+        transportTarget: SyncTransportTarget = SyncTransportTarget.LOCAL,
+        remoteProvider: SyncRemoteDataSourceProvider,
+        tcpTupleProvider: TcpTupleProvider,
+        clock: Clock = Clock.System,
+    ): UploadTriggerUseCase {
+        return createSupabaseUploadTriggerUseCase(
+            database = database,
+            io = io,
+            supabaseConfig = supabaseConfigResolver.resolve(transportTarget),
+            remoteProvider = remoteProvider,
+            tcpTupleProvider = tcpTupleProvider,
+            clock = clock,
+        )
+    }
+
     private fun createRepositories(
         database: CellwatchDatabase,
         io: CoroutineContext,

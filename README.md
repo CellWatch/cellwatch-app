@@ -38,6 +38,7 @@ The project is mid-migration from Android-only Kotlin to KMP:
 Local development and test harness work is now guarded to use local Supabase by default.
 
 - `androidTestApp` resolves Supabase through `CellwatchPropertiesSupabaseEnvironmentProvider`
+- Shared sync factory now accepts a transport resolver boundary (`SyncSupabaseConfigResolver`) plus target (`LOCAL`/`REMOTE`) so selection is explicit at construction time
 - Default target is `LOCAL`
 - `REMOTE` target is hard-blocked unless explicitly enabled with:
   - `CELLWATCH_ALLOW_REMOTE_SUPABASE=true`
@@ -424,6 +425,7 @@ Not yet ported (still Android-only in `app/`):
     - `LegacySharedSyncFlow` now delegates to shared `UploadTriggerUseCase` for compatibility
     - `AndroidTestSyncDriver` stateful wrapper for action/report/error flow
     - `AndroidTestSyncDriverFactory` with environment-target wiring
+    - shared transport-boundary wiring via `SyncSupabaseConfigResolver` + `SyncTransportTarget` for explicit local/remote transport selection
   - Shared parity scenario harness in `shared/domain/sync/UploadTriggerParityHarness.kt`
     - single default scenario used by Android and iOS hosted tests to assert equal report/upload-time contract
   - Shared FCC submission policy extraction in `shared/domain/fcc/FccSubmissionPolicy.kt`:
