@@ -1,20 +1,20 @@
 package edu.gatech.cc.cellwatch.db
 
-import app.cash.sqldelight.driver.native.NativeSqliteDriver
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
-class DeviceQueriesIosTest {
+class DeviceQueriesJvmTest {
 
-    private lateinit var driver: NativeSqliteDriver
+    private lateinit var driver: JdbcSqliteDriver
     private lateinit var db: CellwatchDatabase
 
     @BeforeTest
     fun setUp() {
-        driver = NativeSqliteDriver(CellwatchDatabase.Schema, ":memory:")
+        driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        CellwatchDatabase.Schema.create(driver)
         db = CellwatchDatabase(driver)
-        driver.execute(null, "DELETE FROM DeviceEntity", 0) {}
     }
 
     @AfterTest

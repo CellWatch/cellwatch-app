@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import java.io.File
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -150,4 +151,55 @@ sqldelight {
             packageName.set("edu.gatech.cc.cellwatch.db")
         }
     }
+}
+
+val iosSimulatorResultsDir = layout.buildDirectory.dir("test-results/iosSimulatorArm64Test")
+
+// Ensure stale iOS test XMLs do not mask a skipped/non-executed run.
+tasks.named("iosSimulatorArm64Test") {
+    doFirst {
+        delete(iosSimulatorResultsDir)
+    }
+}
+
+tasks.register("verifyIosSimulatorArm64Results") {
+    description = "Fails if iOS simulator tests did not execute any test cases."
+    group = "verification"
+    dependsOn("iosSimulatorArm64Test")
+
+    doLast {
+        val resultsDir = iosSimulatorResultsDir.get().asFile
+        val xmlFiles = resultsDir
+            .listFiles { file: File -> file.isFile && file.extension == "xml" }
+            ?.toList()
+            .orEmpty()
+
+        if (xmlFiles.isEmpty()) {
+            throw GradleException(
+                "iOS simulator tests produced no XML results at ${resultsDir.absolutePath}. " +
+                    "Treating this as a failure."
+            )
+        }
+
+        val testsRegex = Regex("""tests="(\d+)"""")
+        val totalExecuted = xmlFiles.sumOf { file ->
+            testsRegex.find(file.readText())?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        }
+
+        if (totalExecuted <= 0) {
+            throw GradleException(
+                "iOS simulator tests reported zero executed tests. Treating this as a failure."
+            )
+        }
+    }
+}
+
+tasks.register("verifyAllPlatforms") {
+    description = "Strict cross-platform verification (Android unit, JVM, iOS simulator)."
+    group = "verification"
+    dependsOn(
+        "testDebugUnitTest",
+        "jvmTest",
+        "verifyIosSimulatorArm64Results",
+    )
 }
