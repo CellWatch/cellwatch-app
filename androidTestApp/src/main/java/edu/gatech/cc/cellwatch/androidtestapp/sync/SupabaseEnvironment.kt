@@ -1,5 +1,8 @@
 package edu.gatech.cc.cellwatch.androidtestapp.sync
 
+import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfig
+import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfigResolver
+import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import java.io.File
 import java.util.Properties
 
@@ -14,7 +17,7 @@ data class SupabaseEnvironment(
     val apiKey: String,
 )
 
-interface SupabaseEnvironmentProvider {
+interface SupabaseEnvironmentProvider : SyncSupabaseConfigResolver {
     fun resolve(target: SupabaseTarget = SupabaseTarget.LOCAL): SupabaseEnvironment
 }
 
@@ -67,6 +70,19 @@ class CellwatchPropertiesSupabaseEnvironmentProvider(
                 )
             }
         }
+    }
+
+    override fun resolve(target: SyncTransportTarget): SyncSupabaseConfig {
+        val env = resolve(
+            when (target) {
+                SyncTransportTarget.LOCAL -> SupabaseTarget.LOCAL
+                SyncTransportTarget.REMOTE -> SupabaseTarget.REMOTE
+            }
+        )
+        return SyncSupabaseConfig(
+            url = env.url,
+            apiKey = env.apiKey,
+        )
     }
 
     private fun loadProperties(): Properties {
