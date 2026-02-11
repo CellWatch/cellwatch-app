@@ -426,6 +426,10 @@ Not yet ported (still Android-only in `app/`):
     - `AndroidTestSyncDriverFactory` with environment-target wiring
   - Shared parity scenario harness in `shared/domain/sync/UploadTriggerParityHarness.kt`
     - single default scenario used by Android and iOS hosted tests to assert equal report/upload-time contract
+  - Shared FCC submission policy extraction in `shared/domain/fcc/FccSubmissionPolicy.kt`:
+    - eligibility contract ported from legacy `MeasurementManager` (`FCC_CHALLENGE` mode + non-WIFI + cellular-data-not-false)
+    - deterministic metadata fallback aggregation from latency/download/upload measurements for submission construction
+    - cross-platform contract tests in `shared/src/commonTest/.../FccSubmissionPolicyTest.kt`
   - `androidTestApp` failure-path tests for:
     - network-down style sync failure handling
     - tuple-blocked submission report handling
