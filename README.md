@@ -430,6 +430,11 @@ Not yet ported (still Android-only in `app/`):
     - eligibility contract ported from legacy `MeasurementManager` (`FCC_CHALLENGE` mode + non-WIFI + cellular-data-not-false)
     - deterministic metadata fallback aggregation from latency/download/upload measurements for submission construction
     - cross-platform contract tests in `shared/src/commonTest/.../FccSubmissionPolicyTest.kt`
+  - Shared server-selection contract extraction in `shared/domain/fcc/MsakServerSelector.kt`:
+    - ports legacy `chooseMsakServers` behavior (throughput selection by host probe, latency same-machine preference/fallback-first, network-unavailable fallback pair)
+    - keeps shared logic adapter-agnostic via `MsakServerLocator` and `MsakHostPinger` interfaces
+    - includes unreachable endpoint synthesis equivalent to legacy `UnreachableServer` URL mapping
+    - cross-platform contract tests in `shared/src/commonTest/.../MsakServerSelectorTest.kt`
   - `androidTestApp` failure-path tests for:
     - network-down style sync failure handling
     - tuple-blocked submission report handling
