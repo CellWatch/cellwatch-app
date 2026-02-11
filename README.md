@@ -5,6 +5,7 @@ CellWatch is a cellular signal quality measurement app used to collect data for 
 This repository currently contains:
 - A production Android app (`app/`)
 - A Kotlin Multiplatform shared module (`shared/`) under active migration
+- An isolated Android KMP test harness module (`androidTestApp/`) for shared-sync integration work without modifying legacy `app/`
 - An iOS host integration test app (`iosSharedIntegrationHost/`) used to validate platform-specific behavior such as Keychain access
 
 ## Current Project Status
@@ -18,6 +19,7 @@ The project is mid-migration from Android-only Kotlin to KMP:
 
 - `app/`: Android application (legacy + active production app code)
 - `shared/`: KMP shared module (common/domain/data/util, SQLDelight schema and tests)
+- `androidTestApp/`: isolated Android module for shared/KMP sync wiring and local Supabase smoke tests
 - `iosSharedIntegrationHost/`: Minimal iOS app + XCTest target for hosted integration tests against `sharedKit.framework`
 - `doc/`: Supporting documentation (including architecture notes)
 
@@ -144,6 +146,7 @@ If run separately:
 - iOS realistic only: `./gradlew :shared:verifyIosHostedKeychain`
 - Local Supabase JVM integration only: `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
   - Includes remote adapter RPC/table checks and end-to-end `MeasurementSyncUseCase` store-and-forward validation against local Docker Supabase
+- Android isolated harness smoke test: `./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.LocalSupabaseSharedSyncSmokeTest"`
 
 ## Recent KMP Porting Work
 
