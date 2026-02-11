@@ -17,6 +17,22 @@ Run hosted tests:
 ./gradlew :shared:verifyIosTestAppHosted
 ```
 
+Xcode prebuild now uses `/Users/jeff/Projects/cellwatch-app/scripts/compile-shared-framework-for-xcode.sh`,
+which keeps `sharedKit.framework` current at:
+- `/Users/jeff/Projects/cellwatch-app/shared/build/bin/iosSimulatorArm64/Current/sharedKit.framework`
+
+To force composite-source local `msak` during Xcode builds:
+
+```bash
+CELLWATCH_USE_LOCAL_MSAK_COMPOSITE=true \
+CELLWATCH_LOCAL_MSAK_DIR=/Users/jeff/Projects/msak-android \
+xcodebuild \
+  -project iosTestApp/iosTestApp.xcodeproj \
+  -scheme iosTestApp \
+  -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2" \
+  test
+```
+
 Direct Xcode invocation:
 
 ```bash

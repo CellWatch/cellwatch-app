@@ -121,9 +121,16 @@ or foreground:
 `shared/` currently depends on the published artifact:
 - `edu.gatech.cc.cellwatch:msak-client-kmp:0.2.0`
 
-You can opt into a local checkout (for active `msak` KMP development) without changing committed dependency coordinates.
+Preferred local-dev path is Maven Local publication from `msak-client-kmp`:
+- publish in producer: `:msak-shared:publishToMavenLocal`
+- this repo already has `mavenLocal()` before `mavenCentral()`, so no extra flags are needed
 
-Use one of these options:
+Advanced option (source-composite substitution):
+- Use this only when you explicitly want to substitute from a local checkout source tree.
+- Note: this can fail Android builds if AGP versions differ between repos.
+- Current observed behavior (February 11, 2026): iOS framework compile works with composite mode, but `:androidTestApp:testDebugUnitTest` fails due AGP `8.9.2` vs `8.5.2` conflict.
+
+Composite mode examples:
 
 ```bash
 # from this repo root, default local path is ../msak-android
@@ -139,10 +146,25 @@ Use one of these options:
 ```
 
 Behavior:
-- Default (no flags): published `msak-client-kmp` is used
+- Default (no flags): Maven resolution order applies (`mavenLocal()` first, then remote repos)
 - With `cellwatch.useLocalMsak=true`: Gradle uses a composite build and substitutes
   `edu.gatech.cc.cellwatch:msak-client-kmp` with project `:msak-shared` from your local `msak-android` checkout
 - If the local path is missing, settings evaluation fails fast with a clear error
+
+For Xcode-hosted iOS builds in this repo (`iosTestApp` and `iosSharedIntegrationHost`), the prebuild step now calls:
+- `/Users/jeff/Projects/cellwatch-app/scripts/compile-shared-framework-for-xcode.sh`
+
+That script supports composite-source override via environment variables:
+
+```bash
+CELLWATCH_USE_LOCAL_MSAK_COMPOSITE=true \
+CELLWATCH_LOCAL_MSAK_DIR=/Users/jeff/Projects/msak-android \
+xcodebuild \
+  -project iosTestApp/iosTestApp.xcodeproj \
+  -scheme iosTestApp \
+  -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2" \
+  test
+```
 
 ### Consumer Snippets (Maven Local + Version Catalog)
 

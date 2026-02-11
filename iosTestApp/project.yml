@@ -17,13 +17,12 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatch.iosTestApp
         INFOPLIST_FILE: App/Info.plist
     dependencies:
-      - framework: ../shared/build/bin/iosSimulatorArm64/debugFramework/sharedKit.framework
+      - framework: ../shared/build/bin/iosSimulatorArm64/Current/sharedKit.framework
     preBuildScripts:
       - name: Build shared framework
         script: |
           set -euo pipefail
-          cd "$SRCROOT/.."
-          ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64 --no-daemon
+          "$SRCROOT/../scripts/compile-shared-framework-for-xcode.sh"
   iosTestAppTests:
     type: bundle.unit-test
     platform: iOS
@@ -37,7 +36,7 @@ targets:
         BUNDLE_LOADER: "$(TEST_HOST)"
     dependencies:
       - target: iosTestApp
-      - framework: ../shared/build/bin/iosSimulatorArm64/debugFramework/sharedKit.framework
+      - framework: ../shared/build/bin/iosSimulatorArm64/Current/sharedKit.framework
 schemes:
   iosTestApp:
     build:

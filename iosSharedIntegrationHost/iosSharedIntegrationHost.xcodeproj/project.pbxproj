@@ -56,7 +56,7 @@
 		7EDC5D70F84E1AD32957B6B3 /* iosSharedIntegrationHost.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iosSharedIntegrationHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C36D5B96FBB47185B23D0251 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		DEFA9FAB8E98BA78DC9C2BDE /* iosSharedIntegrationHostTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = iosSharedIntegrationHostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		FBCDB40EF0DD6D1585CDA096 /* sharedKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = sharedKit.framework; path = ../shared/build/bin/iosSimulatorArm64/debugFramework/sharedKit.framework; sourceTree = "<group>"; };
+		FBCDB40EF0DD6D1585CDA096 /* sharedKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = sharedKit.framework; path = ../shared/build/bin/iosSimulatorArm64/Current/sharedKit.framework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -209,10 +209,11 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(SRCROOT)/../shared/build/bin/iosSimulatorArm64/Current/sharedKit.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\ncd \"$SRCROOT/..\"\n./gradlew :shared:linkDebugFrameworkIosSimulatorArm64 --no-daemon\n";
+			shellScript = "set -euo pipefail\n\"$SRCROOT/../scripts/compile-shared-framework-for-xcode.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -313,7 +314,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"\"../shared/build/bin/iosSimulatorArm64/debugFramework\"",
+					"\"../shared/build/bin/iosSimulatorArm64/Current\"",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -334,7 +335,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"\"../shared/build/bin/iosSimulatorArm64/debugFramework\"",
+					"\"../shared/build/bin/iosSimulatorArm64/Current\"",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -356,7 +357,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"\"../shared/build/bin/iosSimulatorArm64/debugFramework\"",
+					"\"../shared/build/bin/iosSimulatorArm64/Current\"",
 				);
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -432,7 +433,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"\"../shared/build/bin/iosSimulatorArm64/debugFramework\"",
+					"\"../shared/build/bin/iosSimulatorArm64/Current\"",
 				);
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
