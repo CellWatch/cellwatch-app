@@ -9,6 +9,7 @@ import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.repo.FccSubmissionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
 
 class FccSubmissionRepositoryImpl(
@@ -63,6 +64,16 @@ class FccSubmissionRepositoryImpl(
 
     override suspend fun getUnsubmitted(): List<FccSubmission> =
         queries.selectUnsubmittedFccSubmissions().executeAsList().map { it.toDomain() }
+
+    override suspend fun getUnsynced(): List<FccSubmission> =
+        queries.selectUnsyncedFccSubmissions().executeAsList().map { it.toDomain() }
+
+    override suspend fun markUploaded(id: String, uploadedAt: Instant) {
+        queries.markFccSubmissionUploaded(
+            uploadTime = uploadedAt.toEpochMilliseconds(),
+            id = id,
+        )
+    }
 
     override fun observeUnsubmitted(): Flow<List<FccSubmission>> =
         queries.selectUnsubmittedFccSubmissions()

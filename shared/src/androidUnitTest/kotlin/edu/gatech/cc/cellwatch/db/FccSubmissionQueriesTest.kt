@@ -36,4 +36,12 @@ class FccSubmissionQueriesTest {
 
     @Test
     fun delete_by_id_removes_row() = FccSubmissionQueriesContract.assertDeleteByIdRemovesRow(db)
+
+    @Test
+    fun select_unsynced_filters_by_upload_time() =
+        FccSubmissionQueriesContract.assertSelectUnsyncedFiltersByUploadTime(db)
+
+    @Test
+    fun mark_uploaded_sets_upload_time() =
+        FccSubmissionQueriesContract.assertMarkUploadedSetsUploadTime(db)
 }

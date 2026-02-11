@@ -231,9 +231,20 @@ Not yet ported (still Android-only in `app/`):
   - Not required yet unless secure-storage/encryption behavior changes
 
 ### Phase 2: Shared network and submission contracts
-- Port `data/network` models and datasource interfaces into `shared/`
-- Implement platform-neutral HTTP client adapters in `shared/` with platform bindings where needed
-- Port repository orchestration currently in `MeasurementRepository`
+- Status: in progress
+- Delivered (February 11, 2026):
+  - Shared sync contracts and orchestration use case in `shared/domain/sync` (`MeasurementSyncUseCase`, `SyncReport`, remote/local/TCP tuple interfaces)
+  - Shared network transport models in `shared/data/transport` for measurement and FCC submission payloads:
+    - `NetworkMeasurement`, `NetworkMeasurementWithData`, `NetworkLatencyData`, `NetworkUploadDownloadData`, `NetworkLocation`, `NetworkCell`, `NetworkFccSubmission`
+  - Shared repository-backed sync local-store adapter in `shared/data/sync/RepositoryBackedMeasurementSyncLocalStore.kt`
+  - SQLDelight/repository support for upload synchronization state:
+    - `Measurement`: `selectUnsyncedMeasurements`, `markMeasurementUploaded`
+    - `FccSubmission`: `selectUnsyncedFccSubmissions`, `markFccSubmissionUploaded`
+- Remaining:
+  - Implement concrete shared remote datasource adapter for Supabase in `shared/`
+  - Add local-Supabase integration tests for remote adapter
+- Current blocker:
+  - Repository does not yet contain Supabase schema/migration files for measurements/submissions RPC contract, so local Supabase integration coverage cannot be made deterministic yet from this repo alone.
 - Tier 1 tests:
   - Contract tests for network mapping + error handling in `commonTest`
   - Existing lightweight platform suite
