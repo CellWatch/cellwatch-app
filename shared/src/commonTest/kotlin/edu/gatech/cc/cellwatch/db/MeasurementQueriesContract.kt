@@ -137,4 +137,118 @@ object MeasurementQueriesContract {
         db.measurementQueries.deleteMeasurementById(id)
         assertNull(db.measurementQueries.selectMeasurementById(id).executeAsOneOrNull())
     }
+
+    fun assertSelectUnsyncedFiltersByUploadTime(db: CellwatchDatabase) {
+        db.measurementQueries.insertOrReplaceMeasurement(
+            id = "m-unsynced",
+            groupId = null,
+            campaignId = null,
+            sessionId = null,
+            deviceId = null,
+            deviceManufacturer = null,
+            deviceModel = null,
+            deviceOsName = null,
+            deviceOsVersion = null,
+            appName = null,
+            provider = null,
+            type = "latency",
+            timestamp = 1L,
+            duration = null,
+            scheduled = null,
+            success = null,
+            carrierAggregation = null,
+            networkConnected = null,
+            networkAvailable = null,
+            networkRoaming = null,
+            simMcc = null,
+            simMnc = null,
+            netMcc = null,
+            netMnc = null,
+            connectionType = null,
+            cellularDataEnabled = null,
+            extraData = null,
+            createdOn = 1L,
+            updatedOn = 1L,
+            uploadTime = null,
+            appVersion = null,
+        )
+        db.measurementQueries.insertOrReplaceMeasurement(
+            id = "m-uploaded",
+            groupId = null,
+            campaignId = null,
+            sessionId = null,
+            deviceId = null,
+            deviceManufacturer = null,
+            deviceModel = null,
+            deviceOsName = null,
+            deviceOsVersion = null,
+            appName = null,
+            provider = null,
+            type = "download",
+            timestamp = 2L,
+            duration = null,
+            scheduled = null,
+            success = null,
+            carrierAggregation = null,
+            networkConnected = null,
+            networkAvailable = null,
+            networkRoaming = null,
+            simMcc = null,
+            simMnc = null,
+            netMcc = null,
+            netMnc = null,
+            connectionType = null,
+            cellularDataEnabled = null,
+            extraData = null,
+            createdOn = 2L,
+            updatedOn = 2L,
+            uploadTime = 5L,
+            appVersion = null,
+        )
+
+        val rows = db.measurementQueries.selectUnsyncedMeasurements().executeAsList()
+        assertEquals(listOf("m-unsynced"), rows.map { it.id })
+    }
+
+    fun assertMarkUploadedSetsUploadTime(db: CellwatchDatabase) {
+        val id = "m-mark-uploaded"
+        db.measurementQueries.insertOrReplaceMeasurement(
+            id = id,
+            groupId = null,
+            campaignId = null,
+            sessionId = null,
+            deviceId = null,
+            deviceManufacturer = null,
+            deviceModel = null,
+            deviceOsName = null,
+            deviceOsVersion = null,
+            appName = null,
+            provider = null,
+            type = "upload",
+            timestamp = null,
+            duration = null,
+            scheduled = null,
+            success = null,
+            carrierAggregation = null,
+            networkConnected = null,
+            networkAvailable = null,
+            networkRoaming = null,
+            simMcc = null,
+            simMnc = null,
+            netMcc = null,
+            netMnc = null,
+            connectionType = null,
+            cellularDataEnabled = null,
+            extraData = null,
+            createdOn = null,
+            updatedOn = null,
+            uploadTime = null,
+            appVersion = null,
+        )
+
+        db.measurementQueries.markMeasurementUploaded(uploadTime = 42L, id = id)
+        val row = db.measurementQueries.selectMeasurementById(id).executeAsOneOrNull()
+        assertNotNull(row)
+        assertEquals(42L, row.uploadTime)
+    }
 }

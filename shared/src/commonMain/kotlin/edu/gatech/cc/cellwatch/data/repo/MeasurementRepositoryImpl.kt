@@ -9,6 +9,7 @@ import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.repo.MeasurementRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
 
 class MeasurementRepositoryImpl(
@@ -62,6 +63,16 @@ class MeasurementRepositoryImpl(
 
     override suspend fun getByGroupId(groupId: String): List<Measurement> =
         queries.selectMeasurementsByGroupId(groupId).executeAsList().map { it.toDomain() }
+
+    override suspend fun getUnsynced(): List<Measurement> =
+        queries.selectUnsyncedMeasurements().executeAsList().map { it.toDomain() }
+
+    override suspend fun markUploaded(id: String, uploadedAt: Instant) {
+        queries.markMeasurementUploaded(
+            uploadTime = uploadedAt.toEpochMilliseconds(),
+            id = id,
+        )
+    }
 
     override fun observeByGroupId(groupId: String): Flow<List<Measurement>> =
         queries.selectMeasurementsByGroupId(groupId)

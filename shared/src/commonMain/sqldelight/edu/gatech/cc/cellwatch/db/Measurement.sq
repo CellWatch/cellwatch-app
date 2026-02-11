@@ -55,3 +55,13 @@ SELECT * FROM MeasurementEntity WHERE id = ?;
 
 selectMeasurementsByGroupId:
 SELECT * FROM MeasurementEntity WHERE groupId = ? ORDER BY timestamp DESC;
+
+selectUnsyncedMeasurements:
+SELECT * FROM MeasurementEntity
+WHERE uploadTime IS NULL
+ORDER BY createdOn ASC, timestamp ASC;
+
+markMeasurementUploaded:
+UPDATE MeasurementEntity
+SET uploadTime = ?
+WHERE id = ?;

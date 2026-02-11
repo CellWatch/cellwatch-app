@@ -137,4 +137,92 @@ object FccSubmissionQueriesContract {
         db.fccSubmissionQueries.deleteFccSubmissionById(id)
         assertNull(db.fccSubmissionQueries.selectFccSubmissionById(id).executeAsOneOrNull())
     }
+
+    fun assertSelectUnsyncedFiltersByUploadTime(db: CellwatchDatabase) {
+        fun insert(id: String, uploadTime: Long?) {
+            db.fccSubmissionQueries.insertOrReplaceFccSubmission(
+                id = id,
+                challengeDataId = null,
+                contactName = null,
+                contactEmail = null,
+                contactPhone = null,
+                deviceTimestamp = null,
+                serverTimestamp = null,
+                sourceIp = null,
+                sourcePort = null,
+                deviceId = null,
+                deviceImei = null,
+                deviceTac = null,
+                deviceType = null,
+                deviceManufacturer = null,
+                deviceModel = null,
+                deviceOsName = null,
+                appName = null,
+                appVersion = null,
+                provider = null,
+                simCountryCode = null,
+                simNetworkCode = null,
+                netCountryCode = null,
+                netNetworkCode = null,
+                inVehicle = null,
+                externalAntenna = null,
+                submitted = null,
+                submittedOn = null,
+                submission = null,
+                submissionResponse = null,
+                createdOn = 1L,
+                updatedOn = 1L,
+                uploadTime = uploadTime,
+            )
+        }
+
+        insert(id = "s-unsynced", uploadTime = null)
+        insert(id = "s-uploaded", uploadTime = 10L)
+
+        val rows = db.fccSubmissionQueries.selectUnsyncedFccSubmissions().executeAsList()
+        assertEquals(listOf("s-unsynced"), rows.map { it.id })
+    }
+
+    fun assertMarkUploadedSetsUploadTime(db: CellwatchDatabase) {
+        val id = "s-mark-uploaded"
+        db.fccSubmissionQueries.insertOrReplaceFccSubmission(
+            id = id,
+            challengeDataId = null,
+            contactName = null,
+            contactEmail = null,
+            contactPhone = null,
+            deviceTimestamp = null,
+            serverTimestamp = null,
+            sourceIp = null,
+            sourcePort = null,
+            deviceId = null,
+            deviceImei = null,
+            deviceTac = null,
+            deviceType = null,
+            deviceManufacturer = null,
+            deviceModel = null,
+            deviceOsName = null,
+            appName = null,
+            appVersion = null,
+            provider = null,
+            simCountryCode = null,
+            simNetworkCode = null,
+            netCountryCode = null,
+            netNetworkCode = null,
+            inVehicle = null,
+            externalAntenna = null,
+            submitted = null,
+            submittedOn = null,
+            submission = null,
+            submissionResponse = null,
+            createdOn = null,
+            updatedOn = null,
+            uploadTime = null,
+        )
+
+        db.fccSubmissionQueries.markFccSubmissionUploaded(uploadTime = 99L, id = id)
+        val row = db.fccSubmissionQueries.selectFccSubmissionById(id).executeAsOneOrNull()
+        assertNotNull(row)
+        assertEquals(99L, row.uploadTime)
+    }
 }

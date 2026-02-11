@@ -53,3 +53,13 @@ SELECT * FROM FccSubmissionEntity WHERE id = ?;
 
 selectUnsubmittedFccSubmissions:
 SELECT * FROM FccSubmissionEntity WHERE submitted IS NULL OR submitted = 0 ORDER BY createdOn ASC;
+
+selectUnsyncedFccSubmissions:
+SELECT * FROM FccSubmissionEntity
+WHERE uploadTime IS NULL
+ORDER BY createdOn ASC;
+
+markFccSubmissionUploaded:
+UPDATE FccSubmissionEntity
+SET uploadTime = ?
+WHERE id = ?;
