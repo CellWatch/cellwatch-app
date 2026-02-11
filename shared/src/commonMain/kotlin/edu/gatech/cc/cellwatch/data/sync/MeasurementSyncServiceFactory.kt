@@ -138,6 +138,36 @@ object MeasurementSyncServiceFactory {
         )
     }
 
+    fun createUploadTriggerUseCase(
+        database: CellwatchDatabase,
+        io: CoroutineContext = EmptyCoroutineContext,
+        remoteProfile: SyncRemoteProfile,
+        remoteFactory: SyncRemoteDataSourceFactory,
+        tcpTupleProvider: TcpTupleProvider,
+        clock: Clock = Clock.System,
+    ): UploadTriggerUseCase {
+        val repos = createRepositories(database, io)
+        val localStore = RepositoryBackedMeasurementSyncLocalStore(
+            measurementRepository = repos.measurementRepo,
+            uploadDownloadDataRepository = repos.uploadRepo,
+            latencyDataRepository = repos.latencyRepo,
+            locationRepository = repos.locationRepo,
+            cellRepository = repos.cellRepo,
+            fccSubmissionRepository = repos.submissionRepo,
+        )
+        val syncService = create(
+            localStore = localStore,
+            remoteDataSource = remoteFactory.create(remoteProfile),
+            tcpTupleProvider = tcpTupleProvider,
+            clock = clock,
+        )
+        return UploadTriggerUseCase(
+            syncService = syncService,
+            measurementRepository = repos.measurementRepo,
+            submissionRepository = repos.submissionRepo,
+        )
+    }
+
     private fun createRepositories(
         database: CellwatchDatabase,
         io: CoroutineContext,
