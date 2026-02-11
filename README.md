@@ -144,6 +144,107 @@ Behavior:
   `edu.gatech.cc.cellwatch:msak-client-kmp` with project `:msak-shared` from your local `msak-android` checkout
 - If the local path is missing, settings evaluation fails fast with a clear error
 
+### Consumer Snippets (Maven Local + Version Catalog)
+
+`settings.gradle.kts`:
+
+```kotlin
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenLocal()
+        mavenCentral()
+    }
+}
+```
+
+`gradle/libs.versions.toml`:
+
+```toml
+[versions]
+msakClientKmp = "0.2.0"
+
+[libraries]
+msak-client-kmp = { module = "edu.gatech.cc.cellwatch:msak-client-kmp", version.ref = "msakClientKmp" }
+```
+
+KMP consumer module `build.gradle.kts`:
+
+```kotlin
+kotlin {
+    sourceSets {
+        commonMain {
+            dependencies {
+                implementation(libs.msak.client.kmp)
+            }
+        }
+    }
+}
+```
+
+If you do not use the version catalog:
+
+```kotlin
+implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.2.0")
+```
+
+### Local iOS XCFramework Consumption
+
+Producer output:
+- zip: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.0/MsakShared.xcframework.zip`
+- sha256: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.0/MsakShared.xcframework.sha256`
+
+Steps:
+1. Unzip into a stable local path, for example:
+   - `/Users/jeff/Projects/cellwatch-app/iosTestApp/Frameworks/MsakShared.xcframework`
+2. In Xcode, open the iOS app project and select the app target.
+3. Under `General` -> `Frameworks, Libraries, and Embedded Content`, add `MsakShared.xcframework`.
+4. Set embed mode:
+   - app target: `Embed & Sign` (recommended for Kotlin/Native dynamic frameworks)
+   - test target(s): typically `Do Not Embed` (link only)
+5. Usually no extra search paths are needed if you added the framework directly in Xcode.
+   - If needed, set `FRAMEWORK_SEARCH_PATHS` to include: `$(PROJECT_DIR)/Frameworks`
+
+### Verification Checklist
+
+Android/KMP:
+1. Confirm artifact exists in Maven local:
+   - `~/.m2/repository/edu/gatech/cc/cellwatch/msak-client-kmp/0.2.0/`
+2. Run dependency insight:
+   - `./gradlew -q :shared:dependencies --configuration jvmCompileClasspath | grep msak-client-kmp`
+3. Run a fast compile/test task:
+   - `./gradlew :shared:jvmTest`
+
+iOS:
+1. Verify installed framework slices:
+   - `x86_64` and/or `arm64` simulator slice present for your simulator
+2. Build app target in Xcode for iOS Simulator
+3. Run hosted tests that touch the shared path
+4. If launch fails with missing framework, re-check `Embed & Sign` on app target
+
+### Deterministic Local Refresh Script
+
+Use:
+
+```bash
+scripts/refresh-local-msak-xcframework.sh
+```
+
+Optional args/env:
+
+```bash
+# version argument
+scripts/refresh-local-msak-xcframework.sh 0.2.0
+
+# custom producer/dist root and destination
+MSAK_DIST_ROOT=/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple \
+MSAK_FRAMEWORK_DEST=/Users/jeff/Projects/cellwatch-app/iosTestApp/Frameworks/MsakShared.xcframework \
+scripts/refresh-local-msak-xcframework.sh 0.2.0
+```
+
+The script verifies SHA-256 against the sidecar file and atomically replaces the destination framework.
+
 ## Testing
 
 The project now uses a practical two-tier test strategy.
