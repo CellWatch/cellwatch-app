@@ -15,6 +15,9 @@ import edu.gatech.cc.cellwatch.data.repo.FccSubmissionRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.MeasurementRepositoryImpl
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
+import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateConfig
+import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateEnvironment
+import edu.gatech.cc.cellwatch.domain.fcc.MsakServerSelectionHarness
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
@@ -89,6 +92,10 @@ class MainActivity : AppCompatActivity() {
             text = "Run Map-Start Sync (No Seed)"
             setOnClickListener { runMapSyncOnly() }
         }
+        val locateServersButton = Button(this).apply {
+            text = "Select MSAK Servers (Shared Selector)"
+            setOnClickListener { runSelectServers() }
+        }
         statusText = TextView(this).apply {
             text = "Ready. Local Supabase target is enforced by default."
             textSize = 14f
@@ -99,6 +106,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(seedAndMapSync)
         content.addView(measurementCompleteSync)
         content.addView(runMapSyncOnly)
+        content.addView(locateServersButton)
         content.addView(statusText)
         root.addView(content)
         return root
@@ -134,6 +142,27 @@ class MainActivity : AppCompatActivity() {
                 "map-start report:\n${formatReport(report)}"
             }.onSuccess { statusText.text = it }
                 .onFailure { statusText.text = "map-start failed: ${it.message}" }
+        }
+    }
+
+    private fun runSelectServers() {
+        val harness = MsakServerSelectionHarness(
+            MsakLocateConfig(
+                environment = MsakLocateEnvironment.PROD,
+                userAgent = "android-test-app-harness",
+            )
+        )
+        harness.runDefaultScenario { result, error ->
+            runOnUiThread {
+                statusText.text = if (error != null) {
+                    "server-select failed: ${error.message}"
+                } else {
+                    "server-select throughput=${result?.throughputMachine}\n" +
+                        "latency=${result?.latencyMachine}\n" +
+                        "fallback=${result?.fallbackUsed}"
+                }
+            }
+            harness.close()
         }
     }
 
