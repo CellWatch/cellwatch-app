@@ -143,6 +143,7 @@ If run separately:
 - Android realistic only: `./gradlew :shared:verifyAndroidEmulator`
 - iOS realistic only: `./gradlew :shared:verifyIosHostedKeychain`
 - Local Supabase JVM integration only: `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
+  - Includes remote adapter RPC/table checks and end-to-end `MeasurementSyncUseCase` store-and-forward validation against local Docker Supabase
 
 ## Recent KMP Porting Work
 
