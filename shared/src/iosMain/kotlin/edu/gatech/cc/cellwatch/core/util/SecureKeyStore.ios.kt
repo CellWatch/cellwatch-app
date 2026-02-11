@@ -42,9 +42,14 @@ actual object SecureKeyStore {
     private const val SERVICE = "edu.gatech.cc.cellwatch.securekeys"
     private const val ERR_SEC_NOT_AVAILABLE = -25291
     private val unavailableFallbackKeys = mutableMapOf<String, String>()
+    private var fallbackAllowedForTests = false
 
     actual fun initialize(platformContext: Any?) {
         // iOS implementation does not require explicit initialization.
+    }
+
+    internal fun setFallbackAllowedForTests(allowed: Boolean) {
+        fallbackAllowedForTests = allowed
     }
 
     actual fun getOrCreateKeyBase64(keyId: String): String {
@@ -65,8 +70,13 @@ actual object SecureKeyStore {
 
         val status = SecItemDelete(query)
         if (status == ERR_SEC_NOT_AVAILABLE) {
-            unavailableFallbackKeys.remove(keyId)
-            return
+            if (isFallbackAllowed()) {
+                unavailableFallbackKeys.remove(keyId)
+                return
+            }
+            throw IllegalStateException(
+                "Keychain is unavailable for delete and fallback is disabled for '$keyId' (status=$status)"
+            )
         }
         if (status != errSecSuccess && status != errSecItemNotFound) {
             throw IllegalStateException("Keychain delete failed for '$keyId' with status=$status")
@@ -85,7 +95,12 @@ actual object SecureKeyStore {
 
         val status = SecItemCopyMatching(query, result.ptr)
         if (status == ERR_SEC_NOT_AVAILABLE) {
-            return unavailableFallbackKeys[keyId]
+            if (isFallbackAllowed()) {
+                return unavailableFallbackKeys[keyId]
+            }
+            throw IllegalStateException(
+                "Keychain is unavailable for read and fallback is disabled for '$keyId' (status=$status)"
+            )
         }
         if (status == errSecItemNotFound) return null
         if (status != errSecSuccess) {
@@ -116,8 +131,13 @@ actual object SecureKeyStore {
 
         val status = SecItemAdd(attrs, null)
         if (status == ERR_SEC_NOT_AVAILABLE) {
-            unavailableFallbackKeys[keyId] = value
-            return
+            if (isFallbackAllowed()) {
+                unavailableFallbackKeys[keyId] = value
+                return
+            }
+            throw IllegalStateException(
+                "Keychain is unavailable for write and fallback is disabled for '$keyId' (status=$status)"
+            )
         }
         if (status != errSecSuccess) {
             throw IllegalStateException("Keychain write failed for '$keyId' with status=$status")
@@ -138,6 +158,10 @@ actual object SecureKeyStore {
     private fun cfString(value: String): CFStringRef {
         return CFStringCreateWithCString(kCFAllocatorDefault, value, kCFStringEncodingUTF8)
             ?: throw IllegalStateException("Failed to create CFString")
+    }
+
+    private fun isFallbackAllowed(): Boolean {
+        return fallbackAllowedForTests
     }
 }
 
