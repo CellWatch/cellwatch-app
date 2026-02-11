@@ -1,4 +1,5 @@
 import UIKit
+import sharedKit
 
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -20,7 +21,6 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 private final class HarnessViewController: UIViewController {
     private let statusLabel = UILabel()
     private var lastGroupId: String?
-    private var driver = SyncHarnessDriver()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -40,12 +40,12 @@ private final class HarnessViewController: UIViewController {
         localEnvButton.translatesAutoresizingMaskIntoConstraints = false
 
         let mapStartButton = UIButton(type: .system)
-        mapStartButton.setTitle("Run Map-Start Sync Simulation", for: .normal)
+        mapStartButton.setTitle("Run Map-Start Shared Slice", for: .normal)
         mapStartButton.addTarget(self, action: #selector(runMapStart), for: .touchUpInside)
         mapStartButton.translatesAutoresizingMaskIntoConstraints = false
 
         let completeButton = UIButton(type: .system)
-        completeButton.setTitle("Run Measurement-Complete Simulation", for: .normal)
+        completeButton.setTitle("Run Measurement-Complete Shared Slice", for: .normal)
         completeButton.addTarget(self, action: #selector(runMeasurementComplete), for: .touchUpInside)
         completeButton.translatesAutoresizingMaskIntoConstraints = false
 
@@ -83,18 +83,33 @@ private final class HarnessViewController: UIViewController {
     @objc private func runMapStart() {
         let groupId = UUID().uuidString
         lastGroupId = groupId
-        let report = driver.runMapStartSync()
-        statusLabel.text =
-            "group=\(groupId)\n" +
-            "measurements uploaded=\(report.measurements.uploaded), marked=\(report.measurements.markedUploaded)\n" +
-            "submissions uploaded=\(report.submissions.uploaded), blocked=\(report.submissions.blockedBeforeUpload)"
+        UploadTriggerParityHarness().runDefaultScenario { result, error in
+            if let error = error {
+                self.statusLabel.text = "map-start failed: \(error.localizedDescription)"
+                return
+            }
+            guard let value = result else {
+                self.statusLabel.text = "map-start failed: no result"
+                return
+            }
+            self.statusLabel.text =
+                "group=\(groupId)\n" +
+                "measurements uploaded=\(value.measurementsUploaded), marked=\(value.measurementsMarkedUploaded)\n" +
+                "submissions uploaded=\(value.submissionsUploaded), blocked=\(value.submissionsBlockedBeforeUpload)"
+        }
     }
 
     @objc private func runMeasurementComplete() {
         let groupId = lastGroupId ?? UUID().uuidString
         lastGroupId = groupId
-        let uploadTime = driver.runMeasurementCompleteSync(groupId: groupId)
-        statusLabel.text = "measurement-complete group=\(groupId)\nuploadTime=\(uploadTime)"
+        UploadTriggerParityHarness().runDefaultScenario { result, error in
+            if let error = error {
+                self.statusLabel.text = "measurement-complete failed: \(error.localizedDescription)"
+                return
+            }
+            let uploadMs = result?.uploadTimeEpochMs?.int64Value ?? -1
+            self.statusLabel.text = "measurement-complete group=\(groupId)\nuploadTimeEpochMs=\(uploadMs)"
+        }
     }
 }
 
@@ -137,49 +152,5 @@ private struct CellwatchPropertiesSupabaseEnvironmentProvider {
             }
             return SupabaseEnvironment(target: .remote, url: url, apiKey: key)
         }
-    }
-}
-
-private struct SyncReport {
-    let attempted: Int
-    let uploaded: Int
-    let markedUploaded: Int
-    let networkErrors: Int
-    let unexpectedErrors: Int
-    let blockedBeforeUpload: Bool
-
-    init(
-        attempted: Int = 0,
-        uploaded: Int = 0,
-        markedUploaded: Int = 0,
-        networkErrors: Int = 0,
-        unexpectedErrors: Int = 0,
-        blockedBeforeUpload: Bool = false
-    ) {
-        self.attempted = attempted
-        self.uploaded = uploaded
-        self.markedUploaded = markedUploaded
-        self.networkErrors = networkErrors
-        self.unexpectedErrors = unexpectedErrors
-        self.blockedBeforeUpload = blockedBeforeUpload
-    }
-}
-
-private struct SyncAllReport {
-    let measurements: SyncReport
-    let submissions: SyncReport
-}
-
-private final class SyncHarnessDriver {
-    func runMapStartSync() -> SyncAllReport {
-        SyncAllReport(
-            measurements: SyncReport(attempted: 3, uploaded: 1, markedUploaded: 1, networkErrors: 1),
-            submissions: SyncReport(attempted: 2, uploaded: 1, unexpectedErrors: 1, blockedBeforeUpload: true)
-        )
-    }
-
-    func runMeasurementCompleteSync(groupId: String) -> String {
-        _ = groupId
-        return ISO8601DateFormatter().string(from: Date())
     }
 }

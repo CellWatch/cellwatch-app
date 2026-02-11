@@ -2,6 +2,7 @@ package edu.gatech.cc.cellwatch.androidtestapp.sync
 
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.sync.SyncAllReport
+import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,13 +16,13 @@ data class AndroidTestSyncDriverState(
 )
 
 class AndroidTestSyncDriver(
-    private val flow: LegacySharedSyncFlow,
+    private val uploadTriggerUseCase: UploadTriggerUseCase,
 ) {
     private val _state = MutableStateFlow(AndroidTestSyncDriverState())
     val state: StateFlow<AndroidTestSyncDriverState> = _state.asStateFlow()
 
     suspend fun runMapStartSync(): SyncAllReport? {
-        return runCatching { flow.onMapStartSync() }
+        return runCatching { uploadTriggerUseCase.onMapStart() }
             .onSuccess { report ->
                 _state.update { old ->
                     old.copy(
@@ -39,7 +40,7 @@ class AndroidTestSyncDriver(
     }
 
     suspend fun runMeasurementCompleteSync(group: MeasurementGroup): Instant? {
-        return runCatching { flow.onMeasurementCompleteSync(group) }
+        return runCatching { uploadTriggerUseCase.onMeasurementComplete(group) }
             .onSuccess { uploadTime ->
                 _state.update { old ->
                     old.copy(

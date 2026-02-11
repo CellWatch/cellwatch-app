@@ -5,6 +5,7 @@ import edu.gatech.cc.cellwatch.domain.repo.FccSubmissionRepository
 import edu.gatech.cc.cellwatch.domain.repo.MeasurementRepository
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncService
 import edu.gatech.cc.cellwatch.domain.sync.SyncAllReport
+import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerUseCase
 import kotlinx.datetime.Instant
 
 /**
@@ -17,29 +18,17 @@ class LegacySharedSyncFlow(
     private val measurementRepository: MeasurementRepository,
     private val submissionRepository: FccSubmissionRepository,
 ) {
-    suspend fun onMapStartSync(): SyncAllReport = syncService.syncAll()
+    private val useCase = UploadTriggerUseCase(
+        syncService = syncService,
+        measurementRepository = measurementRepository,
+        submissionRepository = submissionRepository,
+    )
 
-    suspend fun onMeasurementCompleteSync(group: MeasurementGroup): Instant? {
-        syncService.syncAll()
-        return resolveUploadTime(group)
-    }
+    suspend fun onMapStartSync(): SyncAllReport = useCase.onMapStart()
 
-    suspend fun resolveUploadTime(group: MeasurementGroup): Instant? {
-        val measurementId = group.latency?.id ?: group.download?.id ?: group.upload?.id
-        val submissionId = group.submission?.id
+    suspend fun onMeasurementCompleteSync(group: MeasurementGroup): Instant? =
+        useCase.onMeasurementComplete(group)
 
-        val measurementTime = measurementId
-            ?.let { id -> measurementRepository.getById(id)?.uploadTime }
-        val submissionTime = submissionId
-            ?.let { id -> submissionRepository.getById(id)?.uploadTime }
-
-        if (measurementId == null) return submissionTime
-        if (submissionId == null) return measurementTime
-        if (measurementTime == null || submissionTime == null) return null
-        return if (measurementTime.toEpochMilliseconds() >= submissionTime.toEpochMilliseconds()) {
-            measurementTime
-        } else {
-            submissionTime
-        }
-    }
+    suspend fun resolveUploadTime(group: MeasurementGroup): Instant? =
+        useCase.resolveUploadTime(group)
 }
