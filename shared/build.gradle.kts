@@ -65,8 +65,7 @@ kotlin {
                 implementation(libs.sqldelight.runtime)
                 implementation(libs.sqldelight.coroutines)
                 implementation(libs.benasher.uuid)
-//                implementation(libs.cryptography.core)
-//                implementation(libs.cryptography.provider.optimal)
+                implementation(libs.cryptography.core)
                 implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.2.0")
             }
         }
@@ -84,6 +83,7 @@ kotlin {
                 // dependencies declared in commonMain.
                 implementation(libs.kotlinx.coroutines.android)
                 implementation(libs.sqldelight.android.driver)
+                implementation(libs.cryptography.provider.jdk)
             }
         }
 
@@ -105,6 +105,7 @@ kotlin {
                 // on common by default and will correctly pull the iOS artifacts of any
                 // KMP dependencies declared in commonMain.
                 implementation(libs.sqldelight.native.driver)
+                implementation(libs.cryptography.provider.openssl3.prebuilt)
             }
         }
         iosTest {
@@ -123,6 +124,7 @@ kotlin {
 
         jvmMain {
             dependencies {
+                implementation(libs.cryptography.provider.jdk)
             }
         }
     }
