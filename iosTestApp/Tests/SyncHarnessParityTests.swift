@@ -1,4 +1,5 @@
 import XCTest
+import sharedKit
 
 private enum SupabaseTarget {
     case local
@@ -42,63 +43,6 @@ private struct CellwatchPropertiesSupabaseEnvironmentProvider {
     }
 }
 
-private struct SyncReport {
-    let attempted: Int
-    let uploaded: Int
-    let markedUploaded: Int
-    let networkErrors: Int
-    let unexpectedErrors: Int
-    let blockedBeforeUpload: Bool
-
-    init(
-        attempted: Int = 0,
-        uploaded: Int = 0,
-        markedUploaded: Int = 0,
-        networkErrors: Int = 0,
-        unexpectedErrors: Int = 0,
-        blockedBeforeUpload: Bool = false
-    ) {
-        self.attempted = attempted
-        self.uploaded = uploaded
-        self.markedUploaded = markedUploaded
-        self.networkErrors = networkErrors
-        self.unexpectedErrors = unexpectedErrors
-        self.blockedBeforeUpload = blockedBeforeUpload
-    }
-}
-
-private struct SyncAllReport {
-    let measurements: SyncReport
-    let submissions: SyncReport
-}
-
-private final class SyncDriver {
-    struct State {
-        var lastReport: SyncAllReport?
-        var lastError: String?
-    }
-
-    private(set) var state = State(lastReport: nil, lastError: nil)
-    private let syncAll: () throws -> SyncAllReport
-
-    init(syncAll: @escaping () throws -> SyncAllReport) {
-        self.syncAll = syncAll
-    }
-
-    @discardableResult
-    func runMapStartSync() -> SyncAllReport? {
-        do {
-            let report = try syncAll()
-            state.lastReport = report
-            state.lastError = nil
-            return report
-        } catch {
-            state.lastError = error.localizedDescription
-            return nil
-        }
-    }
-}
-
 final class SyncHarnessParityTests: XCTestCase {
     func testEnvironmentDefaultsToLocal() throws {
         let provider = CellwatchPropertiesSupabaseEnvironmentProvider(properties: [:], allowRemote: false)
@@ -121,30 +65,20 @@ final class SyncHarnessParityTests: XCTestCase {
         XCTAssertThrowsError(try provider.resolve(.remote))
     }
 
-    func testDriverCapturesPartialAndBlockedSignals() {
-        let driver = SyncDriver {
-            SyncAllReport(
-                measurements: SyncReport(attempted: 3, uploaded: 1, markedUploaded: 1, networkErrors: 1),
-                submissions: SyncReport(attempted: 2, uploaded: 1, unexpectedErrors: 1, blockedBeforeUpload: true)
-            )
+    func testSharedUploadTriggerParityHarness_returnsExpectedContract() {
+        let expectation = expectation(description: "runDefaultScenario")
+
+        UploadTriggerParityHarness().runDefaultScenario { result, error in
+            XCTAssertNil(error)
+            XCTAssertNotNil(result)
+            XCTAssertEqual(result?.measurementsUploaded, Int32(1))
+            XCTAssertEqual(result?.measurementsMarkedUploaded, Int32(1))
+            XCTAssertEqual(result?.submissionsUploaded, Int32(1))
+            XCTAssertEqual(result?.submissionsBlockedBeforeUpload, true)
+            XCTAssertEqual(result?.uploadTimeEpochMs?.int64Value, 1_710_000_009_000)
+            expectation.fulfill()
         }
 
-        let report = driver.runMapStartSync()
-
-        XCTAssertNotNil(report)
-        XCTAssertEqual(report?.measurements.markedUploaded, 1)
-        XCTAssertEqual(report?.submissions.blockedBeforeUpload, true)
-        XCTAssertNil(driver.state.lastError)
-    }
-
-    func testDriverCapturesFailureMessage() {
-        let driver = SyncDriver {
-            throw NSError(domain: "iosTestApp", code: 44, userInfo: [NSLocalizedDescriptionKey: "network down"])
-        }
-
-        let report = driver.runMapStartSync()
-
-        XCTAssertNil(report)
-        XCTAssertEqual(driver.state.lastError, "network down")
+        waitForExpectations(timeout: 5)
     }
 }

@@ -8,6 +8,7 @@ import edu.gatech.cc.cellwatch.data.sync.SupabaseSyncRemoteDataSourceProvider
 import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfig
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
+import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerUseCase
 import kotlinx.datetime.Clock
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -35,11 +36,11 @@ class AndroidTestSyncDriverFactory(
         )
         val measurementRepo = MeasurementRepositoryImpl(database.measurementQueries, io)
         val submissionRepo = FccSubmissionRepositoryImpl(database.fccSubmissionQueries, io)
-        val flow = LegacySharedSyncFlow(
+        val uploadTriggerUseCase = UploadTriggerUseCase(
             syncService = syncService,
             measurementRepository = measurementRepo,
             submissionRepository = submissionRepo,
         )
-        return AndroidTestSyncDriver(flow)
+        return AndroidTestSyncDriver(uploadTriggerUseCase)
     }
 }

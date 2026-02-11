@@ -269,19 +269,21 @@ Not yet ported (still Android-only in `app/`):
   - Supabase-backed shared remote datasource implementation in `shared/data/remote/SupabaseMeasurementSyncRemoteDataSource.kt`
   - Local Supabase shared integration tests in `shared/jvmTest` (RPC + store-and-forward coverage)
   - Isolated Android bridge and driver in `androidTestApp` for legacy trigger modeling:
-    - `LegacySharedSyncFlow` (`map-start` sync + `measurement-complete` sync/upload-time resolution)
+    - `UploadTriggerUseCase` extracted in `shared/domain/sync/UploadTriggerUseCase.kt`
+    - `LegacySharedSyncFlow` now delegates to shared `UploadTriggerUseCase` for compatibility
     - `AndroidTestSyncDriver` stateful wrapper for action/report/error flow
     - `AndroidTestSyncDriverFactory` with environment-target wiring
+  - Shared parity scenario harness in `shared/domain/sync/UploadTriggerParityHarness.kt`
+    - single default scenario used by Android and iOS hosted tests to assert equal report/upload-time contract
   - `androidTestApp` failure-path tests for:
     - network-down style sync failure handling
     - tuple-blocked submission report handling
     - duplicate-key/partial-success report propagation
   - `androidTestApp` Supabase environment guard tests for local defaults + remote blocking
   - Isolated iOS parity harness app in `iosTestApp`:
-    - UI harness actions for local env resolve + map-start/measurement-complete simulation
-    - hosted tests for Keychain integration and sync/environment parity behaviors
+    - UI harness actions for local env resolve + map-start/measurement-complete shared-slice calls
+    - hosted tests for Keychain integration and shared upload-trigger parity behavior
 - Remaining:
-  - Migrate the iOS harness simulation path from Swift-local driver logic to direct shared sync driver integration once iOS-side remote wiring is exposed for host app use
   - Migrate legacy app trigger points into future KMP Android/iOS product apps after harness parity is confirmed
   - Coordinate Supabase migration-history reconciliation with main branch before tracking live-compatible migrations in-repo
 - Tier 1 tests:
@@ -290,6 +292,7 @@ Not yet ported (still Android-only in `app/`):
   - `androidTestApp` Robolectric driver/environment tests
 - Tier 2 tests:
   - Local Supabase smoke integration via `androidTestApp` and `shared` local integration tasks
+  - iOS hosted parity harness tests via `:shared:verifyIosTestAppHosted`
 
 ### Immediate Next Slice
 - Candidate extraction target:

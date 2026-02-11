@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriver
-import edu.gatech.cc.cellwatch.androidtestapp.sync.LegacySharedSyncFlow
 import edu.gatech.cc.cellwatch.data.repo.FccSubmissionRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.MeasurementRepositoryImpl
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
@@ -16,6 +15,7 @@ import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncService
 import edu.gatech.cc.cellwatch.domain.sync.SyncAllReport
 import edu.gatech.cc.cellwatch.domain.sync.SyncReport
+import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerUseCase
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import org.junit.After
@@ -40,7 +40,7 @@ class AndroidTestSyncDriverTest {
 
     @Test
     fun runMapStartSync_recordsPartialAndDuplicateStyleReport() = runBlocking {
-        val (flow, _, _, _) = buildFlow(
+        val (useCase, _, _, _) = buildFlow(
             service = ConfigurableMeasurementSyncService(
                 mapReport = SyncAllReport(
                     measurements = SyncReport(
@@ -57,7 +57,7 @@ class AndroidTestSyncDriverTest {
                 ),
             )
         )
-        val syncDriver = AndroidTestSyncDriver(flow)
+        val syncDriver = AndroidTestSyncDriver(useCase)
 
         val report = syncDriver.runMapStartSync()
 
@@ -70,12 +70,12 @@ class AndroidTestSyncDriverTest {
 
     @Test
     fun runMapStartSync_recordsError_whenSyncThrows() = runBlocking {
-        val (flow, _, _, _) = buildFlow(
+        val (useCase, _, _, _) = buildFlow(
             service = ConfigurableMeasurementSyncService(
                 mapException = IllegalStateException("network down"),
             )
         )
-        val syncDriver = AndroidTestSyncDriver(flow)
+        val syncDriver = AndroidTestSyncDriver(useCase)
 
         val report = syncDriver.runMapStartSync()
 
@@ -85,7 +85,7 @@ class AndroidTestSyncDriverTest {
 
     @Test
     fun runMapStartSync_recordsTupleBlockedSubmissionReport() = runBlocking {
-        val (flow, _, _, _) = buildFlow(
+        val (useCase, _, _, _) = buildFlow(
             service = ConfigurableMeasurementSyncService(
                 mapReport = SyncAllReport(
                     measurements = SyncReport(attempted = 1, uploaded = 1),
@@ -97,7 +97,7 @@ class AndroidTestSyncDriverTest {
                 ),
             )
         )
-        val syncDriver = AndroidTestSyncDriver(flow)
+        val syncDriver = AndroidTestSyncDriver(useCase)
 
         val report = syncDriver.runMapStartSync()
 
@@ -108,12 +108,12 @@ class AndroidTestSyncDriverTest {
 
     @Test
     fun runMeasurementCompleteSync_recordsError_whenSyncThrows() = runBlocking {
-        val (flow, _, _, group) = buildFlow(
+        val (useCase, _, _, group) = buildFlow(
             service = ConfigurableMeasurementSyncService(
                 mapException = IllegalStateException("tuple fetch failed"),
             )
         )
-        val syncDriver = AndroidTestSyncDriver(flow)
+        val syncDriver = AndroidTestSyncDriver(useCase)
 
         val uploadTime = syncDriver.runMeasurementCompleteSync(group)
 
@@ -162,13 +162,13 @@ class AndroidTestSyncDriverTest {
         measurementRepo.upsert(measurement)
         submissionRepo.upsert(submission)
 
-        val flow = LegacySharedSyncFlow(
+        val useCase = UploadTriggerUseCase(
             syncService = service,
             measurementRepository = measurementRepo,
             submissionRepository = submissionRepo,
         )
         return BuildResult(
-            flow = flow,
+            useCase = useCase,
             measurementRepository = measurementRepo,
             submissionRepository = submissionRepo,
             group = MeasurementGroup(
@@ -182,7 +182,7 @@ class AndroidTestSyncDriverTest {
     }
 
     private data class BuildResult(
-        val flow: LegacySharedSyncFlow,
+        val useCase: UploadTriggerUseCase,
         val measurementRepository: MeasurementRepositoryImpl,
         val submissionRepository: FccSubmissionRepositoryImpl,
         val group: MeasurementGroup,
