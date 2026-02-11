@@ -128,7 +128,7 @@ Preferred local-dev path is Maven Local publication from `msak-client-kmp`:
 Advanced option (source-composite substitution):
 - Use this only when you explicitly want to substitute from a local checkout source tree.
 - Note: this can fail Android builds if AGP versions differ between repos.
-- Current observed behavior (February 11, 2026): iOS framework compile works with composite mode, but `:androidTestApp:testDebugUnitTest` fails due AGP `8.9.2` vs `8.5.2` conflict.
+- Current state (February 11, 2026): AGP has been aligned to `8.9.2` in this repo; composite mode is optional and no longer required for normal development.
 
 Composite mode examples:
 

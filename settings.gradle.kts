@@ -38,6 +38,9 @@ dependencyResolutionManagement {
 rootProject.name = "cellwatch"
 include(":app")
 
+// Optional local-source override for msak-client-kmp.
+// Keep this opt-in only so default builds stay on Maven artifacts (mavenLocal/remote).
+// Enable with: -Pcellwatch.useLocalMsak=true
 val useLocalMsak = providers.gradleProperty("cellwatch.useLocalMsak")
     .orNull
     ?.toBooleanStrictOrNull()
@@ -56,6 +59,7 @@ if (useLocalMsak) {
 
     includeBuild(localMsakFile) {
         dependencySubstitution {
+            // Substitute only the published msak-client-kmp coordinate with the local project.
             substitute(module("edu.gatech.cc.cellwatch:msak-client-kmp"))
                 .using(project(":msak-shared"))
         }
