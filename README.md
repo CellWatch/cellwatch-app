@@ -26,6 +26,89 @@ The project is mid-migration from Android-only Kotlin to KMP:
 - Java 17 (project has been standardized on JDK 17)
 - Android SDK + emulator tooling (`adb`, `emulator`)
 - Xcode + iOS Simulator (for hosted iOS integration tests)
+- Docker Desktop (required for local Supabase stack)
+- Supabase CLI (`supabase`)
+
+## Local Supabase Safety
+
+Local development and tests are now guarded to use local Supabase only for debug/test builds.
+
+- `app/build.gradle.kts` enforces `SUPABASE_LOCAL_URL` host to be local (`localhost`, `127.0.0.1`, `::1`, `10.0.2.2`, `host.docker.internal`)
+- If `SUPABASE_LOCAL_URL` points to a cloud host, debug/test builds fail fast
+- Current local defaults in `cellwatch.properties`:
+  - `SUPABASE_LOCAL_URL="http://10.0.2.2:54321"`
+  - local Supabase anon key (CLI default)
+
+### Start/Stop Local Supabase
+
+Use helper script:
+
+```bash
+./scripts/supabase-local.sh start
+./scripts/supabase-local.sh status
+./scripts/supabase-local.sh stop
+```
+
+Or direct CLI:
+
+```bash
+supabase start
+supabase status
+supabase stop
+```
+
+### macOS Setup (Docker + Supabase CLI)
+
+1. Install Docker Desktop for Mac
+2. Open Docker Desktop once and complete initial setup
+3. Verify Docker engine is running:
+
+```bash
+docker --version
+docker info
+```
+
+4. Install Supabase CLI (Homebrew):
+
+```bash
+brew install supabase
+supabase --version
+```
+
+5. Start local Supabase stack from repo root:
+
+```bash
+./scripts/supabase-local.sh start
+./scripts/supabase-local.sh status
+```
+
+6. Confirm local API endpoint responds:
+
+```bash
+curl http://127.0.0.1:54321
+```
+
+If Android emulator is used, debug builds should continue using `http://10.0.2.2:54321` as configured in `cellwatch.properties`.
+
+Expected local endpoints after start:
+- API: `http://127.0.0.1:54321`
+- DB: `postgresql://postgres:postgres@127.0.0.1:54322/postgres`
+
+### About Local PostgreSQL Service
+
+Supabase local does not require your Homebrew PostgreSQL service to run; Supabase starts its own Postgres in Docker.
+
+If you still need Homebrew PostgreSQL for other tasks, your local notes map to:
+
+```bash
+brew services start postgresql@14
+```
+
+or foreground:
+
+```bash
+/opt/homebrew/opt/postgresql@14/bin/postgres -D /opt/homebrew/var/postgresql@14
+```
 
 ## Testing
 
