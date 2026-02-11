@@ -1,0 +1,50 @@
+name: iosTestApp
+options:
+  bundleIdPrefix: edu.gatech.cc.cellwatch
+  deploymentTarget:
+    iOS: '17.0'
+settings:
+  base:
+    SWIFT_VERSION: 5.0
+targets:
+  iosTestApp:
+    type: application
+    platform: iOS
+    sources:
+      - App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatch.iosTestApp
+        INFOPLIST_FILE: App/Info.plist
+    dependencies:
+      - framework: ../shared/build/bin/iosSimulatorArm64/debugFramework/sharedKit.framework
+    preBuildScripts:
+      - name: Build shared framework
+        script: |
+          set -euo pipefail
+          cd "$SRCROOT/.."
+          ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64 --no-daemon
+  iosTestAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatch.iosTestAppTests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/iosTestApp.app/iosTestApp"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+    dependencies:
+      - target: iosTestApp
+      - framework: ../shared/build/bin/iosSimulatorArm64/debugFramework/sharedKit.framework
+schemes:
+  iosTestApp:
+    build:
+      targets:
+        iosTestApp: all
+        iosTestAppTests: [test]
+    test:
+      targets:
+        - iosTestAppTests
+      gatherCoverageData: false
