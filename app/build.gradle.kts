@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.net.URI
 
 plugins {
     id("com.android.application")
@@ -16,6 +17,35 @@ val cellwatchProperties = Properties().apply {
     if (cellwatchPropertiesFile.exists()) {
         cellwatchPropertiesFile.inputStream().use { load(it) }
     }
+}
+
+fun propValue(name: String): String? = cellwatchProperties[name]?.toString()?.trim()?.removeSurrounding("\"")
+
+fun requireProp(name: String): String =
+    propValue(name) ?: throw GradleException("Missing required property '$name' in cellwatch.properties")
+
+fun quoteBuildConfig(value: String): String = "\"" + value.replace("\"", "\\\"") + "\""
+
+fun isLocalSupabaseUrl(url: String): Boolean {
+    val uri = runCatching { URI(url) }.getOrNull() ?: return false
+    val host = uri.host?.lowercase() ?: return false
+    if (uri.scheme !in setOf("http", "https")) return false
+    return host == "localhost" ||
+        host == "127.0.0.1" ||
+        host == "::1" ||
+        host == "10.0.2.2" ||
+        host == "host.docker.internal"
+}
+
+val localSupabaseUrl = propValue("SUPABASE_LOCAL_URL") ?: "http://10.0.2.2:54321"
+val localSupabaseApiKey = propValue("SUPABASE_LOCAL_API_KEY")
+    ?: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+
+if (!isLocalSupabaseUrl(localSupabaseUrl)) {
+    throw GradleException(
+        "SUPABASE_LOCAL_URL must point to a local Supabase instance for debug/test builds. " +
+            "Got '$localSupabaseUrl'. Allowed hosts: localhost, 127.0.0.1, ::1, 10.0.2.2, host.docker.internal."
+    )
 }
 
 android {
@@ -52,13 +82,13 @@ android {
                 "proguard-rules.pro"
             )
 
-            buildConfigField("String", "TCP_TUPLE_URL", cellwatchProperties["TCP_TUPLE_URL"] as String)
-            buildConfigField("String", "SUPABASE_URL", cellwatchProperties["SUPABASE_LOCAL_URL"] as String)
-            buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties["SUPABASE_LOCAL_API_KEY"] as String)
-            buildConfigField("String", "MSAK_SERVER_ENV", cellwatchProperties["MSAK_SERVER_ENV"] as String)
-            buildConfigField("String", "MSAK_LOCAL_SERVER_HOST", cellwatchProperties["MSAK_LOCAL_SERVER_HOST"] as String)
-            buildConfigField("Boolean", "MSAK_LOCAL_SERVER_SECURE", cellwatchProperties["MSAK_LOCAL_SERVER_SECURE"] as String)
-            buildConfigField("Integer", "MSAK_LATENCY_PORT", cellwatchProperties["MSAK_LOCAL_LATENCY_PORT"] as String)
+            buildConfigField("String", "TCP_TUPLE_URL", quoteBuildConfig(requireProp("TCP_TUPLE_URL")))
+            buildConfigField("String", "SUPABASE_URL", quoteBuildConfig(localSupabaseUrl))
+            buildConfigField("String", "SUPABASE_API_KEY", quoteBuildConfig(localSupabaseApiKey))
+            buildConfigField("String", "MSAK_SERVER_ENV", quoteBuildConfig(requireProp("MSAK_SERVER_ENV")))
+            buildConfigField("String", "MSAK_LOCAL_SERVER_HOST", quoteBuildConfig(requireProp("MSAK_LOCAL_SERVER_HOST")))
+            buildConfigField("Boolean", "MSAK_LOCAL_SERVER_SECURE", requireProp("MSAK_LOCAL_SERVER_SECURE"))
+            buildConfigField("Integer", "MSAK_LATENCY_PORT", requireProp("MSAK_LOCAL_LATENCY_PORT"))
         }
         release {
             isMinifyEnabled = false
@@ -67,13 +97,13 @@ android {
                 "proguard-rules.pro"
             )
 
-            buildConfigField("String", "TCP_TUPLE_URL", cellwatchProperties["TCP_TUPLE_URL"] as String)
-            buildConfigField("String", "SUPABASE_URL", cellwatchProperties["SUPABASE_URL"] as String)
-            buildConfigField("String", "SUPABASE_API_KEY", cellwatchProperties["SUPABASE_API_KEY"] as String)
+            buildConfigField("String", "TCP_TUPLE_URL", quoteBuildConfig(requireProp("TCP_TUPLE_URL")))
+            buildConfigField("String", "SUPABASE_URL", quoteBuildConfig(requireProp("SUPABASE_URL")))
+            buildConfigField("String", "SUPABASE_API_KEY", quoteBuildConfig(requireProp("SUPABASE_API_KEY")))
             buildConfigField("String", "MSAK_SERVER_ENV", "\"prod\"")
             buildConfigField("String", "MSAK_LOCAL_SERVER_HOST", "\"\"")
             buildConfigField("Boolean", "MSAK_LOCAL_SERVER_SECURE", "true")
-            buildConfigField("Integer", "MSAK_LATENCY_PORT", cellwatchProperties["MSAK_LATENCY_PORT"] as String)
+            buildConfigField("Integer", "MSAK_LATENCY_PORT", requireProp("MSAK_LATENCY_PORT"))
         }
     }
 
