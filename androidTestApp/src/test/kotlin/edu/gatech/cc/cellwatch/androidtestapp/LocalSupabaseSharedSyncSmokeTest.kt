@@ -3,6 +3,7 @@ package edu.gatech.cc.cellwatch.androidtestapp
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import edu.gatech.cc.cellwatch.androidtestapp.sync.LegacySharedSyncFlow
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
 import edu.gatech.cc.cellwatch.data.repo.FccSubmissionRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
@@ -14,6 +15,7 @@ import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
+import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
@@ -73,35 +75,36 @@ class LocalSupabaseSharedSyncSmokeTest {
         val latencyRepo = LatencyDataRepositoryImpl(db.latencyDataQueries, EmptyCoroutineContext)
         val submissionRepo = FccSubmissionRepositoryImpl(db.fccSubmissionQueries, EmptyCoroutineContext)
 
-        measurementRepo.upsert(
-            Measurement(
-                id = measurementId,
-                groupId = groupId,
-                deviceId = deviceId,
-                type = "latency",
-                timestamp = now,
-                connectionType = NetworkConnectionType.CELLULAR,
-                cellularDataEnabled = true,
-            )
+        val latency = LatencyData(
+            id = UUID.randomUUID().toString(),
+            measurementId = measurementId,
+            rtt = 25,
+            jitter = 2,
+            sent = 10,
+            received = 10,
         )
+        val measurement = Measurement(
+            id = measurementId,
+            groupId = groupId,
+            deviceId = deviceId,
+            type = "latency",
+            timestamp = now,
+            connectionType = NetworkConnectionType.CELLULAR,
+            cellularDataEnabled = true,
+            latencyData = latency,
+        )
+        val submission = FccSubmission(
+            id = groupId,
+            deviceId = deviceId,
+            provider = "android-test-app",
+            submitted = false,
+        )
+
+        measurementRepo.upsert(measurement)
         latencyRepo.upsert(
-            LatencyData(
-                id = UUID.randomUUID().toString(),
-                measurementId = measurementId,
-                rtt = 25,
-                jitter = 2,
-                sent = 10,
-                received = 10,
-            )
+            latency
         )
-        submissionRepo.upsert(
-            FccSubmission(
-                id = groupId,
-                deviceId = deviceId,
-                provider = "android-test-app",
-                submitted = false,
-            )
-        )
+        submissionRepo.upsert(submission)
 
         val service = MeasurementSyncServiceFactory.createSupabaseBacked(
             database = db,
@@ -123,9 +126,24 @@ class LocalSupabaseSharedSyncSmokeTest {
             },
         )
 
-        val report = service.syncAll()
+        val flow = LegacySharedSyncFlow(
+            syncService = service,
+            measurementRepository = measurementRepo,
+            submissionRepository = submissionRepo,
+        )
+        val report = flow.onMapStartSync()
         assertNotNull(report.measurements)
         assertNotNull(report.submissions)
+        val uploadTime = flow.onMeasurementCompleteSync(
+            MeasurementGroup(
+                latency = measurement,
+                download = null,
+                upload = null,
+                submission = submission,
+                id = groupId,
+            )
+        )
+        assertNotNull(uploadTime)
         assertNotNull(measurementRepo.getById(measurementId)?.uploadTime)
         assertNotNull(submissionRepo.getById(groupId)?.uploadTime)
     }
