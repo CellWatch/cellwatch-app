@@ -133,8 +133,6 @@ android {
 }
 
 dependencies {
-    implementation(project(":shared"))
-
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
 
