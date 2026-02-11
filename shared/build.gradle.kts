@@ -97,6 +97,15 @@ kotlin {
             }
         }
 
+        val androidInstrumentedTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+                implementation(libs.androidx.test.junit)
+                implementation(libs.androidx.runner)
+                implementation(libs.androidx.test.core)
+            }
+        }
+
         iosMain {
             dependencies {
                 // Add iOS-specific dependencies here. This a source set created by Kotlin Gradle
@@ -203,5 +212,54 @@ tasks.register("verifyAllPlatforms") {
         "testDebugUnitTest",
         "jvmTest",
         "verifyIosSimulatorArm64Results",
+    )
+}
+
+tasks.register("verifyAndroidEmulator") {
+    description = "Runs Android instrumentation tests on a connected emulator/device."
+    group = "verification"
+    dependsOn("connectedDebugAndroidTest")
+}
+
+tasks.register("verifyLightweightPlatforms") {
+    description = "Tier 1: fast checks (Android unit + JVM + iOS simulator K/N tests)."
+    group = "verification"
+    dependsOn("verifyAllPlatforms")
+}
+
+tasks.register("verifyIosHostedKeychain") {
+    description = "Tier 2: iOS host-app Keychain tests (requires an Xcode project/test target)."
+    group = "verification"
+    val projectPath = rootProject.file("iosSharedIntegrationHost/iosSharedIntegrationHost.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException(
+                "Missing iOS host test project at ${projectPath.absolutePath}."
+            )
+        }
+    }
+    doLast {
+        exec {
+            commandLine(
+                "xcodebuild",
+                "-project",
+                projectPath.absolutePath,
+                "-scheme",
+                "iosSharedIntegrationHost",
+                "-destination",
+                "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                "test",
+            )
+            workingDir = rootProject.projectDir
+        }
+    }
+}
+
+tasks.register("verifyRealisticPlatforms") {
+    description = "Tier 2: realistic platform checks (Android emulator/device + iOS hosted Keychain tests)."
+    group = "verification"
+    dependsOn(
+        "verifyAndroidEmulator",
+        "verifyIosHostedKeychain",
     )
 }
