@@ -142,6 +142,7 @@ Command:
 If run separately:
 - Android realistic only: `./gradlew :shared:verifyAndroidEmulator`
 - iOS realistic only: `./gradlew :shared:verifyIosHostedKeychain`
+- Local Supabase JVM integration only: `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
 
 ## Recent KMP Porting Work
 
