@@ -15,6 +15,7 @@ import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncRemoteDataSource
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncService
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncUseCase
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
+import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerUseCase
 import kotlinx.datetime.Clock
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -43,6 +44,15 @@ class SupabaseSyncRemoteDataSourceProvider(
 
 object MeasurementSyncServiceFactory {
 
+    private data class SyncRepositories(
+        val measurementRepo: MeasurementRepositoryImpl,
+        val uploadRepo: UploadDownloadDataRepositoryImpl,
+        val latencyRepo: LatencyDataRepositoryImpl,
+        val locationRepo: LocationRepositoryImpl,
+        val cellRepo: CellRepositoryImpl,
+        val submissionRepo: FccSubmissionRepositoryImpl,
+    )
+
     fun create(
         localStore: edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncLocalStore,
         remoteDataSource: MeasurementSyncRemoteDataSource,
@@ -66,20 +76,15 @@ object MeasurementSyncServiceFactory {
         tcpTupleProvider: TcpTupleProvider,
         clock: Clock = Clock.System,
     ): MeasurementSyncService {
-        val measurementRepo = MeasurementRepositoryImpl(database.measurementQueries, io)
-        val uploadRepo = UploadDownloadDataRepositoryImpl(database.uploadDownloadDataQueries, io)
-        val latencyRepo = LatencyDataRepositoryImpl(database.latencyDataQueries, io)
-        val locationRepo = LocationRepositoryImpl(database.locationQueries, io)
-        val cellRepo = CellRepositoryImpl(database.cellQueries, io)
-        val submissionRepo = FccSubmissionRepositoryImpl(database.fccSubmissionQueries, io)
+        val repos = createRepositories(database, io)
 
         val localStore = RepositoryBackedMeasurementSyncLocalStore(
-            measurementRepository = measurementRepo,
-            uploadDownloadDataRepository = uploadRepo,
-            latencyDataRepository = latencyRepo,
-            locationRepository = locationRepo,
-            cellRepository = cellRepo,
-            fccSubmissionRepository = submissionRepo,
+            measurementRepository = repos.measurementRepo,
+            uploadDownloadDataRepository = repos.uploadRepo,
+            latencyDataRepository = repos.latencyRepo,
+            locationRepository = repos.locationRepo,
+            cellRepository = repos.cellRepo,
+            fccSubmissionRepository = repos.submissionRepo,
         )
 
         return create(
@@ -87,6 +92,50 @@ object MeasurementSyncServiceFactory {
             remoteDataSource = remoteProvider.create(supabaseConfig),
             tcpTupleProvider = tcpTupleProvider,
             clock = clock,
+        )
+    }
+
+    fun createSupabaseUploadTriggerUseCase(
+        database: CellwatchDatabase,
+        io: CoroutineContext = EmptyCoroutineContext,
+        supabaseConfig: SyncSupabaseConfig,
+        remoteProvider: SyncRemoteDataSourceProvider,
+        tcpTupleProvider: TcpTupleProvider,
+        clock: Clock = Clock.System,
+    ): UploadTriggerUseCase {
+        val repos = createRepositories(database, io)
+        val syncService = createSupabaseBacked(
+            database = database,
+            io = io,
+            supabaseConfig = supabaseConfig,
+            remoteProvider = remoteProvider,
+            tcpTupleProvider = tcpTupleProvider,
+            clock = clock,
+        )
+        return UploadTriggerUseCase(
+            syncService = syncService,
+            measurementRepository = repos.measurementRepo,
+            submissionRepository = repos.submissionRepo,
+        )
+    }
+
+    private fun createRepositories(
+        database: CellwatchDatabase,
+        io: CoroutineContext,
+    ): SyncRepositories {
+        val measurementRepo = MeasurementRepositoryImpl(database.measurementQueries, io)
+        val uploadRepo = UploadDownloadDataRepositoryImpl(database.uploadDownloadDataQueries, io)
+        val latencyRepo = LatencyDataRepositoryImpl(database.latencyDataQueries, io)
+        val locationRepo = LocationRepositoryImpl(database.locationQueries, io)
+        val cellRepo = CellRepositoryImpl(database.cellQueries, io)
+        val submissionRepo = FccSubmissionRepositoryImpl(database.fccSubmissionQueries, io)
+        return SyncRepositories(
+            measurementRepo = measurementRepo,
+            uploadRepo = uploadRepo,
+            latencyRepo = latencyRepo,
+            locationRepo = locationRepo,
+            cellRepo = cellRepo,
+            submissionRepo = submissionRepo,
         )
     }
 }
