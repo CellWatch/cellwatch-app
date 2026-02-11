@@ -154,6 +154,21 @@ If run separately:
 - Android isolated harness smoke test: `./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.LocalSupabaseSharedSyncSmokeTest"`
 - Android isolated harness driver + environment tests: `./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.AndroidTestSyncDriverTest" --tests "edu.gatech.cc.cellwatch.androidtestapp.SupabaseEnvironmentProviderTest"`
 
+### Harness Parity Matrix
+
+- `map-start sync` action:
+  - Android: `androidTestApp` UI (`MainActivity`) + `AndroidTestSyncDriverTest`
+  - iOS: `iosTestApp` UI (`HarnessViewController`) + `SyncHarnessParityTests`
+- `measurement-complete sync` action:
+  - Android: `androidTestApp` UI (`MainActivity`) + `LegacySharedSyncFlowTest`
+  - iOS: `iosTestApp` UI simulation (`HarnessViewController`) + `SyncHarnessParityTests`
+- secure storage/encryption host validation:
+  - Android: shared Android unit + instrumentation suites
+  - iOS: `iosTestApp` hosted `KeychainIntegrationTests` and legacy `iosSharedIntegrationHost` hosted tests
+- local Supabase guardrails:
+  - Android: `SupabaseEnvironmentProviderTest` and local-only `LocalSupabaseSharedSyncSmokeTest`
+  - iOS: `SyncHarnessParityTests` local/remote environment provider checks
+
 ## Recent KMP Porting Work
 
 ### Encryption and secure storage
@@ -262,8 +277,12 @@ Not yet ported (still Android-only in `app/`):
     - tuple-blocked submission report handling
     - duplicate-key/partial-success report propagation
   - `androidTestApp` Supabase environment guard tests for local defaults + remote blocking
+  - Isolated iOS parity harness app in `iosTestApp`:
+    - UI harness actions for local env resolve + map-start/measurement-complete simulation
+    - hosted tests for Keychain integration and sync/environment parity behaviors
 - Remaining:
-  - Extend the isolated `androidTestApp` driver into a minimal UI harness when ready, then migrate legacy app trigger points after parity is proven
+  - Migrate the iOS harness simulation path from Swift-local driver logic to direct shared sync driver integration once iOS-side remote wiring is exposed for host app use
+  - Migrate legacy app trigger points into future KMP Android/iOS product apps after harness parity is confirmed
   - Coordinate Supabase migration-history reconciliation with main branch before tracking live-compatible migrations in-repo
 - Tier 1 tests:
   - Contract tests for network mapping + error handling in `commonTest`
@@ -271,6 +290,13 @@ Not yet ported (still Android-only in `app/`):
   - `androidTestApp` Robolectric driver/environment tests
 - Tier 2 tests:
   - Local Supabase smoke integration via `androidTestApp` and `shared` local integration tasks
+
+### Immediate Next Slice
+- Candidate extraction target:
+  - Legacy upload trigger flow (`map-start` + `measurement-complete`) from `app/` into shared-first orchestration
+- Migration strategy:
+  - Validate behavior first in `androidTestApp` and `iosTestApp` harnesses
+  - After parity is stable, wire the same shared-first slice into future KMP Android/iOS product app modules
 
 ### Phase 3: Measurement engine extraction
 - Split `domain/fcc` into:

@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
 }
 
@@ -8,7 +8,11 @@ android {
     compileSdk = 34
 
     defaultConfig {
+        applicationId = "edu.gatech.cc.cellwatch.androidtestapp"
         minSdk = 24
+        targetSdk = 34
+        versionCode = 1
+        versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -27,6 +31,9 @@ android {
 
 dependencies {
     implementation(project(":shared"))
+    implementation(libs.core.ktx)
+    implementation(libs.appcompat)
+    implementation(libs.material)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.datetime)
     implementation(libs.sqldelight.android.driver)
