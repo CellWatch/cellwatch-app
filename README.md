@@ -33,10 +33,12 @@ The project is mid-migration from Android-only Kotlin to KMP:
 
 ## Local Supabase Safety
 
-Local development and tests are now guarded to use local Supabase only for debug/test builds.
+Local development and test harness work is now guarded to use local Supabase by default.
 
-- `app/build.gradle.kts` enforces `SUPABASE_LOCAL_URL` host to be local (`localhost`, `127.0.0.1`, `::1`, `10.0.2.2`, `host.docker.internal`)
-- If `SUPABASE_LOCAL_URL` points to a cloud host, debug/test builds fail fast
+- `androidTestApp` resolves Supabase through `CellwatchPropertiesSupabaseEnvironmentProvider`
+- Default target is `LOCAL`
+- `REMOTE` target is hard-blocked unless explicitly enabled with:
+  - `CELLWATCH_ALLOW_REMOTE_SUPABASE=true`
 - Current local defaults in `cellwatch.properties`:
   - `SUPABASE_LOCAL_URL="http://10.0.2.2:54321"`
   - local Supabase anon key (CLI default)
@@ -147,6 +149,7 @@ If run separately:
 - Local Supabase JVM integration only: `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
   - Includes remote adapter RPC/table checks and end-to-end `MeasurementSyncUseCase` store-and-forward validation against local Docker Supabase
 - Android isolated harness smoke test: `./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.LocalSupabaseSharedSyncSmokeTest"`
+- Android isolated harness driver + environment tests: `./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.AndroidTestSyncDriverTest" --tests "edu.gatech.cc.cellwatch.androidtestapp.SupabaseEnvironmentProviderTest"`
 
 ## Recent KMP Porting Work
 
@@ -245,16 +248,26 @@ Not yet ported (still Android-only in `app/`):
   - SQLDelight/repository support for upload synchronization state:
     - `Measurement`: `selectUnsyncedMeasurements`, `markMeasurementUploaded`
     - `FccSubmission`: `selectUnsyncedFccSubmissions`, `markFccSubmissionUploaded`
+  - Supabase-backed shared remote datasource implementation in `shared/data/remote/SupabaseMeasurementSyncRemoteDataSource.kt`
+  - Local Supabase shared integration tests in `shared/jvmTest` (RPC + store-and-forward coverage)
+  - Isolated Android bridge and driver in `androidTestApp` for legacy trigger modeling:
+    - `LegacySharedSyncFlow` (`map-start` sync + `measurement-complete` sync/upload-time resolution)
+    - `AndroidTestSyncDriver` stateful wrapper for action/report/error flow
+    - `AndroidTestSyncDriverFactory` with environment-target wiring
+  - `androidTestApp` failure-path tests for:
+    - network-down style sync failure handling
+    - tuple-blocked submission report handling
+    - duplicate-key/partial-success report propagation
+  - `androidTestApp` Supabase environment guard tests for local defaults + remote blocking
 - Remaining:
-  - Implement concrete shared remote datasource adapter for Supabase in `shared/`
-  - Add local-Supabase integration tests for remote adapter
-- Current blocker:
-  - Repository does not yet contain Supabase schema/migration files for measurements/submissions RPC contract, so local Supabase integration coverage cannot be made deterministic yet from this repo alone.
+  - Extend the isolated `androidTestApp` driver into a minimal UI harness when ready, then migrate legacy app trigger points after parity is proven
+  - Coordinate Supabase migration-history reconciliation with main branch before tracking live-compatible migrations in-repo
 - Tier 1 tests:
   - Contract tests for network mapping + error handling in `commonTest`
   - Existing lightweight platform suite
+  - `androidTestApp` Robolectric driver/environment tests
 - Tier 2 tests:
-  - Optional smoke integration against test endpoint if available
+  - Local Supabase smoke integration via `androidTestApp` and `shared` local integration tasks
 
 ### Phase 3: Measurement engine extraction
 - Split `domain/fcc` into:

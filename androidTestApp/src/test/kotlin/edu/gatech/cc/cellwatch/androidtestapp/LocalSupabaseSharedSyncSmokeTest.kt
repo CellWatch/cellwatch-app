@@ -3,14 +3,13 @@ package edu.gatech.cc.cellwatch.androidtestapp
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
-import edu.gatech.cc.cellwatch.androidtestapp.sync.LegacySharedSyncFlow
+import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriverFactory
+import edu.gatech.cc.cellwatch.androidtestapp.sync.CellwatchPropertiesSupabaseEnvironmentProvider
+import edu.gatech.cc.cellwatch.androidtestapp.sync.SupabaseTarget
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
 import edu.gatech.cc.cellwatch.data.repo.FccSubmissionRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.MeasurementRepositoryImpl
-import edu.gatech.cc.cellwatch.data.sync.MeasurementSyncServiceFactory
-import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfig
-import edu.gatech.cc.cellwatch.data.sync.SupabaseSyncRemoteDataSourceProvider
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
@@ -29,10 +28,8 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.Properties
 import java.util.UUID
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -62,9 +59,10 @@ class LocalSupabaseSharedSyncSmokeTest {
 
     @Test
     fun syncAll_runsAgainstLocalSupabase_only() = runBlocking {
-        assumeTrue("local supabase unavailable", isLocalSupabaseReachable())
+        val environmentProvider = CellwatchPropertiesSupabaseEnvironmentProvider()
+        val localEnv = environmentProvider.resolve(SupabaseTarget.LOCAL)
+        assumeTrue("local supabase unavailable", isSupabaseReachable(localEnv.url))
 
-        val localSupabase = loadLocalSupabaseConfig()
         val authStore = InMemoryDeviceAuthStore()
         val deviceId = authStore.getDeviceId()
         val now = Clock.System.now()
@@ -106,35 +104,28 @@ class LocalSupabaseSharedSyncSmokeTest {
         )
         submissionRepo.upsert(submission)
 
-        val service = MeasurementSyncServiceFactory.createSupabaseBacked(
+        val tcpProvider = object : TcpTupleProvider {
+            override suspend fun getPublicTcpTuple(): TcpTuple = TcpTuple(
+                remoteAddress = "203.0.113.20",
+                remotePort = 443,
+                timestamp = now.toEpochMilliseconds(),
+            )
+        }
+        val syncDriver = AndroidTestSyncDriverFactory(
             database = db,
+            deviceAuthStore = authStore,
+            tcpTupleProvider = tcpProvider,
+            environmentProvider = environmentProvider,
             io = EmptyCoroutineContext,
-            supabaseConfig = SyncSupabaseConfig(
-                url = localSupabase.url,
-                apiKey = localSupabase.apiKey,
-            ),
-            remoteProvider = SupabaseSyncRemoteDataSourceProvider(authStore),
-            tcpTupleProvider = object : TcpTupleProvider {
-                override suspend fun getPublicTcpTuple(): TcpTuple = TcpTuple(
-                    remoteAddress = "203.0.113.20",
-                    remotePort = 443,
-                    timestamp = now.toEpochMilliseconds(),
-                )
-            },
             clock = object : Clock {
                 override fun now(): Instant = now
             },
-        )
-
-        val flow = LegacySharedSyncFlow(
-            syncService = service,
-            measurementRepository = measurementRepo,
-            submissionRepository = submissionRepo,
-        )
-        val report = flow.onMapStartSync()
-        assertNotNull(report.measurements)
-        assertNotNull(report.submissions)
-        val uploadTime = flow.onMeasurementCompleteSync(
+        ).create(SupabaseTarget.LOCAL)
+        val report = syncDriver.runMapStartSync()
+        val nonNullReport = requireNotNull(report)
+        assertNotNull(nonNullReport.measurements)
+        assertNotNull(nonNullReport.submissions)
+        val uploadTime = syncDriver.runMeasurementCompleteSync(
             MeasurementGroup(
                 latency = measurement,
                 download = null,
@@ -148,9 +139,9 @@ class LocalSupabaseSharedSyncSmokeTest {
         assertNotNull(submissionRepo.getById(groupId)?.uploadTime)
     }
 
-    private fun isLocalSupabaseReachable(): Boolean {
+    private fun isSupabaseReachable(baseUrl: String): Boolean {
         return runCatching {
-            val connection = (URL("http://127.0.0.1:54321").openConnection() as HttpURLConnection).apply {
+            val connection = (URL(baseUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 1500
                 readTimeout = 1500
@@ -176,35 +167,4 @@ private class InMemoryDeviceAuthStore(
     override suspend fun saveDeviceSecret(secret: String) {
         this.secret = secret
     }
-}
-
-private data class LocalSupabaseConfig(
-    val url: String,
-    val apiKey: String,
-)
-
-private fun loadLocalSupabaseConfig(): LocalSupabaseConfig {
-    val propsFile = findCellwatchProperties(File(System.getProperty("user.dir") ?: "."))
-    val props = Properties()
-    if (propsFile != null && propsFile.exists()) {
-        propsFile.inputStream().use(props::load)
-    }
-    val rawUrl = props.getProperty("SUPABASE_LOCAL_URL")?.trim()?.removeSurrounding("\"")
-        ?: "http://127.0.0.1:54321"
-    val apiKey = props.getProperty("SUPABASE_LOCAL_API_KEY")?.trim()?.removeSurrounding("\"")
-        ?: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
-    return LocalSupabaseConfig(
-        url = rawUrl.replace("10.0.2.2", "127.0.0.1"),
-        apiKey = apiKey,
-    )
-}
-
-private fun findCellwatchProperties(startDir: File): File? {
-    var current: File? = startDir
-    while (current != null) {
-        val candidate = File(current, "cellwatch.properties")
-        if (candidate.exists()) return candidate
-        current = current.parentFile
-    }
-    return null
 }
