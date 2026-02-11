@@ -37,3 +37,27 @@ dependencyResolutionManagement {
 
 rootProject.name = "cellwatch"
 include(":app")
+
+val useLocalMsak = providers.gradleProperty("cellwatch.useLocalMsak")
+    .orNull
+    ?.toBooleanStrictOrNull()
+    ?: false
+
+if (useLocalMsak) {
+    val localMsakDir = providers.gradleProperty("cellwatch.local.msak.dir")
+        .orNull
+        ?.takeIf { it.isNotBlank() }
+        ?: "../msak-android"
+
+    val localMsakFile = file(localMsakDir)
+    check(localMsakFile.exists()) {
+        "cellwatch.useLocalMsak=true but local msak directory does not exist: ${localMsakFile.absolutePath}"
+    }
+
+    includeBuild(localMsakFile) {
+        dependencySubstitution {
+            substitute(module("edu.gatech.cc.cellwatch:msak-client-kmp"))
+                .using(project(":msak-shared"))
+        }
+    }
+}

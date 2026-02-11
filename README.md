@@ -116,6 +116,34 @@ or foreground:
 /opt/homebrew/opt/postgresql@14/bin/postgres -D /opt/homebrew/var/postgresql@14
 ```
 
+## Local KMP `msak` Client Override
+
+`shared/` currently depends on the published artifact:
+- `edu.gatech.cc.cellwatch:msak-client-kmp:0.2.0`
+
+You can opt into a local checkout (for active `msak` KMP development) without changing committed dependency coordinates.
+
+Use one of these options:
+
+```bash
+# from this repo root, default local path is ../msak-android
+./gradlew -Pcellwatch.useLocalMsak=true :shared:jvmTest
+```
+
+```bash
+# custom local path
+./gradlew \
+  -Pcellwatch.useLocalMsak=true \
+  -Pcellwatch.local.msak.dir=/absolute/path/to/msak-android \
+  :shared:jvmTest
+```
+
+Behavior:
+- Default (no flags): published `msak-client-kmp` is used
+- With `cellwatch.useLocalMsak=true`: Gradle uses a composite build and substitutes
+  `edu.gatech.cc.cellwatch:msak-client-kmp` with project `:msak-shared` from your local `msak-android` checkout
+- If the local path is missing, settings evaluation fails fast with a clear error
+
 ## Testing
 
 The project now uses a practical two-tier test strategy.
