@@ -1,0 +1,57 @@
+CREATE TABLE IF NOT EXISTS MeasurementEntity(
+  id TEXT NOT NULL PRIMARY KEY,
+  groupId TEXT,
+  campaignId TEXT,
+  sessionId TEXT,
+  deviceId TEXT,
+  deviceManufacturer TEXT,
+  deviceModel TEXT,
+  deviceOsName TEXT,
+  deviceOsVersion TEXT,
+  appName TEXT,
+  provider TEXT,
+  type TEXT NOT NULL,
+  timestamp INTEGER,
+  duration INTEGER,
+  scheduled INTEGER,
+  success INTEGER,
+  carrierAggregation INTEGER,
+  networkConnected INTEGER,
+  networkAvailable INTEGER,
+  networkRoaming INTEGER,
+  simMcc TEXT,
+  simMnc TEXT,
+  netMcc TEXT,
+  netMnc TEXT,
+  connectionType TEXT,
+  cellularDataEnabled INTEGER,
+  extraData TEXT,
+  createdOn INTEGER,
+  updatedOn INTEGER,
+  uploadTime INTEGER,
+  appVersion TEXT
+);
+
+CREATE INDEX IF NOT EXISTS MeasurementEntity_groupId_idx
+ON MeasurementEntity(groupId);
+
+CREATE INDEX IF NOT EXISTS MeasurementEntity_timestamp_idx
+ON MeasurementEntity(timestamp);
+
+insertOrReplaceMeasurement:
+INSERT OR REPLACE INTO MeasurementEntity(
+  id, groupId, campaignId, sessionId, deviceId, deviceManufacturer, deviceModel, deviceOsName,
+  deviceOsVersion, appName, provider, type, timestamp, duration, scheduled, success,
+  carrierAggregation, networkConnected, networkAvailable, networkRoaming, simMcc, simMnc,
+  netMcc, netMnc, connectionType, cellularDataEnabled, extraData, createdOn, updatedOn,
+  uploadTime, appVersion
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteMeasurementById:
+DELETE FROM MeasurementEntity WHERE id = ?;
+
+selectMeasurementById:
+SELECT * FROM MeasurementEntity WHERE id = ?;
+
+selectMeasurementsByGroupId:
+SELECT * FROM MeasurementEntity WHERE groupId = ? ORDER BY timestamp DESC;

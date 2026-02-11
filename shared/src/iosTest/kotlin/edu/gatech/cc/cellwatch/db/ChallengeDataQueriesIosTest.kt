@@ -6,16 +6,15 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
-class DeviceQueriesIosTest {
+class ChallengeDataQueriesIosTest {
 
     private lateinit var driver: NativeSqliteDriver
     private lateinit var db: CellwatchDatabase
 
     @BeforeTest
     fun setUp() {
-        driver = NativeSqliteDriver(CellwatchDatabase.Schema, "device-ios-test-${uuid4()}.db")
+        driver = NativeSqliteDriver(CellwatchDatabase.Schema, "challenge-data-ios-test-${uuid4()}.db")
         db = CellwatchDatabase(driver)
-        driver.execute(null, "DELETE FROM DeviceEntity", 0) {}
     }
 
     @AfterTest
@@ -26,12 +25,12 @@ class DeviceQueriesIosTest {
     }
 
     @Test
-    fun insert_and_select_by_id() = DeviceQueriesContract.assertInsertAndSelectById(db)
+    fun insert_and_select_by_id() = ChallengeDataQueriesContract.assertInsertAndSelectById(db)
 
     @Test
-    fun select_all_returns_all_inserted_devices() =
-        DeviceQueriesContract.assertSelectAllReturnsAllInsertedDevices(db)
+    fun select_all_orders_by_created_on_desc() =
+        ChallengeDataQueriesContract.assertSelectAllOrdersByCreatedOnDesc(db)
 
     @Test
-    fun delete_by_id_removes_row() = DeviceQueriesContract.assertDeleteByIdRemovesRow(db)
+    fun delete_by_id_removes_row() = ChallengeDataQueriesContract.assertDeleteByIdRemovesRow(db)
 }

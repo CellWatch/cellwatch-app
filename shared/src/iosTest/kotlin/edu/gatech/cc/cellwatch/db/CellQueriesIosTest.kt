@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.db
 
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
+import com.benasher44.uuid.uuid4
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -12,7 +13,7 @@ class CellQueriesIosTest {
 
     @BeforeTest
     fun setUp() {
-        driver = NativeSqliteDriver(CellwatchDatabase.Schema, ":memory:")
+        driver = NativeSqliteDriver(CellwatchDatabase.Schema, "cell-ios-test-${uuid4()}.db")
         db = CellwatchDatabase(driver)
 
         driver.execute(null, "DELETE FROM CellEntity", 0) {}

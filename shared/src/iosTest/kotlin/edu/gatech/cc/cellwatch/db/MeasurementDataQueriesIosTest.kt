@@ -6,16 +6,15 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
-class DeviceQueriesIosTest {
+class MeasurementDataQueriesIosTest {
 
     private lateinit var driver: NativeSqliteDriver
     private lateinit var db: CellwatchDatabase
 
     @BeforeTest
     fun setUp() {
-        driver = NativeSqliteDriver(CellwatchDatabase.Schema, "device-ios-test-${uuid4()}.db")
+        driver = NativeSqliteDriver(CellwatchDatabase.Schema, "measurement-data-ios-test-${uuid4()}.db")
         db = CellwatchDatabase(driver)
-        driver.execute(null, "DELETE FROM DeviceEntity", 0) {}
     }
 
     @AfterTest
@@ -26,12 +25,13 @@ class DeviceQueriesIosTest {
     }
 
     @Test
-    fun insert_and_select_by_id() = DeviceQueriesContract.assertInsertAndSelectById(db)
+    fun location_insert_select_delete() = MeasurementDataQueriesContract.assertLocationInsertSelectDelete(db)
 
     @Test
-    fun select_all_returns_all_inserted_devices() =
-        DeviceQueriesContract.assertSelectAllReturnsAllInsertedDevices(db)
+    fun latency_insert_select_delete_by_measurement() =
+        MeasurementDataQueriesContract.assertLatencyInsertSelectDeleteByMeasurement(db)
 
     @Test
-    fun delete_by_id_removes_row() = DeviceQueriesContract.assertDeleteByIdRemovesRow(db)
+    fun upload_insert_select_delete_by_measurement() =
+        MeasurementDataQueriesContract.assertUploadInsertSelectDeleteByMeasurement(db)
 }

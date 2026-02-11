@@ -6,9 +6,46 @@ import kotlin.test.assertNull
 
 object CellQueriesContract {
 
+    private fun seedMeasurement(db: CellwatchDatabase, id: String) {
+        db.measurementQueries.insertOrReplaceMeasurement(
+            id = id,
+            groupId = null,
+            campaignId = null,
+            sessionId = null,
+            deviceId = null,
+            deviceManufacturer = null,
+            deviceModel = null,
+            deviceOsName = null,
+            deviceOsVersion = null,
+            appName = null,
+            provider = null,
+            type = "latency",
+            timestamp = null,
+            duration = null,
+            scheduled = null,
+            success = null,
+            carrierAggregation = null,
+            networkConnected = null,
+            networkAvailable = null,
+            networkRoaming = null,
+            simMcc = null,
+            simMnc = null,
+            netMcc = null,
+            netMnc = null,
+            connectionType = null,
+            cellularDataEnabled = null,
+            extraData = null,
+            createdOn = null,
+            updatedOn = null,
+            uploadTime = null,
+            appVersion = null,
+        )
+    }
+
     fun assertInsertAndSelectById(db: CellwatchDatabase) {
         val id = "cell-1"
         val now = 1_710_000_000L
+        seedMeasurement(db, "m-1")
 
         db.cellQueries.insertOrReplaceCell(
             id = id,
@@ -44,6 +81,7 @@ object CellQueriesContract {
 
     fun assertSelectByMeasurementOrdersByTimestampDesc(db: CellwatchDatabase) {
         val mId = "measure-xyz"
+        seedMeasurement(db, mId)
 
         fun insert(id: String, ts: Long) {
             db.cellQueries.insertOrReplaceCell(

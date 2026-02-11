@@ -1,0 +1,38 @@
+CREATE TABLE IF NOT EXISTS UploadDownloadDataEntity(
+  id TEXT NOT NULL PRIMARY KEY,
+  measurementId TEXT,
+  warmupDuration INTEGER,
+  warmupBytes INTEGER,
+  duration INTEGER,
+  bytes INTEGER,
+  bytesPerSec REAL,
+  applicationBytes INTEGER,
+  applicationBytesPerSec REAL,
+  servers TEXT,
+  createdOn INTEGER,
+  updatedOn INTEGER,
+  FOREIGN KEY(measurementId) REFERENCES MeasurementEntity(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS UploadDownloadDataEntity_measurementId_idx
+ON UploadDownloadDataEntity(measurementId);
+
+insertOrReplaceUploadDownloadData:
+INSERT OR REPLACE INTO UploadDownloadDataEntity(
+  id, measurementId, warmupDuration, warmupBytes, duration, bytes, bytesPerSec,
+  applicationBytes, applicationBytesPerSec, servers, createdOn, updatedOn
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteUploadDownloadDataById:
+DELETE FROM UploadDownloadDataEntity WHERE id = ?;
+
+deleteUploadDownloadDataByMeasurement:
+DELETE FROM UploadDownloadDataEntity WHERE measurementId = ?;
+
+selectUploadDownloadDataById:
+SELECT * FROM UploadDownloadDataEntity WHERE id = ?;
+
+selectUploadDownloadDataByMeasurement:
+SELECT * FROM UploadDownloadDataEntity WHERE measurementId = ? ORDER BY createdOn DESC;

@@ -1,8 +1,3 @@
--- Table(s) for the Cell aggregate
-CREATE TABLE IF NOT EXISTS MeasurementEntity(
-  id TEXT NOT NULL PRIMARY KEY
-);
-
 CREATE TABLE IF NOT EXISTS CellEntity(
   id TEXT NOT NULL PRIMARY KEY,
   timestamp INTEGER,

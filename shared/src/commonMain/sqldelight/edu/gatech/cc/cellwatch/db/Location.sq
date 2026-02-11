@@ -1,0 +1,36 @@
+CREATE TABLE IF NOT EXISTS LocationEntity(
+  id TEXT NOT NULL PRIMARY KEY,
+  timestamp INTEGER,
+  lat REAL NOT NULL,
+  lon REAL NOT NULL,
+  accuracy REAL,
+  speed REAL,
+  speedAccuracy REAL,
+  heading REAL,
+  measurementId TEXT,
+  createdOn INTEGER,
+  updatedOn INTEGER,
+  FOREIGN KEY(measurementId) REFERENCES MeasurementEntity(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS LocationEntity_measurementId_idx
+ON LocationEntity(measurementId);
+
+insertOrReplaceLocation:
+INSERT OR REPLACE INTO LocationEntity(
+  id, timestamp, lat, lon, accuracy, speed, speedAccuracy, heading, measurementId, createdOn, updatedOn
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteLocationById:
+DELETE FROM LocationEntity WHERE id = ?;
+
+deleteLocationsByMeasurement:
+DELETE FROM LocationEntity WHERE measurementId = ?;
+
+selectLocationById:
+SELECT * FROM LocationEntity WHERE id = ?;
+
+selectLocationsByMeasurement:
+SELECT * FROM LocationEntity WHERE measurementId = ? ORDER BY timestamp DESC;
