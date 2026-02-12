@@ -32,6 +32,8 @@ import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSequenceSyncOrchestrator
+import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeEnvelopeBuilder
+import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeResultFormatter
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +62,8 @@ class MainActivity : AppCompatActivity() {
     private var selectedSupabaseMode: RuntimeSupabaseMode = RuntimeSupabaseMode.LOCAL
     private val allowRemoteSupabase: Boolean = System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE") == "true"
     private var runtimeProfile: RuntimeSyncMsakProfile = resolveRuntimeProfile()
+    private val smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
+    private val smokeFormatter = SyncSmokeResultFormatter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -199,9 +203,20 @@ class MainActivity : AppCompatActivity() {
             runCatching {
                 val group = lastGroup ?: seedMeasurementGroup().also { lastGroup = it }
                 val uploadedAt = getSyncDriver().runMeasurementCompleteSync(group)
-                "measurement-complete group=${group.id}\nuploadTime=$uploadedAt"
+                val envelope = smokeEnvelopeBuilder.measurementComplete(
+                    uploadTimeSet = uploadedAt != null,
+                    errorMessage = getSyncDriver().state.value.lastError,
+                )
+                smokeFormatter.format(envelope) +
+                    "\ngroup=${group.id}\nuploadTime=$uploadedAt"
             }.onSuccess { statusText.text = it }
-                .onFailure { statusText.text = "measurement-complete failed: ${it.message}" }
+                .onFailure {
+                    val envelope = smokeEnvelopeBuilder.failure(
+                        scenario = "measurement-complete-sync",
+                        errorMessage = it.message,
+                    )
+                    statusText.text = smokeFormatter.format(envelope)
+                }
         }
     }
 
@@ -209,9 +224,19 @@ class MainActivity : AppCompatActivity() {
         scope.launch {
             runCatching {
                 val report = getSyncDriver().runMapStartSync()
-                "map-start report:\n${formatReport(report)}"
+                val envelope = smokeEnvelopeBuilder.mapStart(
+                    hasReport = report != null,
+                    errorMessage = getSyncDriver().state.value.lastError,
+                )
+                smokeFormatter.format(envelope) + "\n" + formatReport(report)
             }.onSuccess { statusText.text = it }
-                .onFailure { statusText.text = "map-start failed: ${it.message}" }
+                .onFailure {
+                    val envelope = smokeEnvelopeBuilder.failure(
+                        scenario = "map-start-sync",
+                        errorMessage = it.message,
+                    )
+                    statusText.text = smokeFormatter.format(envelope)
+                }
         }
     }
 
@@ -263,16 +288,26 @@ class MainActivity : AppCompatActivity() {
                 val persistedMeasurements = measurementRepo.getByGroupId(sequence.group.id).size
                 val persistedSubmissions = if (submissionRepo.getById(sequence.group.id) != null) 1 else 0
                 val uploadTime = outcome.measurementCompleteUploadTime?.toEpochMilliseconds() ?: -1L
-                statusText.text =
-                    "phase3+sync group=${sequence.group.id}\n" +
-                        "throughput=${sequence.throughputServerMachine}\n" +
-                        "latency=${sequence.latencyServerMachine}\n" +
-                        "submissionCreated=${sequence.group.submission != null}\n" +
-                        "mapStartUploaded(m=${outcome.mapStartReport.measurements.uploaded},s=${outcome.mapStartReport.submissions.uploaded})\n" +
-                        "measurementCompleteUploadTimeMs=$uploadTime\n" +
-                        "persistedMeasurements=$persistedMeasurements, persistedSubmissions=$persistedSubmissions"
+                val envelope = smokeEnvelopeBuilder.phase3Sequence(
+                    measurementCompleteUploadTimeSet = outcome.measurementCompleteUploadTime != null,
+                    persistedMeasurements = persistedMeasurements,
+                    persistedSubmissions = persistedSubmissions,
+                    errorMessage = null,
+                )
+                statusText.text = smokeFormatter.format(envelope) +
+                    "\ngroup=${sequence.group.id}\n" +
+                    "throughput=${sequence.throughputServerMachine}\n" +
+                    "latency=${sequence.latencyServerMachine}\n" +
+                    "submissionCreated=${sequence.group.submission != null}\n" +
+                    "mapStartUploaded(m=${outcome.mapStartReport.measurements.uploaded},s=${outcome.mapStartReport.submissions.uploaded})\n" +
+                    "measurementCompleteUploadTimeMs=$uploadTime\n" +
+                    "persistedMeasurements=$persistedMeasurements, persistedSubmissions=$persistedSubmissions"
             }.onFailure {
-                statusText.text = "phase3+sync failed: ${it.message}"
+                val envelope = smokeEnvelopeBuilder.failure(
+                    scenario = "phase3-sequence-sync",
+                    errorMessage = it.message,
+                )
+                statusText.text = smokeFormatter.format(envelope)
             }
         }
     }
