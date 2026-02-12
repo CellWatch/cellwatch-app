@@ -343,6 +343,25 @@ tasks.register("verifyIosTestAppHostedLocalMsakSmoke") {
     }
 }
 
+// Hosted iOS simulator tasks share runtime state (simulator process, keychain scope, local services).
+// Keep them serialized to avoid flaky failures when Gradle runs tasks in parallel.
+tasks.named("verifyIosTestAppHosted") {
+    mustRunAfter("verifyIosHostedKeychain")
+}
+tasks.named("verifyIosTestAppHostedLocalMsakSmoke") {
+    mustRunAfter("verifyIosTestAppHosted")
+}
+
+tasks.register("verifyIosHostedTier2Sequential") {
+    description = "Tier 2: run all hosted iOS checks sequentially to avoid simulator concurrency flake."
+    group = "verification"
+    dependsOn(
+        "verifyIosHostedKeychain",
+        "verifyIosTestAppHosted",
+        "verifyIosTestAppHostedLocalMsakSmoke",
+    )
+}
+
 tasks.register("refreshIosSimulatorCurrentFramework") {
     description = "Refreshes sharedKit.framework at iosSimulatorArm64/Current from latest debug framework output."
     group = "verification"

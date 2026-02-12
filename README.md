@@ -325,6 +325,8 @@ If run separately:
 - iOS local-MSAK hosted smoke only: `./gradlew :shared:verifyIosTestAppHostedLocalMsakSmoke`
   - Runs only `LocalMsakPhase3HostedTests` and creates a temporary marker file for explicit opt-in.
   - If local `msak-server` is unavailable or UDP latency is unsupported for that runtime path, test reports `skipped` with a clear reason.
+- iOS hosted Tier 2 sequential bundle (recommended): `./gradlew :shared:verifyIosHostedTier2Sequential`
+  - Serializes hosted iOS checks to reduce simulator/keychain/local-service concurrency flake.
 - iOS realistic (legacy host) only: `./gradlew :shared:verifyIosHostedKeychain`
 - Local Supabase JVM integration only: `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
   - Includes remote adapter RPC/table checks and end-to-end `MeasurementSyncUseCase` store-and-forward validation against local Docker Supabase
