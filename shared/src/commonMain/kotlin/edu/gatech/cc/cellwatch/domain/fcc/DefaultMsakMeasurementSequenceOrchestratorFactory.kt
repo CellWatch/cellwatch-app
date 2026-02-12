@@ -62,13 +62,37 @@ private class FactoryHarnessSubmissionContextFactory(
             deviceTimestamp = Instant.fromEpochMilliseconds(clock.now().toEpochMilliseconds()),
             inVehicle = inVehicle,
             externalAntenna = false,
-            deviceType = "Android",
-            deviceOsName = metadata.deviceOsVersion?.let { "Android $it" } ?: "Android",
+            deviceType = inferDeviceType(metadata.deviceOsName),
+            deviceOsName = formatDeviceOsName(metadata.deviceOsName, metadata.deviceOsVersion),
             appVersion = appSource,
             provider = appSource,
             contactName = "Harness User",
             contactEmail = "harness@cellwatch.local",
             contactPhone = "555-0000",
         )
+    }
+}
+
+internal fun inferDeviceType(deviceOsName: String?): String {
+    val normalized = deviceOsName?.trim()?.lowercase()
+    return when {
+        normalized == null -> "Unknown"
+        normalized.contains("ios") || normalized.contains("iphone") -> "iOS"
+        normalized.contains("android") -> "Android"
+        else -> deviceOsName
+    }
+}
+
+internal fun formatDeviceOsName(
+    deviceOsName: String?,
+    deviceOsVersion: String?,
+): String? {
+    val name = deviceOsName?.trim()?.takeIf { it.isNotEmpty() }
+    val version = deviceOsVersion?.trim()?.takeIf { it.isNotEmpty() }
+    return when {
+        name != null && version != null -> "$name $version"
+        name != null -> name
+        version != null -> version
+        else -> null
     }
 }
