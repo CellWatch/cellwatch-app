@@ -492,6 +492,15 @@ Not yet ported (still Android-only in `frozenApp/`):
 - Coordinate Supabase migration-history reconciliation with main branch before tracking live-compatible migrations in-repo
 
 ### Phase 3: Measurement engine extraction
+- Status: started
+- Delivered (initial slice, February 12, 2026):
+  - Shared orchestration contract in `shared/domain/fcc/MeasurementSequenceOrchestrator.kt`:
+    - deterministic sequence skeleton (server-pair select -> latency -> download -> upload -> optional FCC submission build/persist)
+    - platform-facing seams via interfaces (`MsakServerPairProvider`, `MeasurementExecutor`, `MeasurementResultStore`, `FccSubmissionContextFactory`)
+  - Cross-platform contract tests in `shared/src/commonTest/.../MeasurementSequenceOrchestratorTest.kt` validating:
+    - call order and persistence sequencing
+    - conditional FCC submission creation via shared policy
+    - measurement-id pass-through to execution adapters
 - Split `domain/fcc` into:
   - Pure shared logic (metrics aggregation, challenge orchestration, payload assembly)
   - Platform adapters for network sockets/timing/device signals
