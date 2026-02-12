@@ -83,9 +83,46 @@ Supabase mode mapping:
 - `TESTING` -> shared sync target `REMOTE` (uses `SUPABASE_TESTING_URL` + `SUPABASE_TESTING_API_KEY`)
 - `LIVE` -> shared sync target `REMOTE` (uses `SUPABASE_URL` + `SUPABASE_API_KEY`)
 
+MSAK local host defaults in harness apps:
+- Android harness (`androidTestApp`): when `MSAK` mode is `LOCAL` and `MSAK_LOCAL_SERVER_HOST` is unset, host defaults to `10.0.2.2`.
+- iOS harness (`iosTestApp`): when `MSAK` mode is `LOCAL` and `MSAK_LOCAL_SERVER_HOST` is unset, host defaults to `127.0.0.1`.
+
 Current project policy:
 - We only operate in `Supabase LOCAL` mode for active development and test workflows.
 - `TESTING`/`LIVE` paths exist for future staged rollout, but remain guard-railed by `allowRemoteSupabase` and are not part of normal day-to-day usage.
+
+### Harness App Permissions (Current)
+
+Android harness (`androidTestApp`) currently declares:
+- `android.permission.INTERNET` (required for MSAK + Supabase HTTP traffic)
+- `android.permission.ACCESS_NETWORK_STATE` (required for connectivity capability capture and network-state checks)
+- `android.permission.ACCESS_WIFI_STATE` (best-effort network context capture; avoids permission-denied paths in some runtime checks)
+- `android.permission.READ_PHONE_STATE` (telephony/network state fields used by capability capture and some device-side network APIs)
+- `android.permission.ACCESS_COARSE_LOCATION` and `android.permission.ACCESS_FINE_LOCATION` (cell/network capability context on newer Android runtimes)
+
+iOS harness (`iosTestApp`) currently sets:
+- `NSAppTransportSecurity` with `NSAllowsArbitraryLoads=true` and `NSAllowsLocalNetworking=true` (local/dev HTTP endpoints used by harness flows)
+- `NSLocalNetworkUsageDescription` (local MSAK/Supabase testing on LAN/host paths)
+
+Notes:
+- These are harness/demo app permissions only, not final production policy for eventual platform apps.
+- Android harness requests `READ_PHONE_STATE` + location permissions at runtime on launch (for best-effort capability capture and telephony/network paths).
+- Phase3 interactive runs now execute a preflight gate first (MSAK mode/host + Supabase URL/key sanity) and fail fast with a rendered status message instead of hard-crashing on missing config.
+- Both harness apps also print runtime/preflight details to debug logs for investigation:
+  - Android: logcat tag `AndroidTestHarness`
+  - iOS: `NSLog` lines prefixed with `[iosTestApp]`
+- Local MSAK runs require protocol compatibility between `msak-client-kmp` and the local `msak-server`.  
+  If you see `MissingFieldException` for `Application.BytesSent`, the server/client schema versions are mismatched.
+
+### Harness Bootstrap (Before Simulator Taps)
+
+Use this sequence to bootstrap both harnesses before running interactive buttons:
+
+```bash
+./gradlew :androidTestApp:assembleDebug
+./gradlew :shared:refreshIosSimulatorCurrentFramework
+./gradlew :shared:verifyIosTestAppHosted
+```
 
 ### Start/Stop Local Supabase
 
@@ -161,7 +198,7 @@ or foreground:
 ## Local KMP `msak` Client Override
 
 `shared/` currently depends on the published artifact:
-- `edu.gatech.cc.cellwatch:msak-client-kmp:0.2.0`
+- `edu.gatech.cc.cellwatch:msak-client-kmp:0.2.2`
 
 Reference repositories used during CellWatch development:
 - KMP client library source: [CellWatch/msak-client-kmp](https://github.com/CellWatch/msak-client-kmp)
@@ -240,7 +277,7 @@ dependencyResolutionManagement {
 
 ```toml
 [versions]
-msakClientKmp = "0.2.0"
+msakClientKmp = "0.2.2"
 
 [libraries]
 msak-client-kmp = { module = "edu.gatech.cc.cellwatch:msak-client-kmp", version.ref = "msakClientKmp" }
@@ -263,14 +300,14 @@ kotlin {
 If you do not use the version catalog:
 
 ```kotlin
-implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.2.0")
+implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.2.2")
 ```
 
 ### Local iOS XCFramework Consumption
 
 Producer output:
-- zip: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.0/MsakShared.xcframework.zip`
-- sha256: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.0/MsakShared.xcframework.sha256`
+- zip: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.2/MsakShared.xcframework.zip`
+- sha256: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.2/MsakShared.xcframework.sha256`
 
 Steps:
 1. Unzip into a stable local path, for example:
@@ -287,7 +324,7 @@ Steps:
 
 Android/KMP:
 1. Confirm artifact exists in Maven local:
-   - `~/.m2/repository/edu/gatech/cc/cellwatch/msak-client-kmp/0.2.0/`
+   - `~/.m2/repository/edu/gatech/cc/cellwatch/msak-client-kmp/0.2.2/`
 2. Run dependency insight:
    - `./gradlew -q :shared:dependencies --configuration jvmCompileClasspath | grep msak-client-kmp`
 3. Run a fast compile/test task:
@@ -312,12 +349,12 @@ Optional args/env:
 
 ```bash
 # version argument
-scripts/refresh-local-msak-xcframework.sh 0.2.0
+scripts/refresh-local-msak-xcframework.sh 0.2.2
 
 # custom producer/dist root and destination
 MSAK_DIST_ROOT=/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple \
 MSAK_FRAMEWORK_DEST=/Users/jeff/Projects/cellwatch-app/iosTestApp/Frameworks/MsakShared.xcframework \
-scripts/refresh-local-msak-xcframework.sh 0.2.0
+scripts/refresh-local-msak-xcframework.sh 0.2.2
 ```
 
 The script verifies SHA-256 against the sidecar file and atomically replaces the destination framework.
