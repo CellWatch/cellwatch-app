@@ -69,7 +69,7 @@ kotlin {
                 implementation(libs.sqldelight.coroutines)
                 implementation(libs.benasher.uuid)
                 implementation(libs.cryptography.core)
-                implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.2.0")
+                implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.2.2")
             }
         }
 
