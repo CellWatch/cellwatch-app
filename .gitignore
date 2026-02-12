@@ -26,3 +26,5 @@ local.properties
 /app/release/
 *.apk
 .kotlin
+**/*.xcworkspace/xcuserdata/
+**/*.xcodeproj/xcuserdata/
