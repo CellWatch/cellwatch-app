@@ -319,12 +319,8 @@ If run separately:
   - iOS: `iosTestApp` hosted `KeychainIntegrationTests` and legacy `iosSharedIntegrationHost` hosted tests
 - local Supabase guardrails:
   - Android: `SupabaseEnvironmentProviderTest` and local-only `LocalSupabaseSharedSyncSmokeTest`
-  - iOS: `SyncHarnessParityTests` local/remote environment provider checks
+  - iOS: `SyncHarnessParityTests` local/remote environment provider checks and hosted local Supabase sync end-to-end
   - Both harnesses now resolve runtime Supabase config through shared `SyncRuntimeConfig` (`allowRemote=false` by default)
-
-## TODOs
-
-- Add `iosTestApp` hosted integration coverage that performs real local Supabase sync (in addition to current keychain/parity-hosted tests)
 
 ## Recent KMP Porting Work
 

@@ -5,6 +5,7 @@ Isolated iOS host test app for KMP parity work, mirroring the purpose of `androi
 Covers:
 - `sharedKit` Keychain-backed secure storage integration
 - local/remote Supabase environment guardrail behavior (unit tests)
+- hosted local Supabase sync end-to-end integration (`SyncHarnessParityTests.testHostedLocalSupabaseSync_endToEnd`)
 - shared upload-trigger parity harness behavior from `shared/` (`UploadTriggerParityHarness`)
 - runnable UI harness (`HarnessViewController`) with:
   - local environment resolve action

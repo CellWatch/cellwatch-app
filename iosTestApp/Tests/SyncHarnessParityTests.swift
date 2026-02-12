@@ -76,4 +76,30 @@ final class SyncHarnessParityTests: XCTestCase {
 
         waitForExpectations(timeout: 5)
     }
+
+    func testHostedLocalSupabaseSync_endToEnd() throws {
+        let provider = CellwatchPropertiesSupabaseEnvironmentProvider(
+            properties: ProcessInfo.processInfo.environment,
+            allowRemote: false
+        )
+        let local = try provider.resolve(.local)
+        let expectation = expectation(description: "runHostedLocalSupabaseSync")
+
+        IosLocalSupabaseSyncHarness().run(
+            supabaseUrl: local.url,
+            supabaseApiKey: local.apiKey
+        ) { result, error in
+            XCTAssertNil(error)
+            XCTAssertNotNil(result)
+            XCTAssertEqual(result?.measurementsAttempted, Int32(1))
+            XCTAssertEqual(result?.measurementsUploaded, Int32(1))
+            XCTAssertEqual(result?.submissionsAttempted, Int32(1))
+            XCTAssertEqual(result?.submissionsUploaded, Int32(1))
+            XCTAssertEqual(result?.measurementUploadPersisted, true)
+            XCTAssertEqual(result?.submissionUploadPersisted, true)
+            expectation.fulfill()
+        }
+
+        waitForExpectations(timeout: 20)
+    }
 }
