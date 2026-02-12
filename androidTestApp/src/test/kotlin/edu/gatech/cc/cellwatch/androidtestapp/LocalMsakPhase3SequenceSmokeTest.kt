@@ -85,6 +85,8 @@ class LocalMsakPhase3SequenceSmokeTest {
         assertTrue(nonNull.throughputMachine.isNotBlank())
         assertTrue(nonNull.latencyMachine.isNotBlank())
         assertEquals(3, nonNull.persistedMeasurements)
+        assertEquals(nonNull.persistedMeasurements, nonNull.persistedMeasurementsWithCapabilitySupport)
+        assertTrue(nonNull.persistedMeasurementsWithCapabilityNotes >= 0)
         assertTrue(nonNull.capabilitySummary.startsWith("capabilities("))
     }
 }

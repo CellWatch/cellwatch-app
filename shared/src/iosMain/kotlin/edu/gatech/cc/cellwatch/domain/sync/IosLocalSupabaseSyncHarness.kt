@@ -32,6 +32,8 @@ data class IosLocalSupabaseSyncResult(
     val measurementUploadPersisted: Boolean,
     val submissionUploadPersisted: Boolean,
     val remoteMeasurementVerified: Boolean,
+    val capabilitySupportPersisted: Boolean,
+    val capabilityNotesPersisted: Boolean,
 )
 
 class IosLocalSupabaseSyncHarness {
@@ -73,6 +75,11 @@ class IosLocalSupabaseSyncHarness {
                 deviceId = deviceId,
                 type = "latency",
                 timestamp = now,
+                telephonySupport = "AVAILABLE",
+                networkSupport = "PARTIAL",
+                locationSupport = "PERMISSION_DENIED",
+                deviceSupport = "AVAILABLE",
+                capabilityNotes = "location:permission denied for hosted sync harness",
                 connectionType = NetworkConnectionType.CELLULAR,
                 cellularDataEnabled = true,
                 latencyData = LatencyData(
@@ -162,11 +169,20 @@ class IosLocalSupabaseSyncHarness {
                 measurementUploadPersisted = syncedMeasurement?.uploadTime != null,
                 submissionUploadPersisted = syncedSubmission?.uploadTime != null,
                 remoteMeasurementVerified = remoteMeasurement.id == measurementId,
+                capabilitySupportPersisted = syncedMeasurement?.hasCapabilitySupport() == true,
+                capabilityNotesPersisted = !syncedMeasurement?.capabilityNotes.isNullOrBlank(),
             )
         } finally {
             driver.close()
         }
     }
+}
+
+private fun Measurement.hasCapabilitySupport(): Boolean {
+    return !telephonySupport.isNullOrBlank() &&
+        !networkSupport.isNullOrBlank() &&
+        !locationSupport.isNullOrBlank() &&
+        !deviceSupport.isNullOrBlank()
 }
 
 private class InMemoryDeviceAuthStore(

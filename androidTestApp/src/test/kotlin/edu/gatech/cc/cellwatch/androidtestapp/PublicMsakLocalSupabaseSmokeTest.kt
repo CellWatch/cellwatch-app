@@ -100,6 +100,8 @@ class PublicMsakLocalSupabaseSmokeTest {
         assertTrue(nonNull.throughputMachine.isNotBlank())
         assertTrue(nonNull.latencyMachine.isNotBlank())
         assertEquals(3, nonNull.persistedMeasurements)
+        assertEquals(nonNull.persistedMeasurements, nonNull.persistedMeasurementsWithCapabilitySupport)
+        assertTrue(nonNull.persistedMeasurementsWithCapabilityNotes >= 0)
         assertTrue(nonNull.capabilitySummary.startsWith("capabilities("))
 
         assumeTrue("local supabase unavailable", isSupabaseReachable(resolvedSupabase.url))
@@ -136,6 +138,11 @@ class PublicMsakLocalSupabaseSmokeTest {
                 deviceId = deviceId,
                 type = "latency",
                 timestamp = now,
+                telephonySupport = "AVAILABLE",
+                networkSupport = "PARTIAL",
+                locationSupport = "PERMISSION_DENIED",
+                deviceSupport = "AVAILABLE",
+                capabilityNotes = "location:permission denied in public/local smoke seed",
                 connectionType = NetworkConnectionType.CELLULAR,
                 cellularDataEnabled = true,
                 latencyData = latency,
@@ -179,7 +186,11 @@ class PublicMsakLocalSupabaseSmokeTest {
                 )
             )
             assertNotNull(uploadTime)
-            assertNotNull(measurementRepo.getById(measurementId)?.uploadTime)
+            val syncedMeasurement = measurementRepo.getById(measurementId)
+            assertNotNull(syncedMeasurement?.uploadTime)
+            assertEquals("AVAILABLE", syncedMeasurement?.telephonySupport)
+            assertEquals("PARTIAL", syncedMeasurement?.networkSupport)
+            assertNotNull(syncedMeasurement?.capabilityNotes)
             assertNotNull(submissionRepo.getById(groupId)?.uploadTime)
 
             val remoteVerifier = SupabaseMeasurementSyncRemoteDataSource(
@@ -191,7 +202,7 @@ class PublicMsakLocalSupabaseSmokeTest {
             )
             val remoteMeasurement = remoteVerifier.getMeasurementById(measurementId)
             val invariantError = smokeValidator.validateSuccess(
-                measurementUploadPersisted = measurementRepo.getById(measurementId)?.uploadTime != null,
+                measurementUploadPersisted = syncedMeasurement?.uploadTime != null,
                 submissionUploadPersisted = submissionRepo.getById(groupId)?.uploadTime != null,
                 remoteMeasurementVerified = remoteMeasurement.id == measurementId,
                 measurementCompleteUploadTimeSet = uploadTime != null,

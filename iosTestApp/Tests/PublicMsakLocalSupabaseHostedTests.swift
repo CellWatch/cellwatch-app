@@ -56,6 +56,8 @@ final class PublicMsakLocalSupabaseHostedTests: XCTestCase {
             XCTAssertNil(error)
             XCTAssertNotNil(result)
             XCTAssertEqual(result?.persistedMeasurements, Int32(3))
+            XCTAssertEqual(result?.persistedMeasurementsWithCapabilitySupport, result?.persistedMeasurements)
+            XCTAssertNotNil(result?.persistedMeasurementsWithCapabilityNotes)
             XCTAssertTrue((result?.throughputMachine ?? "").isEmpty == false)
             XCTAssertTrue((result?.latencyMachine ?? "").isEmpty == false)
             XCTAssertTrue((result?.capabilitySummary ?? "").hasPrefix("capabilities("))
