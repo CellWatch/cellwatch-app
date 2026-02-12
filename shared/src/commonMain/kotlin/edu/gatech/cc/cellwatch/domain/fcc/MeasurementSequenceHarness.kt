@@ -43,6 +43,14 @@ class MeasurementSequenceHarness(
         clock = Clock.System,
         capabilityProvider = NoOpPlatformCapabilityProvider,
     )
+    constructor(
+        config: MsakLocateConfig,
+        capabilityProvider: PlatformCapabilityProvider,
+    ) : this(
+        config = config,
+        clock = Clock.System,
+        capabilityProvider = capabilityProvider,
+    )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 

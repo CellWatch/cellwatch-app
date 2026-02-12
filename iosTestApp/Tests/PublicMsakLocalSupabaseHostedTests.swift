@@ -45,7 +45,8 @@ final class PublicMsakLocalSupabaseHostedTests: XCTestCase {
                 userAgent: snapshot.msakUserAgent,
                 localServerHost: snapshot.msakLocalServerHost,
                 localServerSecure: snapshot.msakLocalServerSecure
-            )
+            ),
+            capabilityProvider: IosCapabilityProviderFactoryKt.createIosPlatformCapabilityProvider()
         )
         harness?.runDefaultScenario { result, error in
             defer {

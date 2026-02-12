@@ -14,6 +14,7 @@ import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.MeasurementRepositoryImpl
 import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
+import edu.gatech.cc.cellwatch.domain.capability.AndroidPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceHarness
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceHarnessResult
 import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateEnvironment
@@ -77,7 +78,12 @@ class PublicMsakLocalSupabaseSmokeTest {
         var result: MeasurementSequenceHarnessResult? = null
         var error: Throwable? = null
 
-        val harness = MeasurementSequenceHarness(config = profile.msakConfig)
+        val harness = MeasurementSequenceHarness(
+            config = profile.msakConfig,
+            capabilityProvider = AndroidPlatformCapabilityProvider(
+                ApplicationProvider.getApplicationContext(),
+            ),
+        )
         harness.runDefaultScenario { value, throwable ->
             result = value
             error = throwable
