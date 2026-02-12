@@ -642,6 +642,12 @@ Not yet ported (still Android-only in `frozenApp/`):
   - Some telephony/network/location fields available on Android will be unavailable, permission-gated, or unsupported on iOS.
   - Shared contracts must represent that explicitly (support state + nullable fields) instead of treating missing values as hard failures.
   - Reporting/upload payload assembly should proceed with partial capability snapshots when required fields are unavailable on iOS.
+- Current delivered slice (February 12, 2026):
+  - Shared capability contract models + provider seam in `shared/domain/capability/PlatformCapabilitySnapshot.kt`
+  - Android best-effort provider in `shared/src/androidMain/.../AndroidPlatformCapabilityProvider.kt` (permission-aware telephony + connectivity + device snapshot)
+  - iOS best-effort provider in `shared/src/iosMain/.../IosPlatformCapabilityProvider.kt` (device metadata + explicit partial/unsupported signaling)
+  - Contract tests in `shared/src/commonTest`, plus Android/iOS platform tests in `shared/src/androidUnitTest` and `shared/src/iosTest`
+  - MSAK measurement executors now enrich every produced measurement via `MeasurementCapabilityEnricher`, and Android/iOS test harnesses inject concrete platform providers.
 - Tier 1 tests:
   - Contract tests with fakes in `commonTest`
 - Tier 2 tests:

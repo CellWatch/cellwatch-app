@@ -18,6 +18,7 @@ import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.MeasurementRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.UploadDownloadDataRepositoryImpl
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
+import edu.gatech.cc.cellwatch.domain.capability.AndroidPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
 import edu.gatech.cc.cellwatch.domain.fcc.MsakServerSelectionHarness
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
@@ -277,6 +278,7 @@ class MainActivity : AppCompatActivity() {
                     config = runtimeProfile.msakConfig.copy(userAgent = "android-test-app-phase3-sync"),
                     resultStore = resultStore,
                     appSource = "android-test-app-phase3-sync",
+                    capabilityProvider = AndroidPlatformCapabilityProvider(applicationContext),
                 )
                 val syncOrchestrator = MeasurementSequenceSyncOrchestrator(
                     sequenceOrchestrator = sequenceOrchestrator,

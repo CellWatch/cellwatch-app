@@ -10,6 +10,7 @@ import edu.gatech.cc.cellwatch.data.sync.SyncRuntimeConfigFactory
 import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import edu.gatech.cc.cellwatch.data.sync.SupabaseSyncRemoteDataSourceProvider
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
+import edu.gatech.cc.cellwatch.domain.capability.IosPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
 import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateConfig
@@ -104,6 +105,9 @@ class IosPhase3SequenceSyncHarness {
                     override fun now(): Instant = now
                 },
                 appSource = "ios-test-app-phase3-sync",
+                capabilityProvider = IosPlatformCapabilityProvider(clock = object : Clock {
+                    override fun now(): Instant = now
+                }),
             )
             val syncOrchestrator = MeasurementSequenceSyncOrchestrator(
                 sequenceOrchestrator = sequenceOrchestrator,

@@ -1,5 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
+import edu.gatech.cc.cellwatch.domain.capability.NoOpPlatformCapabilityProvider
+import edu.gatech.cc.cellwatch.domain.capability.PlatformCapabilityProvider
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
@@ -12,6 +14,7 @@ object DefaultMsakMeasurementSequenceOrchestratorFactory {
         resultStore: MeasurementResultStore,
         clock: Clock = Clock.System,
         appSource: String = "phase3-harness",
+        capabilityProvider: PlatformCapabilityProvider = NoOpPlatformCapabilityProvider,
     ): MeasurementSequenceOrchestrator {
         return MeasurementSequenceOrchestrator(
             serverPairProvider = FactorySelectorBackedServerPairProvider(config),
@@ -22,6 +25,7 @@ object DefaultMsakMeasurementSequenceOrchestratorFactory {
                     throughputDurationMs = 5_000,
                     throughputDelayMs = 0,
                     latencyDurationMs = 3_000,
+                    capabilityProvider = capabilityProvider,
                 ),
                 clock = clock,
             ),
