@@ -375,6 +375,11 @@ Recommended command flow:
 3. Full Phase 3 Tier 2 matrix (Android+iOS, local/public MSAK, local Supabase, failure-surface smokes):
    - `./gradlew :shared:verifyPhase3Tier2FailureMatrix`
 
+Recommended pre-check-in gate (single command):
+- `./scripts/verify-dev-gates.sh`
+  - Runs parity gates (`:shared:verifyParityPipelines`) and Tier 1 (`:shared:verifyLightweightPlatforms`)
+  - Exits nonzero if any gate fails, with a compact pass/fail summary
+
 Optional narrower commands:
 - iOS hosted sequential suite only:
   - `./gradlew :shared:verifyIosHostedTier2Sequential`
