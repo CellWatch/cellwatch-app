@@ -102,6 +102,7 @@ class PublicMsakLocalSupabaseSmokeTest {
         assertEquals(3, nonNull.persistedMeasurements)
         assertEquals(nonNull.persistedMeasurements, nonNull.persistedMeasurementsWithCapabilitySupport)
         assertTrue(nonNull.persistedMeasurementsWithCapabilityNotes >= 0)
+        assertTrue(nonNull.capabilityPersistenceSummary.startsWith("capabilityPersistence("))
         assertTrue(nonNull.capabilitySummary.startsWith("capabilities("))
 
         assumeTrue("local supabase unavailable", isSupabaseReachable(resolvedSupabase.url))
