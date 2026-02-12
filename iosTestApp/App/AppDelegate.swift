@@ -18,7 +18,10 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
-private final class HarnessViewController: UIViewController {
+final class HarnessViewController: UIViewController {
+    static let mapStartSharedSliceButtonIdentifier = "harness.mapStartSharedSliceButton"
+    static let statusLabelIdentifier = "harness.statusLabel"
+
     private let statusLabel = UILabel()
     private let smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private let smokeFormatter = SyncSmokeResultFormatter()
@@ -56,6 +59,7 @@ private final class HarnessViewController: UIViewController {
         mapStartButton.setTitle("Run Map-Start Shared Slice", for: .normal)
         mapStartButton.addTarget(self, action: #selector(runMapStart), for: .touchUpInside)
         mapStartButton.translatesAutoresizingMaskIntoConstraints = false
+        mapStartButton.accessibilityIdentifier = Self.mapStartSharedSliceButtonIdentifier
 
         let completeButton = UIButton(type: .system)
         completeButton.setTitle("Run Measurement-Complete Shared Slice", for: .normal)
@@ -76,6 +80,7 @@ private final class HarnessViewController: UIViewController {
         statusLabel.numberOfLines = 0
         statusLabel.font = UIFont.preferredFont(forTextStyle: .body)
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        statusLabel.accessibilityIdentifier = Self.statusLabelIdentifier
 
         let stack = UIStackView(arrangedSubviews: [title, localEnvButton, msakModeButton, supabaseModeButton, mapStartButton, completeButton, selectServersButton, runPhase3SequenceButton, statusLabel])
         stack.axis = .vertical
@@ -257,16 +262,22 @@ private final class HarnessViewController: UIViewController {
                 persistedSubmissions: Int32(value.persistedSubmissions),
                 errorMessage: nil
             )
-            self.statusLabel.text = self.smokeFormatter.format(envelope: envelope) +
-                "\ngroup=\(value.groupId)\n" +
-                "throughput=\(value.throughputMachine)\n" +
-                "latency=\(value.latencyMachine)\n" +
-                "submissionCreated=\(value.submissionCreated)\n" +
-                "mapStartUploaded(m=\(value.mapStartMeasurementsUploaded),s=\(value.mapStartSubmissionsUploaded))\n" +
-                "measurementCompleteUploadTimeSet=\(value.measurementCompleteUploadTimeSet)\n" +
-                "persistedMeasurements=\(value.persistedMeasurements), persistedSubmissions=\(value.persistedSubmissions)\n" +
-                "\(value.capabilityPersistenceSummary)\n" +
-                "\(value.capabilitySummary)"
+                self.statusLabel.text = Phase3UiSliceFormatter().format(
+                    envelopeText: self.smokeFormatter.format(envelope: envelope),
+                    result: Phase3UiSliceResult(
+                        groupId: value.groupId,
+                        throughputMachine: value.throughputMachine,
+                        latencyMachine: value.latencyMachine,
+                        submissionCreated: value.submissionCreated,
+                        mapStartMeasurementsUploaded: Int32(value.mapStartMeasurementsUploaded),
+                        mapStartSubmissionsUploaded: Int32(value.mapStartSubmissionsUploaded),
+                        measurementCompleteUploadTimeSet: value.measurementCompleteUploadTimeSet,
+                        persistedMeasurements: Int32(value.persistedMeasurements),
+                        persistedSubmissions: Int32(value.persistedSubmissions),
+                        capabilityPersistenceSummary: value.capabilityPersistenceSummary,
+                        capabilitySummary: value.capabilitySummary
+                    )
+                )
         }
     }
 }

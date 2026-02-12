@@ -16,6 +16,19 @@ The project is mid-migration from Android-only Kotlin to KMP:
 - Shared encryption and secure key storage abstractions are implemented and tested
 - iOS product app UI is not yet implemented here; iOS currently uses a host test app for realistic integration testing
 
+## Current UI Slice (Harness Apps)
+
+First cross-platform UI slice (intentionally minimal):
+- One button to run shared map-start slice
+- One button to run shared Phase 3 sequence
+- One text results panel
+- No map visualization yet
+- Location details remain best-effort; platform capability notes explain missing fields
+
+Shared result text contract:
+- Android (`androidTestApp`) and iOS (`iosTestApp`) now render Phase 3 output via `Phase3UiSliceFormatter`
+- Stable field order is tested in `Phase3UiSliceFormatterTest`
+
 ## Repo Structure
 
 - `frozenApp/`: legacy Android-only codebase (frozen reference; not part of active migration/build)

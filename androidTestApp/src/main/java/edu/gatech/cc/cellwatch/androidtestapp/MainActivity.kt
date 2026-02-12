@@ -35,9 +35,12 @@ import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSequenceSyncOrchestrator
+import edu.gatech.cc.cellwatch.domain.sync.Phase3UiSliceFormatter
+import edu.gatech.cc.cellwatch.domain.sync.Phase3UiSliceResult
 import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeEnvelopeBuilder
 import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeResultFormatter
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
+import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerParityHarness
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -48,6 +51,10 @@ import java.util.UUID
 import kotlin.coroutines.EmptyCoroutineContext
 
 class MainActivity : AppCompatActivity() {
+    companion object {
+        const val RUN_SHARED_SLICE_BUTTON_ID = 1001
+        const val STATUS_TEXT_VIEW_ID = 1002
+    }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var db: CellwatchDatabase
@@ -115,6 +122,11 @@ class MainActivity : AppCompatActivity() {
             text = "Run Map-Start Sync (No Seed)"
             setOnClickListener { runMapSyncOnly() }
         }
+        val runSharedSliceButton = Button(this).apply {
+            id = RUN_SHARED_SLICE_BUTTON_ID
+            text = "Run Map-Start Shared Slice"
+            setOnClickListener { runSharedSlice() }
+        }
         msakModeButton = Button(this).apply {
             setOnClickListener { cycleMsakMode() }
         }
@@ -130,6 +142,7 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { runPhase3Sequence() }
         }
         statusText = TextView(this).apply {
+            id = STATUS_TEXT_VIEW_ID
             text = "Ready. Local Supabase target is enforced by default."
             textSize = 14f
             setPadding(0, 24, 0, 0)
@@ -139,6 +152,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(seedAndMapSync)
         content.addView(measurementCompleteSync)
         content.addView(runMapSyncOnly)
+        content.addView(runSharedSliceButton)
         content.addView(msakModeButton)
         content.addView(supabaseModeButton)
         content.addView(locateServersButton)
@@ -243,6 +257,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun runSharedSlice() {
+        scope.launch {
+            runCatching {
+                val result = UploadTriggerParityHarness().runDefaultScenario()
+                val envelope = smokeEnvelopeBuilder.mapStart(
+                    hasReport = true,
+                    errorMessage = null,
+                )
+                smokeFormatter.format(envelope) +
+                    "\nmeasurements uploaded=${result.measurementsUploaded}, marked=${result.measurementsMarkedUploaded}" +
+                    "\nsubmissions uploaded=${result.submissionsUploaded}, blocked=${result.submissionsBlockedBeforeUpload}"
+            }.onSuccess { statusText.text = it }
+                .onFailure {
+                    val envelope = smokeEnvelopeBuilder.failure(
+                        scenario = "map-start-sync",
+                        errorMessage = it.message,
+                    )
+                    statusText.text = smokeFormatter.format(envelope)
+                }
+        }
+    }
+
     private fun runSelectServers() {
         val harness = MsakServerSelectionHarness(
             runtimeProfile.msakConfig.copy(userAgent = "android-test-app-harness")
@@ -312,16 +348,22 @@ class MainActivity : AppCompatActivity() {
                     persistedSubmissions = persistedSubmissions,
                     errorMessage = null,
                 )
-                statusText.text = smokeFormatter.format(envelope) +
-                    "\ngroup=${sequence.group.id}\n" +
-                    "throughput=${sequence.throughputServerMachine}\n" +
-                    "latency=${sequence.latencyServerMachine}\n" +
-                    "submissionCreated=${sequence.group.submission != null}\n" +
-                    "mapStartUploaded(m=${outcome.mapStartReport.measurements.uploaded},s=${outcome.mapStartReport.submissions.uploaded})\n" +
-                    "measurementCompleteUploadTimeMs=$uploadTime\n" +
-                    "persistedMeasurements=$persistedMeasurements, persistedSubmissions=$persistedSubmissions\n" +
-                    "$capabilityPersistenceSummary\n" +
-                    capabilitySummary
+                statusText.text = Phase3UiSliceFormatter.format(
+                    envelopeText = smokeFormatter.format(envelope),
+                    result = Phase3UiSliceResult(
+                        groupId = sequence.group.id,
+                        throughputMachine = sequence.throughputServerMachine,
+                        latencyMachine = sequence.latencyServerMachine,
+                        submissionCreated = sequence.group.submission != null,
+                        mapStartMeasurementsUploaded = outcome.mapStartReport.measurements.uploaded,
+                        mapStartSubmissionsUploaded = outcome.mapStartReport.submissions.uploaded,
+                        measurementCompleteUploadTimeSet = uploadTime >= 0L,
+                        persistedMeasurements = persistedMeasurements,
+                        persistedSubmissions = persistedSubmissions,
+                        capabilityPersistenceSummary = capabilityPersistenceSummary,
+                        capabilitySummary = capabilitySummary,
+                    ),
+                )
             }.onFailure {
                 val envelope = smokeEnvelopeBuilder.failure(
                     scenario = "phase3-sequence-sync",
