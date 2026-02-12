@@ -682,6 +682,10 @@ Not yet ported (still Android-only in `frozenApp/`):
   - MSAK measurement executors now enrich every produced measurement via `MeasurementCapabilityEnricher`, and Android/iOS test harnesses inject concrete platform providers.
   - Android/iOS Phase 3 harness outputs now include a shared formatted capability capture summary (support states + notes) so best-effort gaps are explicit in smoke runs.
   - Capability support states and notes are now persisted in local measurement storage (`telephonySupport`, `networkSupport`, `locationSupport`, `deviceSupport`, `capabilityNotes`) so downstream analysis can distinguish "not available by platform/policy" from "missing due to runtime failure."
+  - Parity guard: `PlatformCapabilityParityReportTest` compares normalized enriched measurement fields for Android-like vs iOS-like harness snapshots. Contract:
+    - both platforms must persist support-state fields and device identity
+    - iOS is explicitly allowed to have missing provider/SIM identifiers/network connection type due to best-effort platform limits
+    - both platforms must persist capability notes for operator visibility
 
 ### Android vs iPhone measurement data (current shared contract)
 - Android (typically richer):
