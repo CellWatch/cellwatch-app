@@ -59,5 +59,6 @@ private fun Server.toEndpoint(): MsakServerEndpoint {
     return MsakServerEndpoint(
         machine = machine,
         urls = urls,
+        latencyUdpPort = latencyUdpPort,
     )
 }

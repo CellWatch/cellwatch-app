@@ -8,6 +8,7 @@ private const val LATENCY_RESULT_PATH = "latency/v1/result"
 data class MsakServerEndpoint(
     val machine: String,
     val urls: Map<String, String> = emptyMap(),
+    val latencyUdpPort: Int? = null,
 )
 
 interface MsakHostPinger {
