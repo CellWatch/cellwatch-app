@@ -168,6 +168,25 @@ object MeasurementSyncServiceFactory {
         )
     }
 
+    @Throws(IllegalStateException::class)
+    fun resolveSupabaseConfigForRuntime(
+        allowRemote: Boolean = false,
+        localUrl: String? = null,
+        localApiKey: String? = null,
+        remoteUrl: String? = null,
+        remoteApiKey: String? = null,
+        useRemote: Boolean = false,
+    ): SyncSupabaseConfig {
+        return SyncRuntimeProfileBridge.resolveSupabaseConfig(
+            allowRemote = allowRemote,
+            localUrl = localUrl,
+            localApiKey = localApiKey,
+            remoteUrl = remoteUrl,
+            remoteApiKey = remoteApiKey,
+            useRemote = useRemote,
+        )
+    }
+
     private fun createRepositories(
         database: CellwatchDatabase,
         io: CoroutineContext,

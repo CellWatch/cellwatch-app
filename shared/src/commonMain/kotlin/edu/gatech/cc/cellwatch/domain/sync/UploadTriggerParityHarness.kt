@@ -1,5 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.sync
 
+import edu.gatech.cc.cellwatch.data.sync.SyncRuntimeProfileBridge
+import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfig
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
@@ -23,6 +25,25 @@ data class UploadTriggerParityResult(
  * Cross-platform parity scenario runner used by Android and iOS harness tests.
  */
 class UploadTriggerParityHarness {
+
+    @Throws(IllegalStateException::class)
+    fun resolveSupabaseConfigForRuntime(
+        allowRemote: Boolean,
+        localUrl: String,
+        localApiKey: String,
+        remoteUrl: String,
+        remoteApiKey: String,
+        useRemote: Boolean,
+    ): SyncSupabaseConfig {
+        return SyncRuntimeProfileBridge.resolveSupabaseConfig(
+            allowRemote = allowRemote,
+            localUrl = localUrl.takeIf { it.isNotBlank() },
+            localApiKey = localApiKey.takeIf { it.isNotBlank() },
+            remoteUrl = remoteUrl.takeIf { it.isNotBlank() },
+            remoteApiKey = remoteApiKey.takeIf { it.isNotBlank() },
+            useRemote = useRemote,
+        )
+    }
 
     suspend fun runDefaultScenario(): UploadTriggerParityResult {
         val base = 1_710_000_000_000L

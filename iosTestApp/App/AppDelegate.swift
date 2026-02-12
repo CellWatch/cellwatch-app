@@ -158,28 +158,27 @@ private struct CellwatchPropertiesSupabaseEnvironmentProvider {
     let allowRemote: Bool
 
     func resolve(_ target: SupabaseTarget = .local) throws -> SupabaseEnvironment {
-        switch target {
-        case .local:
-            let rawUrl = properties["SUPABASE_LOCAL_URL"] ?? "http://127.0.0.1:54321"
-            let normalizedUrl = rawUrl
-                .replacingOccurrences(of: "\"", with: "")
-                .replacingOccurrences(of: "10.0.2.2", with: "127.0.0.1")
-            let key = (properties["SUPABASE_LOCAL_API_KEY"] ?? "local-default-key")
-                .replacingOccurrences(of: "\"", with: "")
-            return SupabaseEnvironment(target: .local, url: normalizedUrl, apiKey: key)
-        case .remote:
-            if !allowRemote {
-                throw NSError(domain: "iosTestApp", code: 1, userInfo: [NSLocalizedDescriptionKey: "remote supabase target is blocked"])
-            }
-            let url = (properties["SUPABASE_URL"] ?? "").replacingOccurrences(of: "\"", with: "")
-            let key = (properties["SUPABASE_API_KEY"] ?? "").replacingOccurrences(of: "\"", with: "")
-            guard !url.isEmpty, !key.isEmpty else {
-                throw NSError(domain: "iosTestApp", code: 2, userInfo: [NSLocalizedDescriptionKey: "missing remote supabase properties"])
-            }
-            guard !url.contains("127.0.0.1"), !url.contains("localhost") else {
-                throw NSError(domain: "iosTestApp", code: 3, userInfo: [NSLocalizedDescriptionKey: "remote target cannot point to localhost"])
-            }
-            return SupabaseEnvironment(target: .remote, url: url, apiKey: key)
+        do {
+            let useRemote = target == .remote
+            let resolved = try UploadTriggerParityHarness().resolveSupabaseConfigForRuntime(
+                allowRemote: allowRemote,
+                localUrl: properties["SUPABASE_LOCAL_URL"] ?? "",
+                localApiKey: properties["SUPABASE_LOCAL_API_KEY"] ?? "",
+                remoteUrl: properties["SUPABASE_URL"] ?? "",
+                remoteApiKey: properties["SUPABASE_API_KEY"] ?? "",
+                useRemote: useRemote
+            )
+            return SupabaseEnvironment(
+                target: target,
+                url: resolved.url,
+                apiKey: resolved.apiKey
+            )
+        } catch {
+            throw NSError(
+                domain: "iosTestApp",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "\(error)"]
+            )
         }
     }
 }

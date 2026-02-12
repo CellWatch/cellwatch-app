@@ -20,6 +20,7 @@ targets:
       - framework: ../shared/build/bin/iosSimulatorArm64/Current/sharedKit.framework
     preBuildScripts:
       - name: Build shared framework
+        basedOnDependencyAnalysis: false
         script: |
           set -euo pipefail
           "$SRCROOT/../scripts/compile-shared-framework-for-xcode.sh"
