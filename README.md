@@ -501,6 +501,10 @@ Not yet ported (still Android-only in `frozenApp/`):
     - call order and persistence sequencing
     - conditional FCC submission creation via shared policy
     - measurement-id pass-through to execution adapters
+  - Shared harness runner `shared/domain/fcc/MeasurementSequenceHarness.kt` and app wiring:
+    - `androidTestApp` action: "Run Phase3 Sequence (Shared Orchestrator)"
+    - `iosTestApp` action: "Run Phase3 Sequence (Shared Orchestrator)"
+    - executes shared orchestrator with platform server selection + simulated measurement execution adapters
 - Split `domain/fcc` into:
   - Pure shared logic (metrics aggregation, challenge orchestration, payload assembly)
   - Platform adapters for network sockets/timing/device signals
