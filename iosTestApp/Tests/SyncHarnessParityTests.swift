@@ -65,6 +65,7 @@ final class SyncHarnessParityTests: XCTestCase {
 
     func testSharedUploadTriggerParityHarness_returnsExpectedContract() {
         let expectation = expectation(description: "runDefaultScenario")
+        let artifactFactory = UploadTriggerParityArtifactFactory()
 
         UploadTriggerParityHarness().runDefaultScenario { result, error in
             XCTAssertNil(error)
@@ -74,6 +75,15 @@ final class SyncHarnessParityTests: XCTestCase {
             XCTAssertEqual(result?.submissionsUploaded, Int32(1))
             XCTAssertEqual(result?.submissionsBlockedBeforeUpload, true)
             XCTAssertEqual(result?.uploadTimeEpochMs?.int64Value, 1_710_000_009_000)
+            if let result {
+                let artifactJson = artifactFactory.buildJson(platform: "ios", result: result)
+                let parsedArtifact = artifactFactory.parseJson(jsonText: artifactJson)
+                print("uploadTriggerParityArtifact=\(artifactJson)")
+                XCTAssertEqual(parsedArtifact.schemaVersion, 1)
+                XCTAssertEqual(parsedArtifact.platform, "ios")
+            } else {
+                XCTFail("Expected non-nil parity result for artifact emission")
+            }
             expectation.fulfill()
         }
 

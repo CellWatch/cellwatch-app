@@ -412,6 +412,10 @@ Supabase safety policy:
   - iOS: `SyncHarnessParityTests` local/remote environment provider checks and hosted local Supabase sync end-to-end
   - Both harnesses now resolve runtime Supabase config through shared `SyncRuntimeConfig` (`allowRemote=false` by default)
   - Both harnesses validate shared upload-trigger entrypoints (`onMapStart` + `onMeasurementComplete`) against local Supabase
+- machine-readable parity artifact:
+  - Shared contract: `UploadTriggerParityArtifact` (`shared/src/commonMain/.../UploadTriggerParityArtifact.kt`)
+  - Android and iOS parity tests emit `uploadTriggerParityArtifact=<json>` for the default upload-trigger scenario.
+  - Shared checker test `UploadTriggerParityArtifactTest` validates schema version and key-field parity across Android/iOS artifacts.
 - shared runtime profile contract:
   - `RuntimeSyncMsakProfiles.fromModes(...)` defines the shared MSAK+Supabase mode contract.
   - `RuntimeSyncMsakProfiles.publicMsakLocalSupabase(...)` remains as the convenience profile for:
