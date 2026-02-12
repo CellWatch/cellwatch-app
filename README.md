@@ -419,6 +419,9 @@ Supabase safety policy:
   - Consolidated report task:
     - `./gradlew :shared:collectUploadTriggerParityArtifacts`
     - writes `build/reports/parity/upload-trigger-parity-artifacts.txt` with Android + iOS artifact JSON lines.
+  - Parity gate task:
+    - `./gradlew :shared:verifyUploadTriggerParityArtifacts`
+    - runs artifact collection, then fails if Android/iOS key parity fields diverge.
 - shared runtime profile contract:
   - `RuntimeSyncMsakProfiles.fromModes(...)` defines the shared MSAK+Supabase mode contract.
   - `RuntimeSyncMsakProfiles.publicMsakLocalSupabase(...)` remains as the convenience profile for:

@@ -616,6 +616,62 @@ tasks.register("collectUploadTriggerParityArtifacts") {
     }
 }
 
+tasks.register("verifyUploadTriggerParityArtifacts") {
+    description = "Fails when collected Android/iOS upload-trigger parity artifact key fields diverge."
+    group = "verification"
+    dependsOn("collectUploadTriggerParityArtifacts")
+
+    doLast {
+        val reportFile = File(
+            rootProject.projectDir,
+            "build/reports/parity/upload-trigger-parity-artifacts.txt",
+        )
+        if (!reportFile.exists()) {
+            throw GradleException(
+                "Parity report file missing: ${reportFile.absolutePath}. " +
+                    "Run :shared:collectUploadTriggerParityArtifacts first."
+            )
+        }
+
+        val lines = reportFile.readLines()
+        val androidJson = lines.firstOrNull { it.startsWith("android=") }?.removePrefix("android=")
+            ?: throw GradleException("Missing android artifact line in parity report.")
+        val iosJson = lines.firstOrNull { it.startsWith("ios=") }?.removePrefix("ios=")
+            ?: throw GradleException("Missing ios artifact line in parity report.")
+
+        fun extractValue(json: String, key: String): String {
+            val value = Regex(""""$key":([^,}\\n]+)""")
+                .find(json)
+                ?.groupValues
+                ?.getOrNull(1)
+            return value ?: throw GradleException("Missing key '$key' in artifact JSON: $json")
+        }
+
+        val keysToMatch = listOf(
+            "schemaVersion",
+            "suite",
+            "measurementsUploaded",
+            "measurementsMarkedUploaded",
+            "submissionsUploaded",
+            "submissionsBlockedBeforeUpload",
+            "uploadTimeEpochMs",
+        )
+        val mismatches = keysToMatch.filter { key ->
+            extractValue(androidJson, key) != extractValue(iosJson, key)
+        }
+
+        if (mismatches.isNotEmpty()) {
+            throw GradleException(
+                "Upload-trigger parity artifact mismatch for keys: $mismatches\n" +
+                    "android=$androidJson\n" +
+                    "ios=$iosJson"
+            )
+        }
+
+        logger.lifecycle("Upload-trigger parity artifacts matched for keys: $keysToMatch")
+    }
+}
+
 tasks.register("refreshIosSimulatorCurrentFramework") {
     description = "Refreshes sharedKit.framework at iosSimulatorArm64/Current from latest debug framework output."
     group = "verification"
