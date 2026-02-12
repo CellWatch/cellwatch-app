@@ -4,6 +4,8 @@ import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceHarness
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceHarnessResult
 import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateConfig
 import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateEnvironment
+import edu.gatech.cc.cellwatch.domain.capability.AndroidPlatformCapabilityProvider
+import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -61,6 +63,9 @@ class LocalMsakPhase3SequenceSmokeTest {
                 userAgent = "android-test-app-phase3-local-smoke",
                 localServerHost = localHost,
                 localServerSecure = localSecure,
+            ),
+            capabilityProvider = AndroidPlatformCapabilityProvider(
+                ApplicationProvider.getApplicationContext(),
             ),
         )
 

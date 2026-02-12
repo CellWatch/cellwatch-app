@@ -21,7 +21,8 @@ final class LocalMsakPhase3HostedTests: XCTestCase {
                 userAgent: "ios-test-app-phase3-local-smoke",
                 localServerHost: localHost,
                 localServerSecure: localSecure
-            )
+            ),
+            capabilityProvider: IosCapabilityProviderFactoryKt.createIosPlatformCapabilityProvider()
         )
 
         harness?.runDefaultScenario { result, error in
