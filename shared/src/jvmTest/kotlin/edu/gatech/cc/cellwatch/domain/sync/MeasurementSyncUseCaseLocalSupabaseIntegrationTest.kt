@@ -2,6 +2,7 @@ package edu.gatech.cc.cellwatch.domain.sync
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import edu.gatech.cc.cellwatch.data.remote.InMemoryDeviceAuthStore
+import edu.gatech.cc.cellwatch.data.remote.SupabaseMeasurementSyncRemoteDataSource
 import edu.gatech.cc.cellwatch.data.remote.loadLocalSupabaseConfig
 import edu.gatech.cc.cellwatch.data.sync.MeasurementSyncServiceFactory
 import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfig
@@ -119,6 +120,12 @@ class MeasurementSyncUseCaseLocalSupabaseIntegrationTest {
         assertNotNull(syncedSubmission)
         assertNotNull(syncedMeasurement.uploadTime)
         assertNotNull(syncedSubmission.uploadTime)
+
+        // Verify the uploaded measurement is actually present in Supabase, not only marked locally.
+        val remoteVerifier = SupabaseMeasurementSyncRemoteDataSource(localSupabase, deviceAuth)
+        val remoteMeasurement = remoteVerifier.getMeasurementById(measurementId)
+        assertEquals(measurementId, remoteMeasurement.id)
+        assertEquals(deviceId, remoteMeasurement.deviceId)
         Unit
     }
 }

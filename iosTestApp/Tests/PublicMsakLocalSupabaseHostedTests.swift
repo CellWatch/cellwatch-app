@@ -27,6 +27,7 @@ final class PublicMsakLocalSupabaseHostedTests: XCTestCase {
             XCTAssertEqual(result?.mapStartSubmissionsUploaded, Int32(1))
             XCTAssertEqual(result?.measurementUploadPersisted, true)
             XCTAssertEqual(result?.submissionUploadPersisted, true)
+            XCTAssertEqual(result?.remoteMeasurementVerified, true)
             syncExpectation.fulfill()
         }
         waitForExpectations(timeout: 30)
