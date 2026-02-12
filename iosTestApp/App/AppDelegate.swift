@@ -21,6 +21,9 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 private final class HarnessViewController: UIViewController {
     private let statusLabel = UILabel()
     private var lastGroupId: String?
+    private lazy var runtimeSnapshot: RuntimeSyncMsakProfileSnapshot = {
+        RuntimeSelection.resolvePublicMsakLocalSupabaseSnapshot()
+    }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -78,16 +81,8 @@ private final class HarnessViewController: UIViewController {
     }
 
     @objc private func resolveLocalEnvironment() {
-        let provider = CellwatchPropertiesSupabaseEnvironmentProvider(
-            properties: ProcessInfo.processInfo.environment,
-            allowRemote: false
-        )
-        do {
-            let env = try provider.resolve(.local)
-            statusLabel.text = "Local environment resolved:\nurl=\(env.url)\napiKeyPrefix=\(env.apiKey.prefix(12))..."
-        } catch {
-            statusLabel.text = "Environment resolve failed: \(error.localizedDescription)"
-        }
+        let env = runtimeSnapshot
+        statusLabel.text = "Local environment resolved:\nurl=\(env.supabaseUrl)\napiKeyPrefix=\(env.supabaseApiKey.prefix(12))..."
     }
 
     @objc private func runMapStart() {
@@ -124,10 +119,10 @@ private final class HarnessViewController: UIViewController {
 
     @objc private func runServerSelection() {
         let config = MsakLocateConfig(
-            environment: MsakLocateEnvironment.prod,
+            environment: runtimeSnapshot.msakEnvironment,
             userAgent: "ios-test-app-harness",
-            localServerHost: nil,
-            localServerSecure: false
+            localServerHost: runtimeSnapshot.msakLocalServerHost,
+            localServerSecure: runtimeSnapshot.msakLocalServerSecure
         )
         let harness = MsakServerSelectionHarness(config: config)
         harness.runDefaultScenario { result, error in
@@ -148,10 +143,10 @@ private final class HarnessViewController: UIViewController {
 
     @objc private func runPhase3Sequence() {
         let config = MsakLocateConfig(
-            environment: MsakLocateEnvironment.prod,
+            environment: runtimeSnapshot.msakEnvironment,
             userAgent: "ios-test-app-phase3",
-            localServerHost: nil,
-            localServerSecure: false
+            localServerHost: runtimeSnapshot.msakLocalServerHost,
+            localServerSecure: runtimeSnapshot.msakLocalServerSecure
         )
         let harness = MeasurementSequenceHarness(config: config)
         harness.runDefaultScenario { result, error in
@@ -176,43 +171,44 @@ private final class HarnessViewController: UIViewController {
     }
 }
 
-private enum SupabaseTarget {
-    case local
-    case remote
-}
+private enum RuntimeSelection {
+    static func resolvePublicMsakLocalSupabaseSnapshot() -> RuntimeSyncMsakProfileSnapshot {
+        return RuntimeSyncMsakProfileBridge().resolvePublicMsakLocalSupabase(
+            localSupabaseUrl: readConfig("SUPABASE_LOCAL_URL"),
+            localSupabaseApiKey: readConfig("SUPABASE_LOCAL_API_KEY"),
+            userAgent: "ios-test-app-public-msak-local-supabase"
+        )
+    }
 
-private struct SupabaseEnvironment {
-    let target: SupabaseTarget
-    let url: String
-    let apiKey: String
-}
-
-private struct CellwatchPropertiesSupabaseEnvironmentProvider {
-    let properties: [String: String]
-    let allowRemote: Bool
-
-    func resolve(_ target: SupabaseTarget = .local) throws -> SupabaseEnvironment {
-        do {
-            let useRemote = target == .remote
-            let resolved = try UploadTriggerParityHarness().resolveSupabaseConfigForRuntime(
-                allowRemote: allowRemote,
-                localUrl: properties["SUPABASE_LOCAL_URL"] ?? "",
-                localApiKey: properties["SUPABASE_LOCAL_API_KEY"] ?? "",
-                remoteUrl: properties["SUPABASE_URL"] ?? "",
-                remoteApiKey: properties["SUPABASE_API_KEY"] ?? "",
-                useRemote: useRemote
-            )
-            return SupabaseEnvironment(
-                target: target,
-                url: resolved.url,
-                apiKey: resolved.apiKey
-            )
-        } catch {
-            throw NSError(
-                domain: "iosTestApp",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "\(error)"]
-            )
+    private static func readConfig(_ key: String) -> String? {
+        let env = ProcessInfo.processInfo.environment
+        if let envValue = env[key], !envValue.isEmpty {
+            return envValue
         }
+        return loadProperty(key)
+    }
+
+    private static func loadProperty(_ key: String) -> String? {
+        let candidates = [
+            URL(fileURLWithPath: "cellwatch.properties"),
+            URL(fileURLWithPath: "../cellwatch.properties"),
+            URL(fileURLWithPath: "../../cellwatch.properties")
+        ]
+        for candidate in candidates {
+            guard let contents = try? String(contentsOf: candidate, encoding: .utf8) else {
+                continue
+            }
+            for rawLine in contents.split(separator: "\n", omittingEmptySubsequences: false) {
+                let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                if line.isEmpty || line.hasPrefix("#") {
+                    continue
+                }
+                let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
+                if parts.count == 2 && parts[0].trimmingCharacters(in: .whitespacesAndNewlines) == key {
+                    return parts[1].trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                }
+            }
+        }
+        return nil
     }
 }

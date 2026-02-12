@@ -9,14 +9,14 @@ import androidx.appcompat.app.AppCompatActivity
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriver
 import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriverFactory
+import edu.gatech.cc.cellwatch.androidtestapp.sync.FixedSupabaseEnvironmentProvider
 import edu.gatech.cc.cellwatch.androidtestapp.sync.SupabaseTarget
+import edu.gatech.cc.cellwatch.androidtestapp.sync.resolvePublicMsakLocalSupabaseRuntimeProfile
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
 import edu.gatech.cc.cellwatch.data.repo.FccSubmissionRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.MeasurementRepositoryImpl
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
-import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateConfig
-import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateEnvironment
 import edu.gatech.cc.cellwatch.domain.fcc.MsakServerSelectionHarness
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceHarness
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
@@ -46,6 +46,9 @@ class MainActivity : AppCompatActivity() {
 
     private var syncDriver: AndroidTestSyncDriver? = null
     private var lastGroup: MeasurementGroup? = null
+    private val runtimeProfile by lazy {
+        resolvePublicMsakLocalSupabaseRuntimeProfile()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -153,10 +156,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun runSelectServers() {
         val harness = MsakServerSelectionHarness(
-            MsakLocateConfig(
-                environment = MsakLocateEnvironment.PROD,
-                userAgent = "android-test-app-harness",
-            )
+            runtimeProfile.msakConfig.copy(userAgent = "android-test-app-harness")
         )
         harness.runDefaultScenario { result, error ->
             runOnUiThread {
@@ -174,10 +174,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun runPhase3Sequence() {
         val harness = MeasurementSequenceHarness(
-            MsakLocateConfig(
-                environment = MsakLocateEnvironment.PROD,
-                userAgent = "android-test-app-phase3",
-            ),
+            runtimeProfile.msakConfig.copy(userAgent = "android-test-app-phase3"),
         )
         harness.runDefaultScenario { result, error ->
             runOnUiThread {
@@ -253,6 +250,7 @@ class MainActivity : AppCompatActivity() {
                     timestamp = Clock.System.now().toEpochMilliseconds(),
                 )
             },
+            environmentProvider = FixedSupabaseEnvironmentProvider(runtimeProfile.syncConfig),
             io = EmptyCoroutineContext,
         ).create(SupabaseTarget.LOCAL)
         syncDriver = created
