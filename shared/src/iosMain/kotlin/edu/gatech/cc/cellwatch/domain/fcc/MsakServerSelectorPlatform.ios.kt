@@ -3,9 +3,12 @@ package edu.gatech.cc.cellwatch.domain.fcc
 import edu.gatech.cc.cellwatch.msak.shared.Server
 import edu.gatech.cc.cellwatch.msak.shared.locate.LocateException
 import edu.gatech.cc.cellwatch.msak.shared.locate.LocateManager
+import edu.gatech.cc.cellwatch.msak.shared.net.NetHttp
+import edu.gatech.cc.cellwatch.msak.shared.net.NetHttpConfig
 
 actual object MsakServerSelectorPlatform {
     actual fun createLocator(config: MsakLocateConfig): MsakServerLocator {
+        ensureNetHttpInitialized()
         val locateManager = LocateManager(
             serverEnv = config.environment.toLocateServerEnv(),
             userAgent = config.userAgent,
@@ -45,6 +48,10 @@ actual object MsakServerSelectorPlatform {
             override suspend fun pingMs(host: String): Double = 0.0
         }
     }
+}
+
+private fun ensureNetHttpInitialized() {
+    NetHttp.initialize(NetHttpConfig())
 }
 
 private fun MsakLocateEnvironment.toLocateServerEnv(): LocateManager.ServerEnv {

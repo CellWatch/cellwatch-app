@@ -325,8 +325,12 @@ If run separately:
 - iOS local-MSAK hosted smoke only: `./gradlew :shared:verifyIosTestAppHostedLocalMsakSmoke`
   - Runs only `LocalMsakPhase3HostedTests` and creates a temporary marker file for explicit opt-in.
   - If local `msak-server` is unavailable or UDP latency is unsupported for that runtime path, test reports `skipped` with a clear reason.
+- Android public-MSAK/local-Supabase smoke only: `./gradlew :shared:verifyAndroidPublicMsakLocalSupabaseSmoke`
+  - Runs only `PublicMsakLocalSupabaseSmokeTest` with explicit env gating.
+- iOS public-MSAK/local-Supabase hosted smoke only: `./gradlew :shared:verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke`
+  - Runs only `PublicMsakLocalSupabaseHostedTests` and creates a temporary marker file for explicit opt-in.
 - iOS hosted Tier 2 sequential bundle (recommended): `./gradlew :shared:verifyIosHostedTier2Sequential`
-  - Serializes hosted iOS checks to reduce simulator/keychain/local-service concurrency flake.
+  - Serializes hosted iOS checks (including local/public MSAK smoke paths) to reduce simulator/keychain/local-service concurrency flake.
 - iOS realistic (legacy host) only: `./gradlew :shared:verifyIosHostedKeychain`
 - Local Supabase JVM integration only: `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
   - Includes remote adapter RPC/table checks and end-to-end `MeasurementSyncUseCase` store-and-forward validation against local Docker Supabase
@@ -349,6 +353,11 @@ If run separately:
   - iOS: `SyncHarnessParityTests` local/remote environment provider checks and hosted local Supabase sync end-to-end
   - Both harnesses now resolve runtime Supabase config through shared `SyncRuntimeConfig` (`allowRemote=false` by default)
   - Both harnesses validate shared upload-trigger entrypoints (`onMapStart` + `onMeasurementComplete`) against local Supabase
+- shared runtime profile contract:
+  - `RuntimeSyncMsakProfiles.publicMsakLocalSupabase(...)` defines a single shared config path for:
+    - MSAK target = public/prod
+    - Supabase target = local-only
+  - Used by Android/iOS opt-in Tier 2 smoke tests to prevent accidental remote Supabase writes while exercising public MSAK paths.
 
 ## Recent KMP Porting Work
 

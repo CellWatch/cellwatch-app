@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0A4BFDFEE0739CD6758CFA2D /* KeychainIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CB69DDD6F009793C304363 /* KeychainIntegrationTests.swift */; };
 		122B6F8E2D0AA31F00112233 /* LocalMsakPhase3HostedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122B6F8D2D0AA31F00112233 /* LocalMsakPhase3HostedTests.swift */; };
+		22B6F8E12D0AB31F00112233 /* PublicMsakLocalSupabaseHostedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22B6F8E02D0AB31F00112233 /* PublicMsakLocalSupabaseHostedTests.swift */; };
 		481BF9FFC6A1058F6725DBF3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC15C20A199EC74B63FE7D9C /* AppDelegate.swift */; };
 		4A8F9BC776AB61478207AC3B /* sharedKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C5FBB840AFCBCA7D65A6631A /* sharedKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		89FA7FCD8FE5F2573997FE75 /* sharedKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5FBB840AFCBCA7D65A6631A /* sharedKit.framework */; };
@@ -57,6 +58,7 @@
 		146D813614CC5B868480EDA0 /* iosTestApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iosTestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1DC3BDAACA408D93F1038CF1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		122B6F8D2D0AA31F00112233 /* LocalMsakPhase3HostedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMsakPhase3HostedTests.swift; sourceTree = "<group>"; };
+		22B6F8E02D0AB31F00112233 /* PublicMsakLocalSupabaseHostedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicMsakLocalSupabaseHostedTests.swift; sourceTree = "<group>"; };
 		5631CFB68FC8008FCBA205FD /* SyncHarnessParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncHarnessParityTests.swift; sourceTree = "<group>"; };
 		AC15C20A199EC74B63FE7D9C /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		C5FBB840AFCBCA7D65A6631A /* sharedKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = sharedKit.framework; path = ../shared/build/bin/iosSimulatorArm64/Current/sharedKit.framework; sourceTree = "<group>"; };
@@ -115,6 +117,7 @@
 			children = (
 				00CB69DDD6F009793C304363 /* KeychainIntegrationTests.swift */,
 				122B6F8D2D0AA31F00112233 /* LocalMsakPhase3HostedTests.swift */,
+				22B6F8E02D0AB31F00112233 /* PublicMsakLocalSupabaseHostedTests.swift */,
 				5631CFB68FC8008FCBA205FD /* SyncHarnessParityTests.swift */,
 			);
 			path = Tests;
@@ -239,6 +242,7 @@
 			files = (
 				0A4BFDFEE0739CD6758CFA2D /* KeychainIntegrationTests.swift in Sources */,
 				122B6F8E2D0AA31F00112233 /* LocalMsakPhase3HostedTests.swift in Sources */,
+				22B6F8E12D0AB31F00112233 /* PublicMsakLocalSupabaseHostedTests.swift in Sources */,
 				D571874DE5967BFA3F325EB5 /* SyncHarnessParityTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

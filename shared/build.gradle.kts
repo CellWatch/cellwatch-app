@@ -250,6 +250,23 @@ tasks.register("verifyLocalSupabaseJvmIntegration") {
     dependsOn("jvmLocalSupabaseIntegrationTest")
 }
 
+tasks.register("verifyAndroidPublicMsakLocalSupabaseSmoke") {
+    description = "Tier 2: Android smoke for public MSAK + local Supabase runtime profile."
+    group = "verification"
+    doLast {
+        exec {
+            commandLine(
+                "./gradlew",
+                ":androidTestApp:testDebugUnitTest",
+                "--tests",
+                "edu.gatech.cc.cellwatch.androidtestapp.PublicMsakLocalSupabaseSmokeTest",
+            )
+            environment("CELLWATCH_RUN_PUBLIC_MSAK_LOCAL_SUPABASE_SMOKE", "1")
+            workingDir = rootProject.projectDir
+        }
+    }
+}
+
 tasks.register("verifyIosHostedKeychain") {
     description = "Tier 2: iOS host-app Keychain tests (requires an Xcode project/test target)."
     group = "verification"
@@ -343,6 +360,42 @@ tasks.register("verifyIosTestAppHostedLocalMsakSmoke") {
     }
 }
 
+tasks.register("verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke") {
+    description = "Tier 2: iOS hosted smoke for public MSAK + local Supabase runtime profile."
+    group = "verification"
+    dependsOn("refreshIosSimulatorCurrentFramework")
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException(
+                "Missing iOS hosted test project at ${projectPath.absolutePath}."
+            )
+        }
+    }
+    doLast {
+        val marker = file("/tmp/cellwatch-ios-public-msak-local-supabase-smoke-required")
+        marker.writeText("1\n")
+        try {
+            exec {
+                commandLine(
+                    "xcodebuild",
+                    "-project",
+                    projectPath.absolutePath,
+                    "-scheme",
+                    "iosTestApp",
+                    "-destination",
+                    "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                    "-only-testing:iosTestAppTests/PublicMsakLocalSupabaseHostedTests/testHostedPublicMsak_withLocalSupabaseProfile_whenEnabled",
+                    "test",
+                )
+                workingDir = rootProject.projectDir
+            }
+        } finally {
+            marker.delete()
+        }
+    }
+}
+
 // Hosted iOS simulator tasks share runtime state (simulator process, keychain scope, local services).
 // Keep them serialized to avoid flaky failures when Gradle runs tasks in parallel.
 tasks.named("verifyIosTestAppHosted") {
@@ -350,6 +403,9 @@ tasks.named("verifyIosTestAppHosted") {
 }
 tasks.named("verifyIosTestAppHostedLocalMsakSmoke") {
     mustRunAfter("verifyIosTestAppHosted")
+}
+tasks.named("verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke") {
+    mustRunAfter("verifyIosTestAppHostedLocalMsakSmoke")
 }
 
 tasks.register("verifyIosHostedTier2Sequential") {
@@ -359,6 +415,7 @@ tasks.register("verifyIosHostedTier2Sequential") {
         "verifyIosHostedKeychain",
         "verifyIosTestAppHosted",
         "verifyIosTestAppHostedLocalMsakSmoke",
+        "verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke",
     )
 }
 
