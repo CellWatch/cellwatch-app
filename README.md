@@ -358,6 +358,10 @@ If run separately:
     - MSAK target = public/prod
     - Supabase target = local-only
   - Used by Android/iOS opt-in Tier 2 smoke tests to prevent accidental remote Supabase writes while exercising public MSAK paths.
+  - Also used by harness app runtime wiring:
+    - `/Users/jeff/Projects/cellwatch-app/androidTestApp/src/main/java/edu/gatech/cc/cellwatch/androidtestapp/MainActivity.kt`
+    - `/Users/jeff/Projects/cellwatch-app/iosTestApp/App/AppDelegate.swift`
+    - both now resolve MSAK + Supabase runtime selection via shared profile bridge/config, not ad-hoc per-app constants.
 
 ## Recent KMP Porting Work
 
