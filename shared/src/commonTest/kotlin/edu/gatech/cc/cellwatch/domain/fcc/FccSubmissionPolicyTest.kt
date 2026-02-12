@@ -81,6 +81,7 @@ class FccSubmissionPolicyTest {
             deviceId = null,
             deviceManufacturer = "latency-manufacturer",
             deviceModel = null,
+            deviceOsName = "iOS",
             deviceOsVersion = "14",
             appName = null,
             simMcc = "310",
@@ -93,6 +94,7 @@ class FccSubmissionPolicyTest {
             deviceId = "download-device",
             deviceManufacturer = null,
             deviceModel = "download-model",
+            deviceOsName = null,
             deviceOsVersion = null,
             appName = "download-app",
             simMcc = null,
@@ -105,6 +107,7 @@ class FccSubmissionPolicyTest {
             deviceId = "upload-device",
             deviceManufacturer = "upload-manufacturer",
             deviceModel = "upload-model",
+            deviceOsName = "Android",
             deviceOsVersion = "15",
             appName = "upload-app",
             simMcc = "999",
@@ -122,6 +125,7 @@ class FccSubmissionPolicyTest {
         assertEquals("download-device", actual.deviceId)
         assertEquals("latency-manufacturer", actual.deviceManufacturer)
         assertEquals("download-model", actual.deviceModel)
+        assertEquals("iOS", actual.deviceOsName)
         assertEquals("14", actual.deviceOsVersion)
         assertEquals("download-app", actual.appName)
         assertEquals("310", actual.simMcc)
@@ -149,6 +153,7 @@ class FccSubmissionPolicyTest {
             deviceId = "device-1",
             deviceManufacturer = "Google",
             deviceModel = "Pixel",
+            deviceOsName = "Android",
             deviceOsVersion = "14",
             appName = "CellWatch",
             simMcc = "310",
@@ -190,6 +195,7 @@ class FccSubmissionPolicyTest {
         deviceId: String? = null,
         deviceManufacturer: String? = null,
         deviceModel: String? = null,
+        deviceOsName: String? = null,
         deviceOsVersion: String? = null,
         appName: String? = null,
         simMcc: String? = null,
@@ -204,6 +210,7 @@ class FccSubmissionPolicyTest {
             deviceId = deviceId,
             deviceManufacturer = deviceManufacturer,
             deviceModel = deviceModel,
+            deviceOsName = deviceOsName,
             deviceOsVersion = deviceOsVersion,
             appName = appName,
             simMcc = simMcc,
