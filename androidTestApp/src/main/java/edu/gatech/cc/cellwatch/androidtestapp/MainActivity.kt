@@ -1,11 +1,16 @@
 package edu.gatech.cc.cellwatch.androidtestapp
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriver
 import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriverFactory
@@ -42,6 +47,7 @@ import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeResultFormatter
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerParityHarness
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -54,9 +60,22 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val RUN_SHARED_SLICE_BUTTON_ID = 1001
         const val STATUS_TEXT_VIEW_ID = 1002
+        private const val LOG_TAG = "AndroidTestHarness"
+        private const val PERMISSION_REQUEST_CODE = 7001
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        if (::statusText.isInitialized) {
+            val envelope = smokeEnvelopeBuilder.failure(
+                scenario = "unexpected-coroutine-failure",
+                errorMessage = throwable.message,
+            )
+            runOnUiThread {
+                statusText.text = smokeFormatter.format(envelope)
+            }
+        }
+    }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + coroutineExceptionHandler)
     private lateinit var db: CellwatchDatabase
     private lateinit var measurementRepo: MeasurementRepositoryImpl
     private lateinit var latencyRepo: LatencyDataRepositoryImpl
@@ -79,11 +98,25 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         initDataLayer()
         setContentView(buildUi())
+        requestHarnessRuntimePermissions()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != PERMISSION_REQUEST_CODE) return
+        permissions.forEachIndexed { index, permission ->
+            val granted = grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED
+            Log.d(LOG_TAG, "Runtime permission result: $permission granted=$granted")
+        }
     }
 
     private fun initDataLayer() {
@@ -97,6 +130,27 @@ class MainActivity : AppCompatActivity() {
         latencyRepo = LatencyDataRepositoryImpl(db.latencyDataQueries, EmptyCoroutineContext)
         uploadDownloadRepo = UploadDownloadDataRepositoryImpl(db.uploadDownloadDataQueries, EmptyCoroutineContext)
         submissionRepo = FccSubmissionRepositoryImpl(db.fccSubmissionQueries, EmptyCoroutineContext)
+    }
+
+    private fun requestHarnessRuntimePermissions() {
+        val wanted = listOf(
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        )
+        val missing = wanted.filter { permission ->
+            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isEmpty()) {
+            Log.d(LOG_TAG, "All harness runtime permissions already granted")
+            return
+        }
+        Log.d(LOG_TAG, "Requesting harness runtime permissions: $missing")
+        ActivityCompat.requestPermissions(
+            this,
+            missing.toTypedArray(),
+            PERMISSION_REQUEST_CODE,
+        )
     }
 
     private fun buildUi(): ScrollView {
@@ -193,9 +247,12 @@ class MainActivity : AppCompatActivity() {
         runtimeProfile = resolveRuntimeProfile()
         syncDriver = null
         refreshModeUi()
-        statusText.text =
+        val message =
             "Runtime mode updated.\n" +
-                "MSAK=${selectedMsakMode.name}, Supabase=${selectedSupabaseMode.name}, remoteAllowed=$allowRemoteSupabase"
+                "MSAK=${selectedMsakMode.name}, Supabase=${selectedSupabaseMode.name}, remoteAllowed=$allowRemoteSupabase\n" +
+                "msakLocalHost=${runtimeProfile.msakConfig.localServerHost ?: "n/a"}"
+        Log.d(LOG_TAG, message)
+        statusText.text = message
     }
 
     private fun refreshModeUi() {
@@ -298,6 +355,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun runPhase3Sequence() {
+        val preflightError = phase3PreflightError()
+        if (preflightError != null) {
+            val envelope = smokeEnvelopeBuilder.failure(
+                scenario = "phase3-preflight",
+                errorMessage = preflightError,
+            )
+            val rendered = smokeFormatter.format(envelope)
+            Log.e(LOG_TAG, "Phase3 preflight failed: $preflightError")
+            statusText.text = rendered
+            return
+        }
+        Log.d(
+            LOG_TAG,
+            "Phase3 preflight passed: msakMode=${runtimeProfile.msakMode}, msakEnv=${runtimeProfile.msakConfig.environment}, " +
+                "msakLocalHost=${runtimeProfile.msakConfig.localServerHost}, supabaseMode=${runtimeProfile.supabaseMode}, " +
+                "supabaseUrl=${runtimeProfile.resolveSyncSupabaseConfig().url}, supabaseKeyPresent=${runtimeProfile.resolveSyncSupabaseConfig().apiKey.isNotBlank()}",
+        )
         scope.launch {
             runCatching {
                 val capabilityProvider = AndroidPlatformCapabilityProvider(applicationContext)
@@ -365,9 +439,11 @@ class MainActivity : AppCompatActivity() {
                     ),
                 )
             }.onFailure {
+                val hintedMessage = withProtocolHint(it)
+                Log.e(LOG_TAG, "Phase3 sequence failed", it)
                 val envelope = smokeEnvelopeBuilder.failure(
                     scenario = "phase3-sequence-sync",
-                    errorMessage = it.message,
+                    errorMessage = hintedMessage,
                 )
                 statusText.text = smokeFormatter.format(envelope)
             }
@@ -448,6 +524,51 @@ class MainActivity : AppCompatActivity() {
             SupabaseTarget.LOCAL
         } else {
             SupabaseTarget.REMOTE
+        }
+    }
+
+    private fun phase3PreflightError(): String? {
+        val issues = mutableListOf<String>()
+        if (runtimeProfile.msakMode == RuntimeMsakMode.LOCAL) {
+            val host = runtimeProfile.msakConfig.localServerHost
+            if (host.isNullOrBlank()) {
+                issues += "MSAK LOCAL requires resolved local server host"
+            }
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            issues += "READ_PHONE_STATE not granted (required by harness telephony/network capture)"
+        }
+        val supabaseConfig = runCatching { runtimeProfile.resolveSyncSupabaseConfig() }.getOrElse { error ->
+            issues += "Supabase config unresolved: ${error.message}"
+            return issues.joinToString("; ")
+        }
+        if (supabaseConfig.url.isBlank()) {
+            issues += "Supabase URL is blank"
+        } else {
+            val allowedHosts = setOf("127.0.0.1", "10.0.2.2", "localhost")
+            if (runtimeProfile.supabaseMode == RuntimeSupabaseMode.LOCAL &&
+                allowedHosts.none { supabaseConfig.url.contains(it) }
+            ) {
+                issues += "Supabase LOCAL URL should target localhost/10.0.2.2 (got ${supabaseConfig.url})"
+            }
+        }
+        if (supabaseConfig.apiKey.isBlank()) {
+            issues += "Supabase API key is blank"
+        }
+        return issues.takeIf { it.isNotEmpty() }?.joinToString("; ")
+    }
+
+    private fun withProtocolHint(error: Throwable): String {
+        val details = generateSequence(error as Throwable?) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString(" | ")
+        val mismatch = details.contains("MissingFieldException", ignoreCase = true) &&
+            details.contains("BytesSent", ignoreCase = true)
+        return if (mismatch) {
+            "MSAK protocol mismatch: client expects Application.BytesSent/BytesReceived but server payload differs. " +
+                "Use a matching local msak-server build for this msak-client-kmp version. details=$details"
+        } else {
+            error.message ?: details
         }
     }
 
