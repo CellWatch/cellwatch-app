@@ -24,12 +24,14 @@ import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfiles
+import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeInvariantValidator
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,6 +48,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 
 @RunWith(RobolectricTestRunner::class)
 class PublicMsakLocalSupabaseSmokeTest {
+    private val smokeValidator = SyncSmokeInvariantValidator()
 
     @Test
     fun publicMsak_withLocalSupabaseProfile_runsPhase3AndStoreForward_whenEnabled() = runBlocking {
@@ -180,7 +183,13 @@ class PublicMsakLocalSupabaseSmokeTest {
                 deviceAuthStore = authStore,
             )
             val remoteMeasurement = remoteVerifier.getMeasurementById(measurementId)
-            assertNotNull(remoteMeasurement)
+            val invariantError = smokeValidator.validateSuccess(
+                measurementUploadPersisted = measurementRepo.getById(measurementId)?.uploadTime != null,
+                submissionUploadPersisted = submissionRepo.getById(groupId)?.uploadTime != null,
+                remoteMeasurementVerified = remoteMeasurement.id == measurementId,
+                measurementCompleteUploadTimeSet = uploadTime != null,
+            )
+            assertNull(invariantError)
         } finally {
             driver.close()
         }

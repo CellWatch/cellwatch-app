@@ -19,12 +19,14 @@ import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
+import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeInvariantValidator
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.junit.After
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
@@ -37,6 +39,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 
 @RunWith(RobolectricTestRunner::class)
 class LocalSupabaseSharedSyncSmokeTest {
+    private val smokeValidator = SyncSmokeInvariantValidator()
 
     private lateinit var driver: AndroidSqliteDriver
     private lateinit var db: CellwatchDatabase
@@ -148,7 +151,13 @@ class LocalSupabaseSharedSyncSmokeTest {
             deviceAuthStore = authStore,
         )
         val remoteMeasurement = remoteVerifier.getMeasurementById(measurementId)
-        assertNotNull(remoteMeasurement)
+        val invariantError = smokeValidator.validateSuccess(
+            measurementUploadPersisted = measurementRepo.getById(measurementId)?.uploadTime != null,
+            submissionUploadPersisted = submissionRepo.getById(groupId)?.uploadTime != null,
+            remoteMeasurementVerified = remoteMeasurement.id == measurementId,
+            measurementCompleteUploadTimeSet = uploadTime != null,
+        )
+        assertNull(invariantError)
     }
 
     private fun isSupabaseReachable(baseUrl: String): Boolean {

@@ -38,6 +38,8 @@ private struct CellwatchPropertiesSupabaseEnvironmentProvider {
 }
 
 final class SyncHarnessParityTests: XCTestCase {
+    private let smokeValidator = SyncSmokeInvariantValidator()
+
     func testEnvironmentDefaultsToLocal() throws {
         let provider = CellwatchPropertiesSupabaseEnvironmentProvider(properties: [:], allowRemote: false)
 
@@ -95,10 +97,13 @@ final class SyncHarnessParityTests: XCTestCase {
             XCTAssertEqual(result?.mapStartMeasurementsUploaded, Int32(1))
             XCTAssertEqual(result?.mapStartSubmissionsAttempted, Int32(1))
             XCTAssertEqual(result?.mapStartSubmissionsUploaded, Int32(1))
-            XCTAssertEqual(result?.measurementCompleteUploadTimeSet, true)
-            XCTAssertEqual(result?.measurementUploadPersisted, true)
-            XCTAssertEqual(result?.submissionUploadPersisted, true)
-            XCTAssertEqual(result?.remoteMeasurementVerified, true)
+            let invariantError = self.smokeValidator.validateSuccess(
+                measurementUploadPersisted: result?.measurementUploadPersisted ?? false,
+                submissionUploadPersisted: result?.submissionUploadPersisted ?? false,
+                remoteMeasurementVerified: result?.remoteMeasurementVerified ?? false,
+                measurementCompleteUploadTimeSet: result?.measurementCompleteUploadTimeSet ?? false
+            )
+            XCTAssertNil(invariantError)
             expectation.fulfill()
         }
 
@@ -123,7 +128,10 @@ final class SyncHarnessParityTests: XCTestCase {
         ) { result, error in
             XCTAssertNil(result)
             XCTAssertNotNil(error)
-            XCTAssertFalse((error?.localizedDescription ?? "").isEmpty)
+            let invariantError = self.smokeValidator.validateFailure(
+                errorMessage: error?.localizedDescription
+            )
+            XCTAssertNil(invariantError)
             expectation.fulfill()
         }
 
