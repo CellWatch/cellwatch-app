@@ -7,6 +7,7 @@ import edu.gatech.cc.cellwatch.data.sync.SyncRemoteProfile
 import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import edu.gatech.cc.cellwatch.data.sync.SupabaseSyncRemoteDataSourceProvider
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
+import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerUseCase
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import kotlinx.datetime.Clock
 import kotlin.coroutines.CoroutineContext
@@ -21,8 +22,13 @@ class AndroidTestSyncDriverFactory(
     private val clock: Clock = Clock.System,
 ) {
     fun create(target: SupabaseTarget = SupabaseTarget.LOCAL): AndroidTestSyncDriver {
+        val uploadTriggerUseCase = createUploadTriggerUseCase(target)
+        return AndroidTestSyncDriver(uploadTriggerUseCase)
+    }
+
+    fun createUploadTriggerUseCase(target: SupabaseTarget = SupabaseTarget.LOCAL): UploadTriggerUseCase {
         val remoteProvider = SupabaseSyncRemoteDataSourceProvider(deviceAuthStore)
-        val uploadTriggerUseCase = MeasurementSyncServiceFactory.createUploadTriggerUseCase(
+        return MeasurementSyncServiceFactory.createUploadTriggerUseCase(
             database = database,
             io = io,
             remoteProfile = SyncRemoteProfile.Supabase(
@@ -33,7 +39,6 @@ class AndroidTestSyncDriverFactory(
             tcpTupleProvider = tcpTupleProvider,
             clock = clock,
         )
-        return AndroidTestSyncDriver(uploadTriggerUseCase)
     }
 }
 

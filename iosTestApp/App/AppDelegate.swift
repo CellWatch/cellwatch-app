@@ -204,25 +204,27 @@ private final class HarnessViewController: UIViewController {
             localServerHost: runtimeSnapshot.msakLocalServerHost,
             localServerSecure: runtimeSnapshot.msakLocalServerSecure
         )
-        let harness = MeasurementSequenceHarness(config: config)
-        harness.runDefaultScenario { result, error in
+        IosPhase3SequenceSyncHarness().run(
+            msakConfig: config,
+            supabaseUrl: runtimeSnapshot.supabaseUrl,
+            supabaseApiKey: runtimeSnapshot.supabaseApiKey
+        ) { result, error in
             if let error = error {
-                self.statusLabel.text = "phase3 sequence failed: \(error)"
-                harness.close()
+                self.statusLabel.text = "phase3+sync failed: \(error)"
                 return
             }
             guard let value = result else {
-                self.statusLabel.text = "phase3 sequence failed: no result"
-                harness.close()
+                self.statusLabel.text = "phase3+sync failed: no result"
                 return
             }
             self.statusLabel.text =
-                "phase3 sequence group=\(value.groupId)\n" +
+                "phase3+sync group=\(value.groupId)\n" +
                 "throughput=\(value.throughputMachine)\n" +
                 "latency=\(value.latencyMachine)\n" +
                 "submissionCreated=\(value.submissionCreated)\n" +
+                "mapStartUploaded(m=\(value.mapStartMeasurementsUploaded),s=\(value.mapStartSubmissionsUploaded))\n" +
+                "measurementCompleteUploadTimeSet=\(value.measurementCompleteUploadTimeSet)\n" +
                 "persistedMeasurements=\(value.persistedMeasurements), persistedSubmissions=\(value.persistedSubmissions)"
-            harness.close()
         }
     }
 }

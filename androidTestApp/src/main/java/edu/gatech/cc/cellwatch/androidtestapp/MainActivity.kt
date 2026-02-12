@@ -16,9 +16,12 @@ import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
 import edu.gatech.cc.cellwatch.data.repo.FccSubmissionRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.MeasurementRepositoryImpl
+import edu.gatech.cc.cellwatch.data.repo.UploadDownloadDataRepositoryImpl
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
+import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
 import edu.gatech.cc.cellwatch.domain.fcc.MsakServerSelectionHarness
-import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceHarness
+import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
+import edu.gatech.cc.cellwatch.domain.fcc.RepositoryBackedMeasurementResultStore
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
@@ -28,6 +31,7 @@ import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
+import edu.gatech.cc.cellwatch.domain.sync.MeasurementSequenceSyncOrchestrator
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +48,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var db: CellwatchDatabase
     private lateinit var measurementRepo: MeasurementRepositoryImpl
     private lateinit var latencyRepo: LatencyDataRepositoryImpl
+    private lateinit var uploadDownloadRepo: UploadDownloadDataRepositoryImpl
     private lateinit var submissionRepo: FccSubmissionRepositoryImpl
     private lateinit var statusText: TextView
     private lateinit var msakModeButton: Button
@@ -76,6 +81,7 @@ class MainActivity : AppCompatActivity() {
         db = CellwatchDatabase(sqlDriver)
         measurementRepo = MeasurementRepositoryImpl(db.measurementQueries, EmptyCoroutineContext)
         latencyRepo = LatencyDataRepositoryImpl(db.latencyDataQueries, EmptyCoroutineContext)
+        uploadDownloadRepo = UploadDownloadDataRepositoryImpl(db.uploadDownloadDataQueries, EmptyCoroutineContext)
         submissionRepo = FccSubmissionRepositoryImpl(db.fccSubmissionQueries, EmptyCoroutineContext)
     }
 
@@ -228,22 +234,46 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun runPhase3Sequence() {
-        val harness = MeasurementSequenceHarness(
-            runtimeProfile.msakConfig.copy(userAgent = "android-test-app-phase3"),
-        )
-        harness.runDefaultScenario { result, error ->
-            runOnUiThread {
-                statusText.text = if (error != null) {
-                    "phase3 sequence failed: ${error.message}"
-                } else {
-                    "phase3 sequence group=${result?.groupId}\n" +
-                        "throughput=${result?.throughputMachine}\n" +
-                        "latency=${result?.latencyMachine}\n" +
-                        "submissionCreated=${result?.submissionCreated}\n" +
-                        "persistedMeasurements=${result?.persistedMeasurements}, persistedSubmissions=${result?.persistedSubmissions}"
-                }
+        scope.launch {
+            runCatching {
+                val request = MeasurementSequenceRequest(
+                    groupId = "phase3-${Clock.System.now().toEpochMilliseconds()}",
+                    inVehicle = false,
+                    mode = edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE,
+                    measurementId = null,
+                )
+                val resultStore = RepositoryBackedMeasurementResultStore(
+                    measurementRepository = measurementRepo,
+                    latencyDataRepository = latencyRepo,
+                    uploadDownloadDataRepository = uploadDownloadRepo,
+                    submissionRepository = submissionRepo,
+                )
+                val sequenceOrchestrator = DefaultMsakMeasurementSequenceOrchestratorFactory.create(
+                    config = runtimeProfile.msakConfig.copy(userAgent = "android-test-app-phase3-sync"),
+                    resultStore = resultStore,
+                    appSource = "android-test-app-phase3-sync",
+                )
+                val syncOrchestrator = MeasurementSequenceSyncOrchestrator(
+                    sequenceOrchestrator = sequenceOrchestrator,
+                    uploadTriggerUseCase = createSyncDriverFactory().createUploadTriggerUseCase(resolveSupabaseTarget()),
+                )
+                syncOrchestrator.run(request)
+            }.onSuccess { outcome ->
+                val sequence = outcome.sequenceOutcome
+                val persistedMeasurements = measurementRepo.getByGroupId(sequence.group.id).size
+                val persistedSubmissions = if (submissionRepo.getById(sequence.group.id) != null) 1 else 0
+                val uploadTime = outcome.measurementCompleteUploadTime?.toEpochMilliseconds() ?: -1L
+                statusText.text =
+                    "phase3+sync group=${sequence.group.id}\n" +
+                        "throughput=${sequence.throughputServerMachine}\n" +
+                        "latency=${sequence.latencyServerMachine}\n" +
+                        "submissionCreated=${sequence.group.submission != null}\n" +
+                        "mapStartUploaded(m=${outcome.mapStartReport.measurements.uploaded},s=${outcome.mapStartReport.submissions.uploaded})\n" +
+                        "measurementCompleteUploadTimeMs=$uploadTime\n" +
+                        "persistedMeasurements=$persistedMeasurements, persistedSubmissions=$persistedSubmissions"
+            }.onFailure {
+                statusText.text = "phase3+sync failed: ${it.message}"
             }
-            harness.close()
         }
     }
 
@@ -295,7 +325,13 @@ class MainActivity : AppCompatActivity() {
         val existing = syncDriver
         if (existing != null) return existing
 
-        val created = AndroidTestSyncDriverFactory(
+        val created = createSyncDriverFactory().create(resolveSupabaseTarget())
+        syncDriver = created
+        return created
+    }
+
+    private fun createSyncDriverFactory(): AndroidTestSyncDriverFactory {
+        return AndroidTestSyncDriverFactory(
             database = db,
             deviceAuthStore = InMemoryDeviceAuthStore(),
             tcpTupleProvider = object : TcpTupleProvider {
@@ -307,15 +343,15 @@ class MainActivity : AppCompatActivity() {
             },
             environmentProvider = FixedSupabaseEnvironmentProvider(runtimeProfile.syncConfig),
             io = EmptyCoroutineContext,
-        ).create(
-            if (runtimeProfile.supabaseMode == RuntimeSupabaseMode.LOCAL) {
-                SupabaseTarget.LOCAL
-            } else {
-                SupabaseTarget.REMOTE
-            }
         )
-        syncDriver = created
-        return created
+    }
+
+    private fun resolveSupabaseTarget(): SupabaseTarget {
+        return if (runtimeProfile.supabaseMode == RuntimeSupabaseMode.LOCAL) {
+            SupabaseTarget.LOCAL
+        } else {
+            SupabaseTarget.REMOTE
+        }
     }
 
     private fun formatReport(report: edu.gatech.cc.cellwatch.domain.sync.SyncAllReport?): String {
