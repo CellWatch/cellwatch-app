@@ -20,6 +20,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 
 private final class HarnessViewController: UIViewController {
     private let statusLabel = UILabel()
+    private let smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
+    private let smokeFormatter = SyncSmokeResultFormatter()
     private var lastGroupId: String?
     private let msakModeButton = UIButton(type: .system)
     private let supabaseModeButton = UIButton(type: .system)
@@ -138,17 +140,24 @@ private final class HarnessViewController: UIViewController {
         lastGroupId = groupId
         UploadTriggerParityHarness().runDefaultScenario { result, error in
             if let error = error {
-                self.statusLabel.text = "map-start failed: \(error.localizedDescription)"
+                let envelope = self.smokeEnvelopeBuilder.failure(
+                    scenario: "map-start-sync",
+                    errorMessage: error.localizedDescription
+                )
+                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
                 return
             }
-            guard let value = result else {
-                self.statusLabel.text = "map-start failed: no result"
-                return
+            let envelope = self.smokeEnvelopeBuilder.mapStart(
+                hasReport: result != nil,
+                errorMessage: nil
+            )
+            var message = self.smokeFormatter.format(envelope: envelope) + "\ngroup=\(groupId)"
+            if let value = result {
+                message +=
+                    "\nmeasurements uploaded=\(value.measurementsUploaded), marked=\(value.measurementsMarkedUploaded)\n" +
+                    "submissions uploaded=\(value.submissionsUploaded), blocked=\(value.submissionsBlockedBeforeUpload)"
             }
-            self.statusLabel.text =
-                "group=\(groupId)\n" +
-                "measurements uploaded=\(value.measurementsUploaded), marked=\(value.measurementsMarkedUploaded)\n" +
-                "submissions uploaded=\(value.submissionsUploaded), blocked=\(value.submissionsBlockedBeforeUpload)"
+            self.statusLabel.text = message
         }
     }
 
@@ -157,11 +166,20 @@ private final class HarnessViewController: UIViewController {
         lastGroupId = groupId
         UploadTriggerParityHarness().runDefaultScenario { result, error in
             if let error = error {
-                self.statusLabel.text = "measurement-complete failed: \(error.localizedDescription)"
+                let envelope = self.smokeEnvelopeBuilder.failure(
+                    scenario: "measurement-complete-sync",
+                    errorMessage: error.localizedDescription
+                )
+                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
                 return
             }
             let uploadMs = result?.uploadTimeEpochMs?.int64Value ?? -1
-            self.statusLabel.text = "measurement-complete group=\(groupId)\nuploadTimeEpochMs=\(uploadMs)"
+            let envelope = self.smokeEnvelopeBuilder.measurementComplete(
+                uploadTimeSet: uploadMs >= 0,
+                errorMessage: nil
+            )
+            self.statusLabel.text = self.smokeFormatter.format(envelope: envelope) +
+                "\ngroup=\(groupId)\nuploadTimeEpochMs=\(uploadMs)"
         }
     }
 
@@ -179,11 +197,19 @@ private final class HarnessViewController: UIViewController {
         let harness = MsakServerSelectionHarness(config: config)
         harness.runDefaultScenario { result, error in
             if let error = error {
-                self.statusLabel.text = "server-select failed: \(error)"
+                let envelope = self.smokeEnvelopeBuilder.failure(
+                    scenario: "server-select",
+                    errorMessage: "\(error)"
+                )
+                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
                 return
             }
             guard let value = result else {
-                self.statusLabel.text = "server-select failed: no result"
+                let envelope = self.smokeEnvelopeBuilder.failure(
+                    scenario: "server-select",
+                    errorMessage: "no result"
+                )
+                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
                 return
             }
             self.statusLabel.text =
@@ -210,15 +236,29 @@ private final class HarnessViewController: UIViewController {
             supabaseApiKey: runtimeSnapshot.supabaseApiKey
         ) { result, error in
             if let error = error {
-                self.statusLabel.text = "phase3+sync failed: \(error)"
+                let envelope = self.smokeEnvelopeBuilder.failure(
+                    scenario: "phase3-sequence-sync",
+                    errorMessage: "\(error)"
+                )
+                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
                 return
             }
             guard let value = result else {
-                self.statusLabel.text = "phase3+sync failed: no result"
+                let envelope = self.smokeEnvelopeBuilder.failure(
+                    scenario: "phase3-sequence-sync",
+                    errorMessage: "no result"
+                )
+                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
                 return
             }
-            self.statusLabel.text =
-                "phase3+sync group=\(value.groupId)\n" +
+            let envelope = self.smokeEnvelopeBuilder.phase3Sequence(
+                measurementCompleteUploadTimeSet: value.measurementCompleteUploadTimeSet,
+                persistedMeasurements: Int32(value.persistedMeasurements),
+                persistedSubmissions: Int32(value.persistedSubmissions),
+                errorMessage: nil
+            )
+            self.statusLabel.text = self.smokeFormatter.format(envelope: envelope) +
+                "\ngroup=\(value.groupId)\n" +
                 "throughput=\(value.throughputMachine)\n" +
                 "latency=\(value.latencyMachine)\n" +
                 "submissionCreated=\(value.submissionCreated)\n" +
