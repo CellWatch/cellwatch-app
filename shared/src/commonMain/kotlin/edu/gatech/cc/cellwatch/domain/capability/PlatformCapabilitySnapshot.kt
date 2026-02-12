@@ -100,9 +100,16 @@ class MeasurementCapabilityEnricher {
     ): Measurement {
         val telephony = snapshot.telephony
         val network = snapshot.network
+        val location = snapshot.location
         val device = snapshot.device
         val locations = if (measurement.locations.isNullOrEmpty()) snapshot.location.samples else measurement.locations
         val cells = if (measurement.cells.isNullOrEmpty()) telephony.cells else measurement.cells
+        val capabilityNotes = measurement.capabilityNotes ?: listOfNotNull(
+            telephony.note?.let { "telephony:$it" },
+            network.note?.let { "network:$it" },
+            location.note?.let { "location:$it" },
+            device.note?.let { "device:$it" },
+        ).takeIf { it.isNotEmpty() }?.joinToString(" | ")
         return measurement.copy(
             deviceManufacturer = measurement.deviceManufacturer ?: device.manufacturer,
             deviceModel = measurement.deviceModel ?: device.model,
@@ -114,6 +121,11 @@ class MeasurementCapabilityEnricher {
             simMnc = measurement.simMnc ?: telephony.simMnc,
             netMcc = measurement.netMcc ?: telephony.netMcc,
             netMnc = measurement.netMnc ?: telephony.netMnc,
+            telephonySupport = measurement.telephonySupport ?: telephony.support.name,
+            networkSupport = measurement.networkSupport ?: network.support.name,
+            locationSupport = measurement.locationSupport ?: location.support.name,
+            deviceSupport = measurement.deviceSupport ?: device.support.name,
+            capabilityNotes = capabilityNotes,
             networkConnected = measurement.networkConnected ?: network.connected,
             networkAvailable = measurement.networkAvailable ?: network.available,
             networkRoaming = measurement.networkRoaming ?: network.roaming,

@@ -23,6 +23,11 @@ CREATE TABLE IF NOT EXISTS MeasurementEntity(
   simMnc TEXT,
   netMcc TEXT,
   netMnc TEXT,
+  telephonySupport TEXT,
+  networkSupport TEXT,
+  locationSupport TEXT,
+  deviceSupport TEXT,
+  capabilityNotes TEXT,
   connectionType TEXT,
   cellularDataEnabled INTEGER,
   extraData TEXT,
@@ -43,9 +48,10 @@ INSERT OR REPLACE INTO MeasurementEntity(
   id, groupId, campaignId, sessionId, deviceId, deviceManufacturer, deviceModel, deviceOsName,
   deviceOsVersion, appName, provider, type, timestamp, duration, scheduled, success,
   carrierAggregation, networkConnected, networkAvailable, networkRoaming, simMcc, simMnc,
-  netMcc, netMnc, connectionType, cellularDataEnabled, extraData, createdOn, updatedOn,
+  netMcc, netMnc, telephonySupport, networkSupport, locationSupport, deviceSupport,
+  capabilityNotes, connectionType, cellularDataEnabled, extraData, createdOn, updatedOn,
   uploadTime, appVersion
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteMeasurementById:
 DELETE FROM MeasurementEntity WHERE id = ?;

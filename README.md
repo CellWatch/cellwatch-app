@@ -649,6 +649,18 @@ Not yet ported (still Android-only in `frozenApp/`):
   - Contract tests in `shared/src/commonTest`, plus Android/iOS platform tests in `shared/src/androidUnitTest` and `shared/src/iosTest`
   - MSAK measurement executors now enrich every produced measurement via `MeasurementCapabilityEnricher`, and Android/iOS test harnesses inject concrete platform providers.
   - Android/iOS Phase 3 harness outputs now include a shared formatted capability capture summary (support states + notes) so best-effort gaps are explicit in smoke runs.
+  - Capability support states and notes are now persisted in local measurement storage (`telephonySupport`, `networkSupport`, `locationSupport`, `deviceSupport`, `capabilityNotes`) so downstream analysis can distinguish "not available by platform/policy" from "missing due to runtime failure."
+
+### Android vs iPhone measurement data (current shared contract)
+- Android (typically richer):
+  - Telephony identity and radio fields are often available when permissions are granted (`provider`, `simMcc/simMnc`, `netMcc/netMnc`, cell list).
+  - Connectivity and device metadata are usually available in normal app/runtime contexts.
+- iPhone (best-effort/partial by design):
+  - Telephony/radio details are frequently unavailable or restricted; capability is recorded as `PARTIAL`, `PERMISSION_DENIED`, or `NOT_SUPPORTED` with notes.
+  - Device metadata is available; network/location may be partial depending on host/runtime permissions and APIs.
+- Cross-platform interpretation rule:
+  - Absence of a raw field should not be treated as a hard failure by itself.
+  - Use persisted capability support fields + `capabilityNotes` to interpret whether missing measurement values are expected platform behavior.
 - Tier 1 tests:
   - Contract tests with fakes in `commonTest`
 - Tier 2 tests:

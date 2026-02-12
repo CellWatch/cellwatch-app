@@ -32,6 +32,7 @@ class PlatformCapabilitySnapshotTest {
                 simMnc = "410",
                 netMcc = "310",
                 netMnc = "260",
+                note = "telephony good",
             ),
             network = NetworkCapabilitySnapshot(
                 support = CapabilitySupport.AVAILABLE,
@@ -40,9 +41,11 @@ class PlatformCapabilitySnapshotTest {
                 roaming = false,
                 connectionType = NetworkConnectionType.CELLULAR,
                 cellularDataEnabled = true,
+                note = "network sampled",
             ),
             location = LocationCapabilitySnapshot(
                 support = CapabilitySupport.PARTIAL,
+                note = "location coarse only",
             ),
             device = DeviceCapabilitySnapshot(
                 support = CapabilitySupport.AVAILABLE,
@@ -51,6 +54,7 @@ class PlatformCapabilitySnapshotTest {
                 osName = "iOS",
                 osVersion = "18.0",
                 appVersion = "1.2.3",
+                note = "device metadata captured",
             ),
         )
         val base = Measurement(
@@ -70,6 +74,12 @@ class PlatformCapabilitySnapshotTest {
         assertEquals(true, enriched.networkConnected)
         assertEquals(false, enriched.networkRoaming)
         assertEquals(true, enriched.cellularDataEnabled)
+        assertEquals("AVAILABLE", enriched.telephonySupport)
+        assertEquals("AVAILABLE", enriched.networkSupport)
+        assertEquals("PARTIAL", enriched.locationSupport)
+        assertEquals("AVAILABLE", enriched.deviceSupport)
+        assertTrue(enriched.capabilityNotes?.contains("telephony:telephony good") == true)
+        assertTrue(enriched.capabilityNotes?.contains("location:location coarse only") == true)
     }
 
     @Test
