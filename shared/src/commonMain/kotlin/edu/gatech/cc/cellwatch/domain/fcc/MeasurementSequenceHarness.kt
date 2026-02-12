@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
 import edu.gatech.cc.cellwatch.domain.capability.CapabilityCaptureReportFormatter
+import edu.gatech.cc.cellwatch.domain.capability.CapabilityPersistenceSummaryFormatter
 import edu.gatech.cc.cellwatch.domain.capability.NoOpPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.capability.PlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
@@ -23,6 +24,7 @@ data class MeasurementSequenceHarnessResult(
     val persistedSubmissions: Int,
     val persistedMeasurementsWithCapabilitySupport: Int,
     val persistedMeasurementsWithCapabilityNotes: Int,
+    val capabilityPersistenceSummary: String,
     val capabilitySummary: String,
 )
 
@@ -95,8 +97,7 @@ class MeasurementSequenceHarness(
                 )
                 val outcome = orchestrator.run(request)
                 val persistedMeasurements = resultStore.measurements.size
-                val withSupport = resultStore.measurements.count { it.hasCapabilitySupportStates() }
-                val withNotes = resultStore.measurements.count { !it.capabilityNotes.isNullOrBlank() }
+                val persistenceSummary = CapabilityPersistenceSummaryFormatter.summarize(resultStore.measurements)
                 MeasurementSequenceHarnessResult(
                     throughputMachine = outcome.throughputServerMachine,
                     latencyMachine = outcome.latencyServerMachine,
@@ -104,8 +105,9 @@ class MeasurementSequenceHarness(
                     submissionCreated = outcome.group.submission != null,
                     persistedMeasurements = persistedMeasurements,
                     persistedSubmissions = resultStore.submissions.size,
-                    persistedMeasurementsWithCapabilitySupport = withSupport,
-                    persistedMeasurementsWithCapabilityNotes = withNotes,
+                    persistedMeasurementsWithCapabilitySupport = persistenceSummary.withSupportStates,
+                    persistedMeasurementsWithCapabilityNotes = persistenceSummary.withNotes,
+                    capabilityPersistenceSummary = CapabilityPersistenceSummaryFormatter.format(persistenceSummary),
                     capabilitySummary = capabilitySummary,
                 )
             }.onSuccess {
@@ -119,13 +121,6 @@ class MeasurementSequenceHarness(
     fun close() {
         scope.cancel()
     }
-}
-
-private fun Measurement.hasCapabilitySupportStates(): Boolean {
-    return !telephonySupport.isNullOrBlank() &&
-        !networkSupport.isNullOrBlank() &&
-        !locationSupport.isNullOrBlank() &&
-        !deviceSupport.isNullOrBlank()
 }
 
 private class SelectorBackedServerPairProvider(

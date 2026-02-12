@@ -20,6 +20,7 @@ import edu.gatech.cc.cellwatch.data.repo.UploadDownloadDataRepositoryImpl
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.capability.AndroidPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.capability.CapabilityCaptureReportFormatter
+import edu.gatech.cc.cellwatch.domain.capability.CapabilityPersistenceSummaryFormatter
 import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
 import edu.gatech.cc.cellwatch.domain.fcc.MsakServerSelectionHarness
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
@@ -298,8 +299,12 @@ class MainActivity : AppCompatActivity() {
                 syncOrchestrator.run(request) to capabilitySummary
             }.onSuccess { (outcome, capabilitySummary) ->
                 val sequence = outcome.sequenceOutcome
-                val persistedMeasurements = measurementRepo.getByGroupId(sequence.group.id).size
+                val persistedMeasurementsList = measurementRepo.getByGroupId(sequence.group.id)
+                val persistedMeasurements = persistedMeasurementsList.size
                 val persistedSubmissions = if (submissionRepo.getById(sequence.group.id) != null) 1 else 0
+                val capabilityPersistenceSummary = CapabilityPersistenceSummaryFormatter.format(
+                    CapabilityPersistenceSummaryFormatter.summarize(persistedMeasurementsList),
+                )
                 val uploadTime = outcome.measurementCompleteUploadTime?.toEpochMilliseconds() ?: -1L
                 val envelope = smokeEnvelopeBuilder.phase3Sequence(
                     measurementCompleteUploadTimeSet = outcome.measurementCompleteUploadTime != null,
@@ -315,6 +320,7 @@ class MainActivity : AppCompatActivity() {
                     "mapStartUploaded(m=${outcome.mapStartReport.measurements.uploaded},s=${outcome.mapStartReport.submissions.uploaded})\n" +
                     "measurementCompleteUploadTimeMs=$uploadTime\n" +
                     "persistedMeasurements=$persistedMeasurements, persistedSubmissions=$persistedSubmissions\n" +
+                    "$capabilityPersistenceSummary\n" +
                     capabilitySummary
             }.onFailure {
                 val envelope = smokeEnvelopeBuilder.failure(

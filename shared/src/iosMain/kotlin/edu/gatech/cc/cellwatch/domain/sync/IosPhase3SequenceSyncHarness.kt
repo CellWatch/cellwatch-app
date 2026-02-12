@@ -11,6 +11,7 @@ import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import edu.gatech.cc.cellwatch.data.sync.SupabaseSyncRemoteDataSourceProvider
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.capability.CapabilityCaptureReportFormatter
+import edu.gatech.cc.cellwatch.domain.capability.CapabilityPersistenceSummaryFormatter
 import edu.gatech.cc.cellwatch.domain.capability.IosPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
@@ -32,6 +33,7 @@ data class IosPhase3SequenceSyncResult(
     val measurementCompleteUploadTimeSet: Boolean,
     val persistedMeasurements: Int,
     val persistedSubmissions: Int,
+    val capabilityPersistenceSummary: String,
     val capabilitySummary: String,
 )
 
@@ -135,6 +137,8 @@ class IosPhase3SequenceSyncHarness {
             )
             val outcome = syncOrchestrator.run(request)
             val groupId = outcome.sequenceOutcome.group.id
+            val persistedMeasurements = measurementRepo.getByGroupId(groupId)
+            val persistenceSummary = CapabilityPersistenceSummaryFormatter.summarize(persistedMeasurements)
 
             return IosPhase3SequenceSyncResult(
                 groupId = groupId,
@@ -144,8 +148,9 @@ class IosPhase3SequenceSyncHarness {
                 mapStartMeasurementsUploaded = outcome.mapStartReport.measurements.uploaded,
                 mapStartSubmissionsUploaded = outcome.mapStartReport.submissions.uploaded,
                 measurementCompleteUploadTimeSet = outcome.measurementCompleteUploadTime != null,
-                persistedMeasurements = measurementRepo.getByGroupId(groupId).size,
+                persistedMeasurements = persistedMeasurements.size,
                 persistedSubmissions = if (submissionRepo.getById(groupId) != null) 1 else 0,
+                capabilityPersistenceSummary = CapabilityPersistenceSummaryFormatter.format(persistenceSummary),
                 capabilitySummary = capabilitySummary,
             )
         } finally {
