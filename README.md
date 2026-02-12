@@ -445,6 +445,10 @@ Not yet ported (still Android-only in `frozenApp/`):
     - shared transport-boundary wiring via `SyncSupabaseConfigResolver` + `SyncTransportTarget` for explicit local/remote transport selection
   - Shared parity scenario harness in `shared/domain/sync/UploadTriggerParityHarness.kt`
     - single default scenario used by Android and iOS hosted tests to assert equal report/upload-time contract
+  - Shared `UploadTriggerUseCase` contract tests in `shared/src/commonTest/.../UploadTriggerUseCaseTest.kt` covering:
+    - map-start sync delegation
+    - measurement-complete sync + upload-time resolution semantics
+    - upload-time edge cases for pending records and measurement-id fallback ordering
   - Shared FCC submission policy extraction in `shared/domain/fcc/FccSubmissionPolicy.kt`:
     - eligibility contract ported from legacy `MeasurementManager` (`FCC_CHALLENGE` mode + non-WIFI + cellular-data-not-false)
     - deterministic metadata fallback aggregation from latency/download/upload measurements for submission construction
