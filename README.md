@@ -55,6 +55,25 @@ Local development and test harness work is now guarded to use local Supabase by 
   - `SUPABASE_LOCAL_URL="http://10.0.2.2:54321"`
   - local Supabase anon key (CLI default)
 
+### Runtime Mode Model (MSAK + Supabase)
+
+Shared runtime profile wiring now supports explicit mode selection:
+- MSAK modes: `LOCAL`, `STAGING`, `PUBLIC`
+- Supabase modes: `LOCAL`, `TESTING`, `LIVE`
+
+Implementation entrypoints:
+- `RuntimeSyncMsakProfiles.fromModes(...)`
+- `RuntimeSyncMsakProfileBridge.resolveFromModes(...)`
+
+Supabase mode mapping:
+- `LOCAL` -> shared sync target `LOCAL` (uses `SUPABASE_LOCAL_URL` + `SUPABASE_LOCAL_API_KEY`)
+- `TESTING` -> shared sync target `REMOTE` (uses `SUPABASE_TESTING_URL` + `SUPABASE_TESTING_API_KEY`)
+- `LIVE` -> shared sync target `REMOTE` (uses `SUPABASE_URL` + `SUPABASE_API_KEY`)
+
+Current project policy:
+- We only operate in `Supabase LOCAL` mode for active development and test workflows.
+- `TESTING`/`LIVE` paths exist for future staged rollout, but remain guard-railed by `allowRemoteSupabase` and are not part of normal day-to-day usage.
+
 ### Start/Stop Local Supabase
 
 Use helper script:
@@ -354,7 +373,8 @@ If run separately:
   - Both harnesses now resolve runtime Supabase config through shared `SyncRuntimeConfig` (`allowRemote=false` by default)
   - Both harnesses validate shared upload-trigger entrypoints (`onMapStart` + `onMeasurementComplete`) against local Supabase
 - shared runtime profile contract:
-  - `RuntimeSyncMsakProfiles.publicMsakLocalSupabase(...)` defines a single shared config path for:
+  - `RuntimeSyncMsakProfiles.fromModes(...)` defines the shared MSAK+Supabase mode contract.
+  - `RuntimeSyncMsakProfiles.publicMsakLocalSupabase(...)` remains as the convenience profile for:
     - MSAK target = public/prod
     - Supabase target = local-only
   - Used by Android/iOS opt-in Tier 2 smoke tests to prevent accidental remote Supabase writes while exercising public MSAK paths.
