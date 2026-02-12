@@ -5,6 +5,7 @@ import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceHarnessResult
 import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateConfig
 import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateEnvironment
 import edu.gatech.cc.cellwatch.domain.capability.AndroidPlatformCapabilityProvider
+import edu.gatech.cc.cellwatch.domain.sync.Phase3SequenceParityArtifactFactory
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -85,6 +86,11 @@ class LocalMsakPhase3SequenceSmokeTest {
         }
 
         val nonNull = requireNotNull(result)
+        val artifactFactory = Phase3SequenceParityArtifactFactory()
+        val artifactJson = artifactFactory.buildJson(platform = "android", result = nonNull)
+        val parsedArtifact = artifactFactory.parseJson(artifactJson)
+        println("phase3SequenceParityArtifact=$artifactJson")
+
         assertNotNull(nonNull.groupId)
         assertTrue(nonNull.throughputMachine.isNotBlank())
         assertTrue(nonNull.latencyMachine.isNotBlank())
@@ -93,6 +99,8 @@ class LocalMsakPhase3SequenceSmokeTest {
         assertTrue(nonNull.persistedMeasurementsWithCapabilityNotes >= 0)
         assertTrue(nonNull.capabilityPersistenceSummary.startsWith("capabilityPersistence("))
         assertTrue(nonNull.capabilitySummary.startsWith("capabilities("))
+        assertEquals(1, parsedArtifact.schemaVersion)
+        assertEquals("android", parsedArtifact.platform)
     }
 }
 
