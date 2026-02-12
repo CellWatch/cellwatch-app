@@ -595,11 +595,11 @@ Not yet ported (still Android-only in `frozenApp/`):
   - iOS hosted parity harness tests via `:shared:verifyIosTestAppHosted`
 
 ### Immediate Next Slice
-- Candidate extraction target:
-  - Additional legacy trigger and FCC flow slices from `frozenApp/` into shared-first orchestration
+- Phase 4 hardening:
+  - Add hosted verification (Android + iOS harness paths) that capability support states and notes persist through full measurement runs.
+  - Extend local Supabase inspection/report checks to surface persisted capability fields so "platform-expected missing data" is distinguishable from execution failures.
 - Migration strategy:
-  - Validate behavior first in `androidTestApp` and `iosTestApp` harnesses
-  - After parity is stable, wire the same shared-first slice into future KMP Android/iOS product app modules
+  - Keep shared-first logic and validate parity in `androidTestApp` and `iosTestApp` before wiring into future product app modules.
 
 ### Deferred Coordination TODOs
 - Coordinate Supabase migration-history reconciliation with main branch before tracking live-compatible migrations in-repo
@@ -629,7 +629,7 @@ Not yet ported (still Android-only in `frozenApp/`):
   - Deterministic shared engine tests in `commonTest`
 - Tier 2 tests:
   - Android instrumented smoke test for real runtime behavior
-  - iOS hosted integration smoke test when iOS adapter is added
+  - iOS hosted integration smoke test via `iosTestApp`
   - Optional local MSAK smoke (Android Robolectric):
     - `CELLWATCH_RUN_LOCAL_MSAK_SMOKE=1 ./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.LocalMsakPhase3SequenceSmokeTest"`
 
@@ -665,7 +665,7 @@ Not yet ported (still Android-only in `frozenApp/`):
   - Contract tests with fakes in `commonTest`
 - Tier 2 tests:
   - Android instrumentation for telephony-backed paths
-  - iOS hosted tests for CoreTelephony-backed paths (when wired)
+  - iOS hosted tests for best-effort capability signaling and persisted support-state coverage
 
 ### Phase 5: App-layer convergence
 - Build replacement Android/iOS product app layers that consume shared repositories/use-cases
