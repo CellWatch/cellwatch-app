@@ -105,7 +105,11 @@ class PublicMsakLocalSupabaseSmokeTest {
         assertTrue(nonNull.capabilityPersistenceSummary.startsWith("capabilityPersistence("))
         assertTrue(nonNull.capabilitySummary.startsWith("capabilities("))
 
-        assumeTrue("local supabase unavailable", isSupabaseReachable(resolvedSupabase.url))
+        val localSupabaseReachable = isSupabaseReachable(resolvedSupabase.url)
+        if (!localSupabaseReachable && System.getenv("CELLWATCH_ALLOW_LOCAL_SUPABASE_UNAVAILABLE_SKIP") == "1") {
+            assumeTrue("Skipping local Supabase unavailable due to CELLWATCH_ALLOW_LOCAL_SUPABASE_UNAVAILABLE_SKIP=1", false)
+        }
+        assertTrue("Local Supabase unreachable at ${resolvedSupabase.url}", localSupabaseReachable)
 
         val context: Context = ApplicationProvider.getApplicationContext()
         val driver = AndroidSqliteDriver(

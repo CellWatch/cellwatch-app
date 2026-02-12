@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.Project
 import java.io.File
 
 plugins {
@@ -250,6 +251,16 @@ tasks.register("verifyLocalSupabaseJvmIntegration") {
     dependsOn("jvmLocalSupabaseIntegrationTest")
 }
 
+fun Project.readBypassFlag(propertyName: String, envName: String): String {
+    return (findProperty(propertyName) as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: System.getenv(envName)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+        ?: "0"
+}
+
 tasks.register("verifyAndroidPublicMsakLocalSupabaseSmoke") {
     description = "Tier 2: Android smoke for public MSAK + local Supabase runtime profile."
     group = "verification"
@@ -262,6 +273,13 @@ tasks.register("verifyAndroidPublicMsakLocalSupabaseSmoke") {
                 "edu.gatech.cc.cellwatch.androidtestapp.PublicMsakLocalSupabaseSmokeTest",
             )
             environment("CELLWATCH_RUN_PUBLIC_MSAK_LOCAL_SUPABASE_SMOKE", "1")
+            environment(
+                "CELLWATCH_ALLOW_LOCAL_SUPABASE_UNAVAILABLE_SKIP",
+                project.readBypassFlag(
+                    propertyName = "cellwatch.allowLocalSupabaseUnavailableSkip",
+                    envName = "CELLWATCH_ALLOW_LOCAL_SUPABASE_UNAVAILABLE_SKIP",
+                ),
+            )
             workingDir = rootProject.projectDir
         }
     }
@@ -279,6 +297,13 @@ tasks.register("verifyAndroidLocalMsakPhase3Smoke") {
                 "edu.gatech.cc.cellwatch.androidtestapp.LocalMsakPhase3SequenceSmokeTest",
             )
             environment("CELLWATCH_RUN_LOCAL_MSAK_SMOKE", "1")
+            environment(
+                "CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP",
+                project.readBypassFlag(
+                    propertyName = "cellwatch.allowLocalMsakTransientSkip",
+                    envName = "CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP",
+                ),
+            )
             workingDir = rootProject.projectDir
         }
     }
@@ -372,7 +397,15 @@ tasks.register("verifyIosTestAppHostedLocalMsakSmoke") {
     }
     doLast {
         val marker = file("/tmp/cellwatch-ios-local-msak-smoke-required")
+        val transientSkipMarker = file("/tmp/cellwatch-ios-local-msak-transient-skip-allowed")
+        val allowTransientSkip = project.readBypassFlag(
+            propertyName = "cellwatch.allowLocalMsakTransientSkip",
+            envName = "CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP",
+        )
         marker.writeText("1\n")
+        if (allowTransientSkip == "1") {
+            transientSkipMarker.writeText("1\n")
+        }
         try {
             exec {
                 commandLine(
@@ -386,10 +419,15 @@ tasks.register("verifyIosTestAppHostedLocalMsakSmoke") {
                     "-only-testing:iosTestAppTests/LocalMsakPhase3HostedTests/testHostedLocalMsakPhase3Sequence_whenEnabled",
                     "test",
                 )
+                environment(
+                    "CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP",
+                    allowTransientSkip,
+                )
                 workingDir = rootProject.projectDir
             }
         } finally {
             marker.delete()
+            transientSkipMarker.delete()
         }
     }
 }

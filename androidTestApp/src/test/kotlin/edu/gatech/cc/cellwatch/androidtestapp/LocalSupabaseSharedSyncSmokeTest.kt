@@ -28,6 +28,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
@@ -67,7 +68,11 @@ class LocalSupabaseSharedSyncSmokeTest {
     fun syncAll_runsAgainstLocalSupabase_only() = runBlocking {
         val environmentProvider = CellwatchPropertiesSupabaseEnvironmentProvider()
         val localEnv = environmentProvider.resolve(SupabaseTarget.LOCAL)
-        assumeTrue("local supabase unavailable", isSupabaseReachable(localEnv.url))
+        val localSupabaseReachable = isSupabaseReachable(localEnv.url)
+        if (!localSupabaseReachable && System.getenv("CELLWATCH_ALLOW_LOCAL_SUPABASE_UNAVAILABLE_SKIP") == "1") {
+            assumeTrue("Skipping local Supabase unavailable due to CELLWATCH_ALLOW_LOCAL_SUPABASE_UNAVAILABLE_SKIP=1", false)
+        }
+        assertTrue("Local Supabase unreachable at ${localEnv.url}", localSupabaseReachable)
 
         val authStore = InMemoryDeviceAuthStore()
         val deviceId = authStore.getDeviceId()

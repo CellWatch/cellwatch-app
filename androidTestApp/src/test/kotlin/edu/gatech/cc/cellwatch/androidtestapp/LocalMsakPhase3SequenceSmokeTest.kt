@@ -48,10 +48,7 @@ class LocalMsakPhase3SequenceSmokeTest {
             ?.trim('"')
             ?.toBooleanStrictOrNull()
             ?: false
-        assumeTrue(
-            "MSAK_LOCAL_SERVER_HOST must be set in cellwatch.properties",
-            localHost.isNotEmpty(),
-        )
+        assertTrue("MSAK_LOCAL_SERVER_HOST must be set in cellwatch.properties", localHost.isNotEmpty())
 
         val latch = CountDownLatch(1)
         var result: MeasurementSequenceHarnessResult? = null
@@ -78,7 +75,14 @@ class LocalMsakPhase3SequenceSmokeTest {
         val completed = latch.await(90, TimeUnit.SECONDS)
         harness.close()
         assertTrue("Phase3 local MSAK smoke test timed out", completed)
-        if (error != null) throw AssertionError("Phase3 local MSAK smoke failed", error)
+        if (error != null) {
+            val capturedError = requireNotNull(error)
+            val allowTransientSkip = System.getenv("CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP") == "1"
+            if (allowTransientSkip && isTransientLocalMsakFailure(capturedError)) {
+                assumeTrue("Skipping local MSAK transient failure due to CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP=1: ${capturedError.message}", false)
+            }
+            throw AssertionError("Phase3 local MSAK smoke failed", capturedError)
+        }
 
         val nonNull = requireNotNull(result)
         assertNotNull(nonNull.groupId)
@@ -90,6 +94,21 @@ class LocalMsakPhase3SequenceSmokeTest {
         assertTrue(nonNull.capabilityPersistenceSummary.startsWith("capabilityPersistence("))
         assertTrue(nonNull.capabilitySummary.startsWith("capabilities("))
     }
+}
+
+private fun isTransientLocalMsakFailure(error: Throwable?): Boolean {
+    if (error == null) return false
+    val joined = generateSequence(error) { it.cause }
+        .joinToString(" | ") { "${it::class.simpleName}:${it.message.orEmpty()}" }
+        .lowercase()
+    return listOf(
+        "authorizefailure",
+        "no latency result",
+        "timed out",
+        "connection refused",
+        "socket is not connected",
+        "cannot connect",
+    ).any { joined.contains(it) }
 }
 
 private fun normalizeHostForRobolectric(rawHost: String): String {
