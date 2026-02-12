@@ -638,6 +638,10 @@ Not yet ported (still Android-only in `frozenApp/`):
 - Keep implementations in app layers:
   - Android actuals in `shared/androidMain` or Android app module
   - iOS actuals in iOS app target
+- iOS capability policy is best-effort by design:
+  - Some telephony/network/location fields available on Android will be unavailable, permission-gated, or unsupported on iOS.
+  - Shared contracts must represent that explicitly (support state + nullable fields) instead of treating missing values as hard failures.
+  - Reporting/upload payload assembly should proceed with partial capability snapshots when required fields are unavailable on iOS.
 - Tier 1 tests:
   - Contract tests with fakes in `commonTest`
 - Tier 2 tests:
