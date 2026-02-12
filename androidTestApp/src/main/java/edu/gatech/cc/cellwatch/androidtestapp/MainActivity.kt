@@ -19,6 +19,7 @@ import edu.gatech.cc.cellwatch.data.repo.MeasurementRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.UploadDownloadDataRepositoryImpl
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.capability.AndroidPlatformCapabilityProvider
+import edu.gatech.cc.cellwatch.domain.capability.CapabilityCaptureReportFormatter
 import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
 import edu.gatech.cc.cellwatch.domain.fcc.MsakServerSelectionHarness
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
@@ -262,6 +263,16 @@ class MainActivity : AppCompatActivity() {
     private fun runPhase3Sequence() {
         scope.launch {
             runCatching {
+                val capabilityProvider = AndroidPlatformCapabilityProvider(applicationContext)
+                val capabilitySummary = runCatching {
+                    CapabilityCaptureReportFormatter.format(
+                        CapabilityCaptureReportFormatter.fromSnapshot(
+                            capabilityProvider.captureSnapshot(),
+                        ),
+                    )
+                }.getOrElse { error ->
+                    "capabilities(capture=FAILED, error=${error.message})"
+                }
                 val request = MeasurementSequenceRequest(
                     groupId = "phase3-${Clock.System.now().toEpochMilliseconds()}",
                     inVehicle = false,
@@ -278,14 +289,14 @@ class MainActivity : AppCompatActivity() {
                     config = runtimeProfile.msakConfig.copy(userAgent = "android-test-app-phase3-sync"),
                     resultStore = resultStore,
                     appSource = "android-test-app-phase3-sync",
-                    capabilityProvider = AndroidPlatformCapabilityProvider(applicationContext),
+                    capabilityProvider = capabilityProvider,
                 )
                 val syncOrchestrator = MeasurementSequenceSyncOrchestrator(
                     sequenceOrchestrator = sequenceOrchestrator,
                     uploadTriggerUseCase = createSyncDriverFactory().createUploadTriggerUseCase(resolveSupabaseTarget()),
                 )
-                syncOrchestrator.run(request)
-            }.onSuccess { outcome ->
+                syncOrchestrator.run(request) to capabilitySummary
+            }.onSuccess { (outcome, capabilitySummary) ->
                 val sequence = outcome.sequenceOutcome
                 val persistedMeasurements = measurementRepo.getByGroupId(sequence.group.id).size
                 val persistedSubmissions = if (submissionRepo.getById(sequence.group.id) != null) 1 else 0
@@ -303,7 +314,8 @@ class MainActivity : AppCompatActivity() {
                     "submissionCreated=${sequence.group.submission != null}\n" +
                     "mapStartUploaded(m=${outcome.mapStartReport.measurements.uploaded},s=${outcome.mapStartReport.submissions.uploaded})\n" +
                     "measurementCompleteUploadTimeMs=$uploadTime\n" +
-                    "persistedMeasurements=$persistedMeasurements, persistedSubmissions=$persistedSubmissions"
+                    "persistedMeasurements=$persistedMeasurements, persistedSubmissions=$persistedSubmissions\n" +
+                    capabilitySummary
             }.onFailure {
                 val envelope = smokeEnvelopeBuilder.failure(
                     scenario = "phase3-sequence-sync",

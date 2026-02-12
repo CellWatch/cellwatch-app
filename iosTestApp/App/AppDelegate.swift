@@ -264,7 +264,8 @@ private final class HarnessViewController: UIViewController {
                 "submissionCreated=\(value.submissionCreated)\n" +
                 "mapStartUploaded(m=\(value.mapStartMeasurementsUploaded),s=\(value.mapStartSubmissionsUploaded))\n" +
                 "measurementCompleteUploadTimeSet=\(value.measurementCompleteUploadTimeSet)\n" +
-                "persistedMeasurements=\(value.persistedMeasurements), persistedSubmissions=\(value.persistedSubmissions)"
+                "persistedMeasurements=\(value.persistedMeasurements), persistedSubmissions=\(value.persistedSubmissions)\n" +
+                "\(value.capabilitySummary)"
         }
     }
 }

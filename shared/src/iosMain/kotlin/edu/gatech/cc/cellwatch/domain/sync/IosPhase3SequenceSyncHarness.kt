@@ -10,6 +10,7 @@ import edu.gatech.cc.cellwatch.data.sync.SyncRuntimeConfigFactory
 import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import edu.gatech.cc.cellwatch.data.sync.SupabaseSyncRemoteDataSourceProvider
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
+import edu.gatech.cc.cellwatch.domain.capability.CapabilityCaptureReportFormatter
 import edu.gatech.cc.cellwatch.domain.capability.IosPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
@@ -31,6 +32,7 @@ data class IosPhase3SequenceSyncResult(
     val measurementCompleteUploadTimeSet: Boolean,
     val persistedMeasurements: Int,
     val persistedSubmissions: Int,
+    val capabilitySummary: String,
 )
 
 class IosPhase3SequenceSyncHarness {
@@ -65,6 +67,11 @@ class IosPhase3SequenceSyncHarness {
         )
 
         try {
+            val capabilityProvider = IosPlatformCapabilityProvider(
+                clock = object : Clock {
+                    override fun now(): Instant = now
+                },
+            )
             val remoteProfile = SyncRemoteProfile.Supabase(
                 configResolver = SyncRuntimeConfigFactory.fromRaw(
                     allowRemote = false,
@@ -105,10 +112,17 @@ class IosPhase3SequenceSyncHarness {
                     override fun now(): Instant = now
                 },
                 appSource = "ios-test-app-phase3-sync",
-                capabilityProvider = IosPlatformCapabilityProvider(clock = object : Clock {
-                    override fun now(): Instant = now
-                }),
+                capabilityProvider = capabilityProvider,
             )
+            val capabilitySummary = runCatching {
+                CapabilityCaptureReportFormatter.format(
+                    CapabilityCaptureReportFormatter.fromSnapshot(
+                        capabilityProvider.captureSnapshot(),
+                    ),
+                )
+            }.getOrElse { error ->
+                "capabilities(capture=FAILED, error=${error.message})"
+            }
             val syncOrchestrator = MeasurementSequenceSyncOrchestrator(
                 sequenceOrchestrator = sequenceOrchestrator,
                 uploadTriggerUseCase = uploadTriggerUseCase,
@@ -132,6 +146,7 @@ class IosPhase3SequenceSyncHarness {
                 measurementCompleteUploadTimeSet = outcome.measurementCompleteUploadTime != null,
                 persistedMeasurements = measurementRepo.getByGroupId(groupId).size,
                 persistedSubmissions = if (submissionRepo.getById(groupId) != null) 1 else 0,
+                capabilitySummary = capabilitySummary,
             )
         } finally {
             driver.close()

@@ -648,6 +648,7 @@ Not yet ported (still Android-only in `frozenApp/`):
   - iOS best-effort provider in `shared/src/iosMain/.../IosPlatformCapabilityProvider.kt` (device metadata + explicit partial/unsupported signaling)
   - Contract tests in `shared/src/commonTest`, plus Android/iOS platform tests in `shared/src/androidUnitTest` and `shared/src/iosTest`
   - MSAK measurement executors now enrich every produced measurement via `MeasurementCapabilityEnricher`, and Android/iOS test harnesses inject concrete platform providers.
+  - Android/iOS Phase 3 harness outputs now include a shared formatted capability capture summary (support states + notes) so best-effort gaps are explicit in smoke runs.
 - Tier 1 tests:
   - Contract tests with fakes in `commonTest`
 - Tier 2 tests:
