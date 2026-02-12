@@ -22,6 +22,11 @@ class MeasurementMappersTest {
             networkConnected = true,
             networkAvailable = true,
             networkRoaming = false,
+            telephonySupport = "AVAILABLE",
+            networkSupport = "PARTIAL",
+            locationSupport = "PERMISSION_DENIED",
+            deviceSupport = "AVAILABLE",
+            capabilityNotes = "telephony:ok | location:denied",
             connectionType = NetworkConnectionType.CELLULAR,
             cellularDataEnabled = true,
             createdOn = now,
@@ -38,5 +43,8 @@ class MeasurementMappersTest {
         assertEquals(measurement.success, back.success)
         assertEquals(measurement.connectionType, back.connectionType)
         assertEquals(measurement.cellularDataEnabled, back.cellularDataEnabled)
+        assertEquals(measurement.telephonySupport, back.telephonySupport)
+        assertEquals(measurement.locationSupport, back.locationSupport)
+        assertEquals(measurement.capabilityNotes, back.capabilityNotes)
     }
 }
