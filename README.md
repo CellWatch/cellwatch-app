@@ -343,7 +343,8 @@ If run separately:
 - iOS realistic (new parity host) only: `./gradlew :shared:verifyIosTestAppHosted`
 - iOS local-MSAK hosted smoke only: `./gradlew :shared:verifyIosTestAppHostedLocalMsakSmoke`
   - Runs only `LocalMsakPhase3HostedTests` and creates a temporary marker file for explicit opt-in.
-  - If local `msak-server` is unavailable or UDP latency is unsupported for that runtime path, test reports `skipped` with a clear reason.
+  - Strict by default: local `msak-server` runtime issues fail the test.
+  - Optional transient bypass: set `CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP=1` to allow skip on known local infra/runtime transients.
 - Android public-MSAK/local-Supabase smoke only: `./gradlew :shared:verifyAndroidPublicMsakLocalSupabaseSmoke`
   - Runs only `PublicMsakLocalSupabaseSmokeTest` with explicit env gating.
 - iOS public-MSAK/local-Supabase hosted smoke only: `./gradlew :shared:verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke`
@@ -383,7 +384,11 @@ Optional narrower commands:
   - `./gradlew :shared:verifyAndroidFailureStatusSmoke`
 
 Expected skip/fail behavior:
-- Local-MSAK hosted smoke tests can report `skipped` when local server/runtime requirements are unavailable.
+- Local-MSAK smoke tests are fail-by-default for runtime issues. Use `CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP=1` only when explicitly bypassing known local transients.
+- Local Supabase smoke tests are fail-by-default for local stack unavailability. Use `CELLWATCH_ALLOW_LOCAL_SUPABASE_UNAVAILABLE_SKIP=1` for explicit developer bypass.
+- For nested Gradle/Xcode smoke tasks (especially with long-lived Gradle daemons), you can pass bypass flags via project properties for reliable propagation:
+  - `-Pcellwatch.allowLocalMsakTransientSkip=1`
+  - `-Pcellwatch.allowLocalSupabaseUnavailableSkip=1`
 - Failure-status smoke tests must pass only when failure is surfaced cleanly (error returned, no crash).
 - Any hard test failure (assertion/process exit) should block check-in.
 
@@ -468,7 +473,34 @@ Use log levels intentionally:
 
 CellWatch shared Phase 3 harness can target `MsakLocateEnvironment.LOCAL` and `MSAK_LOCAL_SERVER_HOST` for local end-to-end measurement testing.
 
-### Run server from local source build
+### Preferred: shared helper script (`scripts/msak-local.sh`)
+
+Use the repo helper so all developers run the same Dockerized local server path:
+
+```bash
+./scripts/msak-local.sh start
+./scripts/msak-local.sh status
+./scripts/msak-local.sh smoke
+./scripts/msak-local.sh logs
+./scripts/msak-local.sh stop
+```
+
+Defaults:
+- Expects a local `msak` checkout at `../msak` relative to this repo root
+- Runs Docker container `msak-local` from image `msak-local:dev`
+- Maps `8080/tcp` and `1053/udp`
+- Mounts `<msak checkout>/data` into the container for persisted local output
+
+Override paths/ports as needed:
+
+```bash
+CELLWATCH_MSAK_REPO_DIR=/absolute/path/to/msak \
+CELLWATCH_MSAK_WS_PORT=8080 \
+CELLWATCH_MSAK_UDP_PORT=1053 \
+./scripts/msak-local.sh rebuild
+```
+
+### Manual run from local source build
 
 ```bash
 git clone https://github.com/m-lab/msak.git
