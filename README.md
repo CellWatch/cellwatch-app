@@ -3,9 +3,9 @@
 CellWatch is a cellular signal quality measurement app used to collect data for FCC cellular quality challenge workflows.
 
 This repository currently contains:
-- A production Android app (`app/`)
+- A frozen legacy Android app (`frozenApp/`) kept for reference only
 - A Kotlin Multiplatform shared module (`shared/`) under active migration
-- An isolated Android KMP test harness module (`androidTestApp/`) for shared-sync integration work without modifying legacy `app/`
+- An isolated Android KMP test harness module (`androidTestApp/`) for shared-sync integration work
 - An isolated iOS host integration app (`iosTestApp/`) for parity testing of keychain and sync-harness behaviors
 - A legacy iOS host integration app (`iosSharedIntegrationHost/`) retained for backward compatibility
 
@@ -18,12 +18,21 @@ The project is mid-migration from Android-only Kotlin to KMP:
 
 ## Repo Structure
 
-- `app/`: Android application (legacy + active production app code)
+- `frozenApp/`: legacy Android-only codebase (frozen reference; not part of active migration/build)
 - `shared/`: KMP shared module (common/domain/data/util, SQLDelight schema and tests)
 - `androidTestApp/`: isolated Android module for shared/KMP sync wiring and local Supabase smoke tests
 - `iosTestApp/`: isolated iOS host app + XCTest target for parity testing (`sharedKit.framework` integration)
 - `iosSharedIntegrationHost/`: Minimal iOS app + XCTest target for hosted integration tests against `sharedKit.framework`
 - `doc/`: Supporting documentation (including architecture notes)
+
+Porting rule:
+- New migration work should go to `shared/`, `androidTestApp/`, and `iosTestApp/`.
+- Do not treat `frozenApp/` as the destination for the KMP replacement application.
+
+## User Constraints
+
+- User-requested policy: do not modify legacy Android app code as part of KMP migration work.
+- Legacy Android code has been moved from `app/` to `frozenApp/` and is excluded from active module wiring.
 
 ## Prerequisites
 
@@ -321,6 +330,7 @@ If run separately:
   - Android: `SupabaseEnvironmentProviderTest` and local-only `LocalSupabaseSharedSyncSmokeTest`
   - iOS: `SyncHarnessParityTests` local/remote environment provider checks and hosted local Supabase sync end-to-end
   - Both harnesses now resolve runtime Supabase config through shared `SyncRuntimeConfig` (`allowRemote=false` by default)
+  - Both harnesses validate shared upload-trigger entrypoints (`onMapStart` + `onMeasurementComplete`) against local Supabase
 
 ## Recent KMP Porting Work
 
@@ -381,14 +391,14 @@ Then in `MeasurementFragment.kt`, follow the existing comments for local-server 
 Historical Clean Architecture notes were moved out of the root README:
 - `doc/CLEAN_ARCHITECTURE_NOTES.md`
 
-## Porting Gap Snapshot (`app/` -> `shared/`)
+## Porting Gap Snapshot (`frozenApp/` -> `shared/`)
 
 Already ported in `shared/`:
 - Core models and mappers (`Cell`, `Device`, `ChallengeData`, `Measurement`, `Location`, `LatencyData`, `UploadDownloadData`, `FccSubmission`)
 - SQLDelight schema + repository implementations for those entities
 - Shared encryption + secure key storage abstraction (`SecureKeyStore`) with Android/iOS/JVM actuals
 
-Not yet ported (still Android-only in `app/`):
+Not yet ported (still Android-only in `frozenApp/`):
 - Measurement pipeline and FCC flow (`domain/fcc/*`)
 - Network datasource stack for measurements/submissions
 - Telephony and map managers
@@ -453,7 +463,7 @@ Not yet ported (still Android-only in `app/`):
     - UI harness actions for local env resolve + map-start/measurement-complete shared-slice calls
     - hosted tests for Keychain integration and shared upload-trigger parity behavior
 - Remaining:
-  - Migrate legacy app trigger points into future KMP Android/iOS product apps after harness parity is confirmed
+  - Continue porting legacy behavior from `frozenApp/` into `shared/` and harness modules only
   - Coordinate Supabase migration-history reconciliation with main branch before tracking live-compatible migrations in-repo
 - Tier 1 tests:
   - Contract tests for network mapping + error handling in `commonTest`
@@ -465,7 +475,7 @@ Not yet ported (still Android-only in `app/`):
 
 ### Immediate Next Slice
 - Candidate extraction target:
-  - Legacy upload trigger flow (`map-start` + `measurement-complete`) from `app/` into shared-first orchestration
+  - Additional legacy trigger and FCC flow slices from `frozenApp/` into shared-first orchestration
 - Migration strategy:
   - Validate behavior first in `androidTestApp` and `iosTestApp` harnesses
   - After parity is stable, wire the same shared-first slice into future KMP Android/iOS product app modules
@@ -493,9 +503,9 @@ Not yet ported (still Android-only in `app/`):
   - iOS hosted tests for CoreTelephony-backed paths (when wired)
 
 ### Phase 5: App-layer convergence
-- Keep Android UI in `app/` but consume shared repositories/use-cases
+- Build replacement Android/iOS product app layers that consume shared repositories/use-cases
 - Stand up iOS app UI against the same shared APIs
-- Remove duplicated business logic from Android-only layer as each slice is migrated
+- Retire frozen Android-only logic as each slice is migrated into shared
 - Tier 1 tests:
   - Shared regression suite + Android unit/UI unit tests
 - Tier 2 tests:

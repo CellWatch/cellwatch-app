@@ -36,7 +36,6 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "cellwatch"
-include(":app")
 
 // Optional local-source override for msak-client-kmp.
 // Keep this opt-in only so default builds stay on Maven artifacts (mavenLocal/remote).
