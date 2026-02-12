@@ -458,6 +458,10 @@ Not yet ported (still Android-only in `frozenApp/`):
     - keeps shared logic adapter-agnostic via `MsakServerLocator` and `MsakHostPinger` interfaces
     - includes unreachable endpoint synthesis equivalent to legacy `UnreachableServer` URL mapping
     - cross-platform contract tests in `shared/src/commonTest/.../MsakServerSelectorTest.kt`
+  - Shared measurement-result policy extraction in `shared/domain/fcc/MeasurementResultPolicy.kt`:
+    - ports legacy FCC success rules for latency/throughput result acceptance
+    - ports generation-stability override (network generation changes force unsuccessful result)
+    - cross-platform contract tests in `shared/src/commonTest/.../MeasurementResultPolicyTest.kt`
   - `androidTestApp` failure-path tests for:
     - network-down style sync failure handling
     - tuple-blocked submission report handling
