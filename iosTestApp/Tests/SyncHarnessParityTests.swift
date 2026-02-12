@@ -38,6 +38,7 @@ private struct CellwatchPropertiesSupabaseEnvironmentProvider {
 }
 
 final class SyncHarnessParityTests: XCTestCase {
+    private let smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private let smokeValidator = SyncSmokeInvariantValidator()
 
     func testEnvironmentDefaultsToLocal() throws {
@@ -136,6 +137,30 @@ final class SyncHarnessParityTests: XCTestCase {
         }
 
         waitForExpectations(timeout: 20)
+    }
+
+    func testSmokeEnvelopeTextShape_successAndFailure_containsCanonicalFields() {
+        let success = SyncSmokeResultFormatter().format(
+            envelope: smokeEnvelopeBuilder.measurementComplete(
+                uploadTimeSet: true,
+                errorMessage: nil
+            )
+        )
+        XCTAssertTrue(success.contains("smokeEnvelope scenario="))
+        XCTAssertTrue(success.contains("status=SUCCESS"))
+        XCTAssertTrue(success.contains("invariants="))
+        XCTAssertTrue(success.contains("message="))
+
+        let failure = SyncSmokeResultFormatter().format(
+            envelope: smokeEnvelopeBuilder.failure(
+                scenario: "measurement-complete-sync",
+                errorMessage: "synthetic failure"
+            )
+        )
+        XCTAssertTrue(failure.contains("smokeEnvelope scenario=measurement-complete-sync"))
+        XCTAssertTrue(failure.contains("status=FAILURE"))
+        XCTAssertTrue(failure.contains("invariants="))
+        XCTAssertTrue(failure.contains("message=synthetic failure"))
     }
 
     private func isFailureSmokeMarkerPresent() -> Bool {
