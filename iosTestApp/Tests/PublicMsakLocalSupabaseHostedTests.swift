@@ -2,6 +2,8 @@ import XCTest
 import sharedKit
 
 final class PublicMsakLocalSupabaseHostedTests: XCTestCase {
+    private let smokeValidator = SyncSmokeInvariantValidator()
+
     func testHostedPublicMsak_withLocalSupabaseProfile_whenEnabled() throws {
         guard isSmokeMarkerPresent() else {
             throw XCTSkip("Run via :shared:verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke to enable this test")
@@ -25,9 +27,13 @@ final class PublicMsakLocalSupabaseHostedTests: XCTestCase {
             XCTAssertNotNil(result)
             XCTAssertEqual(result?.mapStartMeasurementsUploaded, Int32(1))
             XCTAssertEqual(result?.mapStartSubmissionsUploaded, Int32(1))
-            XCTAssertEqual(result?.measurementUploadPersisted, true)
-            XCTAssertEqual(result?.submissionUploadPersisted, true)
-            XCTAssertEqual(result?.remoteMeasurementVerified, true)
+            let invariantError = self.smokeValidator.validateSuccess(
+                measurementUploadPersisted: result?.measurementUploadPersisted ?? false,
+                submissionUploadPersisted: result?.submissionUploadPersisted ?? false,
+                remoteMeasurementVerified: result?.remoteMeasurementVerified ?? false,
+                measurementCompleteUploadTimeSet: result?.measurementCompleteUploadTimeSet ?? false
+            )
+            XCTAssertNil(invariantError)
             syncExpectation.fulfill()
         }
         waitForExpectations(timeout: 30)

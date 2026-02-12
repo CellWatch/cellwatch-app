@@ -11,6 +11,7 @@ import edu.gatech.cc.cellwatch.domain.repo.MeasurementRepository
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncService
 import edu.gatech.cc.cellwatch.domain.sync.SyncAllReport
 import edu.gatech.cc.cellwatch.domain.sync.SyncReport
+import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeInvariantValidator
 import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerUseCase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -19,6 +20,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,6 +28,7 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class AndroidFailureStatusSmokeTest {
+    private val smokeValidator = SyncSmokeInvariantValidator()
 
     @Test
     fun phase3FailureSurface_setsExpectedUserVisibleError_whenEnabled() = runBlocking {
@@ -48,9 +51,13 @@ class AndroidFailureStatusSmokeTest {
         val driver = AndroidTestSyncDriver(useCase)
 
         val uploadTime = driver.runMeasurementCompleteSync(sampleGroup())
+        val lastError = driver.state.value.lastError
 
         assertNull(uploadTime)
-        assertEquals("synthetic smoke failure", driver.state.value.lastError)
+        assertEquals("synthetic smoke failure", lastError)
+        val invariantError = smokeValidator.validateFailure(lastError)
+        assertNull(invariantError)
+        assertNotNull(lastError)
     }
 }
 
