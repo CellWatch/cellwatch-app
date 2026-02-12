@@ -18,6 +18,7 @@ import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateConfig
 import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateEnvironment
 import edu.gatech.cc.cellwatch.domain.fcc.MsakServerSelectionHarness
+import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceHarness
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
@@ -96,6 +97,10 @@ class MainActivity : AppCompatActivity() {
             text = "Select MSAK Servers (Shared Selector)"
             setOnClickListener { runSelectServers() }
         }
+        val runPhase3SequenceButton = Button(this).apply {
+            text = "Run Phase3 Sequence (Shared Orchestrator)"
+            setOnClickListener { runPhase3Sequence() }
+        }
         statusText = TextView(this).apply {
             text = "Ready. Local Supabase target is enforced by default."
             textSize = 14f
@@ -107,6 +112,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(measurementCompleteSync)
         content.addView(runMapSyncOnly)
         content.addView(locateServersButton)
+        content.addView(runPhase3SequenceButton)
         content.addView(statusText)
         root.addView(content)
         return root
@@ -160,6 +166,29 @@ class MainActivity : AppCompatActivity() {
                     "server-select throughput=${result?.throughputMachine}\n" +
                         "latency=${result?.latencyMachine}\n" +
                         "fallback=${result?.fallbackUsed}"
+                }
+            }
+            harness.close()
+        }
+    }
+
+    private fun runPhase3Sequence() {
+        val harness = MeasurementSequenceHarness(
+            MsakLocateConfig(
+                environment = MsakLocateEnvironment.PROD,
+                userAgent = "android-test-app-phase3",
+            ),
+        )
+        harness.runDefaultScenario { result, error ->
+            runOnUiThread {
+                statusText.text = if (error != null) {
+                    "phase3 sequence failed: ${error.message}"
+                } else {
+                    "phase3 sequence group=${result?.groupId}\n" +
+                        "throughput=${result?.throughputMachine}\n" +
+                        "latency=${result?.latencyMachine}\n" +
+                        "submissionCreated=${result?.submissionCreated}\n" +
+                        "persistedMeasurements=${result?.persistedMeasurements}, persistedSubmissions=${result?.persistedSubmissions}"
                 }
             }
             harness.close()

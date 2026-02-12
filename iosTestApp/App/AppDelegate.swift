@@ -54,12 +54,17 @@ private final class HarnessViewController: UIViewController {
         selectServersButton.addTarget(self, action: #selector(runServerSelection), for: .touchUpInside)
         selectServersButton.translatesAutoresizingMaskIntoConstraints = false
 
+        let runPhase3SequenceButton = UIButton(type: .system)
+        runPhase3SequenceButton.setTitle("Run Phase3 Sequence (Shared Orchestrator)", for: .normal)
+        runPhase3SequenceButton.addTarget(self, action: #selector(runPhase3Sequence), for: .touchUpInside)
+        runPhase3SequenceButton.translatesAutoresizingMaskIntoConstraints = false
+
         statusLabel.text = "Ready. Remote target is blocked unless explicitly enabled."
         statusLabel.numberOfLines = 0
         statusLabel.font = UIFont.preferredFont(forTextStyle: .body)
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let stack = UIStackView(arrangedSubviews: [title, localEnvButton, mapStartButton, completeButton, selectServersButton, statusLabel])
+        let stack = UIStackView(arrangedSubviews: [title, localEnvButton, mapStartButton, completeButton, selectServersButton, runPhase3SequenceButton, statusLabel])
         stack.axis = .vertical
         stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -138,6 +143,35 @@ private final class HarnessViewController: UIViewController {
                 "server-select throughput=\(value.throughputMachine)\n" +
                 "latency=\(value.latencyMachine)\n" +
                 "fallback=\(value.fallbackUsed)"
+        }
+    }
+
+    @objc private func runPhase3Sequence() {
+        let config = MsakLocateConfig(
+            environment: MsakLocateEnvironment.prod,
+            userAgent: "ios-test-app-phase3",
+            localServerHost: nil,
+            localServerSecure: false
+        )
+        let harness = MeasurementSequenceHarness(config: config)
+        harness.runDefaultScenario { result, error in
+            if let error = error {
+                self.statusLabel.text = "phase3 sequence failed: \(error)"
+                harness.close()
+                return
+            }
+            guard let value = result else {
+                self.statusLabel.text = "phase3 sequence failed: no result"
+                harness.close()
+                return
+            }
+            self.statusLabel.text =
+                "phase3 sequence group=\(value.groupId)\n" +
+                "throughput=\(value.throughputMachine)\n" +
+                "latency=\(value.latencyMachine)\n" +
+                "submissionCreated=\(value.submissionCreated)\n" +
+                "persistedMeasurements=\(value.persistedMeasurements), persistedSubmissions=\(value.persistedSubmissions)"
+            harness.close()
         }
     }
 }
