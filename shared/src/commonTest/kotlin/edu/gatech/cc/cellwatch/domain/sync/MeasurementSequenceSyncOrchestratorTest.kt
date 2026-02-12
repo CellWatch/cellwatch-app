@@ -25,6 +25,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 
 class MeasurementSequenceSyncOrchestratorTest {
@@ -84,6 +85,79 @@ class MeasurementSequenceSyncOrchestratorTest {
         assertNotNull(outcome.sequenceOutcome.group.submission)
         assertEquals(submissionUploadTime, outcome.measurementCompleteUploadTime)
     }
+
+    @Test
+    fun run_whenSequenceFails_stopsBeforeMeasurementCompleteSync() = runBlocking {
+        val syncService = SequenceSyncRecordingSyncService(
+            report = SyncAllReport(
+                measurements = SyncReport(attempted = 1, uploaded = 1),
+                submissions = SyncReport(attempted = 1, uploaded = 1),
+            ),
+        )
+        val uploadTriggerUseCase = UploadTriggerUseCase(
+            syncService = syncService,
+            measurementRepository = StaticMeasurementRepository(byId = emptyMap()),
+            submissionRepository = StaticSubmissionRepository(byId = emptyMap()),
+        )
+        val sequenceOrchestrator = MeasurementSequenceOrchestrator(
+            serverPairProvider = StaticServerPairProvider(),
+            measurementExecutor = FailingMeasurementExecutor(),
+            resultStore = NoOpResultStore(),
+            submissionContextFactory = StaticSubmissionContextFactory(),
+        )
+        val orchestrator = MeasurementSequenceSyncOrchestrator(
+            sequenceOrchestrator = sequenceOrchestrator,
+            uploadTriggerUseCase = uploadTriggerUseCase,
+        )
+
+        assertFailsWith<IllegalStateException> {
+            orchestrator.run(
+                request = MeasurementSequenceRequest(
+                    groupId = "group-fail-sequence",
+                    inVehicle = false,
+                    mode = CollectionMode.FCC_CHALLENGE,
+                ),
+            )
+        }
+        assertEquals(1, syncService.syncAllCalls)
+    }
+
+    @Test
+    fun run_whenMeasurementCompleteSyncFails_throwsAfterSequence() = runBlocking {
+        val syncService = FailingOnCallSyncService(
+            report = SyncAllReport(
+                measurements = SyncReport(attempted = 1, uploaded = 1),
+                submissions = SyncReport(attempted = 1, uploaded = 1),
+            ),
+            failOnCall = 2,
+        )
+        val uploadTriggerUseCase = UploadTriggerUseCase(
+            syncService = syncService,
+            measurementRepository = StaticMeasurementRepository(byId = emptyMap()),
+            submissionRepository = StaticSubmissionRepository(byId = emptyMap()),
+        )
+        val sequenceOrchestrator = MeasurementSequenceOrchestrator(
+            serverPairProvider = StaticServerPairProvider(),
+            measurementExecutor = StaticMeasurementExecutor(),
+            resultStore = NoOpResultStore(),
+            submissionContextFactory = StaticSubmissionContextFactory(),
+        )
+        val orchestrator = MeasurementSequenceSyncOrchestrator(
+            sequenceOrchestrator = sequenceOrchestrator,
+            uploadTriggerUseCase = uploadTriggerUseCase,
+        )
+
+        assertFailsWith<IllegalStateException> {
+            orchestrator.run(
+                request = MeasurementSequenceRequest(
+                    groupId = "group-fail-sync",
+                    inVehicle = false,
+                    mode = CollectionMode.FCC_CHALLENGE,
+                ),
+            )
+        }
+        assertEquals(2, syncService.syncAllCalls)
+    }
 }
 
 private class StaticServerPairProvider : MsakServerPairProvider {
@@ -127,6 +201,25 @@ private class StaticMeasurementExecutor : MeasurementExecutor {
                 bytes = 100,
             ),
         )
+    }
+}
+
+private class FailingMeasurementExecutor : MeasurementExecutor {
+    override suspend fun runLatency(
+        server: MsakServerEndpoint,
+        groupId: String,
+        measurementId: String?,
+    ): Measurement {
+        throw IllegalStateException("synthetic sequence failure")
+    }
+
+    override suspend fun runThroughput(
+        server: MsakServerEndpoint,
+        direction: ThroughputDirection,
+        groupId: String,
+        measurementId: String?,
+    ): Measurement {
+        error("throughput should not run after latency failure")
     }
 }
 
@@ -212,6 +305,25 @@ private class SequenceSyncRecordingSyncService(
 
     override suspend fun syncAll(): SyncAllReport {
         syncAllCalls += 1
+        return report
+    }
+}
+
+private class FailingOnCallSyncService(
+    private val report: SyncAllReport,
+    private val failOnCall: Int,
+) : MeasurementSyncService {
+    var syncAllCalls: Int = 0
+
+    override suspend fun syncMeasurements(): SyncReport = report.measurements
+
+    override suspend fun syncFccSubmissions(): SyncReport = report.submissions
+
+    override suspend fun syncAll(): SyncAllReport {
+        syncAllCalls += 1
+        if (syncAllCalls == failOnCall) {
+            throw IllegalStateException("synthetic sync failure on call $syncAllCalls")
+        }
         return report
     }
 }

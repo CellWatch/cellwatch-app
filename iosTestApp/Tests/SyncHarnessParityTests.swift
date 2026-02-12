@@ -104,4 +104,33 @@ final class SyncHarnessParityTests: XCTestCase {
 
         waitForExpectations(timeout: 20)
     }
+
+    func testHostedFailureSurface_forInvalidSupabaseCredentials_whenEnabled() throws {
+        guard isFailureSmokeMarkerPresent() else {
+            throw XCTSkip("Run via :shared:verifyIosTestAppHostedFailureStatusSmoke to enable this test")
+        }
+
+        let provider = CellwatchPropertiesSupabaseEnvironmentProvider(
+            properties: ProcessInfo.processInfo.environment,
+            allowRemote: false
+        )
+        let local = try provider.resolve(.local)
+        let expectation = expectation(description: "runHostedLocalSupabaseSyncFailure")
+
+        IosLocalSupabaseSyncHarness().run(
+            supabaseUrl: local.url,
+            supabaseApiKey: "invalid-local-key"
+        ) { result, error in
+            XCTAssertNil(result)
+            XCTAssertNotNil(error)
+            XCTAssertFalse((error?.localizedDescription ?? "").isEmpty)
+            expectation.fulfill()
+        }
+
+        waitForExpectations(timeout: 20)
+    }
+
+    private func isFailureSmokeMarkerPresent() -> Bool {
+        FileManager.default.fileExists(atPath: "/tmp/cellwatch-ios-failure-status-smoke-required")
+    }
 }
