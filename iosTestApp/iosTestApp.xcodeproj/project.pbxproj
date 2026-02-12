@@ -201,6 +201,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		4AE16B282453767671074CAC /* Build shared framework */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);

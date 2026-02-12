@@ -320,6 +320,11 @@ If run separately:
 - local Supabase guardrails:
   - Android: `SupabaseEnvironmentProviderTest` and local-only `LocalSupabaseSharedSyncSmokeTest`
   - iOS: `SyncHarnessParityTests` local/remote environment provider checks
+  - Both harnesses now resolve runtime Supabase config through shared `SyncRuntimeConfig` (`allowRemote=false` by default)
+
+## TODOs
+
+- Add `iosTestApp` hosted integration coverage that performs real local Supabase sync (in addition to current keychain/parity-hosted tests)
 
 ## Recent KMP Porting Work
 
@@ -348,6 +353,8 @@ If run separately:
   - Tier 1 optimizes speed and broad regression coverage
   - Tier 2 validates runtime-specific behavior where unit tests are not representative
 - iOS Keychain validation requires a hosted app test context; K/N-only simulator tests are insufficient for Keychain confidence
+- Shared sync runtime configuration is local-only by default and blocks remote targets unless explicitly enabled
+- `:shared:verifyIosTestAppHosted` now refreshes `shared/build/bin/iosSimulatorArm64/Current/sharedKit.framework` before running Xcode-hosted tests
 
 ## Logging
 

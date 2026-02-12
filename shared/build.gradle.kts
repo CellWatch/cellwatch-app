@@ -281,6 +281,7 @@ tasks.register("verifyIosHostedKeychain") {
 tasks.register("verifyIosTestAppHosted") {
     description = "Tier 2: iOS host-app parity tests in iosTestApp (Keychain + sync harness behaviors)."
     group = "verification"
+    dependsOn("refreshIosSimulatorCurrentFramework")
     val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
     doFirst {
         if (!projectPath.exists()) {
@@ -302,6 +303,30 @@ tasks.register("verifyIosTestAppHosted") {
                 "test",
             )
             workingDir = rootProject.projectDir
+        }
+    }
+}
+
+tasks.register("refreshIosSimulatorCurrentFramework") {
+    description = "Refreshes sharedKit.framework at iosSimulatorArm64/Current from latest debug framework output."
+    group = "verification"
+    dependsOn("linkDebugFrameworkIosSimulatorArm64")
+    doLast {
+        val sourceFramework = rootProject.file("shared/build/bin/iosSimulatorArm64/debugFramework/sharedKit.framework")
+        val currentDir = rootProject.file("shared/build/bin/iosSimulatorArm64/Current")
+        val targetFramework = rootProject.file("shared/build/bin/iosSimulatorArm64/Current/sharedKit.framework")
+        if (!sourceFramework.exists()) {
+            throw GradleException("Missing debug framework at ${sourceFramework.absolutePath}")
+        }
+        delete(currentDir)
+        mkdir(currentDir)
+        copy {
+            from(sourceFramework.parentFile)
+            include("sharedKit.framework/**")
+            into(currentDir)
+        }
+        check(targetFramework.exists()) {
+            "Failed to create framework at ${targetFramework.absolutePath}"
         }
     }
 }
