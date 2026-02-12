@@ -322,6 +322,9 @@ Command:
 If run separately:
 - Android realistic only: `./gradlew :shared:verifyAndroidEmulator`
 - iOS realistic (new parity host) only: `./gradlew :shared:verifyIosTestAppHosted`
+- iOS local-MSAK hosted smoke only: `./gradlew :shared:verifyIosTestAppHostedLocalMsakSmoke`
+  - Runs only `LocalMsakPhase3HostedTests` and creates a temporary marker file for explicit opt-in.
+  - If local `msak-server` is unavailable or UDP latency is unsupported for that runtime path, test reports `skipped` with a clear reason.
 - iOS realistic (legacy host) only: `./gradlew :shared:verifyIosHostedKeychain`
 - Local Supabase JVM integration only: `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
   - Includes remote adapter RPC/table checks and end-to-end `MeasurementSyncUseCase` store-and-forward validation against local Docker Supabase
