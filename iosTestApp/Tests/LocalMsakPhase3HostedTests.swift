@@ -9,12 +9,20 @@ final class LocalMsakPhase3HostedTests: XCTestCase {
 
         let localHost = resolveLocalHost()
         let localSecure = resolveLocalSecure()
+        let allowTransientSkip =
+            ProcessInfo.processInfo.environment["CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP"] == "1" ||
+            FileManager.default.fileExists(atPath: "/tmp/cellwatch-ios-local-msak-transient-skip-allowed")
         guard isServerReachable(localHost) else {
-            throw XCTSkip("Local MSAK server not reachable at \(localHost)")
+            if allowTransientSkip {
+                throw XCTSkip("Local MSAK server unreachable at \(localHost), bypassed via CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP=1")
+            }
+            XCTFail("Local MSAK server not reachable at \(localHost)")
+            return
         }
 
         let expectation = expectation(description: "runPhase3SequenceLocal")
         var skippedReason: String?
+        var failureReason: String?
         var harness: MeasurementSequenceHarness? = MeasurementSequenceHarness(
             config: MsakLocateConfig(
                 environment: MsakLocateEnvironment.local,
@@ -31,13 +39,17 @@ final class LocalMsakPhase3HostedTests: XCTestCase {
                 harness = nil
             }
 
-            if let error, "\(error)".contains("no latency result") {
-                skippedReason = "Local MSAK UDP latency path unavailable for iOS host runtime"
+            if let error {
+                let errorText = String(describing: error)
+                if allowTransientSkip && self.isTransientLocalMsakFailure(errorText) {
+                    skippedReason = "Local MSAK transient failure bypassed via CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP=1: \(error)"
+                } else {
+                    failureReason = "Local MSAK smoke failed: \(error)"
+                }
                 expectation.fulfill()
                 return
             }
 
-            XCTAssertNil(error)
             XCTAssertNotNil(result)
             XCTAssertEqual(result?.persistedMeasurements, Int32(3))
             XCTAssertEqual(result?.persistedSubmissions, Int32(1))
@@ -53,6 +65,9 @@ final class LocalMsakPhase3HostedTests: XCTestCase {
         waitForExpectations(timeout: 90)
         if let skippedReason {
             throw XCTSkip(skippedReason)
+        }
+        if let failureReason {
+            XCTFail(failureReason)
         }
     }
 
@@ -155,5 +170,15 @@ final class LocalMsakPhase3HostedTests: XCTestCase {
 
         _ = semaphore.wait(timeout: .now() + 3)
         return reachable
+    }
+
+    private func isTransientLocalMsakFailure(_ message: String) -> Bool {
+        let text = message.lowercased()
+        return text.contains("no latency result") ||
+            text.contains("authorizefailure") ||
+            text.contains("timed out") ||
+            text.contains("connection refused") ||
+            text.contains("socket is not connected") ||
+            text.contains("cannot connect")
     }
 }
