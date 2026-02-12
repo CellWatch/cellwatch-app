@@ -416,6 +416,9 @@ Supabase safety policy:
   - Shared contract: `UploadTriggerParityArtifact` (`shared/src/commonMain/.../UploadTriggerParityArtifact.kt`)
   - Android and iOS parity tests emit `uploadTriggerParityArtifact=<json>` for the default upload-trigger scenario.
   - Shared checker test `UploadTriggerParityArtifactTest` validates schema version and key-field parity across Android/iOS artifacts.
+  - Consolidated report task:
+    - `./gradlew :shared:collectUploadTriggerParityArtifacts`
+    - writes `build/reports/parity/upload-trigger-parity-artifacts.txt` with Android + iOS artifact JSON lines.
 - shared runtime profile contract:
   - `RuntimeSyncMsakProfiles.fromModes(...)` defines the shared MSAK+Supabase mode contract.
   - `RuntimeSyncMsakProfiles.publicMsakLocalSupabase(...)` remains as the convenience profile for:

@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.Project
 import java.io.File
+import java.io.ByteArrayOutputStream
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -539,6 +540,80 @@ tasks.register("verifyPhase3Tier2FailureMatrix") {
         "verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke",
         "verifyIosTestAppHostedFailureStatusSmoke",
     )
+}
+
+tasks.register("collectUploadTriggerParityArtifacts") {
+    description = "Runs focused Android/iOS parity tests and writes consolidated parity artifact report."
+    group = "verification"
+
+    doLast {
+        fun runAndCollectArtifact(command: List<String>, marker: String): String {
+            val output = ByteArrayOutputStream()
+            exec {
+                commandLine(command)
+                standardOutput = output
+                errorOutput = output
+                isIgnoreExitValue = false
+                workingDir = rootProject.projectDir
+            }
+            val text = output.toString(Charsets.UTF_8.name())
+            val match = Regex("""uploadTriggerParityArtifact=(\{.*\})""")
+                .find(text)
+                ?.groupValues
+                ?.getOrNull(1)
+            return match ?: throw GradleException(
+                "Failed to find uploadTriggerParityArtifact JSON in $marker output."
+            )
+        }
+
+        exec {
+            commandLine(
+                "./gradlew",
+                ":androidTestApp:testDebugUnitTest",
+                "--tests",
+                "edu.gatech.cc.cellwatch.androidtestapp.UploadTriggerParityHarnessAndroidTest",
+            )
+            workingDir = rootProject.projectDir
+        }
+        val androidXml = File(
+            rootProject.projectDir,
+            "androidTestApp/build/test-results/testDebugUnitTest/" +
+                "TEST-edu.gatech.cc.cellwatch.androidtestapp.UploadTriggerParityHarnessAndroidTest.xml",
+        )
+        if (!androidXml.exists()) {
+            throw GradleException(
+                "Expected Android parity result XML at ${androidXml.absolutePath} but file was missing."
+            )
+        }
+        val androidJson = Regex("""uploadTriggerParityArtifact=(\{.*\})""")
+            .find(androidXml.readText())
+            ?.groupValues
+            ?.getOrNull(1)
+            ?: throw GradleException(
+                "Failed to find uploadTriggerParityArtifact JSON in Android parity XML."
+            )
+
+        val iosJson = runAndCollectArtifact(
+            command = listOf(
+                "./gradlew",
+                ":shared:verifyIosTestAppHosted",
+            ),
+            marker = "ios hosted parity test",
+        )
+
+        val reportDir = rootProject.layout.buildDirectory.dir("reports/parity").get().asFile
+        reportDir.mkdirs()
+        val reportFile = File(reportDir, "upload-trigger-parity-artifacts.txt")
+        reportFile.writeText(
+            buildString {
+                appendLine("uploadTriggerParityArtifactReport")
+                appendLine("android=$androidJson")
+                appendLine("ios=$iosJson")
+            }
+        )
+
+        logger.lifecycle("Wrote parity artifact report: ${reportFile.absolutePath}")
+    }
 }
 
 tasks.register("refreshIosSimulatorCurrentFramework") {
