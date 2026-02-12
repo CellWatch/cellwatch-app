@@ -428,6 +428,9 @@ Supabase safety policy:
   - Phase 3 sequence parity gate:
     - `./gradlew :shared:verifyPhase3SequenceParityArtifacts`
     - runs phase3 artifact collection, then fails if persisted/capability key fields diverge or machine IDs are blank.
+  - Recommended umbrella parity pre-check-in command:
+    - `./gradlew :shared:verifyParityPipelines`
+    - runs both upload-trigger and phase3-sequence parity gates.
 - shared runtime profile contract:
   - `RuntimeSyncMsakProfiles.fromModes(...)` defines the shared MSAK+Supabase mode contract.
   - `RuntimeSyncMsakProfiles.publicMsakLocalSupabase(...)` remains as the convenience profile for:

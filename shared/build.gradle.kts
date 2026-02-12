@@ -820,6 +820,15 @@ tasks.register("verifyPhase3SequenceParityArtifacts") {
     }
 }
 
+tasks.register("verifyParityPipelines") {
+    description = "Runs all parity gates (upload-trigger + phase3-sequence)."
+    group = "verification"
+    dependsOn(
+        "verifyUploadTriggerParityArtifacts",
+        "verifyPhase3SequenceParityArtifacts",
+    )
+}
+
 tasks.register("refreshIosSimulatorCurrentFramework") {
     description = "Refreshes sharedKit.framework at iosSimulatorArm64/Current from latest debug framework output."
     group = "verification"
