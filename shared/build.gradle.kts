@@ -307,6 +307,42 @@ tasks.register("verifyIosTestAppHosted") {
     }
 }
 
+tasks.register("verifyIosTestAppHostedLocalMsakSmoke") {
+    description = "Tier 2: iOS hosted local-MSAK smoke test path in iosTestApp."
+    group = "verification"
+    dependsOn("refreshIosSimulatorCurrentFramework")
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException(
+                "Missing iOS hosted test project at ${projectPath.absolutePath}."
+            )
+        }
+    }
+    doLast {
+        val marker = file("/tmp/cellwatch-ios-local-msak-smoke-required")
+        marker.writeText("1\n")
+        try {
+            exec {
+                commandLine(
+                    "xcodebuild",
+                    "-project",
+                    projectPath.absolutePath,
+                    "-scheme",
+                    "iosTestAppLocalMsakSmoke",
+                    "-destination",
+                    "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                    "-only-testing:iosTestAppTests/LocalMsakPhase3HostedTests/testHostedLocalMsakPhase3Sequence_whenEnabled",
+                    "test",
+                )
+                workingDir = rootProject.projectDir
+            }
+        } finally {
+            marker.delete()
+        }
+    }
+}
+
 tasks.register("refreshIosSimulatorCurrentFramework") {
     description = "Refreshes sharedKit.framework at iosSimulatorArm64/Current from latest debug framework output."
     group = "verification"

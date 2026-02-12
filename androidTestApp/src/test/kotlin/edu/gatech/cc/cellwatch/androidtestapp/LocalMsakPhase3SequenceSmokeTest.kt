@@ -11,6 +11,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
 import java.util.concurrent.CountDownLatch
@@ -26,11 +27,25 @@ class LocalMsakPhase3SequenceSmokeTest {
             System.getenv("CELLWATCH_RUN_LOCAL_MSAK_SMOKE") == "1",
         )
 
+        val propsFile = listOf(
+            File("cellwatch.properties"),
+            File("../cellwatch.properties"),
+        ).firstOrNull { it.exists() }
+            ?: throw AssertionError("Missing cellwatch.properties in test working directory")
+
         val props = Properties().apply {
-            FileInputStream("cellwatch.properties").use { load(it) }
+            FileInputStream(propsFile).use { load(it) }
         }
-        val localHost = props.getProperty("MSAK_LOCAL_SERVER_HOST")?.trim().orEmpty()
-        val localSecure = props.getProperty("MSAK_LOCAL_SERVER_SECURE")?.trim()?.toBooleanStrictOrNull() ?: false
+        val localHost = props.getProperty("MSAK_LOCAL_SERVER_HOST")
+            ?.trim()
+            ?.trim('"')
+            ?.let(::normalizeHostForRobolectric)
+            .orEmpty()
+        val localSecure = props.getProperty("MSAK_LOCAL_SERVER_SECURE")
+            ?.trim()
+            ?.trim('"')
+            ?.toBooleanStrictOrNull()
+            ?: false
         assumeTrue(
             "MSAK_LOCAL_SERVER_HOST must be set in cellwatch.properties",
             localHost.isNotEmpty(),
@@ -65,5 +80,15 @@ class LocalMsakPhase3SequenceSmokeTest {
         assertTrue(nonNull.throughputMachine.isNotBlank())
         assertTrue(nonNull.latencyMachine.isNotBlank())
         assertEquals(3, nonNull.persistedMeasurements)
+    }
+}
+
+private fun normalizeHostForRobolectric(rawHost: String): String {
+    return when {
+        rawHost.startsWith("10.0.2.2:") -> "127.0.0.1:${rawHost.substringAfter(':')}"
+        rawHost.startsWith("10.0.3.2:") -> "127.0.0.1:${rawHost.substringAfter(':')}"
+        rawHost == "10.0.2.2" -> "127.0.0.1"
+        rawHost == "10.0.3.2" -> "127.0.0.1"
+        else -> rawHost
     }
 }
