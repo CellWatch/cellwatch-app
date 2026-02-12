@@ -3,6 +3,7 @@ package edu.gatech.cc.cellwatch.domain.fcc
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
+import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -127,6 +128,59 @@ class FccSubmissionPolicyTest {
         assertEquals("260", actual.simMnc)
         assertEquals("311", actual.netMcc)
         assertEquals("410", actual.netMnc)
+    }
+
+    @Test
+    fun `buildSubmission maps metadata and context fields`() {
+        val context = FccSubmissionBuildContext(
+            groupId = "group-123",
+            deviceTimestamp = Instant.fromEpochMilliseconds(1_710_000_000_000L),
+            inVehicle = true,
+            externalAntenna = false,
+            deviceType = "Android",
+            deviceOsName = "Android 14",
+            appVersion = "2.1.0",
+            provider = "carrier-a",
+            contactName = "Alice",
+            contactEmail = "alice@example.com",
+            contactPhone = "555-1111",
+        )
+        val metadata = FccSubmissionMetadataSnapshot(
+            deviceId = "device-1",
+            deviceManufacturer = "Google",
+            deviceModel = "Pixel",
+            deviceOsVersion = "14",
+            appName = "CellWatch",
+            simMcc = "310",
+            simMnc = "260",
+            netMcc = "311",
+            netMnc = "480",
+        )
+
+        val submission = FccSubmissionPolicy.buildSubmission(
+            context = context,
+            metadata = metadata,
+        )
+
+        assertEquals("group-123", submission.id)
+        assertEquals("device-1", submission.deviceId)
+        assertEquals(Instant.fromEpochMilliseconds(1_710_000_000_000L), submission.deviceTimestamp)
+        assertEquals(true, submission.inVehicle)
+        assertEquals(false, submission.externalAntenna)
+        assertEquals("Android", submission.deviceType)
+        assertEquals("Google", submission.deviceManufacturer)
+        assertEquals("Pixel", submission.deviceModel)
+        assertEquals("Android 14", submission.deviceOsName)
+        assertEquals("CellWatch", submission.appName)
+        assertEquals("2.1.0", submission.appVersion)
+        assertEquals("carrier-a", submission.provider)
+        assertEquals("310", submission.simCountryCode)
+        assertEquals("260", submission.simNetworkCode)
+        assertEquals("311", submission.netCountryCode)
+        assertEquals("480", submission.netNetworkCode)
+        assertEquals("Alice", submission.contactName)
+        assertEquals("alice@example.com", submission.contactEmail)
+        assertEquals("555-1111", submission.contactPhone)
     }
 
     private fun measurement(

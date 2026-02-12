@@ -452,6 +452,7 @@ Not yet ported (still Android-only in `frozenApp/`):
   - Shared FCC submission policy extraction in `shared/domain/fcc/FccSubmissionPolicy.kt`:
     - eligibility contract ported from legacy `MeasurementManager` (`FCC_CHALLENGE` mode + non-WIFI + cellular-data-not-false)
     - deterministic metadata fallback aggregation from latency/download/upload measurements for submission construction
+    - shared FCC submission builder (`buildSubmission`) for deterministic field assembly from policy metadata + runtime context
     - cross-platform contract tests in `shared/src/commonTest/.../FccSubmissionPolicyTest.kt`
   - Shared server-selection contract extraction in `shared/domain/fcc/MsakServerSelector.kt`:
     - ports legacy `chooseMsakServers` behavior (throughput selection by host probe, latency same-machine preference/fallback-first, network-unavailable fallback pair)
@@ -472,7 +473,6 @@ Not yet ported (still Android-only in `frozenApp/`):
     - hosted tests for Keychain integration and shared upload-trigger parity behavior
 - Remaining:
   - Continue porting legacy behavior from `frozenApp/` into `shared/` and harness modules only
-  - Coordinate Supabase migration-history reconciliation with main branch before tracking live-compatible migrations in-repo
 - Tier 1 tests:
   - Contract tests for network mapping + error handling in `commonTest`
   - Existing lightweight platform suite
@@ -487,6 +487,9 @@ Not yet ported (still Android-only in `frozenApp/`):
 - Migration strategy:
   - Validate behavior first in `androidTestApp` and `iosTestApp` harnesses
   - After parity is stable, wire the same shared-first slice into future KMP Android/iOS product app modules
+
+### Deferred Coordination TODOs
+- Coordinate Supabase migration-history reconciliation with main branch before tracking live-compatible migrations in-repo
 
 ### Phase 3: Measurement engine extraction
 - Split `domain/fcc` into:
