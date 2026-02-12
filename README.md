@@ -131,6 +131,19 @@ or foreground:
 `shared/` currently depends on the published artifact:
 - `edu.gatech.cc.cellwatch:msak-client-kmp:0.2.0`
 
+Reference repositories used during CellWatch development:
+- KMP client library source: [CellWatch/msak-client-kmp](https://github.com/CellWatch/msak-client-kmp)
+  - Local inspection path used on this machine: `/Users/jeff/Projects/msak-android` (branch `codex/kotlin-1.9.24-rollback`)
+  - Use this repo to inspect current client APIs and demo-app usage patterns when wiring shared measurement flows.
+- Upstream server implementation: [m-lab/msak](https://github.com/m-lab/msak)
+  - Use this repo for running a local `msak-server` during Phase 3 measurement testing.
+
+Standard endpoint paths expected by current shared selector/executor wiring:
+- `throughput/v1/download`
+- `throughput/v1/upload`
+- `latency/v1/authorize`
+- `latency/v1/result`
+
 Preferred local-dev path is Maven Local publication from `msak-client-kmp`:
 - publish in producer: `:msak-shared:publishToMavenLocal`
 - this repo already has `mavenLocal()` before `mavenCentral()`, so no extra flags are needed
@@ -371,20 +384,40 @@ Use log levels intentionally:
 - `Log.i`: contextual breadcrumbs for later debugging
 - `Log.d` / `Log.v`: local debugging only
 
-## Android msak Implementation
+## Local MSAK Server (Phase 3 Testing)
 
-### Testing with a local server
+CellWatch shared Phase 3 harness can target `MsakLocateEnvironment.LOCAL` and `MSAK_LOCAL_SERVER_HOST` for local end-to-end measurement testing.
 
-By default, the app uses an M-Lab server. To run locally:
+### Run server from local source build
 
 ```bash
 git clone https://github.com/m-lab/msak.git
-git checkout sandbox-roberto-server
+cd msak
 go build ./cmd/msak-server
 ./msak-server
 ```
 
-Then in `MeasurementFragment.kt`, follow the existing comments for local-server toggle.
+### Run server from Docker (repo-provided Dockerfile)
+
+```bash
+git clone https://github.com/m-lab/msak.git
+cd msak
+docker build -t mlab-msak-local .
+docker run --rm -p 8080:8080 -p 1053:1053/udp mlab-msak-local
+```
+
+Then set local target in `/Users/jeff/Projects/cellwatch-app/cellwatch.properties`:
+
+```properties
+MSAK_LOCAL_SERVER_HOST="10.0.2.2:8080"
+MSAK_LOCAL_SERVER_SECURE=false
+```
+
+And run the optional Android Tier 2 smoke:
+
+```bash
+CELLWATCH_RUN_LOCAL_MSAK_SMOKE=1 ./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.LocalMsakPhase3SequenceSmokeTest"
+```
 
 ## Architecture Notes
 
@@ -504,7 +537,10 @@ Not yet ported (still Android-only in `frozenApp/`):
   - Shared harness runner `shared/domain/fcc/MeasurementSequenceHarness.kt` and app wiring:
     - `androidTestApp` action: "Run Phase3 Sequence (Shared Orchestrator)"
     - `iosTestApp` action: "Run Phase3 Sequence (Shared Orchestrator)"
-    - executes shared orchestrator with platform server selection + simulated measurement execution adapters
+    - executes shared orchestrator with platform server selection + real `msak-client-kmp` measurement execution adapters
+  - Tier 2 local-MSAK smoke scaffold in `androidTestApp`:
+    - `LocalMsakPhase3SequenceSmokeTest` (gated by `CELLWATCH_RUN_LOCAL_MSAK_SMOKE=1`)
+    - uses `MsakLocateEnvironment.LOCAL` + `MSAK_LOCAL_SERVER_HOST` from `cellwatch.properties`
 - Split `domain/fcc` into:
   - Pure shared logic (metrics aggregation, challenge orchestration, payload assembly)
   - Platform adapters for network sockets/timing/device signals
@@ -514,6 +550,8 @@ Not yet ported (still Android-only in `frozenApp/`):
 - Tier 2 tests:
   - Android instrumented smoke test for real runtime behavior
   - iOS hosted integration smoke test when iOS adapter is added
+  - Optional local MSAK smoke (Android Robolectric):
+    - `CELLWATCH_RUN_LOCAL_MSAK_SMOKE=1 ./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.LocalMsakPhase3SequenceSmokeTest"`
 
 ### Phase 4: Platform capability adapters
 - Introduce shared interfaces for telephony/map/device capability reads
