@@ -356,6 +356,41 @@ If run separately:
 - Android isolated harness smoke test: `./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.LocalSupabaseSharedSyncSmokeTest"`
 - Android isolated harness driver + environment tests: `./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.AndroidTestSyncDriverTest" --tests "edu.gatech.cc.cellwatch.androidtestapp.SupabaseEnvironmentProviderTest"`
 
+### Phase 3 Operator Runbook
+
+Use this sequence for day-to-day migration work and pre-checkin confidence.
+
+Prerequisites:
+- Local Supabase stack running (`./scripts/supabase-local.sh start`)
+- Docker Desktop running
+- iOS simulator available (for hosted iOS tasks)
+- Optional local `msak-server` running if you want local-MSAK Tier 2 smoke coverage
+
+Recommended command flow:
+1. Fast regression pass (Tier 1):
+   - `./gradlew :shared:verifyLightweightPlatforms`
+2. Local Supabase integration confidence:
+   - `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
+3. Full Phase 3 Tier 2 matrix (Android+iOS, local/public MSAK, local Supabase, failure-surface smokes):
+   - `./gradlew :shared:verifyPhase3Tier2FailureMatrix`
+
+Optional narrower commands:
+- iOS hosted sequential suite only:
+  - `./gradlew :shared:verifyIosHostedTier2Sequential`
+- Android-only Phase 3 smokes:
+  - `./gradlew :shared:verifyAndroidLocalMsakPhase3Smoke`
+  - `./gradlew :shared:verifyAndroidPublicMsakLocalSupabaseSmoke`
+  - `./gradlew :shared:verifyAndroidFailureStatusSmoke`
+
+Expected skip/fail behavior:
+- Local-MSAK hosted smoke tests can report `skipped` when local server/runtime requirements are unavailable.
+- Failure-status smoke tests must pass only when failure is surfaced cleanly (error returned, no crash).
+- Any hard test failure (assertion/process exit) should block check-in.
+
+Supabase safety policy:
+- Keep runtime on local Supabase for all normal dev and tests.
+- Remote Supabase is blocked by default and requires explicit opt-in (`CELLWATCH_ALLOW_REMOTE_SUPABASE=true`).
+
 ### Harness Parity Matrix
 
 - `map-start sync` action:
