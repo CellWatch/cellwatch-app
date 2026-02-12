@@ -267,6 +267,23 @@ tasks.register("verifyAndroidPublicMsakLocalSupabaseSmoke") {
     }
 }
 
+tasks.register("verifyAndroidLocalMsakPhase3Smoke") {
+    description = "Tier 2: Android smoke for local MSAK sequence path."
+    group = "verification"
+    doLast {
+        exec {
+            commandLine(
+                "./gradlew",
+                ":androidTestApp:testDebugUnitTest",
+                "--tests",
+                "edu.gatech.cc.cellwatch.androidtestapp.LocalMsakPhase3SequenceSmokeTest",
+            )
+            environment("CELLWATCH_RUN_LOCAL_MSAK_SMOKE", "1")
+            workingDir = rootProject.projectDir
+        }
+    }
+}
+
 tasks.register("verifyAndroidFailureStatusSmoke") {
     description = "Tier 2: Android smoke for surfaced failure status in shared sync harness path."
     group = "verification"
@@ -457,6 +474,9 @@ tasks.named("verifyIosTestAppHostedLocalMsakSmoke") {
 tasks.named("verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke") {
     mustRunAfter("verifyIosTestAppHostedLocalMsakSmoke")
 }
+tasks.named("verifyIosTestAppHostedFailureStatusSmoke") {
+    mustRunAfter("verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke")
+}
 
 tasks.register("verifyIosHostedTier2Sequential") {
     description = "Tier 2: run all hosted iOS checks sequentially to avoid simulator concurrency flake."
@@ -466,6 +486,20 @@ tasks.register("verifyIosHostedTier2Sequential") {
         "verifyIosTestAppHosted",
         "verifyIosTestAppHostedLocalMsakSmoke",
         "verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke",
+        "verifyIosTestAppHostedFailureStatusSmoke",
+    )
+}
+
+tasks.register("verifyPhase3Tier2FailureMatrix") {
+    description = "Phase 3 Tier 2 matrix: local/public MSAK + local Supabase + failure-status smoke checks."
+    group = "verification"
+    dependsOn(
+        "verifyAndroidLocalMsakPhase3Smoke",
+        "verifyAndroidPublicMsakLocalSupabaseSmoke",
+        "verifyAndroidFailureStatusSmoke",
+        "verifyIosTestAppHostedLocalMsakSmoke",
+        "verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke",
+        "verifyIosTestAppHostedFailureStatusSmoke",
     )
 }
 
