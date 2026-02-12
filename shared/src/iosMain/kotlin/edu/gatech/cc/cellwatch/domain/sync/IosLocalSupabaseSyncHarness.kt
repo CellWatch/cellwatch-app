@@ -3,6 +3,8 @@ package edu.gatech.cc.cellwatch.domain.sync
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import com.benasher44.uuid.uuid4
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
+import edu.gatech.cc.cellwatch.data.remote.SupabaseConnectionConfig
+import edu.gatech.cc.cellwatch.data.remote.SupabaseMeasurementSyncRemoteDataSource
 import edu.gatech.cc.cellwatch.data.sync.DefaultSyncRemoteDataSourceFactory
 import edu.gatech.cc.cellwatch.data.sync.MeasurementSyncServiceFactory
 import edu.gatech.cc.cellwatch.data.sync.SyncRemoteProfile
@@ -28,6 +30,7 @@ data class IosLocalSupabaseSyncResult(
     val measurementCompleteUploadTimeSet: Boolean,
     val measurementUploadPersisted: Boolean,
     val submissionUploadPersisted: Boolean,
+    val remoteMeasurementVerified: Boolean,
 )
 
 class IosLocalSupabaseSyncHarness {
@@ -139,6 +142,14 @@ class IosLocalSupabaseSyncHarness {
 
             val syncedMeasurement = measurementRepo.getById(measurementId)
             val syncedSubmission = submissionRepo.getById(groupId)
+            val remoteVerifier = SupabaseMeasurementSyncRemoteDataSource(
+                config = SupabaseConnectionConfig(
+                    url = supabaseUrl.replace("10.0.2.2", "127.0.0.1"),
+                    apiKey = supabaseApiKey,
+                ),
+                deviceAuthStore = deviceAuthStore,
+            )
+            val remoteMeasurement = remoteVerifier.getMeasurementById(measurementId)
 
             return IosLocalSupabaseSyncResult(
                 mapStartMeasurementsAttempted = mapStartReport.measurements.attempted,
@@ -148,6 +159,7 @@ class IosLocalSupabaseSyncHarness {
                 measurementCompleteUploadTimeSet = measurementCompleteUploadTime != null,
                 measurementUploadPersisted = syncedMeasurement?.uploadTime != null,
                 submissionUploadPersisted = syncedSubmission?.uploadTime != null,
+                remoteMeasurementVerified = remoteMeasurement.id == measurementId,
             )
         } finally {
             driver.close()

@@ -98,6 +98,7 @@ final class SyncHarnessParityTests: XCTestCase {
             XCTAssertEqual(result?.measurementCompleteUploadTimeSet, true)
             XCTAssertEqual(result?.measurementUploadPersisted, true)
             XCTAssertEqual(result?.submissionUploadPersisted, true)
+            XCTAssertEqual(result?.remoteMeasurementVerified, true)
             expectation.fulfill()
         }
 

@@ -7,6 +7,8 @@ import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriverFactory
 import edu.gatech.cc.cellwatch.androidtestapp.sync.CellwatchPropertiesSupabaseEnvironmentProvider
 import edu.gatech.cc.cellwatch.androidtestapp.sync.SupabaseTarget
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
+import edu.gatech.cc.cellwatch.data.remote.SupabaseConnectionConfig
+import edu.gatech.cc.cellwatch.data.remote.SupabaseMeasurementSyncRemoteDataSource
 import edu.gatech.cc.cellwatch.data.repo.FccSubmissionRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.MeasurementRepositoryImpl
@@ -137,6 +139,16 @@ class LocalSupabaseSharedSyncSmokeTest {
         assertNotNull(uploadTime)
         assertNotNull(measurementRepo.getById(measurementId)?.uploadTime)
         assertNotNull(submissionRepo.getById(groupId)?.uploadTime)
+
+        val remoteVerifier = SupabaseMeasurementSyncRemoteDataSource(
+            config = SupabaseConnectionConfig(
+                url = localEnv.url.replace("10.0.2.2", "127.0.0.1"),
+                apiKey = localEnv.apiKey,
+            ),
+            deviceAuthStore = authStore,
+        )
+        val remoteMeasurement = remoteVerifier.getMeasurementById(measurementId)
+        assertNotNull(remoteMeasurement)
     }
 
     private fun isSupabaseReachable(baseUrl: String): Boolean {
