@@ -3,12 +3,17 @@ package edu.gatech.cc.cellwatch.domain.sync
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import com.benasher44.uuid.uuid4
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
+import edu.gatech.cc.cellwatch.data.sync.DefaultSyncRemoteDataSourceFactory
 import edu.gatech.cc.cellwatch.data.sync.MeasurementSyncServiceFactory
+import edu.gatech.cc.cellwatch.data.sync.SyncRemoteProfile
+import edu.gatech.cc.cellwatch.data.sync.SyncRuntimeConfigFactory
+import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import edu.gatech.cc.cellwatch.data.sync.SupabaseSyncRemoteDataSourceProvider
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
+import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import kotlinx.datetime.Clock
@@ -16,10 +21,11 @@ import kotlinx.datetime.Instant
 import kotlin.coroutines.EmptyCoroutineContext
 
 data class IosLocalSupabaseSyncResult(
-    val measurementsAttempted: Int,
-    val measurementsUploaded: Int,
-    val submissionsAttempted: Int,
-    val submissionsUploaded: Int,
+    val mapStartMeasurementsAttempted: Int,
+    val mapStartMeasurementsUploaded: Int,
+    val mapStartSubmissionsAttempted: Int,
+    val mapStartSubmissionsUploaded: Int,
+    val measurementCompleteUploadTimeSet: Boolean,
     val measurementUploadPersisted: Boolean,
     val submissionUploadPersisted: Boolean,
 )
@@ -56,17 +62,24 @@ class IosLocalSupabaseSyncHarness {
         )
 
         try {
-            measurementRepo.upsert(
-                Measurement(
-                    id = measurementId,
-                    groupId = groupId,
-                    deviceId = deviceId,
-                    type = "latency",
-                    timestamp = now,
-                    connectionType = NetworkConnectionType.CELLULAR,
-                    cellularDataEnabled = true,
+            val measurement = Measurement(
+                id = measurementId,
+                groupId = groupId,
+                deviceId = deviceId,
+                type = "latency",
+                timestamp = now,
+                connectionType = NetworkConnectionType.CELLULAR,
+                cellularDataEnabled = true,
+                latencyData = LatencyData(
+                    id = latencyId,
+                    measurementId = measurementId,
+                    rtt = 25,
+                    jitter = 2,
+                    sent = 10,
+                    received = 10,
                 ),
             )
+            measurementRepo.upsert(measurement)
             latencyRepo.upsert(
                 LatencyData(
                     id = latencyId,
@@ -77,27 +90,29 @@ class IosLocalSupabaseSyncHarness {
                     received = 10,
                 ),
             )
-            submissionRepo.upsert(
-                FccSubmission(
-                    id = groupId,
-                    deviceId = deviceId,
-                    provider = "ios-hosted-local",
-                    submitted = false,
-                ),
+            val submission = FccSubmission(
+                id = groupId,
+                deviceId = deviceId,
+                provider = "ios-hosted-local",
+                submitted = false,
             )
+            submissionRepo.upsert(submission)
 
-            val syncService = MeasurementSyncServiceFactory.createSupabaseBacked(
-                database = db,
-                io = EmptyCoroutineContext,
-                supabaseConfig = MeasurementSyncServiceFactory.resolveSupabaseConfigForRuntime(
+            val remoteProfile = SyncRemoteProfile.Supabase(
+                configResolver = SyncRuntimeConfigFactory.fromRaw(
                     allowRemote = false,
                     localUrl = supabaseUrl,
                     localApiKey = supabaseApiKey,
-                    remoteUrl = null,
-                    remoteApiKey = null,
-                    useRemote = false,
                 ),
-                remoteProvider = SupabaseSyncRemoteDataSourceProvider(deviceAuthStore = deviceAuthStore),
+                target = SyncTransportTarget.LOCAL,
+            )
+            val uploadTriggerUseCase = MeasurementSyncServiceFactory.createUploadTriggerUseCase(
+                database = db,
+                io = EmptyCoroutineContext,
+                remoteProfile = remoteProfile,
+                remoteFactory = DefaultSyncRemoteDataSourceFactory(
+                    SupabaseSyncRemoteDataSourceProvider(deviceAuthStore = deviceAuthStore),
+                ),
                 tcpTupleProvider = object : TcpTupleProvider {
                     override suspend fun getPublicTcpTuple(): TcpTuple {
                         return TcpTuple(
@@ -112,17 +127,25 @@ class IosLocalSupabaseSyncHarness {
                 },
             )
 
-            val measurementReport = syncService.syncMeasurements()
-            val submissionReport = syncService.syncFccSubmissions()
+            val group = MeasurementGroup(
+                latency = measurement,
+                download = null,
+                upload = null,
+                submission = submission,
+                id = groupId,
+            )
+            val mapStartReport = uploadTriggerUseCase.onMapStart()
+            val measurementCompleteUploadTime = uploadTriggerUseCase.onMeasurementComplete(group)
 
             val syncedMeasurement = measurementRepo.getById(measurementId)
             val syncedSubmission = submissionRepo.getById(groupId)
 
             return IosLocalSupabaseSyncResult(
-                measurementsAttempted = measurementReport.attempted,
-                measurementsUploaded = measurementReport.uploaded,
-                submissionsAttempted = submissionReport.attempted,
-                submissionsUploaded = submissionReport.uploaded,
+                mapStartMeasurementsAttempted = mapStartReport.measurements.attempted,
+                mapStartMeasurementsUploaded = mapStartReport.measurements.uploaded,
+                mapStartSubmissionsAttempted = mapStartReport.submissions.attempted,
+                mapStartSubmissionsUploaded = mapStartReport.submissions.uploaded,
+                measurementCompleteUploadTimeSet = measurementCompleteUploadTime != null,
                 measurementUploadPersisted = syncedMeasurement?.uploadTime != null,
                 submissionUploadPersisted = syncedSubmission?.uploadTime != null,
             )
