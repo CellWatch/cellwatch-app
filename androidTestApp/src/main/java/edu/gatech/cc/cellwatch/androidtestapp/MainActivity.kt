@@ -11,7 +11,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriver
 import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriverFactory
 import edu.gatech.cc.cellwatch.androidtestapp.sync.FixedSupabaseEnvironmentProvider
 import edu.gatech.cc.cellwatch.androidtestapp.sync.SupabaseTarget
-import edu.gatech.cc.cellwatch.androidtestapp.sync.resolvePublicMsakLocalSupabaseRuntimeProfile
+import edu.gatech.cc.cellwatch.androidtestapp.sync.resolveRuntimeProfileFromProperties
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
 import edu.gatech.cc.cellwatch.data.repo.FccSubmissionRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
@@ -25,6 +25,9 @@ import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,12 +46,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var latencyRepo: LatencyDataRepositoryImpl
     private lateinit var submissionRepo: FccSubmissionRepositoryImpl
     private lateinit var statusText: TextView
+    private lateinit var msakModeButton: Button
+    private lateinit var supabaseModeButton: Button
 
     private var syncDriver: AndroidTestSyncDriver? = null
     private var lastGroup: MeasurementGroup? = null
-    private val runtimeProfile by lazy {
-        resolvePublicMsakLocalSupabaseRuntimeProfile()
-    }
+    private var selectedMsakMode: RuntimeMsakMode = RuntimeMsakMode.PUBLIC
+    private var selectedSupabaseMode: RuntimeSupabaseMode = RuntimeSupabaseMode.LOCAL
+    private val allowRemoteSupabase: Boolean = System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE") == "true"
+    private var runtimeProfile: RuntimeSyncMsakProfile = resolveRuntimeProfile()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,6 +102,12 @@ class MainActivity : AppCompatActivity() {
             text = "Run Map-Start Sync (No Seed)"
             setOnClickListener { runMapSyncOnly() }
         }
+        msakModeButton = Button(this).apply {
+            setOnClickListener { cycleMsakMode() }
+        }
+        supabaseModeButton = Button(this).apply {
+            setOnClickListener { cycleSupabaseMode() }
+        }
         val locateServersButton = Button(this).apply {
             text = "Select MSAK Servers (Shared Selector)"
             setOnClickListener { runSelectServers() }
@@ -114,11 +126,54 @@ class MainActivity : AppCompatActivity() {
         content.addView(seedAndMapSync)
         content.addView(measurementCompleteSync)
         content.addView(runMapSyncOnly)
+        content.addView(msakModeButton)
+        content.addView(supabaseModeButton)
         content.addView(locateServersButton)
         content.addView(runPhase3SequenceButton)
         content.addView(statusText)
+        refreshModeUi()
         root.addView(content)
         return root
+    }
+
+    private fun resolveRuntimeProfile(): RuntimeSyncMsakProfile {
+        return resolveRuntimeProfileFromProperties(
+            msakMode = selectedMsakMode,
+            supabaseMode = selectedSupabaseMode,
+            allowRemoteSupabase = allowRemoteSupabase,
+        )
+    }
+
+    private fun cycleMsakMode() {
+        selectedMsakMode = when (selectedMsakMode) {
+            RuntimeMsakMode.PUBLIC -> RuntimeMsakMode.STAGING
+            RuntimeMsakMode.STAGING -> RuntimeMsakMode.LOCAL
+            RuntimeMsakMode.LOCAL -> RuntimeMsakMode.PUBLIC
+        }
+        applyRuntimeModeChange()
+    }
+
+    private fun cycleSupabaseMode() {
+        selectedSupabaseMode = when (selectedSupabaseMode) {
+            RuntimeSupabaseMode.LOCAL -> RuntimeSupabaseMode.TESTING
+            RuntimeSupabaseMode.TESTING -> RuntimeSupabaseMode.LIVE
+            RuntimeSupabaseMode.LIVE -> RuntimeSupabaseMode.LOCAL
+        }
+        applyRuntimeModeChange()
+    }
+
+    private fun applyRuntimeModeChange() {
+        runtimeProfile = resolveRuntimeProfile()
+        syncDriver = null
+        refreshModeUi()
+        statusText.text =
+            "Runtime mode updated.\n" +
+                "MSAK=${selectedMsakMode.name}, Supabase=${selectedSupabaseMode.name}, remoteAllowed=$allowRemoteSupabase"
+    }
+
+    private fun refreshModeUi() {
+        msakModeButton.text = "MSAK Mode: ${selectedMsakMode.name} (tap to cycle)"
+        supabaseModeButton.text = "Supabase Mode: ${selectedSupabaseMode.name} (tap to cycle)"
     }
 
     private fun runSeedAndMapSync() {
@@ -252,7 +307,13 @@ class MainActivity : AppCompatActivity() {
             },
             environmentProvider = FixedSupabaseEnvironmentProvider(runtimeProfile.syncConfig),
             io = EmptyCoroutineContext,
-        ).create(SupabaseTarget.LOCAL)
+        ).create(
+            if (runtimeProfile.supabaseMode == RuntimeSupabaseMode.LOCAL) {
+                SupabaseTarget.LOCAL
+            } else {
+                SupabaseTarget.REMOTE
+            }
+        )
         syncDriver = created
         return created
     }

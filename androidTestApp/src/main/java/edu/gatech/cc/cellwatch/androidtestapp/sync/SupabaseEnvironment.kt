@@ -2,9 +2,10 @@ package edu.gatech.cc.cellwatch.androidtestapp.sync
 
 import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfig
 import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfigResolver
-import edu.gatech.cc.cellwatch.data.sync.SyncRuntimeConfigFactory
 import edu.gatech.cc.cellwatch.data.sync.SyncRuntimeConfig
 import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfiles
 import java.io.File
@@ -70,15 +71,21 @@ class CellwatchPropertiesSupabaseEnvironmentProvider(
     private fun runtimeConfig() = run {
         val props = loadProperties()
         if (allowRemote) {
-            SyncRuntimeConfigFactory.fromRaw(
-                allowRemote = true,
-                localUrl = props.getProperty("SUPABASE_LOCAL_URL"),
-                localApiKey = props.getProperty("SUPABASE_LOCAL_API_KEY"),
-                remoteUrl = props.getProperty("SUPABASE_URL"),
-                remoteApiKey = props.getProperty("SUPABASE_API_KEY"),
-            )
+            resolveRuntimeProfileFromProperties(
+                workingDir = workingDir,
+                preloadedProperties = props,
+                msakMode = RuntimeMsakMode.PUBLIC,
+                supabaseMode = RuntimeSupabaseMode.LIVE,
+                allowRemoteSupabase = true,
+            ).syncConfig
         } else {
-            resolvePublicMsakLocalSupabaseRuntimeProfile(workingDir, props).syncConfig
+            resolveRuntimeProfileFromProperties(
+                workingDir = workingDir,
+                preloadedProperties = props,
+                msakMode = RuntimeMsakMode.PUBLIC,
+                supabaseMode = RuntimeSupabaseMode.LOCAL,
+                allowRemoteSupabase = false,
+            ).syncConfig
         }
     }
 
@@ -104,14 +111,30 @@ class FixedSupabaseEnvironmentProvider(
     }
 }
 
-fun resolvePublicMsakLocalSupabaseRuntimeProfile(
+fun resolveRuntimeProfileFromProperties(
     workingDir: File = File(System.getProperty("user.dir") ?: "."),
     preloadedProperties: Properties? = null,
+    msakMode: RuntimeMsakMode = RuntimeMsakMode.PUBLIC,
+    supabaseMode: RuntimeSupabaseMode = RuntimeSupabaseMode.LOCAL,
+    allowRemoteSupabase: Boolean = false,
 ): RuntimeSyncMsakProfile {
     val props = preloadedProperties ?: loadCellwatchProperties(workingDir)
-    return RuntimeSyncMsakProfiles.publicMsakLocalSupabase(
+    return RuntimeSyncMsakProfiles.fromModes(
+        msakMode = msakMode,
+        supabaseMode = supabaseMode,
         localSupabaseUrl = props.getProperty("SUPABASE_LOCAL_URL"),
         localSupabaseApiKey = props.getProperty("SUPABASE_LOCAL_API_KEY"),
+        testingSupabaseUrl = props.getProperty("SUPABASE_TESTING_URL"),
+        testingSupabaseApiKey = props.getProperty("SUPABASE_TESTING_API_KEY"),
+        liveSupabaseUrl = props.getProperty("SUPABASE_URL"),
+        liveSupabaseApiKey = props.getProperty("SUPABASE_API_KEY"),
+        allowRemoteSupabase = allowRemoteSupabase,
+        localMsakHost = props.getProperty("MSAK_LOCAL_SERVER_HOST"),
+        localMsakSecure = props.getProperty("MSAK_LOCAL_SERVER_SECURE")
+            ?.trim()
+            ?.trim('"')
+            ?.toBooleanStrictOrNull()
+            ?: false,
     )
 }
 

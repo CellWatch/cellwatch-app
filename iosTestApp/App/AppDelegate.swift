@@ -21,9 +21,11 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 private final class HarnessViewController: UIViewController {
     private let statusLabel = UILabel()
     private var lastGroupId: String?
-    private lazy var runtimeSnapshot: RuntimeSyncMsakProfileSnapshot = {
-        RuntimeSelection.resolvePublicMsakLocalSupabaseSnapshot()
-    }()
+    private let msakModeButton = UIButton(type: .system)
+    private let supabaseModeButton = UIButton(type: .system)
+    private var selectedMsakMode: RuntimeMsakMode = .public_
+    private var selectedSupabaseMode: RuntimeSupabaseMode = .local
+    private var runtimeSnapshot: RuntimeSyncMsakProfileSnapshot?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -41,6 +43,12 @@ private final class HarnessViewController: UIViewController {
         localEnvButton.setTitle("Resolve Local Environment", for: .normal)
         localEnvButton.addTarget(self, action: #selector(resolveLocalEnvironment), for: .touchUpInside)
         localEnvButton.translatesAutoresizingMaskIntoConstraints = false
+
+        msakModeButton.addTarget(self, action: #selector(cycleMsakMode), for: .touchUpInside)
+        msakModeButton.translatesAutoresizingMaskIntoConstraints = false
+
+        supabaseModeButton.addTarget(self, action: #selector(cycleSupabaseMode), for: .touchUpInside)
+        supabaseModeButton.translatesAutoresizingMaskIntoConstraints = false
 
         let mapStartButton = UIButton(type: .system)
         mapStartButton.setTitle("Run Map-Start Shared Slice", for: .normal)
@@ -67,7 +75,7 @@ private final class HarnessViewController: UIViewController {
         statusLabel.font = UIFont.preferredFont(forTextStyle: .body)
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let stack = UIStackView(arrangedSubviews: [title, localEnvButton, mapStartButton, completeButton, selectServersButton, runPhase3SequenceButton, statusLabel])
+        let stack = UIStackView(arrangedSubviews: [title, localEnvButton, msakModeButton, supabaseModeButton, mapStartButton, completeButton, selectServersButton, runPhase3SequenceButton, statusLabel])
         stack.axis = .vertical
         stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -78,10 +86,50 @@ private final class HarnessViewController: UIViewController {
             stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
         ])
+        applyRuntimeModeChange()
+    }
+
+    @objc private func cycleMsakMode() {
+        switch selectedMsakMode {
+        case .public_: selectedMsakMode = .staging
+        case .staging: selectedMsakMode = .local
+        case .local: selectedMsakMode = .public_
+        default: selectedMsakMode = .public_
+        }
+        applyRuntimeModeChange()
+    }
+
+    @objc private func cycleSupabaseMode() {
+        switch selectedSupabaseMode {
+        case .local: selectedSupabaseMode = .testing
+        case .testing: selectedSupabaseMode = .live
+        case .live: selectedSupabaseMode = .local
+        default: selectedSupabaseMode = .local
+        }
+        applyRuntimeModeChange()
+    }
+
+    private func applyRuntimeModeChange() {
+        do {
+            runtimeSnapshot = try RuntimeSelection.resolveSnapshot(
+                msakMode: selectedMsakMode,
+                supabaseMode: selectedSupabaseMode
+            )
+            msakModeButton.setTitle("MSAK Mode: \(selectedMsakMode.displayName) (tap to cycle)", for: .normal)
+            supabaseModeButton.setTitle("Supabase Mode: \(selectedSupabaseMode.displayName) (tap to cycle)", for: .normal)
+        } catch {
+            runtimeSnapshot = nil
+            msakModeButton.setTitle("MSAK Mode: \(selectedMsakMode.displayName) (tap to cycle)", for: .normal)
+            supabaseModeButton.setTitle("Supabase Mode: \(selectedSupabaseMode.displayName) (tap to cycle)", for: .normal)
+            statusLabel.text = "Runtime mode invalid: \(error.localizedDescription)"
+        }
     }
 
     @objc private func resolveLocalEnvironment() {
-        let env = runtimeSnapshot
+        guard let env = runtimeSnapshot else {
+            statusLabel.text = "Runtime profile unavailable."
+            return
+        }
         statusLabel.text = "Local environment resolved:\nurl=\(env.supabaseUrl)\napiKeyPrefix=\(env.supabaseApiKey.prefix(12))..."
     }
 
@@ -118,6 +166,10 @@ private final class HarnessViewController: UIViewController {
     }
 
     @objc private func runServerSelection() {
+        guard let runtimeSnapshot else {
+            statusLabel.text = "Runtime profile unavailable."
+            return
+        }
         let config = MsakLocateConfig(
             environment: runtimeSnapshot.msakEnvironment,
             userAgent: "ios-test-app-harness",
@@ -142,6 +194,10 @@ private final class HarnessViewController: UIViewController {
     }
 
     @objc private func runPhase3Sequence() {
+        guard let runtimeSnapshot else {
+            statusLabel.text = "Runtime profile unavailable."
+            return
+        }
         let config = MsakLocateConfig(
             environment: runtimeSnapshot.msakEnvironment,
             userAgent: "ios-test-app-phase3",
@@ -172,11 +228,23 @@ private final class HarnessViewController: UIViewController {
 }
 
 private enum RuntimeSelection {
-    static func resolvePublicMsakLocalSupabaseSnapshot() -> RuntimeSyncMsakProfileSnapshot {
-        return RuntimeSyncMsakProfileBridge().resolvePublicMsakLocalSupabase(
+    static func resolveSnapshot(
+        msakMode: RuntimeMsakMode,
+        supabaseMode: RuntimeSupabaseMode
+    ) throws -> RuntimeSyncMsakProfileSnapshot {
+        return try RuntimeSyncMsakProfileBridge().resolveFromModes(
+            msakMode: msakMode,
+            supabaseMode: supabaseMode,
             localSupabaseUrl: readConfig("SUPABASE_LOCAL_URL"),
             localSupabaseApiKey: readConfig("SUPABASE_LOCAL_API_KEY"),
-            userAgent: "ios-test-app-public-msak-local-supabase"
+            testingSupabaseUrl: readConfig("SUPABASE_TESTING_URL"),
+            testingSupabaseApiKey: readConfig("SUPABASE_TESTING_API_KEY"),
+            liveSupabaseUrl: readConfig("SUPABASE_URL"),
+            liveSupabaseApiKey: readConfig("SUPABASE_API_KEY"),
+            allowRemoteSupabase: ProcessInfo.processInfo.environment["CELLWATCH_ALLOW_REMOTE_SUPABASE"] == "true",
+            localMsakHost: readConfig("MSAK_LOCAL_SERVER_HOST"),
+            localMsakSecure: parseBool(readConfig("MSAK_LOCAL_SERVER_SECURE")),
+            userAgent: "ios-test-app-runtime-profile"
         )
     }
 
@@ -210,5 +278,34 @@ private enum RuntimeSelection {
             }
         }
         return nil
+    }
+
+    private static func parseBool(_ raw: String?) -> Bool {
+        guard let value = raw?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else {
+            return false
+        }
+        return value == "true" || value == "1" || value == "yes" || value == "y"
+    }
+}
+
+private extension RuntimeMsakMode {
+    var displayName: String {
+        switch self {
+        case .public_: return "PUBLIC"
+        case .staging: return "STAGING"
+        case .local: return "LOCAL"
+        default: return "\(self)"
+        }
+    }
+}
+
+private extension RuntimeSupabaseMode {
+    var displayName: String {
+        switch self {
+        case .local: return "LOCAL"
+        case .testing: return "TESTING"
+        case .live: return "LIVE"
+        default: return "\(self)"
+        }
     }
 }

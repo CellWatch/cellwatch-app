@@ -7,7 +7,7 @@ final class PublicMsakLocalSupabaseHostedTests: XCTestCase {
             throw XCTSkip("Run via :shared:verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke to enable this test")
         }
 
-        let snapshot = RuntimeSyncMsakProfileBridge().resolvePublicMsakLocalSupabase(
+        let snapshot = try RuntimeSyncMsakProfileBridge().resolvePublicMsakLocalSupabase(
             localSupabaseUrl: resolveValue("SUPABASE_LOCAL_URL"),
             localSupabaseApiKey: resolveValue("SUPABASE_LOCAL_API_KEY"),
             userAgent: "ios-test-app-phase3-public-msak-local-supabase"
