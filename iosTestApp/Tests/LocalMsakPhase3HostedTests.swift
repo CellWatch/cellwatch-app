@@ -59,6 +59,16 @@ final class LocalMsakPhase3HostedTests: XCTestCase {
             XCTAssertTrue((result?.throughputMachine ?? "").isEmpty == false)
             XCTAssertTrue((result?.latencyMachine ?? "").isEmpty == false)
             XCTAssertTrue((result?.capabilitySummary ?? "").hasPrefix("capabilities("))
+            if let result {
+                let artifactFactory = Phase3SequenceParityArtifactFactory()
+                let artifactJson = artifactFactory.buildJson(platform: "ios", result: result)
+                let parsedArtifact = artifactFactory.parseJson(jsonText: artifactJson)
+                print("phase3SequenceParityArtifact=\(artifactJson)")
+                XCTAssertEqual(parsedArtifact.schemaVersion, 1)
+                XCTAssertEqual(parsedArtifact.platform, "ios")
+            } else {
+                XCTFail("Expected non-nil phase3 result for artifact emission")
+            }
             expectation.fulfill()
         }
 

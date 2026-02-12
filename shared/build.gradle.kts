@@ -672,6 +672,154 @@ tasks.register("verifyUploadTriggerParityArtifacts") {
     }
 }
 
+tasks.register("collectPhase3SequenceParityArtifacts") {
+    description = "Runs focused Android/iOS local-MSAK Phase 3 tests and writes consolidated parity artifact report."
+    group = "verification"
+
+    doLast {
+        fun runAndCollectArtifact(command: List<String>, marker: String, pattern: String): String {
+            val output = ByteArrayOutputStream()
+            exec {
+                commandLine(command)
+                standardOutput = output
+                errorOutput = output
+                isIgnoreExitValue = false
+                workingDir = rootProject.projectDir
+            }
+            val text = output.toString(Charsets.UTF_8.name())
+            val match = Regex(pattern)
+                .find(text)
+                ?.groupValues
+                ?.getOrNull(1)
+            return match ?: throw GradleException(
+                "Failed to find phase3SequenceParityArtifact JSON in $marker output."
+            )
+        }
+
+        exec {
+            commandLine(
+                "./gradlew",
+                ":androidTestApp:testDebugUnitTest",
+                "--tests",
+                "edu.gatech.cc.cellwatch.androidtestapp.LocalMsakPhase3SequenceSmokeTest",
+            )
+            environment("CELLWATCH_RUN_LOCAL_MSAK_SMOKE", "1")
+            workingDir = rootProject.projectDir
+        }
+        val androidXml = File(
+            rootProject.projectDir,
+            "androidTestApp/build/test-results/testDebugUnitTest/" +
+                "TEST-edu.gatech.cc.cellwatch.androidtestapp.LocalMsakPhase3SequenceSmokeTest.xml",
+        )
+        if (!androidXml.exists()) {
+            throw GradleException(
+                "Expected Android phase3 result XML at ${androidXml.absolutePath} but file was missing."
+            )
+        }
+        val androidJson = Regex("""phase3SequenceParityArtifact=(\{.*\})""")
+            .find(androidXml.readText())
+            ?.groupValues
+            ?.getOrNull(1)
+            ?: throw GradleException(
+                "Failed to find phase3SequenceParityArtifact JSON in Android phase3 XML."
+            )
+
+        val iosJson = runAndCollectArtifact(
+            command = listOf(
+                "./gradlew",
+                ":shared:verifyIosTestAppHostedLocalMsakSmoke",
+            ),
+            marker = "ios local-msak hosted parity test",
+            pattern = """phase3SequenceParityArtifact=(\{.*\})""",
+        )
+
+        val reportDir = rootProject.layout.buildDirectory.dir("reports/parity").get().asFile
+        reportDir.mkdirs()
+        val reportFile = File(reportDir, "phase3-sequence-parity-artifacts.txt")
+        reportFile.writeText(
+            buildString {
+                appendLine("phase3SequenceParityArtifactReport")
+                appendLine("android=$androidJson")
+                appendLine("ios=$iosJson")
+            }
+        )
+
+        logger.lifecycle("Wrote phase3 parity artifact report: ${reportFile.absolutePath}")
+    }
+}
+
+tasks.register("verifyPhase3SequenceParityArtifacts") {
+    description = "Fails when collected Android/iOS phase3-sequence parity artifact key fields diverge."
+    group = "verification"
+    dependsOn("collectPhase3SequenceParityArtifacts")
+
+    doLast {
+        val reportFile = File(
+            rootProject.projectDir,
+            "build/reports/parity/phase3-sequence-parity-artifacts.txt",
+        )
+        if (!reportFile.exists()) {
+            throw GradleException(
+                "Phase3 parity report file missing: ${reportFile.absolutePath}. " +
+                    "Run :shared:collectPhase3SequenceParityArtifacts first."
+            )
+        }
+
+        val lines = reportFile.readLines()
+        val androidJson = lines.firstOrNull { it.startsWith("android=") }?.removePrefix("android=")
+            ?: throw GradleException("Missing android artifact line in phase3 parity report.")
+        val iosJson = lines.firstOrNull { it.startsWith("ios=") }?.removePrefix("ios=")
+            ?: throw GradleException("Missing ios artifact line in phase3 parity report.")
+
+        fun extractValue(json: String, key: String): String {
+            val quoted = Regex(""""$key":"((?:[^"\\\\]|\\\\.)*)"""")
+                .find(json)
+                ?.groupValues
+                ?.getOrNull(1)
+            if (quoted != null) return quoted
+            val primitive = Regex(""""$key":([^,}\\n]+)""")
+                .find(json)
+                ?.groupValues
+                ?.getOrNull(1)
+            return primitive ?: throw GradleException("Missing key '$key' in artifact JSON: $json")
+        }
+
+        val keysToMatch = listOf(
+            "schemaVersion",
+            "suite",
+            "submissionCreated",
+            "persistedMeasurements",
+            "persistedSubmissions",
+            "persistedMeasurementsWithCapabilitySupport",
+            "persistedMeasurementsWithCapabilityNotes",
+            "capabilityPersistenceSummary",
+        )
+        val mismatches = keysToMatch.filter { key ->
+            extractValue(androidJson, key) != extractValue(iosJson, key)
+        }
+
+        val machineErrors = buildList {
+            if (extractValue(androidJson, "throughputMachine").isBlank()) add("android.throughputMachineBlank")
+            if (extractValue(androidJson, "latencyMachine").isBlank()) add("android.latencyMachineBlank")
+            if (extractValue(iosJson, "throughputMachine").isBlank()) add("ios.throughputMachineBlank")
+            if (extractValue(iosJson, "latencyMachine").isBlank()) add("ios.latencyMachineBlank")
+        }
+
+        if (mismatches.isNotEmpty() || machineErrors.isNotEmpty()) {
+            throw GradleException(
+                "Phase3 parity artifact mismatch.\n" +
+                    "mismatches=$mismatches machineErrors=$machineErrors\n" +
+                    "android=$androidJson\n" +
+                    "ios=$iosJson"
+            )
+        }
+
+        logger.lifecycle(
+            "Phase3 parity artifacts matched for keys: $keysToMatch and nonblank machine IDs."
+        )
+    }
+}
+
 tasks.register("refreshIosSimulatorCurrentFramework") {
     description = "Refreshes sharedKit.framework at iosSimulatorArm64/Current from latest debug framework output."
     group = "verification"

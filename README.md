@@ -422,6 +422,12 @@ Supabase safety policy:
   - Parity gate task:
     - `./gradlew :shared:verifyUploadTriggerParityArtifacts`
     - runs artifact collection, then fails if Android/iOS key parity fields diverge.
+  - Phase 3 sequence parity artifact:
+    - `./gradlew :shared:collectPhase3SequenceParityArtifacts`
+    - writes `build/reports/parity/phase3-sequence-parity-artifacts.txt` from Android+iOS local-MSAK smoke paths.
+  - Phase 3 sequence parity gate:
+    - `./gradlew :shared:verifyPhase3SequenceParityArtifacts`
+    - runs phase3 artifact collection, then fails if persisted/capability key fields diverge or machine IDs are blank.
 - shared runtime profile contract:
   - `RuntimeSyncMsakProfiles.fromModes(...)` defines the shared MSAK+Supabase mode contract.
   - `RuntimeSyncMsakProfiles.publicMsakLocalSupabase(...)` remains as the convenience profile for:
