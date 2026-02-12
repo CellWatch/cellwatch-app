@@ -18,6 +18,15 @@
     <string>1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>iosTestApp uses local network access for local MSAK and Supabase development testing.</string>
     <key>UIApplicationSceneManifest</key>
     <dict/>
 </dict>

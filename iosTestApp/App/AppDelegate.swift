@@ -32,6 +32,16 @@ final class HarnessViewController: UIViewController {
     private var selectedSupabaseMode: RuntimeSupabaseMode = .local
     private var runtimeSnapshot: RuntimeSyncMsakProfileSnapshot?
 
+    private func setStatus(_ text: String) {
+        if Thread.isMainThread {
+            statusLabel.text = text
+        } else {
+            DispatchQueue.main.async {
+                self.statusLabel.text = text
+            }
+        }
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
@@ -122,22 +132,34 @@ final class HarnessViewController: UIViewController {
                 msakMode: selectedMsakMode,
                 supabaseMode: selectedSupabaseMode
             )
+            if let snapshot = runtimeSnapshot {
+                NSLog(
+                    "[iosTestApp] runtime mode updated msak=%@ supabase=%@ msakEnv=%@ msakLocalHost=%@ supabaseUrl=%@ keyPresent=%@",
+                    selectedMsakMode.displayName,
+                    selectedSupabaseMode.displayName,
+                    "\(snapshot.msakEnvironment)",
+                    snapshot.msakLocalServerHost ?? "n/a",
+                    snapshot.supabaseUrl,
+                    snapshot.supabaseApiKey.isEmpty ? "false" : "true"
+                )
+            }
             msakModeButton.setTitle("MSAK Mode: \(selectedMsakMode.displayName) (tap to cycle)", for: .normal)
             supabaseModeButton.setTitle("Supabase Mode: \(selectedSupabaseMode.displayName) (tap to cycle)", for: .normal)
         } catch {
             runtimeSnapshot = nil
             msakModeButton.setTitle("MSAK Mode: \(selectedMsakMode.displayName) (tap to cycle)", for: .normal)
             supabaseModeButton.setTitle("Supabase Mode: \(selectedSupabaseMode.displayName) (tap to cycle)", for: .normal)
+            NSLog("[iosTestApp] runtime mode invalid: %@", error.localizedDescription)
             statusLabel.text = "Runtime mode invalid: \(error.localizedDescription)"
         }
     }
 
     @objc private func resolveLocalEnvironment() {
         guard let env = runtimeSnapshot else {
-            statusLabel.text = "Runtime profile unavailable."
+            setStatus("Runtime profile unavailable.")
             return
         }
-        statusLabel.text = "Local environment resolved:\nurl=\(env.supabaseUrl)\napiKeyPrefix=\(env.supabaseApiKey.prefix(12))..."
+        setStatus("Local environment resolved:\nurl=\(env.supabaseUrl)\napiKeyPrefix=\(env.supabaseApiKey.prefix(12))...")
     }
 
     @objc private func runMapStart() {
@@ -149,7 +171,7 @@ final class HarnessViewController: UIViewController {
                     scenario: "map-start-sync",
                     errorMessage: error.localizedDescription
                 )
-                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
+                self.setStatus(self.smokeFormatter.format(envelope: envelope))
                 return
             }
             let envelope = self.smokeEnvelopeBuilder.mapStart(
@@ -162,7 +184,7 @@ final class HarnessViewController: UIViewController {
                     "\nmeasurements uploaded=\(value.measurementsUploaded), marked=\(value.measurementsMarkedUploaded)\n" +
                     "submissions uploaded=\(value.submissionsUploaded), blocked=\(value.submissionsBlockedBeforeUpload)"
             }
-            self.statusLabel.text = message
+            self.setStatus(message)
         }
     }
 
@@ -175,7 +197,7 @@ final class HarnessViewController: UIViewController {
                     scenario: "measurement-complete-sync",
                     errorMessage: error.localizedDescription
                 )
-                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
+                self.setStatus(self.smokeFormatter.format(envelope: envelope))
                 return
             }
             let uploadMs = result?.uploadTimeEpochMs?.int64Value ?? -1
@@ -183,14 +205,16 @@ final class HarnessViewController: UIViewController {
                 uploadTimeSet: uploadMs >= 0,
                 errorMessage: nil
             )
-            self.statusLabel.text = self.smokeFormatter.format(envelope: envelope) +
+            self.setStatus(
+                self.smokeFormatter.format(envelope: envelope) +
                 "\ngroup=\(groupId)\nuploadTimeEpochMs=\(uploadMs)"
+            )
         }
     }
 
     @objc private func runServerSelection() {
         guard let runtimeSnapshot else {
-            statusLabel.text = "Runtime profile unavailable."
+            setStatus("Runtime profile unavailable.")
             return
         }
         let config = MsakLocateConfig(
@@ -206,7 +230,7 @@ final class HarnessViewController: UIViewController {
                     scenario: "server-select",
                     errorMessage: "\(error)"
                 )
-                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
+                self.setStatus(self.smokeFormatter.format(envelope: envelope))
                 return
             }
             guard let value = result else {
@@ -214,38 +238,59 @@ final class HarnessViewController: UIViewController {
                     scenario: "server-select",
                     errorMessage: "no result"
                 )
-                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
+                self.setStatus(self.smokeFormatter.format(envelope: envelope))
                 return
             }
-            self.statusLabel.text =
+            self.setStatus(
                 "server-select throughput=\(value.throughputMachine)\n" +
                 "latency=\(value.latencyMachine)\n" +
                 "fallback=\(value.fallbackUsed)"
+            )
         }
     }
 
     @objc private func runPhase3Sequence() {
         guard let runtimeSnapshot else {
-            statusLabel.text = "Runtime profile unavailable."
+            setStatus("Runtime profile unavailable.")
             return
         }
+        if let preflightError = phase3PreflightError(snapshot: runtimeSnapshot) {
+            NSLog("[iosTestApp] Phase3 preflight failed: %@", preflightError)
+            let envelope = smokeEnvelopeBuilder.failure(
+                scenario: "phase3-preflight",
+                errorMessage: preflightError
+            )
+            setStatus(smokeFormatter.format(envelope: envelope))
+            return
+        }
+        NSLog(
+            "[iosTestApp] Phase3 preflight passed msakMode=%@ supabaseMode=%@ msakEnv=%@ msakLocalHost=%@ supabaseUrl=%@ keyPresent=%@",
+            selectedMsakMode.displayName,
+            selectedSupabaseMode.displayName,
+            "\(runtimeSnapshot.msakEnvironment)",
+            runtimeSnapshot.msakLocalServerHost ?? "n/a",
+            runtimeSnapshot.supabaseUrl,
+            runtimeSnapshot.supabaseApiKey.isEmpty ? "false" : "true"
+        )
         let config = MsakLocateConfig(
             environment: runtimeSnapshot.msakEnvironment,
             userAgent: "ios-test-app-phase3",
             localServerHost: runtimeSnapshot.msakLocalServerHost,
             localServerSecure: runtimeSnapshot.msakLocalServerSecure
         )
-        IosPhase3SequenceSyncHarness().run(
+        IosPhase3SequenceSyncHarness().runAsync(
             msakConfig: config,
             supabaseUrl: runtimeSnapshot.supabaseUrl,
             supabaseApiKey: runtimeSnapshot.supabaseApiKey
         ) { result, error in
             if let error = error {
+                NSLog("[iosTestApp] Phase3 sequence failed: %@", String(describing: error))
+                let hinted = self.withProtocolHint("\(error)")
                 let envelope = self.smokeEnvelopeBuilder.failure(
                     scenario: "phase3-sequence-sync",
-                    errorMessage: "\(error)"
+                    errorMessage: hinted
                 )
-                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
+                self.setStatus(self.smokeFormatter.format(envelope: envelope))
                 return
             }
             guard let value = result else {
@@ -253,7 +298,7 @@ final class HarnessViewController: UIViewController {
                     scenario: "phase3-sequence-sync",
                     errorMessage: "no result"
                 )
-                self.statusLabel.text = self.smokeFormatter.format(envelope: envelope)
+                self.setStatus(self.smokeFormatter.format(envelope: envelope))
                 return
             }
             let envelope = self.smokeEnvelopeBuilder.phase3Sequence(
@@ -262,7 +307,8 @@ final class HarnessViewController: UIViewController {
                 persistedSubmissions: Int32(value.persistedSubmissions),
                 errorMessage: nil
             )
-                self.statusLabel.text = Phase3UiSliceFormatter().format(
+                self.setStatus(
+                    Phase3UiSliceFormatter().format(
                     envelopeText: self.smokeFormatter.format(envelope: envelope),
                     result: Phase3UiSliceResult(
                         groupId: value.groupId,
@@ -278,7 +324,39 @@ final class HarnessViewController: UIViewController {
                         capabilitySummary: value.capabilitySummary
                     )
                 )
+                )
         }
+    }
+
+    private func phase3PreflightError(snapshot: RuntimeSyncMsakProfileSnapshot) -> String? {
+        var issues: [String] = []
+        if selectedMsakMode == .local {
+            if snapshot.msakLocalServerHost?.isEmpty != false {
+                issues.append("MSAK LOCAL requires local server host")
+            }
+        }
+        if snapshot.supabaseUrl.isEmpty {
+            issues.append("Supabase URL is blank")
+        } else if selectedSupabaseMode == .local {
+            let url = snapshot.supabaseUrl
+            let allowed = url.contains("127.0.0.1") || url.contains("localhost")
+            if !allowed {
+                issues.append("Supabase LOCAL URL should target localhost (got \(url))")
+            }
+        }
+        if snapshot.supabaseApiKey.isEmpty {
+            issues.append("Supabase API key is blank")
+        }
+        return issues.isEmpty ? nil : issues.joined(separator: "; ")
+    }
+
+    private func withProtocolHint(_ raw: String) -> String {
+        let lower = raw.lowercased()
+        if lower.contains("missingfieldexception") && lower.contains("bytessent") {
+            return "MSAK protocol mismatch: client expects Application.BytesSent/BytesReceived but server payload differs. " +
+                "Use a matching local msak-server build for this msak-client-kmp version. details=\(raw)"
+        }
+        return raw
     }
 }
 
@@ -287,6 +365,13 @@ private enum RuntimeSelection {
         msakMode: RuntimeMsakMode,
         supabaseMode: RuntimeSupabaseMode
     ) throws -> RuntimeSyncMsakProfileSnapshot {
+        let configuredLocalMsakHost = readConfig("MSAK_LOCAL_SERVER_HOST")
+        let localMsakHost: String?
+        if msakMode == .local {
+            localMsakHost = (configuredLocalMsakHost?.isEmpty == false) ? configuredLocalMsakHost : "127.0.0.1"
+        } else {
+            localMsakHost = configuredLocalMsakHost
+        }
         return try RuntimeSyncMsakProfileBridge().resolveFromModes(
             msakMode: msakMode,
             supabaseMode: supabaseMode,
@@ -297,7 +382,7 @@ private enum RuntimeSelection {
             liveSupabaseUrl: readConfig("SUPABASE_URL"),
             liveSupabaseApiKey: readConfig("SUPABASE_API_KEY"),
             allowRemoteSupabase: ProcessInfo.processInfo.environment["CELLWATCH_ALLOW_REMOTE_SUPABASE"] == "true",
-            localMsakHost: readConfig("MSAK_LOCAL_SERVER_HOST"),
+            localMsakHost: localMsakHost,
             localMsakSecure: parseBool(readConfig("MSAK_LOCAL_SERVER_SECURE")),
             userAgent: "ios-test-app-runtime-profile"
         )

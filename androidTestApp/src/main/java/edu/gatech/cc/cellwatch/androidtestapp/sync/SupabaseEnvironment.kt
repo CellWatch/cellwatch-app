@@ -119,6 +119,14 @@ fun resolveRuntimeProfileFromProperties(
     allowRemoteSupabase: Boolean = false,
 ): RuntimeSyncMsakProfile {
     val props = preloadedProperties ?: loadCellwatchProperties(workingDir)
+    val configuredLocalMsakHost = props.getProperty("MSAK_LOCAL_SERVER_HOST")
+        ?.trim()
+        ?.trim('"')
+        ?.takeIf { it.isNotEmpty() }
+    val resolvedLocalMsakHost = when (msakMode) {
+        RuntimeMsakMode.LOCAL -> configuredLocalMsakHost ?: DEFAULT_ANDROID_LOCAL_MSAK_HOST
+        else -> configuredLocalMsakHost
+    }
     return RuntimeSyncMsakProfiles.fromModes(
         msakMode = msakMode,
         supabaseMode = supabaseMode,
@@ -129,7 +137,7 @@ fun resolveRuntimeProfileFromProperties(
         liveSupabaseUrl = props.getProperty("SUPABASE_URL"),
         liveSupabaseApiKey = props.getProperty("SUPABASE_API_KEY"),
         allowRemoteSupabase = allowRemoteSupabase,
-        localMsakHost = props.getProperty("MSAK_LOCAL_SERVER_HOST"),
+        localMsakHost = resolvedLocalMsakHost,
         localMsakSecure = props.getProperty("MSAK_LOCAL_SERVER_SECURE")
             ?.trim()
             ?.trim('"')
@@ -156,3 +164,5 @@ private fun findCellwatchProperties(startDir: File): File? {
     }
     return null
 }
+
+private const val DEFAULT_ANDROID_LOCAL_MSAK_HOST = "10.0.2.2"

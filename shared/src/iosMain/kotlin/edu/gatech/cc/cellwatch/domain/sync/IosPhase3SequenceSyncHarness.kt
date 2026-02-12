@@ -19,8 +19,14 @@ import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateConfig
 import edu.gatech.cc.cellwatch.domain.fcc.RepositoryBackedMeasurementResultStore
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlin.Throws
 import kotlin.coroutines.EmptyCoroutineContext
 
 data class IosPhase3SequenceSyncResult(
@@ -38,7 +44,31 @@ data class IosPhase3SequenceSyncResult(
 )
 
 class IosPhase3SequenceSyncHarness {
+    fun runAsync(
+        msakConfig: MsakLocateConfig,
+        supabaseUrl: String,
+        supabaseApiKey: String,
+        onComplete: (IosPhase3SequenceSyncResult?, Throwable?) -> Unit,
+    ) {
+        val handler = CoroutineExceptionHandler { _, throwable ->
+            onComplete(null, throwable)
+        }
+        CoroutineScope(SupervisorJob() + Dispatchers.Default + handler).launch {
+            runCatching {
+                run(
+                    msakConfig = msakConfig,
+                    supabaseUrl = supabaseUrl,
+                    supabaseApiKey = supabaseApiKey,
+                )
+            }.onSuccess { result ->
+                onComplete(result, null)
+            }.onFailure { error ->
+                onComplete(null, error)
+            }
+        }
+    }
 
+    @Throws(Exception::class)
     suspend fun run(
         msakConfig: MsakLocateConfig,
         supabaseUrl: String,
