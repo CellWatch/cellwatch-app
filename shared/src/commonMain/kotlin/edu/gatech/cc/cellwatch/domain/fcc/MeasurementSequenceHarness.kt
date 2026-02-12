@@ -1,5 +1,8 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
+import edu.gatech.cc.cellwatch.domain.capability.CapabilityCaptureReportFormatter
+import edu.gatech.cc.cellwatch.domain.capability.NoOpPlatformCapabilityProvider
+import edu.gatech.cc.cellwatch.domain.capability.PlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.Measurement
@@ -18,6 +21,7 @@ data class MeasurementSequenceHarnessResult(
     val submissionCreated: Boolean,
     val persistedMeasurements: Int,
     val persistedSubmissions: Int,
+    val capabilitySummary: String,
 )
 
 /**
@@ -32,8 +36,13 @@ class MeasurementSequenceHarness(
         userAgent = "cellwatch-phase3-harness",
     ),
     private val clock: Clock = Clock.System,
+    private val capabilityProvider: PlatformCapabilityProvider = NoOpPlatformCapabilityProvider,
 ) {
-    constructor(config: MsakLocateConfig) : this(config = config, clock = Clock.System)
+    constructor(config: MsakLocateConfig) : this(
+        config = config,
+        clock = Clock.System,
+        capabilityProvider = NoOpPlatformCapabilityProvider,
+    )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -42,6 +51,15 @@ class MeasurementSequenceHarness(
     ) {
         scope.launch {
             runCatching {
+                val capabilitySummary = runCatching {
+                    CapabilityCaptureReportFormatter.format(
+                        CapabilityCaptureReportFormatter.fromSnapshot(
+                            capabilityProvider.captureSnapshot(),
+                        ),
+                    )
+                }.getOrElse { error ->
+                    "capabilities(capture=FAILED, error=${error.message})"
+                }
                 val resultStore = InMemoryResultStore()
                 val orchestrator = MeasurementSequenceOrchestrator(
                     serverPairProvider = SelectorBackedServerPairProvider(config),
@@ -52,6 +70,7 @@ class MeasurementSequenceHarness(
                             throughputDurationMs = 5_000,
                             throughputDelayMs = 0,
                             latencyDurationMs = 3_000,
+                            capabilityProvider = capabilityProvider,
                         ),
                         clock = clock,
                     ),
@@ -72,6 +91,7 @@ class MeasurementSequenceHarness(
                     submissionCreated = outcome.group.submission != null,
                     persistedMeasurements = resultStore.measurements.size,
                     persistedSubmissions = resultStore.submissions.size,
+                    capabilitySummary = capabilitySummary,
                 )
             }.onSuccess {
                 onComplete(it, null)

@@ -42,6 +42,7 @@ final class LocalMsakPhase3HostedTests: XCTestCase {
             XCTAssertEqual(result?.persistedSubmissions, Int32(1))
             XCTAssertTrue((result?.throughputMachine ?? "").isEmpty == false)
             XCTAssertTrue((result?.latencyMachine ?? "").isEmpty == false)
+            XCTAssertTrue((result?.capabilitySummary ?? "").hasPrefix("capabilities("))
             expectation.fulfill()
         }
 

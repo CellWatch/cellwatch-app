@@ -94,6 +94,7 @@ class PublicMsakLocalSupabaseSmokeTest {
         assertTrue(nonNull.throughputMachine.isNotBlank())
         assertTrue(nonNull.latencyMachine.isNotBlank())
         assertEquals(3, nonNull.persistedMeasurements)
+        assertTrue(nonNull.capabilitySummary.startsWith("capabilities("))
 
         assumeTrue("local supabase unavailable", isSupabaseReachable(resolvedSupabase.url))
 

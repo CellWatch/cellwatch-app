@@ -57,6 +57,7 @@ final class PublicMsakLocalSupabaseHostedTests: XCTestCase {
             XCTAssertEqual(result?.persistedMeasurements, Int32(3))
             XCTAssertTrue((result?.throughputMachine ?? "").isEmpty == false)
             XCTAssertTrue((result?.latencyMachine ?? "").isEmpty == false)
+            XCTAssertTrue((result?.capabilitySummary ?? "").hasPrefix("capabilities("))
             sequenceExpectation.fulfill()
         }
         waitForExpectations(timeout: 120)
