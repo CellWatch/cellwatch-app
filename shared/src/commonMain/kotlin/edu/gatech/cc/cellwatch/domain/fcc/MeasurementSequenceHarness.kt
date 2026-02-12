@@ -21,6 +21,8 @@ data class MeasurementSequenceHarnessResult(
     val submissionCreated: Boolean,
     val persistedMeasurements: Int,
     val persistedSubmissions: Int,
+    val persistedMeasurementsWithCapabilitySupport: Int,
+    val persistedMeasurementsWithCapabilityNotes: Int,
     val capabilitySummary: String,
 )
 
@@ -92,13 +94,18 @@ class MeasurementSequenceHarness(
                     measurementId = null,
                 )
                 val outcome = orchestrator.run(request)
+                val persistedMeasurements = resultStore.measurements.size
+                val withSupport = resultStore.measurements.count { it.hasCapabilitySupportStates() }
+                val withNotes = resultStore.measurements.count { !it.capabilityNotes.isNullOrBlank() }
                 MeasurementSequenceHarnessResult(
                     throughputMachine = outcome.throughputServerMachine,
                     latencyMachine = outcome.latencyServerMachine,
                     groupId = outcome.group.id,
                     submissionCreated = outcome.group.submission != null,
-                    persistedMeasurements = resultStore.measurements.size,
+                    persistedMeasurements = persistedMeasurements,
                     persistedSubmissions = resultStore.submissions.size,
+                    persistedMeasurementsWithCapabilitySupport = withSupport,
+                    persistedMeasurementsWithCapabilityNotes = withNotes,
                     capabilitySummary = capabilitySummary,
                 )
             }.onSuccess {
@@ -112,6 +119,13 @@ class MeasurementSequenceHarness(
     fun close() {
         scope.cancel()
     }
+}
+
+private fun Measurement.hasCapabilitySupportStates(): Boolean {
+    return !telephonySupport.isNullOrBlank() &&
+        !networkSupport.isNullOrBlank() &&
+        !locationSupport.isNullOrBlank() &&
+        !deviceSupport.isNullOrBlank()
 }
 
 private class SelectorBackedServerPairProvider(

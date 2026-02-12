@@ -98,6 +98,8 @@ final class SyncHarnessParityTests: XCTestCase {
             XCTAssertEqual(result?.mapStartMeasurementsUploaded, Int32(1))
             XCTAssertEqual(result?.mapStartSubmissionsAttempted, Int32(1))
             XCTAssertEqual(result?.mapStartSubmissionsUploaded, Int32(1))
+            XCTAssertEqual(result?.capabilitySupportPersisted, true)
+            XCTAssertEqual(result?.capabilityNotesPersisted, true)
             let invariantError = self.smokeValidator.validateSuccess(
                 measurementUploadPersisted: result?.measurementUploadPersisted ?? false,
                 submissionUploadPersisted: result?.submissionUploadPersisted ?? false,
