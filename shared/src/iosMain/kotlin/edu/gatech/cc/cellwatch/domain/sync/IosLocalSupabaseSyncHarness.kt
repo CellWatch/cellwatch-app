@@ -21,6 +21,7 @@ import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.Throws
 
 data class IosLocalSupabaseSyncResult(
     val mapStartMeasurementsAttempted: Int,
@@ -35,6 +36,7 @@ data class IosLocalSupabaseSyncResult(
 
 class IosLocalSupabaseSyncHarness {
 
+    @Throws(Exception::class)
     suspend fun run(
         supabaseUrl: String,
         supabaseApiKey: String,

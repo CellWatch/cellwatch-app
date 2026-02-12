@@ -267,6 +267,23 @@ tasks.register("verifyAndroidPublicMsakLocalSupabaseSmoke") {
     }
 }
 
+tasks.register("verifyAndroidFailureStatusSmoke") {
+    description = "Tier 2: Android smoke for surfaced failure status in shared sync harness path."
+    group = "verification"
+    doLast {
+        exec {
+            commandLine(
+                "./gradlew",
+                ":androidTestApp:testDebugUnitTest",
+                "--tests",
+                "edu.gatech.cc.cellwatch.androidtestapp.AndroidFailureStatusSmokeTest",
+            )
+            environment("CELLWATCH_RUN_ANDROID_FAILURE_STATUS_SMOKE", "1")
+            workingDir = rootProject.projectDir
+        }
+    }
+}
+
 tasks.register("verifyIosHostedKeychain") {
     description = "Tier 2: iOS host-app Keychain tests (requires an Xcode project/test target)."
     group = "verification"
@@ -392,6 +409,39 @@ tasks.register("verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke") {
             }
         } finally {
             marker.delete()
+        }
+    }
+}
+
+tasks.register("verifyIosTestAppHostedFailureStatusSmoke") {
+    description = "Tier 2: iOS hosted smoke for surfaced failure status in shared sync harness path."
+    group = "verification"
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException("Missing iOS hosted test app project at ${projectPath.absolutePath}.")
+        }
+        val marker = file("/tmp/cellwatch-ios-failure-status-smoke-required")
+        marker.writeText("required")
+    }
+    doLast {
+        try {
+            exec {
+                commandLine(
+                    "xcodebuild",
+                    "-project",
+                    projectPath.absolutePath,
+                    "-scheme",
+                    "iosTestApp",
+                    "-destination",
+                    "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                    "-only-testing:iosTestAppTests/SyncHarnessParityTests/testHostedFailureSurface_forInvalidSupabaseCredentials_whenEnabled",
+                    "test",
+                )
+                workingDir = rootProject.projectDir
+            }
+        } finally {
+            file("/tmp/cellwatch-ios-failure-status-smoke-required").delete()
         }
     }
 }
