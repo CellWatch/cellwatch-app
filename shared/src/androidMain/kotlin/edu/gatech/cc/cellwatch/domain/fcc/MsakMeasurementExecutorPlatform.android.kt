@@ -1,5 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
+import edu.gatech.cc.cellwatch.domain.capability.MeasurementCapabilityEnricher
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
@@ -18,6 +19,7 @@ actual object MsakMeasurementExecutorPlatform {
         config: MsakMeasurementExecutorConfig,
         clock: Clock,
     ): MeasurementExecutor {
+        val enricher = MeasurementCapabilityEnricher()
         return object : MeasurementExecutor {
             override suspend fun runLatency(
                 server: MsakServerEndpoint,
@@ -34,7 +36,7 @@ actual object MsakMeasurementExecutorPlatform {
                     ),
                 )
                 val now = clock.now()
-                return Measurement(
+                val measurement = Measurement(
                     id = id,
                     groupId = groupId,
                     type = "latency",
@@ -54,6 +56,12 @@ actual object MsakMeasurementExecutorPlatform {
                         servers = listOf(server.machine),
                     ),
                 )
+                return runCatching {
+                    enricher.enrich(
+                        measurement = measurement,
+                        snapshot = config.capabilityProvider.captureSnapshot(),
+                    )
+                }.getOrElse { measurement }
             }
 
             override suspend fun runThroughput(
@@ -81,7 +89,7 @@ actual object MsakMeasurementExecutorPlatform {
                 )
                 val now = clock.now()
                 val bytesPerSec = (summary.mbps * 1_000_000.0) / 8.0
-                return Measurement(
+                val measurement = Measurement(
                     id = id,
                     groupId = groupId,
                     type = prefix,
@@ -100,6 +108,12 @@ actual object MsakMeasurementExecutorPlatform {
                         servers = listOf(server.machine),
                     ),
                 )
+                return runCatching {
+                    enricher.enrich(
+                        measurement = measurement,
+                        snapshot = config.capabilityProvider.captureSnapshot(),
+                    )
+                }.getOrElse { measurement }
             }
         }
     }
