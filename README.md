@@ -861,6 +861,7 @@ Not yet ported (still Android-only in `frozenApp/`):
 ### Phase 5: App-layer convergence
 - Planning tracker: `doc/PHASE5_USER_STORY_PLAN.md`
 - Architecture contract: `doc/APP_LAYER_ARCHITECTURE_CONTRACT.md`
+- Shared UI feasibility analysis: `doc/SHARED_UI_FEASIBILITY_ANALYSIS.md`
 - Build replacement Android/iOS product app layers that consume shared repositories/use-cases
 - Stand up iOS app UI against the same shared APIs
 - Retire frozen Android-only logic as each slice is migrated into shared
