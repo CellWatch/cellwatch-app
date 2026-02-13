@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class Phase3SequenceButtonUiSmokeTest {
+    private val screenshotDir = "/sdcard/Download/cellwatch-ui-flow/android"
 
     @Test
     fun clickingPhase3Button_rendersPhase3Envelope() {
@@ -28,6 +29,8 @@ class Phase3SequenceButtonUiSmokeTest {
 
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         try {
+            ensureScreenshotDir()
+            captureScreenshot("01-ready")
             onView(withId(MainActivity.RUN_PHASE3_SEQUENCE_BUTTON_ID)).perform(click())
 
             val deadline = System.currentTimeMillis() + 120_000
@@ -44,6 +47,7 @@ class Phase3SequenceButtonUiSmokeTest {
                     break
                 }
             }
+            captureScreenshot("02-after-phase3")
 
             assertTrue(
                 "Expected phase3 status envelope after button click, got: $rendered",
@@ -64,6 +68,20 @@ class Phase3SequenceButtonUiSmokeTest {
         } finally {
             scenario.close()
         }
+    }
+
+    private fun ensureScreenshotDir() {
+        runShell("mkdir -p $screenshotDir")
+    }
+
+    private fun captureScreenshot(name: String) {
+        runShell("screencap -p $screenshotDir/$name.png")
+    }
+
+    private fun runShell(command: String) {
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val fd = automation.executeShellCommand(command)
+        FileInputStream(fd.fileDescriptor).use { it.readBytes() }
     }
 
     private fun grantHarnessRuntimePermissions() {

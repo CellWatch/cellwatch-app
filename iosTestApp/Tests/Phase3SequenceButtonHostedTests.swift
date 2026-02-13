@@ -16,6 +16,7 @@ final class Phase3SequenceButtonHostedTests: XCTestCase {
             title: "Run Phase3 Sequence (Shared Orchestrator)",
         )
         let statusLabel = try requireStatusLabel(in: controller.view)
+        captureScreenshot(of: controller.view, named: "01-ready")
 
         let done = expectation(description: "phase3 status rendered")
         var finalStatus = ""
@@ -31,6 +32,7 @@ final class Phase3SequenceButtonHostedTests: XCTestCase {
 
         runButton.sendActions(for: .touchUpInside)
         wait(for: [done], timeout: 125)
+        captureScreenshot(of: controller.view, named: "02-after-phase3")
 
         XCTAssertTrue(
             finalStatus.contains("smokeEnvelope scenario=phase3-sequence-sync") ||
@@ -53,6 +55,26 @@ final class Phase3SequenceButtonHostedTests: XCTestCase {
 
     private func isSmokeMarkerPresent() -> Bool {
         FileManager.default.fileExists(atPath: "/tmp/cellwatch-ios-phase3-button-smoke-required")
+    }
+
+    private func captureScreenshot(of view: UIView, named name: String) {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = UIScreen.main.scale
+        let renderer = UIGraphicsImageRenderer(bounds: view.bounds, format: format)
+        let image = renderer.image { _ in
+            view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
+        }
+        guard let data = image.pngData() else { return }
+        let root = URL(fileURLWithPath: "/tmp", isDirectory: true)
+            .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
+            .appendingPathComponent("ios", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let url = root.appendingPathComponent("\(name).png")
+            try data.write(to: url, options: [.atomic])
+        } catch {
+            // Best-effort artifact only.
+        }
     }
 
     private func requireButton(in view: UIView, title: String) throws -> UIButton {
