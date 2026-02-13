@@ -44,6 +44,7 @@ class InMemoryRuntimeProfileStore(
 
 object RuntimeProfileResolver {
     fun resolveProfile(config: RuntimeProfileConfig): RuntimeSyncMsakProfile {
+        RuntimeProfileContract.requireValid(config)
         return RuntimeSyncMsakProfiles.fromModes(
             msakMode = config.msakMode,
             supabaseMode = config.supabaseMode,
@@ -88,12 +89,15 @@ object RuntimeProfileResolver {
 }
 
 class RuntimeProfileResolverBridge {
+    @Throws(IllegalStateException::class)
     fun resolveProfile(config: RuntimeProfileConfig): RuntimeSyncMsakProfile =
         RuntimeProfileResolver.resolveProfile(config)
 
+    @Throws(IllegalStateException::class)
     fun resolveSnapshot(config: RuntimeProfileConfig): RuntimeSyncMsakProfileSnapshot =
         RuntimeProfileResolver.resolveSnapshot(config)
 
+    @Throws(IllegalStateException::class)
     fun resolveSnapshot(
         store: RuntimeProfileStore,
         fallback: RuntimeProfileConfig,

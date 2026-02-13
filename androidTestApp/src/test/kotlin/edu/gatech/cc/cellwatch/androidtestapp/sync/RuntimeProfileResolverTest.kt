@@ -42,4 +42,28 @@ class RuntimeProfileResolverTest {
 
         assertNull(profile.msakConfig.localServerHost)
     }
+
+    @Test
+    fun resolveRuntimeProfileFromProperties_prefersEnvironmentOverProperties() {
+        val props = Properties().apply {
+            setProperty("SUPABASE_LOCAL_URL", "http://properties.example:54321")
+            setProperty("SUPABASE_LOCAL_API_KEY", "properties-key")
+        }
+        val env = mapOf(
+            "SUPABASE_LOCAL_URL" to "http://10.0.2.2:54321",
+            "SUPABASE_LOCAL_API_KEY" to "env-key",
+        )
+
+        val profile = resolveRuntimeProfileFromProperties(
+            preloadedProperties = props,
+            msakMode = RuntimeMsakMode.PUBLIC,
+            supabaseMode = RuntimeSupabaseMode.LOCAL,
+            allowRemoteSupabase = false,
+            env = env,
+        )
+        val resolved = profile.resolveSyncSupabaseConfig()
+
+        assertEquals("http://10.0.2.2:54321", resolved.url)
+        assertEquals("env-key", resolved.apiKey)
+    }
 }

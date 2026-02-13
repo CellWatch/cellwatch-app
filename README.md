@@ -79,12 +79,20 @@ Implementation entrypoints:
 - `RuntimeSyncMsakProfiles.fromModes(...)`
 - `RuntimeSyncMsakProfileBridge.resolveFromModes(...)`
 - `RuntimeProfileConfig` + `RuntimeProfileResolver` + `RuntimeProfileStore` (shared canonical contract)
+- `RuntimeProfileContract` (shared validation + canonical config keys)
 
 Shared runtime profile store contract:
 - `RuntimeProfileConfig` is the single cross-platform payload for persisted runtime profile values.
 - `RuntimeProfileStore` abstracts read/write/clear for app-owned profile persistence.
 - `RuntimeProfileResolver` converts stored config to resolved runtime snapshot/profile used by sync + MSAK.
 - Platform harnesses now build this shared config and resolve through the shared resolver bridge (instead of ad-hoc mode/url/key wiring).
+- Shared resolver now enforces one contract before resolution (`RuntimeProfileContract.requireValid(...)`), so all entrypoints fail with the same deterministic errors.
+
+Runtime source precedence (harnesses/tests):
+- Environment variables override file values.
+- File values are read from `cellwatch.local.properties` first (if present), then `cellwatch.properties`.
+- iOS loopback normalization: `10.0.2.2`/`10.0.3.2` -> `127.0.0.1`.
+- Android keeps emulator-safe local defaults for local mode (`10.0.2.2:*`).
 
 Supabase mode mapping:
 - `LOCAL` -> shared sync target `LOCAL` (uses `SUPABASE_LOCAL_URL` + `SUPABASE_LOCAL_API_KEY`)
@@ -96,10 +104,13 @@ Strict runtime config hardening (current):
 - `iosTestApp` runtime mode resolution runs in strict mode; missing Supabase URL/key fails fast as `Runtime profile unavailable` instead of silently defaulting.
 - `androidTestApp` runtime profile resolution defaults to strict mode (`CELLWATCH_STRICT_RUNTIME_CONFIG=true` unless explicitly overridden).
 - iOS hosted Tier 2 Gradle tasks now inject `SUPABASE_LOCAL_URL` and `SUPABASE_LOCAL_SERVICE_KEY` directly into `xcodebuild` test settings to avoid environment drift.
+- iOS app and iOS hosted tests now consume one shared source in `iosTestApp/App/AppDelegate.swift` (`RuntimeConfigSource`) instead of duplicating env/property parsing per test.
+- Android runtime resolver now uses shared runtime keys (`RuntimeProfileContract`) and explicit env > properties precedence.
 
 Deployed-build intent:
 - Production/staged app entrypoints should use strict runtime config and require explicit values from persisted app/user profile state.
 - Local fallback defaults are only for dev-focused helper paths/tests where explicitly enabled.
+- Future final app flow should persist a user-selected `RuntimeProfileConfig` via `RuntimeProfileStore` and resolve at startup through `RuntimeProfileResolver` only.
 
 MSAK local host defaults in harness apps:
 - Android harness (`androidTestApp`): when `MSAK` mode is `LOCAL` and `MSAK_LOCAL_SERVER_HOST` is unset, host defaults to `10.0.2.2:8080`.
@@ -602,7 +613,7 @@ Supabase safety policy:
   - Tier 2 validates runtime-specific behavior where unit tests are not representative
 - iOS Keychain validation requires a hosted app test context; K/N-only simulator tests are insufficient for Keychain confidence
 - Shared sync runtime configuration is local-only by default and blocks remote targets unless explicitly enabled
-- `:shared:verifyIosTestAppHosted` now refreshes `shared/build/bin/iosSimulatorArm64/Current/sharedKit.framework` before running Xcode-hosted tests
+- `:shared:verifyIosTestAppHosted` now refreshes `shared/build/bin/Current/sharedKit.framework` before running Xcode-hosted tests
 
 ## Logging
 

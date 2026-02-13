@@ -1,6 +1,101 @@
 import UIKit
 import sharedKit
 
+enum RuntimeConfigSource {
+    private static let defaultLocalServiceRoleJwt =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+        "eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0." +
+        "EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU"
+
+    static func value(_ key: String) -> String? {
+        let env = ProcessInfo.processInfo.environment
+        if let envValue = env[key], !envValue.isEmpty {
+            return envValue
+        }
+        return property(key)
+    }
+
+    static func bool(_ key: String, default defaultValue: Bool = false) -> Bool {
+        guard let raw = value(key)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() else {
+            return defaultValue
+        }
+        return raw == "true" || raw == "1" || raw == "yes" || raw == "y"
+    }
+
+    static func localSupabaseUrlForIos() -> String? {
+        let raw = value("SUPABASE_LOCAL_URL")
+        let normalized = normalizeIosLoopback(raw)
+        if let normalized, !normalized.isEmpty {
+            return normalized
+        }
+        return "http://127.0.0.1:54321"
+    }
+
+    static func localSupabaseApiKeyPreferServiceRoleJwt() -> String? {
+        for key in [
+            "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
+            "SERVICE_ROLE_KEY",
+            "SUPABASE_LOCAL_SERVICE_KEY",
+            "SUPABASE_LOCAL_API_KEY"
+        ] {
+            if let candidate = value(key), candidate.hasPrefix("eyJ") {
+                return candidate
+            }
+        }
+        return defaultLocalServiceRoleJwt
+    }
+
+    static func localMsakHostForIos(msakModeRaw: String) -> String? {
+        let configured = normalizeIosLoopback(value("MSAK_LOCAL_SERVER_HOST"))
+        if msakModeRaw.uppercased() == "LOCAL" {
+            return (configured?.isEmpty == false) ? configured : "127.0.0.1:8080"
+        }
+        return configured
+    }
+
+    private static func property(_ key: String) -> String? {
+        let candidates = [
+            URL(fileURLWithPath: "iosTestApp/cellwatch.local.properties"),
+            URL(fileURLWithPath: "cellwatch.local.properties"),
+            URL(fileURLWithPath: "iosTestApp/cellwatch.properties"),
+            URL(fileURLWithPath: "cellwatch.properties"),
+            URL(fileURLWithPath: "../cellwatch.properties"),
+            URL(fileURLWithPath: "../../cellwatch.properties")
+        ]
+        for candidate in candidates {
+            guard let contents = try? String(contentsOf: candidate, encoding: .utf8) else {
+                continue
+            }
+            for rawLine in contents.split(separator: "\n", omittingEmptySubsequences: false) {
+                let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                if line.isEmpty || line.hasPrefix("#") {
+                    continue
+                }
+                let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
+                if parts.count == 2 && parts[0].trimmingCharacters(in: .whitespacesAndNewlines) == key {
+                    return parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                        .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func normalizeIosLoopback(_ raw: String?) -> String? {
+        guard let raw else { return nil }
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        if value.isEmpty {
+            return nil
+        }
+        return value
+            .replacingOccurrences(of: "10.0.2.2", with: "127.0.0.1")
+            .replacingOccurrences(of: "10.0.3.2", with: "127.0.0.1")
+    }
+}
+
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
@@ -420,8 +515,9 @@ final class HarnessViewController: UIViewController {
         let level = RuntimeSelection.readConfig("CELLWATCH_SYNC_DIAGNOSTICS_LEVEL") ?? "VERBOSE"
         let maxSamplesRaw = RuntimeSelection.readConfig("CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES")
         let maxSamples = Int(maxSamplesRaw ?? "") ?? 12
-        let includeCauseChain = RuntimeSelection.parseBool(
-            RuntimeSelection.readConfig("CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN") ?? "true"
+        let includeCauseChain = RuntimeConfigSource.bool(
+            "CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN",
+            default: true
         )
         diagnosticsSummary = IosSyncDiagnosticsBridge().configure(
             levelRaw: level,
@@ -449,11 +545,30 @@ final class HarnessViewController: UIViewController {
         }
         if snapshot.supabaseApiKey.isEmpty {
             issues.append("Supabase API key is blank")
+        } else if selectedSupabaseMode == .local, isAnonJwt(snapshot.supabaseApiKey) {
+            issues.append("Supabase LOCAL API key has anon role; local phase3 sync requires service-role JWT")
         }
         if let localMsakIssue = localMsakReachabilityIssue(snapshot: snapshot) {
             issues.append(localMsakIssue)
         }
         return issues.isEmpty ? nil : issues.joined(separator: "; ")
+    }
+
+    private func isAnonJwt(_ jwt: String) -> Bool {
+        let parts = jwt.split(separator: ".")
+        guard parts.count >= 2 else { return false }
+        var payload = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        while payload.count % 4 != 0 {
+            payload.append("=")
+        }
+        guard let data = Data(base64Encoded: payload),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let role = object["role"] as? String else {
+            return false
+        }
+        return role == "anon"
     }
 
     private func localMsakReachabilityIssue(snapshot: RuntimeSyncMsakProfileSnapshot) -> String? {
@@ -499,111 +614,29 @@ private enum RuntimeSelection {
         msakMode: RuntimeMsakMode,
         supabaseMode: RuntimeSupabaseMode
     ) throws -> RuntimeSyncMsakProfileSnapshot {
-        let configuredLocalMsakHost = readConfig("MSAK_LOCAL_SERVER_HOST")
-        let localMsakHost: String?
-        if msakMode == .local {
-            localMsakHost = normalizeLocalMsakHost(
-                (configuredLocalMsakHost?.isEmpty == false) ? configuredLocalMsakHost : "127.0.0.1:8080"
-            )
-        } else {
-            localMsakHost = normalizeLocalMsakHost(configuredLocalMsakHost)
-        }
-        let localSupabaseApiKey = resolvedLocalSupabaseApiKey()
+        let localMsakHost = RuntimeConfigSource.localMsakHostForIos(msakModeRaw: msakMode.displayName)
+        let localSupabaseApiKey = RuntimeConfigSource.localSupabaseApiKeyPreferServiceRoleJwt()
+        let resolvedLocalSupabaseUrl = RuntimeConfigSource.localSupabaseUrlForIos()
         let config = RuntimeProfileConfig(
             msakMode: msakMode,
             supabaseMode: supabaseMode,
-            allowRemoteSupabase: ProcessInfo.processInfo.environment["CELLWATCH_ALLOW_REMOTE_SUPABASE"] == "true",
+            allowRemoteSupabase: RuntimeConfigSource.bool("CELLWATCH_ALLOW_REMOTE_SUPABASE"),
             strictSupabaseConfig: true,
-            localSupabaseUrl: readConfig("SUPABASE_LOCAL_URL"),
+            localSupabaseUrl: resolvedLocalSupabaseUrl,
             localSupabaseApiKey: localSupabaseApiKey,
-            testingSupabaseUrl: readConfig("SUPABASE_TESTING_URL"),
-            testingSupabaseApiKey: readConfig("SUPABASE_TESTING_API_KEY"),
-            liveSupabaseUrl: readConfig("SUPABASE_URL"),
-            liveSupabaseApiKey: readConfig("SUPABASE_API_KEY"),
+            testingSupabaseUrl: RuntimeConfigSource.value("SUPABASE_TESTING_URL"),
+            testingSupabaseApiKey: RuntimeConfigSource.value("SUPABASE_TESTING_API_KEY"),
+            liveSupabaseUrl: RuntimeConfigSource.value("SUPABASE_URL"),
+            liveSupabaseApiKey: RuntimeConfigSource.value("SUPABASE_API_KEY"),
             localMsakHost: localMsakHost,
-            localMsakSecure: parseBool(readConfig("MSAK_LOCAL_SERVER_SECURE")),
+            localMsakSecure: RuntimeConfigSource.bool("MSAK_LOCAL_SERVER_SECURE"),
             userAgent: "ios-test-app-runtime-profile"
         )
         return try RuntimeProfileResolverBridge().resolveSnapshot(config: config)
     }
 
-    private static func resolvedLocalSupabaseApiKey() -> String? {
-        // Prefer local service-role JWT for hosted simulator smokes to avoid local RLS write failures.
-        // sb_secret_* keys are intentionally ignored here because current sync RPC paths expect JWT keys.
-        let serviceRoleCandidates = [
-            readConfig("SUPABASE_LOCAL_SERVICE_ROLE_KEY"),
-            readConfig("SERVICE_ROLE_KEY"),
-            readConfig("SUPABASE_LOCAL_SERVICE_KEY")
-        ]
-        for candidate in serviceRoleCandidates {
-            if let candidate, candidate.hasPrefix("eyJ") {
-                return candidate
-            }
-        }
-        return readConfig("SUPABASE_LOCAL_API_KEY")
-    }
-
     static func readConfig(_ key: String) -> String? {
-        let env = ProcessInfo.processInfo.environment
-        if let envValue = env[key], !envValue.isEmpty {
-            return envValue
-        }
-        return loadProperty(key)
-    }
-
-    private static func loadProperty(_ key: String) -> String? {
-        let candidates = [
-            URL(fileURLWithPath: "iosTestApp/cellwatch.local.properties"),
-            URL(fileURLWithPath: "cellwatch.local.properties"),
-            URL(fileURLWithPath: "iosTestApp/cellwatch.properties"),
-            URL(fileURLWithPath: "cellwatch.properties"),
-            URL(fileURLWithPath: "../cellwatch.properties"),
-            URL(fileURLWithPath: "../../cellwatch.properties")
-        ]
-        for candidate in candidates {
-            guard let contents = try? String(contentsOf: candidate, encoding: .utf8) else {
-                continue
-            }
-            for rawLine in contents.split(separator: "\n", omittingEmptySubsequences: false) {
-                let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-                if line.isEmpty || line.hasPrefix("#") {
-                    continue
-                }
-                let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
-                if parts.count == 2 && parts[0].trimmingCharacters(in: .whitespacesAndNewlines) == key {
-                    return parts[1].trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-                }
-            }
-        }
-        return nil
-    }
-
-    static func parseBool(_ raw: String?) -> Bool {
-        guard let value = raw?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else {
-            return false
-        }
-        return value == "true" || value == "1" || value == "yes" || value == "y"
-    }
-
-    private static func normalizeLocalMsakHost(_ raw: String?) -> String? {
-        guard let raw else { return nil }
-        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-        if value.isEmpty {
-            return nil
-        }
-        if value == "10.0.2.2" {
-            return "127.0.0.1"
-        }
-        if value == "10.0.3.2" {
-            return "127.0.0.1"
-        }
-        if value.hasPrefix("10.0.2.2:") {
-            return "127.0.0.1:" + value.dropFirst("10.0.2.2:".count)
-        }
-        if value.hasPrefix("10.0.3.2:") {
-            return "127.0.0.1:" + value.dropFirst("10.0.3.2:".count)
-        }
-        return value
+        RuntimeConfigSource.value(key)
     }
 }
 

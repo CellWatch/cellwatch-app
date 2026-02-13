@@ -1,5 +1,6 @@
 import XCTest
 import sharedKit
+@testable import iosTestApp
 
 private enum SupabaseTarget {
     case local
@@ -108,17 +109,15 @@ final class SyncHarnessParityTests: XCTestCase {
     }
 
     func testHostedLocalSupabaseSync_endToEnd() throws {
-        let provider = CellwatchPropertiesSupabaseEnvironmentProvider(
-            properties: ProcessInfo.processInfo.environment,
-            allowRemote: false,
-            allowLocalFallbackDefaults: true
-        )
-        let local = try provider.resolve(.local)
+        guard let localUrl = RuntimeConfigSource.localSupabaseUrlForIos(),
+              let localApiKey = RuntimeConfigSource.localSupabaseApiKeyPreferServiceRoleJwt() else {
+            throw XCTSkip("Local supabase runtime config is unavailable for hosted sync test")
+        }
         let expectation = expectation(description: "runHostedLocalSupabaseSync")
 
         IosLocalSupabaseSyncHarness().run(
-            supabaseUrl: local.url,
-            supabaseApiKey: local.apiKey
+            supabaseUrl: localUrl,
+            supabaseApiKey: localApiKey
         ) { result, error in
             XCTAssertNil(error)
             XCTAssertNotNil(result)
@@ -146,16 +145,13 @@ final class SyncHarnessParityTests: XCTestCase {
             throw XCTSkip("Run via :shared:verifyIosTestAppHostedFailureStatusSmoke to enable this test")
         }
 
-        let provider = CellwatchPropertiesSupabaseEnvironmentProvider(
-            properties: ProcessInfo.processInfo.environment,
-            allowRemote: false,
-            allowLocalFallbackDefaults: true
-        )
-        let local = try provider.resolve(.local)
+        guard let localUrl = RuntimeConfigSource.localSupabaseUrlForIos() else {
+            throw XCTSkip("Local supabase URL is unavailable for failure smoke test")
+        }
         let expectation = expectation(description: "runHostedLocalSupabaseSyncFailure")
 
         IosLocalSupabaseSyncHarness().run(
-            supabaseUrl: local.url,
+            supabaseUrl: localUrl,
             supabaseApiKey: "invalid-local-key"
         ) { result, error in
             XCTAssertNil(result)

@@ -1,5 +1,6 @@
 import XCTest
 import sharedKit
+@testable import iosTestApp
 
 final class LocalMsakPhase3HostedTests: XCTestCase {
     func testHostedLocalMsakPhase3Sequence_whenEnabled() throws {
@@ -86,76 +87,11 @@ final class LocalMsakPhase3HostedTests: XCTestCase {
     }
 
     private func resolveLocalHost() -> String {
-        let env = ProcessInfo.processInfo.environment
-        if let direct = env["MSAK_LOCAL_SERVER_HOST"], !direct.isEmpty {
-            return normalizedHost(direct)
-        }
-        if let fromProperties = loadProperty("MSAK_LOCAL_SERVER_HOST") {
-            return normalizedHost(fromProperties)
-        }
-        return "127.0.0.1:8080"
+        RuntimeConfigSource.localMsakHostForIos(msakModeRaw: "LOCAL") ?? "127.0.0.1:8080"
     }
 
     private func resolveLocalSecure() -> Bool {
-        let env = ProcessInfo.processInfo.environment
-        if let parsed = parseBool(env["MSAK_LOCAL_SERVER_SECURE"]) {
-            return parsed
-        }
-        if let parsed = parseBool(loadProperty("MSAK_LOCAL_SERVER_SECURE")) {
-            return parsed
-        }
-        return false
-    }
-
-    private func loadProperty(_ key: String) -> String? {
-        let candidates = [
-            URL(fileURLWithPath: "cellwatch.properties"),
-            URL(fileURLWithPath: "../cellwatch.properties"),
-            URL(fileURLWithPath: "../../cellwatch.properties")
-        ]
-        for candidate in candidates {
-            guard let contents = try? String(contentsOf: candidate, encoding: .utf8) else {
-                continue
-            }
-            for rawLine in contents.split(separator: "\n", omittingEmptySubsequences: false) {
-                let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-                if line.isEmpty || line.hasPrefix("#") {
-                    continue
-                }
-                let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
-                if parts.count == 2 && parts[0].trimmingCharacters(in: .whitespacesAndNewlines) == key {
-                    return parts[1].trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-                }
-            }
-        }
-        return nil
-    }
-
-    private func parseBool(_ raw: String?) -> Bool? {
-        guard let value = raw?.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\"")) else {
-            return nil
-        }
-        switch value.lowercased() {
-        case "true", "1", "yes", "y": return true
-        case "false", "0", "no", "n": return false
-        default: return nil
-        }
-    }
-
-    private func normalizedHost(_ raw: String) -> String {
-        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-        switch value {
-        case "10.0.2.2": return "127.0.0.1"
-        case "10.0.3.2": return "127.0.0.1"
-        default:
-            if value.hasPrefix("10.0.2.2:") {
-                return "127.0.0.1:" + value.dropFirst("10.0.2.2:".count)
-            }
-            if value.hasPrefix("10.0.3.2:") {
-                return "127.0.0.1:" + value.dropFirst("10.0.3.2:".count)
-            }
-            return value
-        }
+        RuntimeConfigSource.bool("MSAK_LOCAL_SERVER_SECURE")
     }
 
     private func isServerReachable(_ host: String) -> Bool {
