@@ -15,6 +15,7 @@ private struct SupabaseEnvironment {
 private struct CellwatchPropertiesSupabaseEnvironmentProvider {
     let properties: [String: String]
     let allowRemote: Bool
+    let allowLocalFallbackDefaults: Bool
 
     func resolve(_ target: SupabaseTarget = .local) throws -> SupabaseEnvironment {
         do {
@@ -24,7 +25,8 @@ private struct CellwatchPropertiesSupabaseEnvironmentProvider {
                 localApiKey: properties["SUPABASE_LOCAL_API_KEY"] ?? "",
                 remoteUrl: properties["SUPABASE_URL"] ?? "",
                 remoteApiKey: properties["SUPABASE_API_KEY"] ?? "",
-                useRemote: target == .remote
+                useRemote: target == .remote,
+                allowLocalFallbackDefaults: allowLocalFallbackDefaults
             )
             return SupabaseEnvironment(target: target, url: resolved.url, apiKey: resolved.apiKey)
         } catch {
@@ -42,7 +44,11 @@ final class SyncHarnessParityTests: XCTestCase {
     private let smokeValidator = SyncSmokeInvariantValidator()
 
     func testEnvironmentDefaultsToLocal() throws {
-        let provider = CellwatchPropertiesSupabaseEnvironmentProvider(properties: [:], allowRemote: false)
+        let provider = CellwatchPropertiesSupabaseEnvironmentProvider(
+            properties: [:],
+            allowRemote: false,
+            allowLocalFallbackDefaults: true
+        )
 
         let env = try provider.resolve(.local)
 
@@ -57,10 +63,21 @@ final class SyncHarnessParityTests: XCTestCase {
                 "SUPABASE_URL": "https://example.supabase.co",
                 "SUPABASE_API_KEY": "remote-key"
             ],
-            allowRemote: false
+            allowRemote: false,
+            allowLocalFallbackDefaults: true
         )
 
         XCTAssertThrowsError(try provider.resolve(.remote))
+    }
+
+    func testEnvironmentStrictLocalConfig_whenMissingValues_throws() {
+        let provider = CellwatchPropertiesSupabaseEnvironmentProvider(
+            properties: [:],
+            allowRemote: false,
+            allowLocalFallbackDefaults: false
+        )
+
+        XCTAssertThrowsError(try provider.resolve(.local))
     }
 
     func testSharedUploadTriggerParityHarness_returnsExpectedContract() {
@@ -93,7 +110,8 @@ final class SyncHarnessParityTests: XCTestCase {
     func testHostedLocalSupabaseSync_endToEnd() throws {
         let provider = CellwatchPropertiesSupabaseEnvironmentProvider(
             properties: ProcessInfo.processInfo.environment,
-            allowRemote: false
+            allowRemote: false,
+            allowLocalFallbackDefaults: true
         )
         let local = try provider.resolve(.local)
         let expectation = expectation(description: "runHostedLocalSupabaseSync")
@@ -130,7 +148,8 @@ final class SyncHarnessParityTests: XCTestCase {
 
         let provider = CellwatchPropertiesSupabaseEnvironmentProvider(
             properties: ProcessInfo.processInfo.environment,
-            allowRemote: false
+            allowRemote: false,
+            allowLocalFallbackDefaults: true
         )
         let local = try provider.resolve(.local)
         let expectation = expectation(description: "runHostedLocalSupabaseSyncFailure")

@@ -78,11 +78,28 @@ Shared runtime profile wiring now supports explicit mode selection:
 Implementation entrypoints:
 - `RuntimeSyncMsakProfiles.fromModes(...)`
 - `RuntimeSyncMsakProfileBridge.resolveFromModes(...)`
+- `RuntimeProfileConfig` + `RuntimeProfileResolver` + `RuntimeProfileStore` (shared canonical contract)
+
+Shared runtime profile store contract:
+- `RuntimeProfileConfig` is the single cross-platform payload for persisted runtime profile values.
+- `RuntimeProfileStore` abstracts read/write/clear for app-owned profile persistence.
+- `RuntimeProfileResolver` converts stored config to resolved runtime snapshot/profile used by sync + MSAK.
+- Platform harnesses now build this shared config and resolve through the shared resolver bridge (instead of ad-hoc mode/url/key wiring).
 
 Supabase mode mapping:
 - `LOCAL` -> shared sync target `LOCAL` (uses `SUPABASE_LOCAL_URL` + `SUPABASE_LOCAL_API_KEY`)
 - `TESTING` -> shared sync target `REMOTE` (uses `SUPABASE_TESTING_URL` + `SUPABASE_TESTING_API_KEY`)
 - `LIVE` -> shared sync target `REMOTE` (uses `SUPABASE_URL` + `SUPABASE_API_KEY`)
+
+Strict runtime config hardening (current):
+- Shared runtime config now supports strict resolution mode (no silent local fallback defaults).
+- `iosTestApp` runtime mode resolution runs in strict mode; missing Supabase URL/key fails fast as `Runtime profile unavailable` instead of silently defaulting.
+- `androidTestApp` runtime profile resolution defaults to strict mode (`CELLWATCH_STRICT_RUNTIME_CONFIG=true` unless explicitly overridden).
+- iOS hosted Tier 2 Gradle tasks now inject `SUPABASE_LOCAL_URL` and `SUPABASE_LOCAL_SERVICE_KEY` directly into `xcodebuild` test settings to avoid environment drift.
+
+Deployed-build intent:
+- Production/staged app entrypoints should use strict runtime config and require explicit values from persisted app/user profile state.
+- Local fallback defaults are only for dev-focused helper paths/tests where explicitly enabled.
 
 MSAK local host defaults in harness apps:
 - Android harness (`androidTestApp`): when `MSAK` mode is `LOCAL` and `MSAK_LOCAL_SERVER_HOST` is unset, host defaults to `10.0.2.2:8080`.
@@ -151,6 +168,11 @@ Android harness diagnostics knobs (read from `cellwatch.properties` or env at bu
 - `CELLWATCH_SYNC_DIAGNOSTICS_LEVEL=OFF|BASIC|VERBOSE` (default `BASIC`)
 - `CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES=<int>` (default `6`)
 - `CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN=true|false` (default `false`)
+
+iOS harness diagnostics knobs (read from env first, then `cellwatch.properties`, at app startup):
+- `CELLWATCH_SYNC_DIAGNOSTICS_LEVEL=OFF|BASIC|VERBOSE` (default `VERBOSE`)
+- `CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES=<int>` (default `12`)
+- `CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN=true|false` (default `true`)
 
 At `VERBOSE` (or with `INCLUDE_CAUSE_CHAIN=true`), upstream cause chains are included in status rendering to reduce adb/logcat dependence during triage.
 
@@ -441,6 +463,10 @@ If run separately:
   - Runs only `PublicMsakLocalSupabaseHostedTests` and creates a temporary marker file for explicit opt-in.
 - iOS hosted Tier 2 sequential bundle (recommended): `./gradlew :shared:verifyIosHostedTier2Sequential`
   - Serializes hosted iOS checks (including local/public MSAK smoke paths) to reduce simulator/keychain/local-service concurrency flake.
+- Simulator UI regression gate (strict success on both platforms):
+  - Gradle task: `./gradlew :shared:verifySimulatorUiRegressionSequence`
+  - Script wrapper: `./scripts/verify-simulator-regression.sh`
+  - Runs Android emulator + iOS simulator Phase3 button smoke tests and fails if either reports `status=FAILURE`.
 - iOS realistic (legacy host) only: `./gradlew :shared:verifyIosHostedKeychain`
 - Local Supabase JVM integration only: `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
   - Includes remote adapter RPC/table checks and end-to-end `MeasurementSyncUseCase` store-and-forward validation against local Docker Supabase
@@ -464,6 +490,8 @@ Recommended command flow:
    - `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
 3. Full Phase 3 Tier 2 matrix (Android+iOS, local/public MSAK, local Supabase, failure-surface smokes):
    - `./gradlew :shared:verifyPhase3Tier2FailureMatrix`
+4. Simulator-perspective regression gate (strict UI success contract on both platforms):
+   - `./scripts/verify-simulator-regression.sh`
 
 Recommended pre-check-in gate (single command):
 - `./scripts/verify-dev-gates.sh`
@@ -485,6 +513,8 @@ Expected skip/fail behavior:
   - `-Pcellwatch.allowLocalMsakTransientSkip=1`
   - `-Pcellwatch.allowLocalSupabaseUnavailableSkip=1`
 - Failure-status smoke tests must pass only when failure is surfaced cleanly (error returned, no crash).
+- Simulator Phase3 button smokes are strict-success gates:
+  - both Android and iOS tests now require `status=SUCCESS` and fail on any `status=FAILURE` envelope.
 - Any hard test failure (assertion/process exit) should block check-in.
 
 Supabase safety policy:

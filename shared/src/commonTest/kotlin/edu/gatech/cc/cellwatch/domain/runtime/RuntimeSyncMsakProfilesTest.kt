@@ -58,4 +58,17 @@ class RuntimeSyncMsakProfilesTest {
             profile.resolveSyncSupabaseConfig()
         }
     }
+
+    @Test
+    fun fromModes_strictLocalConfig_missingValues_throws() {
+        val profile = RuntimeSyncMsakProfiles.fromModes(
+            msakMode = RuntimeMsakMode.PUBLIC,
+            supabaseMode = RuntimeSupabaseMode.LOCAL,
+            strictSupabaseConfig = true,
+        )
+
+        assertFailsWith<IllegalStateException> {
+            profile.resolveSyncSupabaseConfig()
+        }
+    }
 }

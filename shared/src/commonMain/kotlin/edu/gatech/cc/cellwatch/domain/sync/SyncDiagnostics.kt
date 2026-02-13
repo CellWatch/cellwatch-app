@@ -1,5 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.sync
 
+import kotlin.concurrent.Volatile
+
 enum class SyncDiagnosticsLevel {
     OFF,
     BASIC,

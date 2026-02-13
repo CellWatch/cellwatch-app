@@ -6,9 +6,10 @@ import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfigResolver
 import edu.gatech.cc.cellwatch.data.sync.SyncRuntimeConfig
 import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileConfig
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileResolver
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
-import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfiles
 import java.io.File
 import java.net.URI
 import java.util.Properties
@@ -129,7 +130,12 @@ fun resolveRuntimeProfileFromProperties(
         RuntimeMsakMode.LOCAL -> configuredLocalMsakHost ?: DEFAULT_ANDROID_LOCAL_MSAK_HOST
         else -> configuredLocalMsakHost
     }
-    return RuntimeSyncMsakProfiles.fromModes(
+    val strictRuntimeConfig = props.getProperty("CELLWATCH_STRICT_RUNTIME_CONFIG")
+        ?.trim()
+        ?.trim('"')
+        ?.toBooleanStrictOrNull()
+        ?: DEFAULT_STRICT_RUNTIME_CONFIG
+    val config = RuntimeProfileConfig(
         msakMode = msakMode,
         supabaseMode = supabaseMode,
         localSupabaseUrl = normalizeAndroidLocalSupabaseUrl(props.getProperty("SUPABASE_LOCAL_URL"))
@@ -149,6 +155,7 @@ fun resolveRuntimeProfileFromProperties(
         liveSupabaseUrl = props.getProperty("SUPABASE_URL"),
         liveSupabaseApiKey = props.getProperty("SUPABASE_API_KEY"),
         allowRemoteSupabase = allowRemoteSupabase,
+        strictSupabaseConfig = strictRuntimeConfig,
         localMsakHost = resolvedLocalMsakHost,
         localMsakSecure = props.getProperty("MSAK_LOCAL_SERVER_SECURE")
             ?.trim()
@@ -156,6 +163,7 @@ fun resolveRuntimeProfileFromProperties(
             ?.toBooleanStrictOrNull()
             ?: false,
     )
+    return RuntimeProfileResolver.resolveProfile(config)
 }
 
 private fun loadCellwatchProperties(workingDir: File): Properties {
@@ -201,3 +209,4 @@ private fun normalizeAndroidLocalSupabaseUrl(raw: String?): String? {
 
 private const val DEFAULT_ANDROID_LOCAL_MSAK_HOST = "10.0.2.2:8080"
 private const val DEFAULT_ANDROID_LOCAL_SUPABASE_URL = "http://10.0.2.2:54321"
+private const val DEFAULT_STRICT_RUNTIME_CONFIG = true
