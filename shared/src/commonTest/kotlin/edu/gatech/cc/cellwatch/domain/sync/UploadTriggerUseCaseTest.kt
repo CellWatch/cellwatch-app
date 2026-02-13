@@ -13,7 +13,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class UploadTriggerUseCaseTest {
 
@@ -71,8 +70,9 @@ class UploadTriggerUseCaseTest {
     }
 
     @Test
-    fun resolveUploadTime_returnsNullWhenEitherSidePending() = runBlocking {
+    fun resolveUploadTime_returnsAvailableSideWhenOtherPending() = runBlocking {
         val measurementTime = Instant.fromEpochMilliseconds(1_710_000_001_000L)
+        val submissionTime = Instant.fromEpochMilliseconds(1_710_000_009_000L)
         val useCase = UploadTriggerUseCase(
             syncService = RecordingSyncService(),
             measurementRepository = FakeMeasurementRepository(
@@ -83,7 +83,7 @@ class UploadTriggerUseCaseTest {
             ),
         )
 
-        val uploadTime = useCase.resolveUploadTime(
+        val measurementOnly = useCase.resolveUploadTime(
             MeasurementGroup(
                 latency = latency("group-1", "m-latency", null),
                 download = null,
@@ -92,7 +92,26 @@ class UploadTriggerUseCaseTest {
             ),
         )
 
-        assertNull(uploadTime)
+        val submissionOnlyUseCase = UploadTriggerUseCase(
+            syncService = RecordingSyncService(),
+            measurementRepository = FakeMeasurementRepository(
+                byId = mapOf("m-latency" to latency("group-1", "m-latency", null)),
+            ),
+            submissionRepository = FakeFccSubmissionRepository(
+                byId = mapOf("group-1" to FccSubmission(id = "group-1", uploadTime = submissionTime)),
+            ),
+        )
+        val submissionOnly = submissionOnlyUseCase.resolveUploadTime(
+            MeasurementGroup(
+                latency = latency("group-1", "m-latency", null),
+                download = null,
+                upload = null,
+                submission = FccSubmission(id = "group-1"),
+            ),
+        )
+
+        assertEquals(measurementTime, measurementOnly)
+        assertEquals(submissionTime, submissionOnly)
     }
 
     @Test
