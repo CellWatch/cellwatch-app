@@ -7,6 +7,7 @@ import edu.gatech.cc.cellwatch.domain.capability.PlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.Measurement
+import com.benasher44.uuid.uuid4
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -90,7 +91,7 @@ class MeasurementSequenceHarness(
                     submissionContextFactory = DefaultHarnessSubmissionContextFactory(clock),
                 )
                 val request = MeasurementSequenceRequest(
-                    groupId = "phase3-${clock.now().toEpochMilliseconds()}",
+                    groupId = uuid4().toString(),
                     inVehicle = false,
                     mode = CollectionMode.FCC_CHALLENGE,
                     measurementId = null,

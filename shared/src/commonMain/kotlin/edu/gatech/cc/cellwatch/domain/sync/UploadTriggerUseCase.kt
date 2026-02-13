@@ -37,7 +37,9 @@ class UploadTriggerUseCase(
 
         if (measurementId == null) return submissionTime
         if (submissionId == null) return measurementTime
-        if (measurementTime == null || submissionTime == null) return null
+        if (measurementTime == null || submissionTime == null) {
+            return measurementTime ?: submissionTime
+        }
         return if (measurementTime.toEpochMilliseconds() >= submissionTime.toEpochMilliseconds()) {
             measurementTime
         } else {

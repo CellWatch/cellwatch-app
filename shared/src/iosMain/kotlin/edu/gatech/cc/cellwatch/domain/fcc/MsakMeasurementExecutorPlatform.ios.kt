@@ -11,6 +11,7 @@ import edu.gatech.cc.cellwatch.msak.shared.latency.runLatency
 import edu.gatech.cc.cellwatch.msak.shared.throughput.ThroughputConfig
 import edu.gatech.cc.cellwatch.msak.shared.throughput.ThroughputDirection as MsakThroughputDirection
 import edu.gatech.cc.cellwatch.msak.shared.throughput.runThroughput
+import com.benasher44.uuid.uuid4
 import kotlinx.datetime.Clock
 import kotlin.math.roundToInt
 
@@ -26,7 +27,7 @@ actual object MsakMeasurementExecutorPlatform {
                 groupId: String,
                 measurementId: String?,
             ): Measurement {
-                val id = measurementId ?: "latency-$groupId"
+                val id = measurementId ?: uuid4().toString()
                 val summary = runLatency(
                     LatencyConfig(
                         server = server.toMsakServer(),
@@ -47,7 +48,7 @@ actual object MsakMeasurementExecutorPlatform {
                     connectionType = NetworkConnectionType.CELLULAR,
                     cellularDataEnabled = true,
                     latencyData = LatencyData(
-                        id = "latency-data-$id",
+                        id = uuid4().toString(),
                         measurementId = id,
                         rtt = summary.meanMs?.roundToInt(),
                         jitter = summary.stdevMs?.roundToInt(),
@@ -71,7 +72,7 @@ actual object MsakMeasurementExecutorPlatform {
                 measurementId: String?,
             ): Measurement {
                 val prefix = direction.name.lowercase()
-                val id = measurementId?.let { "$prefix-$it" } ?: "$prefix-$groupId"
+                val id = measurementId ?: uuid4().toString()
                 val msakDirection = when (direction) {
                     ThroughputDirection.DOWNLOAD -> MsakThroughputDirection.DOWNLOAD
                     ThroughputDirection.UPLOAD -> MsakThroughputDirection.UPLOAD
@@ -100,7 +101,7 @@ actual object MsakMeasurementExecutorPlatform {
                     connectionType = NetworkConnectionType.CELLULAR,
                     cellularDataEnabled = true,
                     uploadDownloadData = UploadDownloadData(
-                        id = "ud-$id",
+                        id = uuid4().toString(),
                         measurementId = id,
                         duration = config.throughputDurationMs * 1_000,
                         bytes = summary.appBytesTotal,

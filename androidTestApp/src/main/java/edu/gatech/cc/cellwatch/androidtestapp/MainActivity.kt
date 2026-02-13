@@ -400,7 +400,7 @@ class MainActivity : AppCompatActivity() {
                     "capabilities(capture=FAILED, error=${error.message})"
                 }
                 val request = MeasurementSequenceRequest(
-                    groupId = "phase3-${Clock.System.now().toEpochMilliseconds()}",
+                    groupId = UUID.randomUUID().toString(),
                     inVehicle = false,
                     mode = edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE,
                     measurementId = null,

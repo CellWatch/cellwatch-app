@@ -67,6 +67,7 @@ Local development and test harness work is now guarded to use local Supabase by 
 - Current local defaults in `cellwatch.properties`:
   - `SUPABASE_LOCAL_URL="http://10.0.2.2:54321"`
   - local Supabase anon key (CLI default)
+  - optional local-only override: `SUPABASE_LOCAL_SERVICE_KEY` (use for local RLS-constrained write testing; keep untracked/local)
 
 ### Runtime Mode Model (MSAK + Supabase)
 
