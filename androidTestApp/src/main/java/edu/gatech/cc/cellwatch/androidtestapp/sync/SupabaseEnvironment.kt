@@ -165,4 +165,4 @@ private fun findCellwatchProperties(startDir: File): File? {
     return null
 }
 
-private const val DEFAULT_ANDROID_LOCAL_MSAK_HOST = "10.0.2.2"
+private const val DEFAULT_ANDROID_LOCAL_MSAK_HOST = "10.0.2.2:8080"

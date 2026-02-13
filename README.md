@@ -84,8 +84,36 @@ Supabase mode mapping:
 - `LIVE` -> shared sync target `REMOTE` (uses `SUPABASE_URL` + `SUPABASE_API_KEY`)
 
 MSAK local host defaults in harness apps:
-- Android harness (`androidTestApp`): when `MSAK` mode is `LOCAL` and `MSAK_LOCAL_SERVER_HOST` is unset, host defaults to `10.0.2.2`.
-- iOS harness (`iosTestApp`): when `MSAK` mode is `LOCAL` and `MSAK_LOCAL_SERVER_HOST` is unset, host defaults to `127.0.0.1`.
+- Android harness (`androidTestApp`): when `MSAK` mode is `LOCAL` and `MSAK_LOCAL_SERVER_HOST` is unset, host defaults to `10.0.2.2:8080`.
+- iOS harness (`iosTestApp`): when `MSAK` mode is `LOCAL` and `MSAK_LOCAL_SERVER_HOST` is unset, host defaults to `127.0.0.1:8080` (and normalizes `10.0.2.2`/`10.0.3.2` to simulator loopback).
+
+MSAK URL resolution details (current harness behavior):
+- Runtime mode `LOCAL` passes `MSAK_LOCAL_SERVER_HOST` into `LocateManager(msakLocalServerHost=..., msakLocalServerSecure=...)`.
+- Runtime mode `PUBLIC`/`STAGING` ignores local host and uses locate-discovered endpoints.
+- Local default host by harness:
+  - Android emulator: `10.0.2.2:8080`
+  - iOS simulator: `127.0.0.1:8080` (with normalization from emulator aliases)
+- Local MSAK currently runs over HTTP/WS (not TLS):
+  - set `MSAK_LOCAL_SERVER_SECURE=false`
+  - Android harness enables cleartext in manifest for this local path.
+
+### MSAK Endpoint Contract (Shared + `msak-client-kmp`)
+
+Expected endpoint URL keys from locate/local server selection:
+- `ws:///throughput/v1/download`
+- `ws:///throughput/v1/upload`
+- `http:///latency/v1/authorize`
+- `http:///latency/v1/result`
+
+Resolved URL examples in local mode (`MSAK_LOCAL_SERVER_HOST=10.0.2.2:8080`):
+- Throughput download: `ws://10.0.2.2:8080/throughput/v1/download`
+- Throughput upload: `ws://10.0.2.2:8080/throughput/v1/upload`
+- Latency authorize: `http://10.0.2.2:8080/latency/v1/authorize`
+- Latency result: `http://10.0.2.2:8080/latency/v1/result`
+
+Notes:
+- `msak-client-kmp` appends request query parameters required by each API (for example `mid` in latency calls).
+- If local server is up but Phase3 fails with `authorize`/`result` decode errors, first verify protocol compatibility between current `msak-client-kmp` artifact and your local `msak-server`.
 
 Current project policy:
 - We only operate in `Supabase LOCAL` mode for active development and test workflows.

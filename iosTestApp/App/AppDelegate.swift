@@ -401,9 +401,11 @@ private enum RuntimeSelection {
         let configuredLocalMsakHost = readConfig("MSAK_LOCAL_SERVER_HOST")
         let localMsakHost: String?
         if msakMode == .local {
-            localMsakHost = (configuredLocalMsakHost?.isEmpty == false) ? configuredLocalMsakHost : "127.0.0.1"
+            localMsakHost = normalizeLocalMsakHost(
+                (configuredLocalMsakHost?.isEmpty == false) ? configuredLocalMsakHost : "127.0.0.1:8080"
+            )
         } else {
-            localMsakHost = configuredLocalMsakHost
+            localMsakHost = normalizeLocalMsakHost(configuredLocalMsakHost)
         }
         return try RuntimeSyncMsakProfileBridge().resolveFromModes(
             msakMode: msakMode,
@@ -458,6 +460,27 @@ private enum RuntimeSelection {
             return false
         }
         return value == "true" || value == "1" || value == "yes" || value == "y"
+    }
+
+    private static func normalizeLocalMsakHost(_ raw: String?) -> String? {
+        guard let raw else { return nil }
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        if value.isEmpty {
+            return nil
+        }
+        if value == "10.0.2.2" {
+            return "127.0.0.1"
+        }
+        if value == "10.0.3.2" {
+            return "127.0.0.1"
+        }
+        if value.hasPrefix("10.0.2.2:") {
+            return "127.0.0.1:" + value.dropFirst("10.0.2.2:".count)
+        }
+        if value.hasPrefix("10.0.3.2:") {
+            return "127.0.0.1:" + value.dropFirst("10.0.3.2:".count)
+        }
+        return value
     }
 }
 
