@@ -52,7 +52,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.UUID
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -60,6 +63,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val RUN_SHARED_SLICE_BUTTON_ID = 1001
         const val STATUS_TEXT_VIEW_ID = 1002
+        const val RUN_PHASE3_SEQUENCE_BUTTON_ID = 1003
         private const val LOG_TAG = "AndroidTestHarness"
         private const val PERMISSION_REQUEST_CODE = 7001
     }
@@ -87,7 +91,9 @@ class MainActivity : AppCompatActivity() {
 
     private var syncDriver: AndroidTestSyncDriver? = null
     private var lastGroup: MeasurementGroup? = null
-    private var selectedMsakMode: RuntimeMsakMode = RuntimeMsakMode.PUBLIC
+    @Volatile private var phase3RunInFlight: Boolean = false
+    private var previousDefaultUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
+    private var selectedMsakMode: RuntimeMsakMode = RuntimeMsakMode.LOCAL
     private var selectedSupabaseMode: RuntimeSupabaseMode = RuntimeSupabaseMode.LOCAL
     private val allowRemoteSupabase: Boolean = System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE") == "true"
     private var runtimeProfile: RuntimeSyncMsakProfile = resolveRuntimeProfile()
@@ -96,12 +102,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        installHarnessUncaughtExceptionHandler()
         initDataLayer()
         setContentView(buildUi())
         requestHarnessRuntimePermissions()
     }
 
     override fun onDestroy() {
+        restoreDefaultUncaughtExceptionHandler()
         super.onDestroy()
         scope.cancel()
     }
@@ -192,6 +200,7 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { runSelectServers() }
         }
         val runPhase3SequenceButton = Button(this).apply {
+            id = RUN_PHASE3_SEQUENCE_BUTTON_ID
             text = "Run Phase3 Sequence (Shared Orchestrator)"
             setOnClickListener { runPhase3Sequence() }
         }
@@ -262,6 +271,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun runSeedAndMapSync() {
         scope.launch {
+            phase3RunInFlight = true
             runCatching {
                 val group = seedMeasurementGroup()
                 lastGroup = group
@@ -372,8 +382,13 @@ class MainActivity : AppCompatActivity() {
                 "msakLocalHost=${runtimeProfile.msakConfig.localServerHost}, supabaseMode=${runtimeProfile.supabaseMode}, " +
                 "supabaseUrl=${runtimeProfile.resolveSyncSupabaseConfig().url}, supabaseKeyPresent=${runtimeProfile.resolveSyncSupabaseConfig().apiKey.isNotBlank()}",
         )
+        phase3RunInFlight = true
         scope.launch {
             runCatching {
+                val localReachabilityIssue = checkLocalMsakReachabilityIssue()
+                if (localReachabilityIssue != null) {
+                    throw IllegalStateException(localReachabilityIssue)
+                }
                 val capabilityProvider = AndroidPlatformCapabilityProvider(applicationContext)
                 val capabilitySummary = runCatching {
                     CapabilityCaptureReportFormatter.format(
@@ -416,11 +431,25 @@ class MainActivity : AppCompatActivity() {
                     CapabilityPersistenceSummaryFormatter.summarize(persistedMeasurementsList),
                 )
                 val uploadTime = outcome.measurementCompleteUploadTime?.toEpochMilliseconds() ?: -1L
+                val measurementCompleteReportSummary =
+                    "measurementCompleteReport(" +
+                        "attempted=${outcome.measurementCompleteReport.measurements.attempted}," +
+                        "uploaded=${outcome.measurementCompleteReport.measurements.uploaded}," +
+                        "networkErrors=${outcome.measurementCompleteReport.measurements.networkErrors}," +
+                        "unexpectedErrors=${outcome.measurementCompleteReport.measurements.unexpectedErrors}," +
+                        "submissionsUploaded=${outcome.measurementCompleteReport.submissions.uploaded}," +
+                        "submissionNetworkErrors=${outcome.measurementCompleteReport.submissions.networkErrors}," +
+                        "submissionUnexpectedErrors=${outcome.measurementCompleteReport.submissions.unexpectedErrors}" +
+                        ")"
                 val envelope = smokeEnvelopeBuilder.phase3Sequence(
                     measurementCompleteUploadTimeSet = outcome.measurementCompleteUploadTime != null,
                     persistedMeasurements = persistedMeasurements,
                     persistedSubmissions = persistedSubmissions,
-                    errorMessage = null,
+                    errorMessage = if (outcome.measurementCompleteUploadTime == null) {
+                        "measurement-complete upload time missing; $measurementCompleteReportSummary"
+                    } else {
+                        null
+                    },
                 )
                 statusText.text = Phase3UiSliceFormatter.format(
                     envelopeText = smokeFormatter.format(envelope),
@@ -438,7 +467,9 @@ class MainActivity : AppCompatActivity() {
                         capabilitySummary = capabilitySummary,
                     ),
                 )
+                phase3RunInFlight = false
             }.onFailure {
+                phase3RunInFlight = false
                 val hintedMessage = withProtocolHint(it)
                 Log.e(LOG_TAG, "Phase3 sequence failed", it)
                 val envelope = smokeEnvelopeBuilder.failure(
@@ -448,6 +479,54 @@ class MainActivity : AppCompatActivity() {
                 statusText.text = smokeFormatter.format(envelope)
             }
         }
+    }
+
+    private suspend fun checkLocalMsakReachabilityIssue(): String? {
+        if (runtimeProfile.msakMode != RuntimeMsakMode.LOCAL) return null
+        val endpoint = runtimeProfile.msakConfig.localServerHost?.trim().orEmpty()
+        if (endpoint.isBlank()) return "MSAK local endpoint is blank"
+        val host = endpoint.substringBefore(':').ifBlank { endpoint }
+        val port = endpoint.substringAfter(':', "80").toIntOrNull() ?: 80
+        val reachable = withContext(Dispatchers.IO) {
+            runCatching {
+                Socket().use { socket ->
+                    socket.connect(InetSocketAddress(host, port), 1500)
+                    true
+                }
+            }.getOrDefault(false)
+        }
+        return if (reachable) null else "MSAK local server is unreachable at $host:$port"
+    }
+
+    private fun installHarnessUncaughtExceptionHandler() {
+        val currentDefault = Thread.getDefaultUncaughtExceptionHandler()
+        if (currentDefault === harnessUncaughtExceptionHandler) {
+            return
+        }
+        previousDefaultUncaughtExceptionHandler = currentDefault
+        Thread.setDefaultUncaughtExceptionHandler(harnessUncaughtExceptionHandler)
+    }
+
+    private fun restoreDefaultUncaughtExceptionHandler() {
+        if (Thread.getDefaultUncaughtExceptionHandler() === harnessUncaughtExceptionHandler) {
+            Thread.setDefaultUncaughtExceptionHandler(previousDefaultUncaughtExceptionHandler)
+        }
+    }
+
+    private val harnessUncaughtExceptionHandler = Thread.UncaughtExceptionHandler { thread, throwable ->
+        if (phase3RunInFlight && isRecoverableMsakAsyncFailure(throwable)) {
+            phase3RunInFlight = false
+            val envelope = smokeEnvelopeBuilder.failure(
+                scenario = "phase3-sequence-sync",
+                errorMessage = withProtocolHint(throwable),
+            )
+            Log.e(LOG_TAG, "Recovered async MSAK failure from ${thread.name}", throwable)
+            runOnUiThread {
+                statusText.text = smokeFormatter.format(envelope)
+            }
+            return@UncaughtExceptionHandler
+        }
+        previousDefaultUncaughtExceptionHandler?.uncaughtException(thread, throwable)
     }
 
     private suspend fun seedMeasurementGroup(): MeasurementGroup {
@@ -570,6 +649,14 @@ class MainActivity : AppCompatActivity() {
         } else {
             error.message ?: details
         }
+    }
+
+    private fun isRecoverableMsakAsyncFailure(error: Throwable): Boolean {
+        val details = generateSequence(error as Throwable?) { it.cause }
+            .joinToString(" | ") { "${it::class.qualifiedName}:${it.message}" }
+            .lowercase()
+        return details.contains("authorizefailureexecption") ||
+            details.contains("authorize call failed")
     }
 
     private fun formatReport(report: edu.gatech.cc.cellwatch.domain.sync.SyncAllReport?): String {

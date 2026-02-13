@@ -18,8 +18,12 @@ class UploadTriggerUseCase(
     suspend fun onMapStart(): SyncAllReport = syncService.syncAll()
 
     suspend fun onMeasurementComplete(group: MeasurementGroup): Instant? {
-        syncService.syncAll()
-        return resolveUploadTime(group)
+        return onMeasurementCompleteWithReport(group).second
+    }
+
+    suspend fun onMeasurementCompleteWithReport(group: MeasurementGroup): Pair<SyncAllReport, Instant?> {
+        val report = syncService.syncAll()
+        return report to resolveUploadTime(group)
     }
 
     suspend fun resolveUploadTime(group: MeasurementGroup): Instant? {
