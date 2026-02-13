@@ -2,6 +2,8 @@ package edu.gatech.cc.cellwatch.androidtestapp
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
@@ -16,7 +18,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriver
 import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriverFactory
 import edu.gatech.cc.cellwatch.androidtestapp.sync.FixedSupabaseEnvironmentProvider
 import edu.gatech.cc.cellwatch.androidtestapp.sync.SupabaseTarget
-import edu.gatech.cc.cellwatch.androidtestapp.sync.resolveRuntimeProfileFromProperties
+import edu.gatech.cc.cellwatch.androidtestapp.sync.resolveRuntimeProfileConfigFromProperties
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
 import edu.gatech.cc.cellwatch.data.repo.FccSubmissionRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
@@ -37,6 +39,9 @@ import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeModeUiBridge
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileConfig
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileResolver
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSequenceSyncOrchestrator
@@ -97,10 +102,12 @@ class MainActivity : AppCompatActivity() {
     private var lastGroup: MeasurementGroup? = null
     @Volatile private var phase3RunInFlight: Boolean = false
     private var previousDefaultUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
+    private val runtimeModeBridge = RuntimeModeUiBridge()
     private var selectedMsakMode: RuntimeMsakMode = RuntimeMsakMode.LOCAL
     private var selectedSupabaseMode: RuntimeSupabaseMode = RuntimeSupabaseMode.LOCAL
     private val allowRemoteSupabase: Boolean = System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE") == "true"
-    private var runtimeProfile: RuntimeSyncMsakProfile = resolveRuntimeProfile()
+    private var runtimeProfile: RuntimeSyncMsakProfile =
+        RuntimeProfileResolver.resolveProfile(resolveRuntimeProfileConfig())
     private val smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private val smokeFormatter = SyncSmokeResultFormatter()
 
@@ -174,71 +181,87 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildUi(): ScrollView {
         val root = ScrollView(this)
+        root.setBackgroundColor(Color.parseColor("#F2F2F2"))
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 32, 32, 32)
+            setPadding(42, 42, 42, 42)
         }
 
         val title = TextView(this).apply {
             text = "Android Test App Harness"
-            textSize = 20f
+            textSize = 24f
+            setTextColor(Color.parseColor("#07416B"))
+        }
+        val subtitle = TextView(this).apply {
+            text = "CellWatch runtime onboarding + phase 3 actions"
+            textSize = 14f
+            setTextColor(Color.parseColor("#5E8BAB"))
+            setPadding(0, 6, 0, 18)
         }
         val seedAndMapSync = Button(this).apply {
             text = "Seed + Run Map-Start Sync"
+            stylePrimaryButton(this)
             setOnClickListener { runSeedAndMapSync() }
         }
         val measurementCompleteSync = Button(this).apply {
             text = "Run Measurement-Complete Sync"
+            styleSecondaryButton(this)
             setOnClickListener { runMeasurementCompleteSync() }
         }
         val runMapSyncOnly = Button(this).apply {
             text = "Run Map-Start Sync (No Seed)"
+            styleSecondaryButton(this)
             setOnClickListener { runMapSyncOnly() }
         }
         val runSharedSliceButton = Button(this).apply {
             id = RUN_SHARED_SLICE_BUTTON_ID
             text = "Run Map-Start Shared Slice"
+            styleSecondaryButton(this)
             setOnClickListener { runSharedSlice() }
         }
         msakModeButton = Button(this).apply {
+            styleModeButton(this)
             setOnClickListener { cycleMsakMode() }
         }
         supabaseModeButton = Button(this).apply {
+            styleModeButton(this)
             setOnClickListener { cycleSupabaseMode() }
         }
         val locateServersButton = Button(this).apply {
             text = "Select MSAK Servers (Shared Selector)"
+            styleSecondaryButton(this)
             setOnClickListener { runSelectServers() }
         }
         val runPhase3SequenceButton = Button(this).apply {
             id = RUN_PHASE3_SEQUENCE_BUTTON_ID
             text = "Run Phase3 Sequence (Shared Orchestrator)"
+            stylePrimaryButton(this)
             setOnClickListener { runPhase3Sequence() }
         }
         statusText = TextView(this).apply {
             id = STATUS_TEXT_VIEW_ID
             text = "Ready. Local Supabase target is enforced by default."
             textSize = 14f
-            setPadding(0, 24, 0, 0)
+            setTextColor(Color.parseColor("#003618"))
+            setPadding(16, 20, 16, 20)
+            background = roundedCard(
+                fillColor = Color.parseColor("#FFFFFF"),
+                strokeColor = Color.parseColor("#C8E3CC"),
+            )
         }
 
         content.addView(title)
-        content.addView(seedAndMapSync)
-        content.addView(measurementCompleteSync)
-        content.addView(runMapSyncOnly)
-        content.addView(runSharedSliceButton)
-        content.addView(msakModeButton)
-        content.addView(supabaseModeButton)
-        content.addView(locateServersButton)
-        content.addView(runPhase3SequenceButton)
+        content.addView(subtitle)
+        content.addView(buildCard(msakModeButton, supabaseModeButton))
+        content.addView(buildCard(seedAndMapSync, measurementCompleteSync, runMapSyncOnly, runSharedSliceButton, locateServersButton, runPhase3SequenceButton))
         content.addView(statusText)
         refreshModeUi()
         root.addView(content)
         return root
     }
 
-    private fun resolveRuntimeProfile(): RuntimeSyncMsakProfile {
-        return resolveRuntimeProfileFromProperties(
+    private fun resolveRuntimeProfileConfig(): RuntimeProfileConfig {
+        return resolveRuntimeProfileConfigFromProperties(
             msakMode = selectedMsakMode,
             supabaseMode = selectedSupabaseMode,
             allowRemoteSupabase = allowRemoteSupabase,
@@ -246,38 +269,40 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun cycleMsakMode() {
-        selectedMsakMode = when (selectedMsakMode) {
-            RuntimeMsakMode.PUBLIC -> RuntimeMsakMode.STAGING
-            RuntimeMsakMode.STAGING -> RuntimeMsakMode.LOCAL
-            RuntimeMsakMode.LOCAL -> RuntimeMsakMode.PUBLIC
-        }
+        selectedMsakMode = runtimeModeBridge.nextMsakMode(selectedMsakMode)
         applyRuntimeModeChange()
     }
 
     private fun cycleSupabaseMode() {
-        selectedSupabaseMode = when (selectedSupabaseMode) {
-            RuntimeSupabaseMode.LOCAL -> RuntimeSupabaseMode.TESTING
-            RuntimeSupabaseMode.TESTING -> RuntimeSupabaseMode.LIVE
-            RuntimeSupabaseMode.LIVE -> RuntimeSupabaseMode.LOCAL
-        }
+        selectedSupabaseMode = runtimeModeBridge.nextSupabaseMode(selectedSupabaseMode)
         applyRuntimeModeChange()
     }
 
     private fun applyRuntimeModeChange() {
-        runtimeProfile = resolveRuntimeProfile()
         syncDriver = null
         refreshModeUi()
+        val config = resolveRuntimeProfileConfig()
+        val resolution = runtimeModeBridge.resolve(config)
+        val snapshot = resolution.snapshot
+        if (snapshot == null) {
+            val invalidMessage = "Runtime mode invalid: ${resolution.errorMessage ?: "unknown resolution failure"}"
+            Log.e(LOG_TAG, invalidMessage)
+            statusText.text = invalidMessage
+            return
+        }
+        runtimeProfile = RuntimeProfileResolver.resolveProfile(config)
         val message =
             "Runtime mode updated.\n" +
-                "MSAK=${selectedMsakMode.name}, Supabase=${selectedSupabaseMode.name}, remoteAllowed=$allowRemoteSupabase\n" +
-                "msakLocalHost=${runtimeProfile.msakConfig.localServerHost ?: "n/a"}"
+                "MSAK=${runtimeModeBridge.msakModeLabel(selectedMsakMode)}, Supabase=${runtimeModeBridge.supabaseModeLabel(selectedSupabaseMode)}, remoteAllowed=$allowRemoteSupabase\n" +
+                "msakLocalHost=${snapshot.msakLocalServerHost ?: "n/a"}\n" +
+                "supabaseUrl=${snapshot.supabaseUrl}"
         Log.d(LOG_TAG, message)
         statusText.text = message
     }
 
     private fun refreshModeUi() {
-        msakModeButton.text = "MSAK Mode: ${selectedMsakMode.name} (tap to cycle)"
-        supabaseModeButton.text = "Supabase Mode: ${selectedSupabaseMode.name} (tap to cycle)"
+        msakModeButton.text = "MSAK Mode: ${runtimeModeBridge.msakModeLabel(selectedMsakMode)} (tap to cycle)"
+        supabaseModeButton.text = "Supabase Mode: ${runtimeModeBridge.supabaseModeLabel(selectedSupabaseMode)} (tap to cycle)"
     }
 
     private fun runSeedAndMapSync() {
@@ -665,6 +690,77 @@ class MainActivity : AppCompatActivity() {
     private fun formatReport(report: edu.gatech.cc.cellwatch.domain.sync.SyncAllReport?): String {
         if (report == null) return "null (driver error: ${syncDriver?.state?.value?.lastError})"
         return report.renderForStatus()
+    }
+
+    private fun buildCard(vararg children: android.view.View): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(18, 18, 18, 18)
+            background = roundedCard(
+                fillColor = Color.parseColor("#FFFFFF"),
+                strokeColor = Color.parseColor("#DFDFDF"),
+            )
+            val layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply {
+                bottomMargin = 16
+            }
+            this.layoutParams = layoutParams
+            children.forEach { child ->
+                if (child.layoutParams == null) {
+                    child.layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                    ).apply {
+                        bottomMargin = 12
+                    }
+                }
+                addView(child)
+            }
+        }
+    }
+
+    private fun stylePrimaryButton(button: Button) {
+        button.isAllCaps = false
+        button.textSize = 15f
+        button.setTextColor(Color.WHITE)
+        button.minHeight = 104
+        button.background = roundedCard(
+            fillColor = Color.parseColor("#07416B"),
+            strokeColor = Color.parseColor("#07416B"),
+        )
+    }
+
+    private fun styleSecondaryButton(button: Button) {
+        button.isAllCaps = false
+        button.textSize = 15f
+        button.setTextColor(Color.parseColor("#07416B"))
+        button.minHeight = 96
+        button.background = roundedCard(
+            fillColor = Color.parseColor("#F8FBFD"),
+            strokeColor = Color.parseColor("#5E8BAB"),
+        )
+    }
+
+    private fun styleModeButton(button: Button) {
+        button.isAllCaps = false
+        button.textSize = 15f
+        button.setTextColor(Color.parseColor("#1E5638"))
+        button.minHeight = 92
+        button.background = roundedCard(
+            fillColor = Color.parseColor("#ECF7EF"),
+            strokeColor = Color.parseColor("#C8E3CC"),
+        )
+    }
+
+    private fun roundedCard(fillColor: Int, strokeColor: Int): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 26f
+            setColor(fillColor)
+            setStroke(2, strokeColor)
+        }
     }
 }
 
