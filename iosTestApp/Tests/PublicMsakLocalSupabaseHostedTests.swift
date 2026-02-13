@@ -1,5 +1,6 @@
 import XCTest
 import sharedKit
+@testable import iosTestApp
 
 final class PublicMsakLocalSupabaseHostedTests: XCTestCase {
     private let smokeValidator = SyncSmokeInvariantValidator()
@@ -10,8 +11,8 @@ final class PublicMsakLocalSupabaseHostedTests: XCTestCase {
         }
 
         let snapshot = try RuntimeSyncMsakProfileBridge().resolvePublicMsakLocalSupabase(
-            localSupabaseUrl: resolveValue("SUPABASE_LOCAL_URL"),
-            localSupabaseApiKey: resolveValue("SUPABASE_LOCAL_API_KEY"),
+            localSupabaseUrl: RuntimeConfigSource.localSupabaseUrlForIos(),
+            localSupabaseApiKey: RuntimeConfigSource.localSupabaseApiKeyPreferServiceRoleJwt(),
             userAgent: "ios-test-app-phase3-public-msak-local-supabase"
         )
 
@@ -69,40 +70,5 @@ final class PublicMsakLocalSupabaseHostedTests: XCTestCase {
 
     private func isSmokeMarkerPresent() -> Bool {
         FileManager.default.fileExists(atPath: "/tmp/cellwatch-ios-public-msak-local-supabase-smoke-required")
-    }
-
-    private func resolveValue(_ key: String) -> String? {
-        let env = ProcessInfo.processInfo.environment
-        if let value = env[key], !value.isEmpty {
-            return value
-        }
-        return loadProperty(key)
-    }
-
-    private func loadProperty(_ key: String) -> String? {
-        let candidates = [
-            URL(fileURLWithPath: "iosTestApp/cellwatch.local.properties"),
-            URL(fileURLWithPath: "cellwatch.local.properties"),
-            URL(fileURLWithPath: "iosTestApp/cellwatch.properties"),
-            URL(fileURLWithPath: "cellwatch.properties"),
-            URL(fileURLWithPath: "../cellwatch.properties"),
-            URL(fileURLWithPath: "../../cellwatch.properties")
-        ]
-        for candidate in candidates {
-            guard let contents = try? String(contentsOf: candidate, encoding: .utf8) else {
-                continue
-            }
-            for rawLine in contents.split(separator: "\n", omittingEmptySubsequences: false) {
-                let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-                if line.isEmpty || line.hasPrefix("#") {
-                    continue
-                }
-                let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
-                if parts.count == 2 && parts[0].trimmingCharacters(in: .whitespacesAndNewlines) == key {
-                    return parts[1].trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-                }
-            }
-        }
-        return nil
     }
 }

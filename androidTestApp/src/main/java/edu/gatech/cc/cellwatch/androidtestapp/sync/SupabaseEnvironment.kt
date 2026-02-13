@@ -6,6 +6,7 @@ import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfigResolver
 import edu.gatech.cc.cellwatch.data.sync.SyncRuntimeConfig
 import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileContract
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileConfig
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileResolver
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
@@ -120,50 +121,44 @@ fun resolveRuntimeProfileFromProperties(
     msakMode: RuntimeMsakMode = RuntimeMsakMode.PUBLIC,
     supabaseMode: RuntimeSupabaseMode = RuntimeSupabaseMode.LOCAL,
     allowRemoteSupabase: Boolean = false,
+    env: Map<String, String> = System.getenv(),
 ): RuntimeSyncMsakProfile {
     val props = preloadedProperties ?: loadCellwatchProperties(workingDir)
-    val configuredLocalMsakHost = props.getProperty("MSAK_LOCAL_SERVER_HOST")
-        ?.trim()
-        ?.trim('"')
-        ?.takeIf { it.isNotEmpty() }
+    val configuredLocalMsakHost = runtimeValue(props, env, RuntimeProfileContract.KEY_LOCAL_MSAK_HOST)
     val resolvedLocalMsakHost = when (msakMode) {
         RuntimeMsakMode.LOCAL -> configuredLocalMsakHost ?: DEFAULT_ANDROID_LOCAL_MSAK_HOST
         else -> configuredLocalMsakHost
     }
-    val strictRuntimeConfig = props.getProperty("CELLWATCH_STRICT_RUNTIME_CONFIG")
-        ?.trim()
-        ?.trim('"')
+    val strictRuntimeConfig = runtimeValue(props, env, RuntimeProfileContract.KEY_STRICT_RUNTIME_CONFIG)
         ?.toBooleanStrictOrNull()
         ?: DEFAULT_STRICT_RUNTIME_CONFIG
     val config = RuntimeProfileConfig(
         msakMode = msakMode,
         supabaseMode = supabaseMode,
-        localSupabaseUrl = normalizeAndroidLocalSupabaseUrl(props.getProperty("SUPABASE_LOCAL_URL"))
+        localSupabaseUrl = normalizeAndroidLocalSupabaseUrl(runtimeValue(props, env, RuntimeProfileContract.KEY_LOCAL_SUPABASE_URL))
             ?: BuildConfig.CELLWATCH_LOCAL_SUPABASE_URL,
-        localSupabaseApiKey = props.getProperty("SUPABASE_LOCAL_SERVICE_KEY")
-            ?.trim()
-            ?.trim('"')
-            ?.takeIf { it.isNotEmpty() }
-            ?: props.getProperty("SUPABASE_LOCAL_API_KEY")
-                ?.trim()
-                ?.trim('"')
-                ?.takeIf { it.isNotEmpty() }
+        localSupabaseApiKey = runtimeValue(props, env, RuntimeProfileContract.KEY_LOCAL_SUPABASE_SERVICE_KEY)
+            ?: runtimeValue(props, env, RuntimeProfileContract.KEY_LOCAL_SUPABASE_API_KEY)
             ?: BuildConfig.CELLWATCH_LOCAL_SUPABASE_API_KEY
                 .takeIf { it.isNotBlank() },
-        testingSupabaseUrl = props.getProperty("SUPABASE_TESTING_URL"),
-        testingSupabaseApiKey = props.getProperty("SUPABASE_TESTING_API_KEY"),
-        liveSupabaseUrl = props.getProperty("SUPABASE_URL"),
-        liveSupabaseApiKey = props.getProperty("SUPABASE_API_KEY"),
+        testingSupabaseUrl = runtimeValue(props, env, RuntimeProfileContract.KEY_TESTING_SUPABASE_URL),
+        testingSupabaseApiKey = runtimeValue(props, env, RuntimeProfileContract.KEY_TESTING_SUPABASE_API_KEY),
+        liveSupabaseUrl = runtimeValue(props, env, RuntimeProfileContract.KEY_REMOTE_SUPABASE_URL),
+        liveSupabaseApiKey = runtimeValue(props, env, RuntimeProfileContract.KEY_REMOTE_SUPABASE_API_KEY),
         allowRemoteSupabase = allowRemoteSupabase,
         strictSupabaseConfig = strictRuntimeConfig,
         localMsakHost = resolvedLocalMsakHost,
-        localMsakSecure = props.getProperty("MSAK_LOCAL_SERVER_SECURE")
-            ?.trim()
-            ?.trim('"')
+        localMsakSecure = runtimeValue(props, env, RuntimeProfileContract.KEY_LOCAL_MSAK_SECURE)
             ?.toBooleanStrictOrNull()
             ?: false,
     )
     return RuntimeProfileResolver.resolveProfile(config)
+}
+
+private fun runtimeValue(props: Properties, env: Map<String, String>, key: String): String? {
+    val fromEnv = env[key]?.trim()?.trim('"')?.takeIf { it.isNotEmpty() }
+    if (fromEnv != null) return fromEnv
+    return props.getProperty(key)?.trim()?.trim('"')?.takeIf { it.isNotEmpty() }
 }
 
 private fun loadCellwatchProperties(workingDir: File): Properties {
