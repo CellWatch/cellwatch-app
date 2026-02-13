@@ -17,7 +17,7 @@ class SyncRuntimeConfigTest {
     }
 
     @Test
-    fun localUrl_normalizesAndroidLoopback() {
+    fun localUrl_preservesConfiguredHost() {
         val cfg = SyncRuntimeConfigFactory.fromRaw(
             localUrl = "http://10.0.2.2:54321",
             localApiKey = "local-key",
@@ -25,7 +25,7 @@ class SyncRuntimeConfigTest {
 
         val resolved = cfg.resolve(SyncTransportTarget.LOCAL)
 
-        assertEquals("http://127.0.0.1:54321", resolved.url)
+        assertEquals("http://10.0.2.2:54321", resolved.url)
         assertEquals("local-key", resolved.apiKey)
     }
 
@@ -49,7 +49,7 @@ class SyncRuntimeConfigTest {
             useRemote = false,
         )
 
-        assertEquals("http://127.0.0.1:54321", cfg.url)
+        assertEquals("http://10.0.2.2:54321", cfg.url)
         assertEquals("local-key", cfg.apiKey)
     }
 }

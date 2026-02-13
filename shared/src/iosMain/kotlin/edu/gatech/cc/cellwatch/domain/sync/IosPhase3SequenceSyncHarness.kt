@@ -161,7 +161,7 @@ class IosPhase3SequenceSyncHarness {
                 uploadTriggerUseCase = uploadTriggerUseCase,
             )
             val request = MeasurementSequenceRequest(
-                groupId = "phase3-${now.toEpochMilliseconds()}",
+                groupId = uuid4().toString(),
                 inVehicle = false,
                 mode = CollectionMode.FCC_CHALLENGE,
                 measurementId = null,

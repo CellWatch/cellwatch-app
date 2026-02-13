@@ -1,7 +1,34 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
 }
+
+val cellwatchProperties = Properties().apply {
+    val file = rootProject.file("cellwatch.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+fun readCellwatchProperty(name: String, defaultValue: String = ""): String {
+    return (cellwatchProperties.getProperty(name) ?: System.getenv(name) ?: defaultValue)
+        .trim()
+        .removeSurrounding("\"")
+}
+
+fun toBuildConfigString(value: String): String {
+    return "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+}
+
+val buildConfigLocalSupabaseUrl = readCellwatchProperty("SUPABASE_LOCAL_URL", "http://10.0.2.2:54321")
+    .replace("127.0.0.1", "10.0.2.2")
+    .replace("localhost", "10.0.2.2")
+val buildConfigLocalSupabaseApiKey = readCellwatchProperty(
+    name = "SUPABASE_LOCAL_SERVICE_KEY",
+    defaultValue = readCellwatchProperty("SUPABASE_LOCAL_API_KEY"),
+)
 
 android {
     namespace = "edu.gatech.cc.cellwatch.androidtestapp"
@@ -14,6 +41,12 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_URL", toBuildConfigString(buildConfigLocalSupabaseUrl))
+        buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_API_KEY", toBuildConfigString(buildConfigLocalSupabaseApiKey))
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     compileOptions {

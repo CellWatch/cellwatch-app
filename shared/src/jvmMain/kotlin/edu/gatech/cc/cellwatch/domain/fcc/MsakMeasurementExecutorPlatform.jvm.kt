@@ -5,6 +5,7 @@ import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.UploadDownloadData
+import com.benasher44.uuid.uuid4
 import kotlinx.datetime.Clock
 
 actual object MsakMeasurementExecutorPlatform {
@@ -19,7 +20,7 @@ actual object MsakMeasurementExecutorPlatform {
                 groupId: String,
                 measurementId: String?,
             ): Measurement {
-                val id = measurementId ?: "latency-$groupId"
+                val id = measurementId ?: uuid4().toString()
                 val measurement = Measurement(
                     id = id,
                     groupId = groupId,
@@ -31,7 +32,7 @@ actual object MsakMeasurementExecutorPlatform {
                     connectionType = NetworkConnectionType.CELLULAR,
                     cellularDataEnabled = true,
                     latencyData = LatencyData(
-                        id = "latency-data-$id",
+                        id = uuid4().toString(),
                         measurementId = id,
                         rtt = 22,
                         jitter = 2,
@@ -55,7 +56,7 @@ actual object MsakMeasurementExecutorPlatform {
                 measurementId: String?,
             ): Measurement {
                 val prefix = direction.name.lowercase()
-                val id = measurementId?.let { "$prefix-$it" } ?: "$prefix-$groupId"
+                val id = measurementId ?: uuid4().toString()
                 val bytes = if (direction == ThroughputDirection.DOWNLOAD) 8_000_000L else 2_500_000L
                 val bytesPerSec = bytes.toDouble() / (config.throughputDurationMs / 1_000.0)
                 val measurement = Measurement(
@@ -69,7 +70,7 @@ actual object MsakMeasurementExecutorPlatform {
                     connectionType = NetworkConnectionType.CELLULAR,
                     cellularDataEnabled = true,
                     uploadDownloadData = UploadDownloadData(
-                        id = "ud-$id",
+                        id = uuid4().toString(),
                         measurementId = id,
                         duration = config.throughputDurationMs * 1_000,
                         bytes = bytes,

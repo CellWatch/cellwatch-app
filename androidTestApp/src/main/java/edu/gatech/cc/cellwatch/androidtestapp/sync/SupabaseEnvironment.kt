@@ -1,5 +1,6 @@
 package edu.gatech.cc.cellwatch.androidtestapp.sync
 
+import edu.gatech.cc.cellwatch.androidtestapp.BuildConfig
 import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfig
 import edu.gatech.cc.cellwatch.data.sync.SyncSupabaseConfigResolver
 import edu.gatech.cc.cellwatch.data.sync.SyncRuntimeConfig
@@ -9,6 +10,7 @@ import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfiles
 import java.io.File
+import java.net.URI
 import java.util.Properties
 
 enum class SupabaseTarget {
@@ -90,7 +92,7 @@ class CellwatchPropertiesSupabaseEnvironmentProvider(
     }
 
     companion object {
-        const val DEFAULT_LOCAL_URL: String = "http://127.0.0.1:54321"
+        const val DEFAULT_LOCAL_URL: String = "http://10.0.2.2:54321"
     }
 }
 
@@ -130,8 +132,18 @@ fun resolveRuntimeProfileFromProperties(
     return RuntimeSyncMsakProfiles.fromModes(
         msakMode = msakMode,
         supabaseMode = supabaseMode,
-        localSupabaseUrl = props.getProperty("SUPABASE_LOCAL_URL"),
-        localSupabaseApiKey = props.getProperty("SUPABASE_LOCAL_API_KEY"),
+        localSupabaseUrl = normalizeAndroidLocalSupabaseUrl(props.getProperty("SUPABASE_LOCAL_URL"))
+            ?: BuildConfig.CELLWATCH_LOCAL_SUPABASE_URL,
+        localSupabaseApiKey = props.getProperty("SUPABASE_LOCAL_SERVICE_KEY")
+            ?.trim()
+            ?.trim('"')
+            ?.takeIf { it.isNotEmpty() }
+            ?: props.getProperty("SUPABASE_LOCAL_API_KEY")
+                ?.trim()
+                ?.trim('"')
+                ?.takeIf { it.isNotEmpty() }
+            ?: BuildConfig.CELLWATCH_LOCAL_SUPABASE_API_KEY
+                .takeIf { it.isNotBlank() },
         testingSupabaseUrl = props.getProperty("SUPABASE_TESTING_URL"),
         testingSupabaseApiKey = props.getProperty("SUPABASE_TESTING_API_KEY"),
         liveSupabaseUrl = props.getProperty("SUPABASE_URL"),
@@ -165,4 +177,27 @@ private fun findCellwatchProperties(startDir: File): File? {
     return null
 }
 
+private fun normalizeAndroidLocalSupabaseUrl(raw: String?): String? {
+    val value = raw?.trim()?.trim('"')?.takeIf { it.isNotEmpty() } ?: return null
+    val uri = runCatching { URI(value) }.getOrNull() ?: return value
+    val host = uri.host ?: return value
+    val normalizedHost = when (host) {
+        "127.0.0.1", "localhost", "10.0.3.2" -> "10.0.2.2"
+        else -> host
+    }
+    if (normalizedHost == host) return value
+    return runCatching {
+        URI(
+            uri.scheme,
+            uri.userInfo,
+            normalizedHost,
+            uri.port,
+            uri.path,
+            uri.query,
+            uri.fragment,
+        ).toString()
+    }.getOrElse { value }
+}
+
 private const val DEFAULT_ANDROID_LOCAL_MSAK_HOST = "10.0.2.2:8080"
+private const val DEFAULT_ANDROID_LOCAL_SUPABASE_URL = "http://10.0.2.2:54321"

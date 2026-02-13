@@ -57,7 +57,7 @@ object SyncRuntimeConfigFactory {
     ): SyncRuntimeConfig {
         return SyncRuntimeConfig(
             allowRemote = allowRemote,
-            localUrl = (localUrl ?: DEFAULT_LOCAL_URL).normalizeLocalUrl(),
+            localUrl = (localUrl ?: DEFAULT_LOCAL_URL).normalizeValue(),
             localApiKey = (localApiKey ?: DEFAULT_LOCAL_API_KEY).normalizeValue(),
             remoteUrl = remoteUrl?.normalizeValue(),
             remoteApiKey = remoteApiKey?.normalizeValue(),
@@ -90,5 +90,3 @@ object SyncRuntimeProfileBridge {
 }
 
 private fun String.normalizeValue(): String = trim().removeSurrounding("\"")
-
-private fun String.normalizeLocalUrl(): String = normalizeValue().replace("10.0.2.2", "127.0.0.1")

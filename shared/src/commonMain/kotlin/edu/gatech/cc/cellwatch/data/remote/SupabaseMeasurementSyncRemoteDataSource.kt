@@ -1,6 +1,5 @@
 package edu.gatech.cc.cellwatch.data.remote
 
-import edu.gatech.cc.cellwatch.data.transport.NetworkFccSubmission
 import edu.gatech.cc.cellwatch.data.transport.NetworkMeasurement
 import edu.gatech.cc.cellwatch.data.transport.toDomain
 import edu.gatech.cc.cellwatch.data.transport.toNetwork
@@ -22,6 +21,7 @@ import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.utils.io.errors.IOException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.JsonElement
 
 data class SupabaseConnectionConfig(
     val url: String,
@@ -46,8 +46,8 @@ class SupabaseMeasurementSyncRemoteDataSource(
         withErrorHandling {
             getClient().postgrest
                 .rpc("insert_measurement", measurement.toNetworkWithData())
-                .decodeAs<NetworkMeasurement>()
-                .toDomain()
+                .decodeAs<JsonElement>()
+            measurement
         }
 
     override suspend fun getMeasurementById(id: String): Measurement =
@@ -61,8 +61,8 @@ class SupabaseMeasurementSyncRemoteDataSource(
         withErrorHandling {
             getClient().postgrest["fcc_submissions"]
                 .insert(submission.toNetwork())
-                .decodeSingle<NetworkFccSubmission>()
-                .toDomain()
+                .decodeAs<JsonElement>()
+            submission
         }
 
     private suspend fun getClient(): SupabaseClient {

@@ -20,7 +20,7 @@ class RuntimeSyncMsakProfilesTest {
         assertEquals(MsakLocateEnvironment.PROD, profile.msakConfig.environment)
         assertEquals("profile-test-agent", profile.msakConfig.userAgent)
         assertEquals(SyncTransportTarget.LOCAL, profile.syncTarget)
-        assertEquals("http://127.0.0.1:54321", profile.resolveSyncSupabaseConfig().url)
+        assertEquals("http://10.0.2.2:54321", profile.resolveSyncSupabaseConfig().url)
         assertEquals("local-key", profile.resolveSyncSupabaseConfig().apiKey)
     }
 
