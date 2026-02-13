@@ -7,6 +7,8 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
+import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -38,8 +40,11 @@ import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfile
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingValidationUseCase
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeModeUiBridge
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeOnboardingContract
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileConfig
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileResolver
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
@@ -73,6 +78,13 @@ class MainActivity : AppCompatActivity() {
         const val RUN_SHARED_SLICE_BUTTON_ID = 1001
         const val STATUS_TEXT_VIEW_ID = 1002
         const val RUN_PHASE3_SEQUENCE_BUTTON_ID = 1003
+        const val MSAK_MODE_BUTTON_ID = 1004
+        const val SUPABASE_MODE_BUTTON_ID = 1005
+        const val ONBOARDING_NAME_INPUT_ID = 1006
+        const val ONBOARDING_PHONE_INPUT_ID = 1007
+        const val ONBOARDING_EMAIL_INPUT_ID = 1008
+        const val ONBOARDING_ACK_CHECKBOX_ID = 1009
+        const val ONBOARDING_SUBMIT_BUTTON_ID = 1010
         private const val LOG_TAG = "AndroidTestHarness"
         private const val PERMISSION_REQUEST_CODE = 7001
     }
@@ -97,6 +109,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var msakModeButton: Button
     private lateinit var supabaseModeButton: Button
+    private lateinit var onboardingNameInput: EditText
+    private lateinit var onboardingPhoneInput: EditText
+    private lateinit var onboardingEmailInput: EditText
+    private lateinit var onboardingAckCheckbox: CheckBox
 
     private var syncDriver: AndroidTestSyncDriver? = null
     private var lastGroup: MeasurementGroup? = null
@@ -108,6 +124,7 @@ class MainActivity : AppCompatActivity() {
     private val allowRemoteSupabase: Boolean = System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE") == "true"
     private var runtimeProfile: RuntimeSyncMsakProfile =
         RuntimeProfileResolver.resolveProfile(resolveRuntimeProfileConfig())
+    private val onboardingValidationUseCase = OnboardingValidationUseCase()
     private val smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private val smokeFormatter = SyncSmokeResultFormatter()
 
@@ -203,6 +220,39 @@ class MainActivity : AppCompatActivity() {
             stylePrimaryButton(this)
             setOnClickListener { runSeedAndMapSync() }
         }
+        val onboardingHeader = TextView(this).apply {
+            text = "Onboarding Profile"
+            textSize = 16f
+            setTextColor(Color.parseColor("#07416B"))
+        }
+        onboardingNameInput = EditText(this).apply {
+            id = ONBOARDING_NAME_INPUT_ID
+            hint = "Full name"
+            setSingleLine()
+        }
+        onboardingPhoneInput = EditText(this).apply {
+            id = ONBOARDING_PHONE_INPUT_ID
+            hint = "Phone (###-###-####)"
+            inputType = android.text.InputType.TYPE_CLASS_PHONE
+            setSingleLine()
+        }
+        onboardingEmailInput = EditText(this).apply {
+            id = ONBOARDING_EMAIL_INPUT_ID
+            hint = "Email"
+            inputType = android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            setSingleLine()
+        }
+        onboardingAckCheckbox = CheckBox(this).apply {
+            id = ONBOARDING_ACK_CHECKBOX_ID
+            text = "I acknowledge FCC challenge sharing terms."
+            setTextColor(Color.parseColor("#003618"))
+        }
+        val onboardingSubmitButton = Button(this).apply {
+            id = ONBOARDING_SUBMIT_BUTTON_ID
+            text = "Submit Onboarding"
+            stylePrimaryButton(this)
+            setOnClickListener { submitOnboarding() }
+        }
         val measurementCompleteSync = Button(this).apply {
             text = "Run Measurement-Complete Sync"
             styleSecondaryButton(this)
@@ -220,10 +270,12 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { runSharedSlice() }
         }
         msakModeButton = Button(this).apply {
+            id = MSAK_MODE_BUTTON_ID
             styleModeButton(this)
             setOnClickListener { cycleMsakMode() }
         }
         supabaseModeButton = Button(this).apply {
+            id = SUPABASE_MODE_BUTTON_ID
             styleModeButton(this)
             setOnClickListener { cycleSupabaseMode() }
         }
@@ -252,6 +304,16 @@ class MainActivity : AppCompatActivity() {
 
         content.addView(title)
         content.addView(subtitle)
+        content.addView(
+            buildCard(
+                onboardingHeader,
+                onboardingNameInput,
+                onboardingPhoneInput,
+                onboardingEmailInput,
+                onboardingAckCheckbox,
+                onboardingSubmitButton,
+            ),
+        )
         content.addView(buildCard(msakModeButton, supabaseModeButton))
         content.addView(buildCard(seedAndMapSync, measurementCompleteSync, runMapSyncOnly, runSharedSliceButton, locateServersButton, runPhase3SequenceButton))
         content.addView(statusText)
@@ -261,10 +323,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resolveRuntimeProfileConfig(): RuntimeProfileConfig {
-        return resolveRuntimeProfileConfigFromProperties(
+        val baseConfig = resolveRuntimeProfileConfigFromProperties(
             msakMode = selectedMsakMode,
             supabaseMode = selectedSupabaseMode,
             allowRemoteSupabase = allowRemoteSupabase,
+        )
+        val draft = RuntimeOnboardingContract.fromConfig(baseConfig)
+        return draft.toRuntimeProfileConfig(
+            allowRemoteSupabase = allowRemoteSupabase,
+            strictSupabaseConfig = baseConfig.strictSupabaseConfig,
+            userAgent = "android-test-app-runtime-profile",
         )
     }
 
@@ -303,6 +371,27 @@ class MainActivity : AppCompatActivity() {
     private fun refreshModeUi() {
         msakModeButton.text = "MSAK Mode: ${runtimeModeBridge.msakModeLabel(selectedMsakMode)} (tap to cycle)"
         supabaseModeButton.text = "Supabase Mode: ${runtimeModeBridge.supabaseModeLabel(selectedSupabaseMode)} (tap to cycle)"
+    }
+
+    private fun submitOnboarding() {
+        val rawProfile = OnboardingProfile(
+            name = onboardingNameInput.text?.toString().orEmpty(),
+            phone = onboardingPhoneInput.text?.toString().orEmpty(),
+            email = onboardingEmailInput.text?.toString().orEmpty(),
+            fccAcknowledged = onboardingAckCheckbox.isChecked,
+        )
+        val result = onboardingValidationUseCase.validate(rawProfile)
+        val errorSummary = result.fieldErrors.entries.joinToString(separator = "; ") { "${it.key}:${it.value}" }
+        statusText.text = if (result.valid) {
+            "Onboarding submit=SUCCESS\n" +
+                "name=${result.normalizedProfile.name}\n" +
+                "phone=${result.normalizedProfile.phone}\n" +
+                "email=${result.normalizedProfile.email}\n" +
+                "ack=${result.normalizedProfile.fccAcknowledged}\n" +
+                "onboardingComplete=${result.normalizedProfile.onboardingComplete}"
+        } else {
+            "Onboarding submit=FAILURE\nerrors=$errorSummary"
+        }
     }
 
     private fun runSeedAndMapSync() {

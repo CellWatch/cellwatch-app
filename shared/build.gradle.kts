@@ -445,6 +445,22 @@ tasks.register("verifyAndroidUiPhase3ButtonSmoke") {
     }
 }
 
+tasks.register("verifyAndroidUiOnboardingRuntimeSmoke") {
+    description = "Tier 2: Android emulator UI smoke that cycles runtime onboarding modes and validates rendered runtime summary."
+    group = "verification"
+    doLast {
+        exec {
+            commandLine(
+                "./gradlew",
+                ":androidTestApp:connectedDebugAndroidTest",
+                "-Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.OnboardingRuntimeUiSmokeTest",
+                "-Pandroid.testInstrumentationRunnerArguments.cellwatchRunOnboardingUiSmoke=1",
+            )
+            workingDir = rootProject.projectDir
+        }
+    }
+}
+
 tasks.register("verifyIosHostedKeychain") {
     description = "Tier 2: iOS host-app Keychain tests (requires an Xcode project/test target)."
     group = "verification"
@@ -714,6 +730,52 @@ tasks.register("verifyIosTestAppHostedPhase3ButtonSmoke") {
     }
 }
 
+tasks.register("verifyIosTestAppHostedOnboardingRuntimeSmoke") {
+    description = "Tier 2: iOS hosted UI smoke for runtime onboarding mode cycling in iosTestApp."
+    group = "verification"
+    dependsOn("refreshIosSimulatorCurrentFramework")
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException("Missing iOS hosted test app project at ${projectPath.absolutePath}.")
+        }
+    }
+    doLast {
+        val marker = file("/tmp/cellwatch-ios-onboarding-runtime-smoke-required")
+        val localServiceKey = project.resolveLocalSupabaseServiceRoleKey()
+        val localSupabaseUrl = project.resolveLocalSupabaseUrlForIosHosted()
+        marker.writeText("1\n")
+        try {
+            project.withIosLocalServiceKeyOverride(localServiceKey) {
+                exec {
+                    commandLine(
+                        "xcodebuild",
+                        "-project",
+                        projectPath.absolutePath,
+                        "-scheme",
+                        "iosTestAppLocalMsakSmoke",
+                        "-destination",
+                        "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                        "-only-testing:iosTestAppTests/OnboardingRuntimeHostedTests/testHostedRuntimeOnboardingModeCycle_whenEnabled",
+                        "test",
+                    )
+                    if (!localServiceKey.isNullOrBlank()) {
+                        args("SUPABASE_LOCAL_SERVICE_KEY=$localServiceKey")
+                    }
+                    args("SUPABASE_LOCAL_URL=$localSupabaseUrl")
+                    if (!localServiceKey.isNullOrBlank()) {
+                        environment("SUPABASE_LOCAL_SERVICE_KEY", localServiceKey)
+                    }
+                    environment("SUPABASE_LOCAL_URL", localSupabaseUrl)
+                    workingDir = rootProject.projectDir
+                }
+            }
+        } finally {
+            marker.delete()
+        }
+    }
+}
+
 // Hosted iOS simulator tasks share runtime state (simulator process, keychain scope, local services).
 // Keep them serialized to avoid flaky failures when Gradle runs tasks in parallel.
 tasks.named("verifyIosTestAppHosted") {
@@ -731,6 +793,9 @@ tasks.named("verifyIosTestAppHostedFailureStatusSmoke") {
 tasks.named("verifyIosTestAppHostedPhase3ButtonSmoke") {
     mustRunAfter("verifyIosTestAppHostedFailureStatusSmoke")
 }
+tasks.named("verifyIosTestAppHostedOnboardingRuntimeSmoke") {
+    mustRunAfter("verifyIosTestAppHostedPhase3ButtonSmoke")
+}
 
 tasks.register("verifyIosHostedTier2Sequential") {
     description = "Tier 2: run all hosted iOS checks sequentially to avoid simulator concurrency flake."
@@ -742,6 +807,7 @@ tasks.register("verifyIosHostedTier2Sequential") {
         "verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke",
         "verifyIosTestAppHostedFailureStatusSmoke",
         "verifyIosTestAppHostedPhase3ButtonSmoke",
+        "verifyIosTestAppHostedOnboardingRuntimeSmoke",
     )
 }
 
@@ -753,10 +819,12 @@ tasks.register("verifyPhase3Tier2FailureMatrix") {
         "verifyAndroidPublicMsakLocalSupabaseSmoke",
         "verifyAndroidFailureStatusSmoke",
         "verifyAndroidUiPhase3ButtonSmoke",
+        "verifyAndroidUiOnboardingRuntimeSmoke",
         "verifyIosTestAppHostedLocalMsakSmoke",
         "verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke",
         "verifyIosTestAppHostedFailureStatusSmoke",
         "verifyIosTestAppHostedPhase3ButtonSmoke",
+        "verifyIosTestAppHostedOnboardingRuntimeSmoke",
     )
 }
 
@@ -765,7 +833,9 @@ tasks.register("verifySimulatorUiRegressionSequence") {
     group = "verification"
     dependsOn(
         "verifyAndroidUiPhase3ButtonSmoke",
+        "verifyAndroidUiOnboardingRuntimeSmoke",
         "verifyIosTestAppHostedPhase3ButtonSmoke",
+        "verifyIosTestAppHostedOnboardingRuntimeSmoke",
     )
 }
 

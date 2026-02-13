@@ -116,12 +116,21 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 final class HarnessViewController: UIViewController {
     static let mapStartSharedSliceButtonIdentifier = "harness.mapStartSharedSliceButton"
     static let statusLabelIdentifier = "harness.statusLabel"
+    static let outputTextViewIdentifier = "harness.outputTextView"
+    static let msakModeButtonIdentifier = "harness.msakModeButton"
+    static let supabaseModeButtonIdentifier = "harness.supabaseModeButton"
+    static let onboardingNameFieldIdentifier = "harness.onboarding.name"
+    static let onboardingPhoneFieldIdentifier = "harness.onboarding.phone"
+    static let onboardingEmailFieldIdentifier = "harness.onboarding.email"
+    static let onboardingAckSwitchIdentifier = "harness.onboarding.ack"
+    static let onboardingSubmitButtonIdentifier = "harness.onboarding.submit"
 
     private let statusLabel = UILabel()
     private let outputTextView = UITextView()
     private let smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private let smokeFormatter = SyncSmokeResultFormatter()
     private let runtimeModeBridge = RuntimeModeUiBridge()
+    private let onboardingValidationUseCase = OnboardingValidationUseCase()
     private var lastGroupId: String?
     private let msakModeButton = UIButton(type: .system)
     private let supabaseModeButton = UIButton(type: .system)
@@ -132,6 +141,10 @@ final class HarnessViewController: UIViewController {
     private var outputHistory: String = ""
     private let maxOutputChars = 80_000
     private let timestampFormatter = ISO8601DateFormatter()
+    private let onboardingNameField = UITextField()
+    private let onboardingPhoneField = UITextField()
+    private let onboardingEmailField = UITextField()
+    private let onboardingAckSwitch = UISwitch()
 
     private func setStatus(_ text: String) {
         let timestamp = timestampFormatter.string(from: Date())
@@ -193,10 +206,12 @@ final class HarnessViewController: UIViewController {
         copyOutputButton.translatesAutoresizingMaskIntoConstraints = false
 
         applyButtonStyle(msakModeButton, role: .mode)
+        msakModeButton.accessibilityIdentifier = Self.msakModeButtonIdentifier
         msakModeButton.addTarget(self, action: #selector(cycleMsakMode), for: .touchUpInside)
         msakModeButton.translatesAutoresizingMaskIntoConstraints = false
 
         applyButtonStyle(supabaseModeButton, role: .mode)
+        supabaseModeButton.accessibilityIdentifier = Self.supabaseModeButtonIdentifier
         supabaseModeButton.addTarget(self, action: #selector(cycleSupabaseMode), for: .touchUpInside)
         supabaseModeButton.translatesAutoresizingMaskIntoConstraints = false
 
@@ -241,13 +256,58 @@ final class HarnessViewController: UIViewController {
         outputTextView.layer.cornerRadius = 8
         outputTextView.textContainerInset = UIEdgeInsets(top: 12, left: 10, bottom: 12, right: 10)
         outputTextView.translatesAutoresizingMaskIntoConstraints = false
+        outputTextView.accessibilityIdentifier = Self.outputTextViewIdentifier
 
         let runtimeHeader = sectionLabel("Runtime")
         let actionsHeader = sectionLabel("Actions")
+        let onboardingHeader = sectionLabel("Onboarding Profile")
+
+        configureOnboardingField(
+            onboardingNameField,
+            placeholder: "Full name",
+            identifier: Self.onboardingNameFieldIdentifier
+        )
+        configureOnboardingField(
+            onboardingPhoneField,
+            placeholder: "Phone (###-###-####)",
+            identifier: Self.onboardingPhoneFieldIdentifier
+        )
+        onboardingPhoneField.keyboardType = .phonePad
+        configureOnboardingField(
+            onboardingEmailField,
+            placeholder: "Email",
+            identifier: Self.onboardingEmailFieldIdentifier
+        )
+        onboardingEmailField.keyboardType = .emailAddress
+
+        onboardingAckSwitch.accessibilityIdentifier = Self.onboardingAckSwitchIdentifier
+        let ackRow = UIStackView(arrangedSubviews: [UILabel(), onboardingAckSwitch])
+        if let ackLabel = ackRow.arrangedSubviews.first as? UILabel {
+            ackLabel.text = "I acknowledge FCC challenge sharing terms."
+            ackLabel.numberOfLines = 0
+            ackLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        }
+        ackRow.axis = .horizontal
+        ackRow.spacing = 12
+        ackRow.alignment = .center
+        ackRow.translatesAutoresizingMaskIntoConstraints = false
+
+        let onboardingSubmitButton = UIButton(type: .system)
+        onboardingSubmitButton.setTitle("Submit Onboarding", for: .normal)
+        onboardingSubmitButton.accessibilityIdentifier = Self.onboardingSubmitButtonIdentifier
+        applyButtonStyle(onboardingSubmitButton, role: .primary)
+        onboardingSubmitButton.addTarget(self, action: #selector(submitOnboarding), for: .touchUpInside)
+        onboardingSubmitButton.translatesAutoresizingMaskIntoConstraints = false
 
         let buttonsStack = UIStackView(arrangedSubviews: [
             title,
             subtitle,
+            onboardingHeader,
+            onboardingNameField,
+            onboardingPhoneField,
+            onboardingEmailField,
+            ackRow,
+            onboardingSubmitButton,
             runtimeHeader,
             localEnvButton,
             copyOutputButton,
@@ -625,6 +685,33 @@ final class HarnessViewController: UIViewController {
         return raw
     }
 
+    @objc private func submitOnboarding() {
+        let profile = OnboardingProfile(
+            collectionMode: .testing,
+            name: onboardingNameField.text ?? "",
+            phone: onboardingPhoneField.text ?? "",
+            email: onboardingEmailField.text ?? "",
+            fccAcknowledged: onboardingAckSwitch.isOn,
+            onboardingComplete: false
+        )
+        let result = onboardingValidationUseCase.validate(profile: profile)
+        if result.valid {
+            setStatus(
+                "Onboarding submit=SUCCESS\n" +
+                "name=\(result.normalizedProfile.name)\n" +
+                "phone=\(result.normalizedProfile.phone)\n" +
+                "email=\(result.normalizedProfile.email)\n" +
+                "ack=\(result.normalizedProfile.fccAcknowledged)\n" +
+                "onboardingComplete=\(result.normalizedProfile.onboardingComplete)"
+            )
+        } else {
+            let errors = result.fieldErrors.map { key, value in
+                "\(key):\(value)"
+            }.joined(separator: "; ")
+            setStatus("Onboarding submit=FAILURE\nerrors=\(errors)")
+        }
+    }
+
     private func sectionLabel(_ text: String) -> UILabel {
         let label = UILabel()
         label.text = text
@@ -663,6 +750,15 @@ final class HarnessViewController: UIViewController {
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
         button.configuration = configuration
     }
+
+    private func configureOnboardingField(_ field: UITextField, placeholder: String, identifier: String) {
+        field.placeholder = placeholder
+        field.borderStyle = .roundedRect
+        field.clearButtonMode = .whileEditing
+        field.autocapitalizationType = .none
+        field.translatesAutoresizingMaskIntoConstraints = false
+        field.accessibilityIdentifier = identifier
+    }
 }
 
 private enum RuntimeSelection {
@@ -674,11 +770,9 @@ private enum RuntimeSelection {
         let localMsakHost = RuntimeConfigSource.localMsakHostForIos(msakModeRaw: msakMode.displayName)
         let localSupabaseApiKey = RuntimeConfigSource.localSupabaseApiKeyPreferServiceRoleJwt()
         let resolvedLocalSupabaseUrl = RuntimeConfigSource.localSupabaseUrlForIos()
-        let config = RuntimeProfileConfig(
+        let draft = RuntimeOnboardingDraft(
             msakMode: msakMode,
             supabaseMode: supabaseMode,
-            allowRemoteSupabase: RuntimeConfigSource.bool("CELLWATCH_ALLOW_REMOTE_SUPABASE"),
-            strictSupabaseConfig: true,
             localSupabaseUrl: resolvedLocalSupabaseUrl,
             localSupabaseApiKey: localSupabaseApiKey,
             testingSupabaseUrl: RuntimeConfigSource.value("SUPABASE_TESTING_URL"),
@@ -686,7 +780,11 @@ private enum RuntimeSelection {
             liveSupabaseUrl: RuntimeConfigSource.value("SUPABASE_URL"),
             liveSupabaseApiKey: RuntimeConfigSource.value("SUPABASE_API_KEY"),
             localMsakHost: localMsakHost,
-            localMsakSecure: RuntimeConfigSource.bool("MSAK_LOCAL_SERVER_SECURE"),
+            localMsakSecure: RuntimeConfigSource.bool("MSAK_LOCAL_SERVER_SECURE")
+        )
+        let config = draft.toRuntimeProfileConfig(
+            allowRemoteSupabase: RuntimeConfigSource.bool("CELLWATCH_ALLOW_REMOTE_SUPABASE"),
+            strictSupabaseConfig: true,
             userAgent: "ios-test-app-runtime-profile"
         )
         return bridge.resolve(config: config)

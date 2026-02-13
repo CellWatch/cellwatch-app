@@ -208,9 +208,14 @@ For simulated user-action smoke plus screenshot-backed markdown evidence:
 
 Outputs:
 - Markdown report: `build/reports/ui-flow/UI_FLOW_REPORT.md`
-- Android screenshots: `build/reports/ui-flow/android/`
-- iOS screenshots: `build/reports/ui-flow/ios/screenshots/`
-- iOS flow artifacts: `build/reports/ui-flow/ios/`
+- Android per-flow screenshots:
+  - `build/reports/ui-flow/android/onboarding-profile-entry/`
+  - `build/reports/ui-flow/android/phase3-sequence-button/`
+- iOS per-flow screenshots:
+  - `build/reports/ui-flow/ios/onboarding-profile-entry/`
+  - `build/reports/ui-flow/ios/phase3-sequence-button/`
+- Per-flow execution logs + pass/fail status:
+  - `build/reports/ui-flow/logs/`
 
 ### Start/Stop Local Supabase
 
