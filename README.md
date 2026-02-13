@@ -197,6 +197,20 @@ Use this sequence to bootstrap both harnesses before running interactive buttons
 ./gradlew :shared:verifyIosTestAppHosted
 ```
 
+### Automated UI Flow Evidence (Android + iOS)
+
+For simulated user-action smoke plus screenshot-backed markdown evidence:
+
+```bash
+./scripts/generate-ui-flow-report.sh
+```
+
+Outputs:
+- Markdown report: `build/reports/ui-flow/UI_FLOW_REPORT.md`
+- Android screenshots: `build/reports/ui-flow/android/`
+- iOS screenshots: `build/reports/ui-flow/ios/screenshots/`
+- iOS flow artifacts: `build/reports/ui-flow/ios/`
+
 ### Start/Stop Local Supabase
 
 Use helper script:

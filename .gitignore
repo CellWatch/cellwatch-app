@@ -1,6 +1,7 @@
 *.iml
 .gradle
 .gradle-xcode
+.gradle-scripts
 .gradle-local
 /local.properties
 /.idea/caches
