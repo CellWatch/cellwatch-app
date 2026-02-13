@@ -29,6 +29,18 @@ val buildConfigLocalSupabaseApiKey = readCellwatchProperty(
     name = "SUPABASE_LOCAL_SERVICE_KEY",
     defaultValue = readCellwatchProperty("SUPABASE_LOCAL_API_KEY"),
 )
+val buildConfigSyncDiagnosticsLevel = readCellwatchProperty(
+    name = "CELLWATCH_SYNC_DIAGNOSTICS_LEVEL",
+    defaultValue = "BASIC",
+)
+val buildConfigSyncDiagnosticsMaxSamples = readCellwatchProperty(
+    name = "CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES",
+    defaultValue = "6",
+).toIntOrNull()?.coerceIn(0, 50) ?: 6
+val buildConfigSyncDiagnosticsIncludeCauseChain = readCellwatchProperty(
+    name = "CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN",
+    defaultValue = "false",
+).equals("true", ignoreCase = true)
 
 android {
     namespace = "edu.gatech.cc.cellwatch.androidtestapp"
@@ -43,6 +55,9 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_URL", toBuildConfigString(buildConfigLocalSupabaseUrl))
         buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_API_KEY", toBuildConfigString(buildConfigLocalSupabaseApiKey))
+        buildConfigField("String", "CELLWATCH_SYNC_DIAGNOSTICS_LEVEL", toBuildConfigString(buildConfigSyncDiagnosticsLevel))
+        buildConfigField("int", "CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES", buildConfigSyncDiagnosticsMaxSamples.toString())
+        buildConfigField("boolean", "CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN", buildConfigSyncDiagnosticsIncludeCauseChain.toString())
     }
 
     buildFeatures {

@@ -28,6 +28,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.Throws
 import kotlin.coroutines.EmptyCoroutineContext
+import edu.gatech.cc.cellwatch.domain.sync.renderForStatus
 
 data class IosPhase3SequenceSyncResult(
     val groupId: String,
@@ -179,16 +180,7 @@ class IosPhase3SequenceSyncHarness {
                 mapStartMeasurementsUploaded = outcome.mapStartReport.measurements.uploaded,
                 mapStartSubmissionsUploaded = outcome.mapStartReport.submissions.uploaded,
                 measurementCompleteUploadTimeSet = outcome.measurementCompleteUploadTime != null,
-                measurementCompleteReportSummary =
-                    "measurementCompleteReport(" +
-                        "attempted=${outcome.measurementCompleteReport.measurements.attempted}," +
-                        "uploaded=${outcome.measurementCompleteReport.measurements.uploaded}," +
-                        "networkErrors=${outcome.measurementCompleteReport.measurements.networkErrors}," +
-                        "unexpectedErrors=${outcome.measurementCompleteReport.measurements.unexpectedErrors}," +
-                        "submissionsUploaded=${outcome.measurementCompleteReport.submissions.uploaded}," +
-                        "submissionNetworkErrors=${outcome.measurementCompleteReport.submissions.networkErrors}," +
-                        "submissionUnexpectedErrors=${outcome.measurementCompleteReport.submissions.unexpectedErrors}" +
-                        ")",
+                measurementCompleteReportSummary = outcome.measurementCompleteReport.renderForStatus(),
                 persistedMeasurements = persistedMeasurements.size,
                 persistedSubmissions = if (submissionRepo.getById(groupId) != null) 1 else 0,
                 capabilityPersistenceSummary = CapabilityPersistenceSummaryFormatter.format(persistenceSummary),

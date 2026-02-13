@@ -143,6 +143,17 @@ Notes:
 - Local MSAK runs require protocol compatibility between `msak-client-kmp` and the local `msak-server`.  
   If you see `MissingFieldException` for `Application.BytesSent`, the server/client schema versions are mismatched.
 
+### Sync Diagnostics (Failure Explainability)
+
+Shared sync reports now carry structured error samples (category, context id, exception type/message, root cause, optional cause chain), not just counts.
+
+Android harness diagnostics knobs (read from `cellwatch.properties` or env at build time):
+- `CELLWATCH_SYNC_DIAGNOSTICS_LEVEL=OFF|BASIC|VERBOSE` (default `BASIC`)
+- `CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES=<int>` (default `6`)
+- `CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN=true|false` (default `false`)
+
+At `VERBOSE` (or with `INCLUDE_CAUSE_CHAIN=true`), upstream cause chains are included in status rendering to reduce adb/logcat dependence during triage.
+
 ### Harness Bootstrap (Before Simulator Taps)
 
 Use this sequence to bootstrap both harnesses before running interactive buttons:

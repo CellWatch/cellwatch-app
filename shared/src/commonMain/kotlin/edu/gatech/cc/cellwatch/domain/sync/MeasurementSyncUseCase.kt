@@ -12,6 +12,7 @@ data class SyncReport(
     val networkErrors: Int = 0,
     val unexpectedErrors: Int = 0,
     val blockedBeforeUpload: Boolean = false,
+    val errorSummary: SyncErrorSummary = SyncErrorSummary(),
 )
 
 class MeasurementSyncUseCase(
@@ -31,17 +32,38 @@ class MeasurementSyncUseCase(
                 remoteDataSource.insertMeasurement(measurement)
                 localStore.markMeasurementUploaded(measurement.id, clock.now())
                 report.copy(uploaded = report.uploaded + 1)
-            } catch (_: NetworkError) {
-                report.copy(networkErrors = report.networkErrors + 1)
-            } catch (_: DuplicateKeyError) {
+            } catch (e: NetworkError) {
+                report.copy(
+                    networkErrors = report.networkErrors + 1,
+                    errorSummary = report.errorSummary.recordError(
+                        category = SyncErrorCategory.NETWORK,
+                        throwable = e,
+                        contextId = measurement.id,
+                    ),
+                )
+            } catch (e: DuplicateKeyError) {
                 if (canMarkUploaded(measurement)) {
                     localStore.markMeasurementUploaded(measurement.id, clock.now())
                     report.copy(markedUploaded = report.markedUploaded + 1)
                 } else {
-                    report.copy(unexpectedErrors = report.unexpectedErrors + 1)
+                    report.copy(
+                        unexpectedErrors = report.unexpectedErrors + 1,
+                        errorSummary = report.errorSummary.recordError(
+                            category = SyncErrorCategory.DUPLICATE_NOT_MARKED,
+                            throwable = e,
+                            contextId = measurement.id,
+                        ),
+                    )
                 }
-            } catch (_: Exception) {
-                report.copy(unexpectedErrors = report.unexpectedErrors + 1)
+            } catch (e: Exception) {
+                report.copy(
+                    unexpectedErrors = report.unexpectedErrors + 1,
+                    errorSummary = report.errorSummary.recordError(
+                        category = SyncErrorCategory.UNEXPECTED,
+                        throwable = e,
+                        contextId = measurement.id,
+                    ),
+                )
             }
         }
 
@@ -54,11 +76,16 @@ class MeasurementSyncUseCase(
 
         val tuple = try {
             tcpTupleProvider.getPublicTcpTuple()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             return SyncReport(
                 attempted = submissions.size,
                 blockedBeforeUpload = true,
                 unexpectedErrors = submissions.size,
+                errorSummary = SyncErrorSummary().recordError(
+                    category = SyncErrorCategory.BLOCKED,
+                    throwable = e,
+                    contextId = "tuple-provider",
+                ),
             )
         }
 
@@ -69,10 +96,24 @@ class MeasurementSyncUseCase(
                 remoteDataSource.insertFccSubmission(patched)
                 localStore.markSubmissionUploaded(submission.id, clock.now())
                 report.copy(uploaded = report.uploaded + 1)
-            } catch (_: NetworkError) {
-                report.copy(networkErrors = report.networkErrors + 1)
-            } catch (_: Exception) {
-                report.copy(unexpectedErrors = report.unexpectedErrors + 1)
+            } catch (e: NetworkError) {
+                report.copy(
+                    networkErrors = report.networkErrors + 1,
+                    errorSummary = report.errorSummary.recordError(
+                        category = SyncErrorCategory.NETWORK,
+                        throwable = e,
+                        contextId = submission.id,
+                    ),
+                )
+            } catch (e: Exception) {
+                report.copy(
+                    unexpectedErrors = report.unexpectedErrors + 1,
+                    errorSummary = report.errorSummary.recordError(
+                        category = SyncErrorCategory.UNEXPECTED,
+                        throwable = e,
+                        contextId = submission.id,
+                    ),
+                )
             }
         }
 
