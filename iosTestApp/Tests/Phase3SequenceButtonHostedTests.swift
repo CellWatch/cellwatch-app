@@ -68,6 +68,7 @@ final class Phase3SequenceButtonHostedTests: XCTestCase {
         let root = URL(fileURLWithPath: "/tmp", isDirectory: true)
             .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
             .appendingPathComponent("ios", isDirectory: true)
+            .appendingPathComponent("phase3-sequence-button", isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             let url = root.appendingPathComponent("\(name).png")

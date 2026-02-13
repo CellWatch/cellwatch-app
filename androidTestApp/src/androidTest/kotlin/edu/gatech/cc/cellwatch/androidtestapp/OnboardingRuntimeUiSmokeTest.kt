@@ -2,69 +2,61 @@ package edu.gatech.cc.cellwatch.androidtestapp
 
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
 import androidx.test.espresso.action.ViewActions.click
-import androidx.test.espresso.action.ViewActions.scrollTo
+import androidx.test.espresso.action.ViewActions.replaceText
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.FileInputStream
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class Phase3SequenceButtonUiSmokeTest {
-    private val screenshotDir = "/sdcard/Download/cellwatch-ui-flow/android/phase3-sequence-button"
+class OnboardingRuntimeUiSmokeTest {
+    private val screenshotDir = "/sdcard/Download/cellwatch-ui-flow/android/onboarding-profile-entry"
 
     @Test
-    fun clickingPhase3Button_rendersPhase3Envelope() {
+    fun onboardingProfileEntry_rendersSuccessAfterStepwiseInput() {
         val args = InstrumentationRegistry.getArguments()
         assumeTrue(
-            "Enable with -Pandroid.testInstrumentationRunnerArguments.cellwatchRunPhase3UiSmoke=1",
-            args.getString("cellwatchRunPhase3UiSmoke") == "1",
+            "Enable with -Pandroid.testInstrumentationRunnerArguments.cellwatchRunOnboardingUiSmoke=1",
+            args.getString("cellwatchRunOnboardingUiSmoke") == "1",
         )
-
         grantHarnessRuntimePermissions()
 
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         try {
             ensureScreenshotDir()
             captureScreenshot("01-ready")
-            onView(withId(MainActivity.RUN_PHASE3_SEQUENCE_BUTTON_ID)).perform(scrollTo(), click())
+            onView(withId(MainActivity.ONBOARDING_NAME_INPUT_ID)).perform(replaceText("Jane Doe"), closeSoftKeyboard())
+            captureScreenshot("02-after-name")
+            onView(withId(MainActivity.ONBOARDING_PHONE_INPUT_ID)).perform(replaceText("4045551212"), closeSoftKeyboard())
+            captureScreenshot("03-after-phone")
+            onView(withId(MainActivity.ONBOARDING_EMAIL_INPUT_ID)).perform(replaceText("jane@example.com"), closeSoftKeyboard())
+            captureScreenshot("04-after-email")
+            onView(withId(MainActivity.ONBOARDING_ACK_CHECKBOX_ID)).perform(click())
+            captureScreenshot("05-after-ack")
+            onView(withId(MainActivity.ONBOARDING_SUBMIT_BUTTON_ID)).perform(click())
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            Thread.sleep(300)
+            captureScreenshot("06-after-submit")
 
-            val deadline = System.currentTimeMillis() + 120_000
             var rendered = ""
-            while (System.currentTimeMillis() < deadline) {
-                InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-                Thread.sleep(500)
-                scenario.onActivity { activity ->
-                    rendered = activity.findViewById<android.widget.TextView>(
-                        MainActivity.STATUS_TEXT_VIEW_ID,
-                    ).text?.toString().orEmpty()
-                }
-                if (rendered.contains("smokeEnvelope scenario=phase3-sequence-sync")) {
-                    break
-                }
+            scenario.onActivity { activity ->
+                rendered = activity.findViewById<android.widget.TextView>(
+                    MainActivity.STATUS_TEXT_VIEW_ID,
+                ).text?.toString().orEmpty()
             }
-            captureScreenshot("02-after-phase3")
-
             assertTrue(
-                "Expected phase3 status envelope after button click, got: $rendered",
-                rendered.contains("smokeEnvelope scenario=phase3-sequence-sync"),
+                "Expected onboarding success status text, got: $rendered",
+                rendered.contains("Onboarding submit=SUCCESS"),
             )
             assertTrue(
-                "Expected success status from phase3 UI smoke, got: $rendered",
-                rendered.contains("status=SUCCESS"),
-            )
-            assertFalse(
-                "Phase3 UI smoke reported failure envelope: $rendered",
-                rendered.contains("status=FAILURE"),
-            )
-            assertFalse(
-                "Status should not remain initial ready message after phase3 click",
-                rendered.contains("Ready. Local Supabase target is enforced by default."),
+                "Expected normalized onboarding details in status text, got: $rendered",
+                rendered.contains("phone=404-555-1212") && rendered.contains("onboardingComplete=true"),
             )
         } finally {
             scenario.close()
