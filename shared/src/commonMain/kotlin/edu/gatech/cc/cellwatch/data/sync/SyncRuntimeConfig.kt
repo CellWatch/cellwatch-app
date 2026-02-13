@@ -6,18 +6,35 @@ private const val DEFAULT_LOCAL_API_KEY =
 
 data class SyncRuntimeConfig(
     val allowRemote: Boolean = false,
-    val localUrl: String = DEFAULT_LOCAL_URL,
-    val localApiKey: String = DEFAULT_LOCAL_API_KEY,
+    val localUrl: String? = null,
+    val localApiKey: String? = null,
     val remoteUrl: String? = null,
     val remoteApiKey: String? = null,
+    val allowLocalFallbackDefaults: Boolean = true,
 ) : SyncSupabaseConfigResolver {
 
     override fun resolve(target: SyncTransportTarget): SyncSupabaseConfig {
         return when (target) {
-            SyncTransportTarget.LOCAL -> SyncSupabaseConfig(
-                url = localUrl,
-                apiKey = localApiKey,
-            )
+            SyncTransportTarget.LOCAL -> {
+                val url = localUrl?.normalizeValue()
+                    ?: if (allowLocalFallbackDefaults) {
+                        DEFAULT_LOCAL_URL
+                    } else {
+                        error("missing SUPABASE_LOCAL_URL in strict runtime config")
+                    }
+                val apiKey = localApiKey?.normalizeValue()
+                    ?: if (allowLocalFallbackDefaults) {
+                        DEFAULT_LOCAL_API_KEY
+                    } else {
+                        error("missing SUPABASE_LOCAL_API_KEY in strict runtime config")
+                    }
+                check(url.isNotBlank()) { "SUPABASE_LOCAL_URL resolved blank in runtime config" }
+                check(apiKey.isNotBlank()) { "SUPABASE_LOCAL_API_KEY resolved blank in runtime config" }
+                SyncSupabaseConfig(
+                    url = url,
+                    apiKey = apiKey,
+                )
+            }
             SyncTransportTarget.REMOTE -> {
                 check(allowRemote) {
                     "remote supabase target is blocked; set CELLWATCH_ALLOW_REMOTE_SUPABASE=true to enable"
@@ -54,13 +71,15 @@ object SyncRuntimeConfigFactory {
         localApiKey: String? = null,
         remoteUrl: String? = null,
         remoteApiKey: String? = null,
+        allowLocalFallbackDefaults: Boolean = true,
     ): SyncRuntimeConfig {
         return SyncRuntimeConfig(
             allowRemote = allowRemote,
-            localUrl = (localUrl ?: DEFAULT_LOCAL_URL).normalizeValue(),
-            localApiKey = (localApiKey ?: DEFAULT_LOCAL_API_KEY).normalizeValue(),
+            localUrl = localUrl?.normalizeValue(),
+            localApiKey = localApiKey?.normalizeValue(),
             remoteUrl = remoteUrl?.normalizeValue(),
             remoteApiKey = remoteApiKey?.normalizeValue(),
+            allowLocalFallbackDefaults = allowLocalFallbackDefaults,
         )
     }
 }
@@ -74,6 +93,7 @@ object SyncRuntimeProfileBridge {
         remoteUrl: String? = null,
         remoteApiKey: String? = null,
         useRemote: Boolean = false,
+        allowLocalFallbackDefaults: Boolean = true,
     ): SyncSupabaseConfig {
         val runtime = SyncRuntimeConfigFactory.fromRaw(
             allowRemote = allowRemote,
@@ -81,6 +101,7 @@ object SyncRuntimeProfileBridge {
             localApiKey = localApiKey,
             remoteUrl = remoteUrl,
             remoteApiKey = remoteApiKey,
+            allowLocalFallbackDefaults = allowLocalFallbackDefaults,
         )
         val profile = runtime.toSupabaseProfile(
             target = if (useRemote) SyncTransportTarget.REMOTE else SyncTransportTarget.LOCAL,

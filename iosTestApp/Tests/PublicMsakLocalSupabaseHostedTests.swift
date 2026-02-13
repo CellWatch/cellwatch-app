@@ -81,6 +81,9 @@ final class PublicMsakLocalSupabaseHostedTests: XCTestCase {
 
     private func loadProperty(_ key: String) -> String? {
         let candidates = [
+            URL(fileURLWithPath: "iosTestApp/cellwatch.local.properties"),
+            URL(fileURLWithPath: "cellwatch.local.properties"),
+            URL(fileURLWithPath: "iosTestApp/cellwatch.properties"),
             URL(fileURLWithPath: "cellwatch.properties"),
             URL(fileURLWithPath: "../cellwatch.properties"),
             URL(fileURLWithPath: "../../cellwatch.properties")

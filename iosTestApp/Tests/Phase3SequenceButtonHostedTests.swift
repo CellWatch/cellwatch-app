@@ -37,6 +37,14 @@ final class Phase3SequenceButtonHostedTests: XCTestCase {
                 finalStatus.contains("smokeEnvelope scenario=phase3-preflight"),
             "Expected phase3 sequence or preflight envelope after button tap, got: \(finalStatus)",
         )
+        XCTAssertTrue(
+            finalStatus.contains("status=SUCCESS"),
+            "Expected success status for phase3 button smoke, got: \(finalStatus)"
+        )
+        XCTAssertFalse(
+            finalStatus.contains("status=FAILURE"),
+            "Phase3 button smoke reported failure envelope: \(finalStatus)"
+        )
         XCTAssertFalse(
             finalStatus.contains("Ready. Remote target is blocked unless explicitly enabled."),
             "Status should not stay at initial ready message after phase3 tap",

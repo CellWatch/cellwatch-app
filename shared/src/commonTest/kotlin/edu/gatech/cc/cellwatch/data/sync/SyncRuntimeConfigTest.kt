@@ -52,4 +52,25 @@ class SyncRuntimeConfigTest {
         assertEquals("http://10.0.2.2:54321", cfg.url)
         assertEquals("local-key", cfg.apiKey)
     }
+
+    @Test
+    fun strictLocalConfig_missingValues_throws() {
+        val cfg = SyncRuntimeConfigFactory.fromRaw(
+            allowLocalFallbackDefaults = false,
+        )
+
+        assertFailsWith<IllegalStateException> {
+            cfg.resolve(SyncTransportTarget.LOCAL)
+        }
+    }
+
+    @Test
+    fun bridge_strictLocalConfig_missingValues_throws() {
+        assertFailsWith<IllegalStateException> {
+            SyncRuntimeProfileBridge.resolveSupabaseConfig(
+                allowLocalFallbackDefaults = false,
+                useRemote = false,
+            )
+        }
+    }
 }

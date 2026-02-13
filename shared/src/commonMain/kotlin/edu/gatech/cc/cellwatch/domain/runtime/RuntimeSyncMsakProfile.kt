@@ -45,6 +45,7 @@ object RuntimeSyncMsakProfiles {
         liveSupabaseUrl: String? = null,
         liveSupabaseApiKey: String? = null,
         allowRemoteSupabase: Boolean = false,
+        strictSupabaseConfig: Boolean = false,
         localMsakHost: String? = null,
         localMsakSecure: Boolean = false,
         userAgent: String = "cellwatch-runtime-profile",
@@ -84,6 +85,7 @@ object RuntimeSyncMsakProfiles {
                 localApiKey = localSupabaseApiKey,
                 remoteUrl = remoteUrl,
                 remoteApiKey = remoteApiKey,
+                allowLocalFallbackDefaults = !strictSupabaseConfig,
             ),
             syncTarget = syncTarget,
         )
@@ -129,6 +131,7 @@ class RuntimeSyncMsakProfileBridge {
         liveSupabaseUrl: String? = null,
         liveSupabaseApiKey: String? = null,
         allowRemoteSupabase: Boolean = false,
+        strictSupabaseConfig: Boolean = false,
         localMsakHost: String? = null,
         localMsakSecure: Boolean = false,
         userAgent: String = "cellwatch-runtime-profile",
@@ -143,6 +146,7 @@ class RuntimeSyncMsakProfileBridge {
             liveSupabaseUrl = liveSupabaseUrl,
             liveSupabaseApiKey = liveSupabaseApiKey,
             allowRemoteSupabase = allowRemoteSupabase,
+            strictSupabaseConfig = strictSupabaseConfig,
             localMsakHost = localMsakHost,
             localMsakSecure = localMsakSecure,
             userAgent = userAgent,
@@ -173,6 +177,7 @@ class RuntimeSyncMsakProfileBridge {
             localSupabaseUrl = localSupabaseUrl,
             localSupabaseApiKey = localSupabaseApiKey,
             allowRemoteSupabase = false,
+            strictSupabaseConfig = false,
             userAgent = userAgent,
         )
     }

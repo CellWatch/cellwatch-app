@@ -18,6 +18,16 @@ Run hosted tests:
 ./gradlew :shared:verifyIosTestAppHosted
 ```
 
+Run app build (same Gradle-triggered shared framework script path used by Xcode before simulator deploy):
+
+```bash
+xcodebuild \
+  -project iosTestApp/iosTestApp.xcodeproj \
+  -scheme iosTestApp \
+  -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2" \
+  build
+```
+
 Xcode prebuild now uses `/Users/jeff/Projects/cellwatch-app/scripts/compile-shared-framework-for-xcode.sh`,
 which keeps `sharedKit.framework` current at:
 - `/Users/jeff/Projects/cellwatch-app/shared/build/bin/iosSimulatorArm64/Current/sharedKit.framework`
@@ -43,3 +53,13 @@ xcodebuild \
   -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2" \
   test
 ```
+
+## Sync Diagnostics Knobs (iOS Harness)
+
+`iosTestApp` configures shared sync diagnostics at app startup. Values are read from environment first, then `cellwatch.properties`.
+
+- `CELLWATCH_SYNC_DIAGNOSTICS_LEVEL=OFF|BASIC|VERBOSE` (default in iOS harness: `VERBOSE`)
+- `CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES=<int>` (default in iOS harness: `12`)
+- `CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN=true|false` (default in iOS harness: `true`)
+
+The resolved diagnostics config is included in iOS status/log lines (prefix `[iosTestApp]`) for faster triage of simulator button-flow failures.

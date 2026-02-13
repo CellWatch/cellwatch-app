@@ -23,6 +23,7 @@ final class HarnessViewController: UIViewController {
     static let statusLabelIdentifier = "harness.statusLabel"
 
     private let statusLabel = UILabel()
+    private let outputTextView = UITextView()
     private let smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private let smokeFormatter = SyncSmokeResultFormatter()
     private var lastGroupId: String?
@@ -31,19 +32,40 @@ final class HarnessViewController: UIViewController {
     private var selectedMsakMode: RuntimeMsakMode = .local
     private var selectedSupabaseMode: RuntimeSupabaseMode = .local
     private var runtimeSnapshot: RuntimeSyncMsakProfileSnapshot?
+    private var diagnosticsSummary: String = "unconfigured"
+    private var outputHistory: String = ""
+    private let maxOutputChars = 80_000
+    private let timestampFormatter = ISO8601DateFormatter()
 
     private func setStatus(_ text: String) {
+        let timestamp = timestampFormatter.string(from: Date())
+        let entry = "[\(timestamp)]\n\(text)"
+        outputHistory = appendAndTrim(existing: outputHistory, next: entry)
+        let compactForLog = text.replacingOccurrences(of: "\n", with: " | ")
+        NSLog("[iosTestApp][status] %@", compactForLog)
         if Thread.isMainThread {
             statusLabel.text = text
+            outputTextView.text = outputHistory
+            scrollOutputToTop()
         } else {
             DispatchQueue.main.async {
                 self.statusLabel.text = text
+                self.outputTextView.text = self.outputHistory
+                self.scrollOutputToTop()
             }
         }
     }
 
+    private func appendAndTrim(existing: String, next: String) -> String {
+        let merged = existing.isEmpty ? next : (next + "\n\n" + existing)
+        guard merged.count > maxOutputChars else { return merged }
+        let keep = merged.prefix(maxOutputChars)
+        return String(keep) + "\n\n[truncated older output]"
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
+        configureSyncDiagnostics()
         view.backgroundColor = .systemBackground
         buildUi()
     }
@@ -58,6 +80,11 @@ final class HarnessViewController: UIViewController {
         localEnvButton.setTitle("Resolve Local Environment", for: .normal)
         localEnvButton.addTarget(self, action: #selector(resolveLocalEnvironment), for: .touchUpInside)
         localEnvButton.translatesAutoresizingMaskIntoConstraints = false
+
+        let copyOutputButton = UIButton(type: .system)
+        copyOutputButton.setTitle("Copy Output", for: .normal)
+        copyOutputButton.addTarget(self, action: #selector(copyOutput), for: .touchUpInside)
+        copyOutputButton.translatesAutoresizingMaskIntoConstraints = false
 
         msakModeButton.addTarget(self, action: #selector(cycleMsakMode), for: .touchUpInside)
         msakModeButton.translatesAutoresizingMaskIntoConstraints = false
@@ -87,23 +114,69 @@ final class HarnessViewController: UIViewController {
         runPhase3SequenceButton.translatesAutoresizingMaskIntoConstraints = false
 
         statusLabel.text = "Ready. Remote target is blocked unless explicitly enabled."
-        statusLabel.numberOfLines = 0
+        statusLabel.numberOfLines = 1
         statusLabel.font = UIFont.preferredFont(forTextStyle: .body)
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         statusLabel.accessibilityIdentifier = Self.statusLabelIdentifier
+        statusLabel.isHidden = true
 
-        let stack = UIStackView(arrangedSubviews: [title, localEnvButton, msakModeButton, supabaseModeButton, mapStartButton, completeButton, selectServersButton, runPhase3SequenceButton, statusLabel])
-        stack.axis = .vertical
-        stack.spacing = 16
-        stack.translatesAutoresizingMaskIntoConstraints = false
+        outputTextView.text = statusLabel.text
+        outputTextView.font = UIFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        outputTextView.isEditable = false
+        outputTextView.isSelectable = true
+        outputTextView.alwaysBounceVertical = true
+        outputTextView.backgroundColor = .secondarySystemBackground
+        outputTextView.layer.cornerRadius = 8
+        outputTextView.textContainerInset = UIEdgeInsets(top: 12, left: 10, bottom: 12, right: 10)
+        outputTextView.translatesAutoresizingMaskIntoConstraints = false
 
-        view.addSubview(stack)
+        let buttonsStack = UIStackView(arrangedSubviews: [
+            title,
+            localEnvButton,
+            copyOutputButton,
+            msakModeButton,
+            supabaseModeButton,
+            mapStartButton,
+            completeButton,
+            selectServersButton,
+            runPhase3SequenceButton,
+            statusLabel
+        ])
+        buttonsStack.axis = .vertical
+        buttonsStack.spacing = 16
+        buttonsStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let buttonsScrollView = UIScrollView()
+        buttonsScrollView.translatesAutoresizingMaskIntoConstraints = false
+        buttonsScrollView.alwaysBounceVertical = true
+        buttonsScrollView.addSubview(buttonsStack)
+
+        view.addSubview(buttonsScrollView)
+        view.addSubview(outputTextView)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 24),
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20)
+            buttonsScrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            buttonsScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            buttonsScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            buttonsScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 220),
+            buttonsScrollView.heightAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.heightAnchor, multiplier: 0.55),
+
+            buttonsStack.topAnchor.constraint(equalTo: buttonsScrollView.contentLayoutGuide.topAnchor, constant: 12),
+            buttonsStack.leadingAnchor.constraint(equalTo: buttonsScrollView.contentLayoutGuide.leadingAnchor),
+            buttonsStack.trailingAnchor.constraint(equalTo: buttonsScrollView.contentLayoutGuide.trailingAnchor),
+            buttonsStack.bottomAnchor.constraint(equalTo: buttonsScrollView.contentLayoutGuide.bottomAnchor, constant: -12),
+            buttonsStack.widthAnchor.constraint(equalTo: buttonsScrollView.frameLayoutGuide.widthAnchor),
+
+            outputTextView.topAnchor.constraint(equalTo: buttonsScrollView.bottomAnchor, constant: 12),
+            outputTextView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            outputTextView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            outputTextView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12)
         ])
         applyRuntimeModeChange()
+        setStatus("Ready. Remote target is blocked unless explicitly enabled.")
+    }
+
+    private func scrollOutputToTop() {
+        outputTextView.setContentOffset(.zero, animated: false)
     }
 
     @objc private func cycleMsakMode() {
@@ -134,13 +207,14 @@ final class HarnessViewController: UIViewController {
             )
             if let snapshot = runtimeSnapshot {
                 NSLog(
-                    "[iosTestApp] runtime mode updated msak=%@ supabase=%@ msakEnv=%@ msakLocalHost=%@ supabaseUrl=%@ keyPresent=%@",
+                    "[iosTestApp] runtime mode updated msak=%@ supabase=%@ msakEnv=%@ msakLocalHost=%@ supabaseUrl=%@ keyPresent=%@ diagnostics=%@",
                     selectedMsakMode.displayName,
                     selectedSupabaseMode.displayName,
                     "\(snapshot.msakEnvironment)",
                     snapshot.msakLocalServerHost ?? "n/a",
                     snapshot.supabaseUrl,
-                    snapshot.supabaseApiKey.isEmpty ? "false" : "true"
+                    snapshot.supabaseApiKey.isEmpty ? "false" : "true",
+                    diagnosticsSummary
                 )
             }
             msakModeButton.setTitle("MSAK Mode: \(selectedMsakMode.displayName) (tap to cycle)", for: .normal)
@@ -150,7 +224,7 @@ final class HarnessViewController: UIViewController {
             msakModeButton.setTitle("MSAK Mode: \(selectedMsakMode.displayName) (tap to cycle)", for: .normal)
             supabaseModeButton.setTitle("Supabase Mode: \(selectedSupabaseMode.displayName) (tap to cycle)", for: .normal)
             NSLog("[iosTestApp] runtime mode invalid: %@", error.localizedDescription)
-            statusLabel.text = "Runtime mode invalid: \(error.localizedDescription)"
+            setStatus("Runtime mode invalid: \(error.localizedDescription)")
         }
     }
 
@@ -159,7 +233,17 @@ final class HarnessViewController: UIViewController {
             setStatus("Runtime profile unavailable.")
             return
         }
-        setStatus("Local environment resolved:\nurl=\(env.supabaseUrl)\napiKeyPrefix=\(env.supabaseApiKey.prefix(12))...")
+        setStatus(
+            "Local environment resolved:\n" +
+            "url=\(env.supabaseUrl)\n" +
+            "apiKeyPrefix=\(env.supabaseApiKey.prefix(12))...\n" +
+            "diagnostics=\(diagnosticsSummary)"
+        )
+    }
+
+    @objc private func copyOutput() {
+        UIPasteboard.general.string = outputTextView.text
+        setStatus("Output copied to clipboard.")
     }
 
     @objc private func runMapStart() {
@@ -264,13 +348,14 @@ final class HarnessViewController: UIViewController {
             return
         }
         NSLog(
-            "[iosTestApp] Phase3 preflight passed msakMode=%@ supabaseMode=%@ msakEnv=%@ msakLocalHost=%@ supabaseUrl=%@ keyPresent=%@",
+            "[iosTestApp] Phase3 preflight passed msakMode=%@ supabaseMode=%@ msakEnv=%@ msakLocalHost=%@ supabaseUrl=%@ keyPresent=%@ diagnostics=%@",
             selectedMsakMode.displayName,
             selectedSupabaseMode.displayName,
             "\(runtimeSnapshot.msakEnvironment)",
             runtimeSnapshot.msakLocalServerHost ?? "n/a",
             runtimeSnapshot.supabaseUrl,
-            runtimeSnapshot.supabaseApiKey.isEmpty ? "false" : "true"
+            runtimeSnapshot.supabaseApiKey.isEmpty ? "false" : "true",
+            diagnosticsSummary
         )
         let config = MsakLocateConfig(
             environment: runtimeSnapshot.msakEnvironment,
@@ -325,9 +410,25 @@ final class HarnessViewController: UIViewController {
                         capabilityPersistenceSummary: value.capabilityPersistenceSummary,
                         capabilitySummary: value.capabilitySummary
                     )
+                    )
                 )
-                )
+                NSLog("[iosTestApp] Phase3 sequence success diagnostics=%@", self.diagnosticsSummary)
         }
+    }
+
+    private func configureSyncDiagnostics() {
+        let level = RuntimeSelection.readConfig("CELLWATCH_SYNC_DIAGNOSTICS_LEVEL") ?? "VERBOSE"
+        let maxSamplesRaw = RuntimeSelection.readConfig("CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES")
+        let maxSamples = Int(maxSamplesRaw ?? "") ?? 12
+        let includeCauseChain = RuntimeSelection.parseBool(
+            RuntimeSelection.readConfig("CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN") ?? "true"
+        )
+        diagnosticsSummary = IosSyncDiagnosticsBridge().configure(
+            levelRaw: level,
+            maxSampledErrorsPerReport: Int32(maxSamples),
+            includeCauseChain: includeCauseChain
+        )
+        NSLog("[iosTestApp] Sync diagnostics configured: %@", diagnosticsSummary)
     }
 
     private func phase3PreflightError(snapshot: RuntimeSyncMsakProfileSnapshot) -> String? {
@@ -407,23 +508,42 @@ private enum RuntimeSelection {
         } else {
             localMsakHost = normalizeLocalMsakHost(configuredLocalMsakHost)
         }
-        return try RuntimeSyncMsakProfileBridge().resolveFromModes(
+        let localSupabaseApiKey = resolvedLocalSupabaseApiKey()
+        let config = RuntimeProfileConfig(
             msakMode: msakMode,
             supabaseMode: supabaseMode,
+            allowRemoteSupabase: ProcessInfo.processInfo.environment["CELLWATCH_ALLOW_REMOTE_SUPABASE"] == "true",
+            strictSupabaseConfig: true,
             localSupabaseUrl: readConfig("SUPABASE_LOCAL_URL"),
-            localSupabaseApiKey: readConfig("SUPABASE_LOCAL_API_KEY"),
+            localSupabaseApiKey: localSupabaseApiKey,
             testingSupabaseUrl: readConfig("SUPABASE_TESTING_URL"),
             testingSupabaseApiKey: readConfig("SUPABASE_TESTING_API_KEY"),
             liveSupabaseUrl: readConfig("SUPABASE_URL"),
             liveSupabaseApiKey: readConfig("SUPABASE_API_KEY"),
-            allowRemoteSupabase: ProcessInfo.processInfo.environment["CELLWATCH_ALLOW_REMOTE_SUPABASE"] == "true",
             localMsakHost: localMsakHost,
             localMsakSecure: parseBool(readConfig("MSAK_LOCAL_SERVER_SECURE")),
             userAgent: "ios-test-app-runtime-profile"
         )
+        return try RuntimeProfileResolverBridge().resolveSnapshot(config: config)
     }
 
-    private static func readConfig(_ key: String) -> String? {
+    private static func resolvedLocalSupabaseApiKey() -> String? {
+        // Prefer local service-role JWT for hosted simulator smokes to avoid local RLS write failures.
+        // sb_secret_* keys are intentionally ignored here because current sync RPC paths expect JWT keys.
+        let serviceRoleCandidates = [
+            readConfig("SUPABASE_LOCAL_SERVICE_ROLE_KEY"),
+            readConfig("SERVICE_ROLE_KEY"),
+            readConfig("SUPABASE_LOCAL_SERVICE_KEY")
+        ]
+        for candidate in serviceRoleCandidates {
+            if let candidate, candidate.hasPrefix("eyJ") {
+                return candidate
+            }
+        }
+        return readConfig("SUPABASE_LOCAL_API_KEY")
+    }
+
+    static func readConfig(_ key: String) -> String? {
         let env = ProcessInfo.processInfo.environment
         if let envValue = env[key], !envValue.isEmpty {
             return envValue
@@ -433,6 +553,9 @@ private enum RuntimeSelection {
 
     private static func loadProperty(_ key: String) -> String? {
         let candidates = [
+            URL(fileURLWithPath: "iosTestApp/cellwatch.local.properties"),
+            URL(fileURLWithPath: "cellwatch.local.properties"),
+            URL(fileURLWithPath: "iosTestApp/cellwatch.properties"),
             URL(fileURLWithPath: "cellwatch.properties"),
             URL(fileURLWithPath: "../cellwatch.properties"),
             URL(fileURLWithPath: "../../cellwatch.properties")
@@ -455,7 +578,7 @@ private enum RuntimeSelection {
         return nil
     }
 
-    private static func parseBool(_ raw: String?) -> Bool {
+    static func parseBool(_ raw: String?) -> Bool {
         guard let value = raw?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else {
             return false
         }

@@ -34,6 +34,7 @@ class UploadTriggerParityHarness {
         remoteUrl: String,
         remoteApiKey: String,
         useRemote: Boolean,
+        allowLocalFallbackDefaults: Boolean = true,
     ): SyncSupabaseConfig {
         return SyncRuntimeProfileBridge.resolveSupabaseConfig(
             allowRemote = allowRemote,
@@ -42,6 +43,7 @@ class UploadTriggerParityHarness {
             remoteUrl = remoteUrl.takeIf { it.isNotBlank() },
             remoteApiKey = remoteApiKey.takeIf { it.isNotBlank() },
             useRemote = useRemote,
+            allowLocalFallbackDefaults = allowLocalFallbackDefaults,
         )
     }
 

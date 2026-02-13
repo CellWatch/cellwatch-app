@@ -23,7 +23,7 @@ class RuntimeProfileResolverTest {
             allowRemoteSupabase = false,
         )
 
-        assertEquals("10.0.2.2", profile.msakConfig.localServerHost)
+        assertEquals("10.0.2.2:8080", profile.msakConfig.localServerHost)
     }
 
     @Test

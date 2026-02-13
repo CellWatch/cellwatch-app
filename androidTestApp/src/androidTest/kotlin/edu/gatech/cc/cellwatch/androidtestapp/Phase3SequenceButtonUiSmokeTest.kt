@@ -49,6 +49,14 @@ class Phase3SequenceButtonUiSmokeTest {
                 "Expected phase3 status envelope after button click, got: $rendered",
                 rendered.contains("smokeEnvelope scenario=phase3-sequence-sync"),
             )
+            assertTrue(
+                "Expected success status from phase3 UI smoke, got: $rendered",
+                rendered.contains("status=SUCCESS"),
+            )
+            assertFalse(
+                "Phase3 UI smoke reported failure envelope: $rendered",
+                rendered.contains("status=FAILURE"),
+            )
             assertFalse(
                 "Status should not remain initial ready message after phase3 click",
                 rendered.contains("Ready. Local Supabase target is enforced by default."),
