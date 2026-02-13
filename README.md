@@ -24,6 +24,10 @@ First cross-platform UI slice (intentionally minimal):
 - One text results panel
 - No map visualization yet
 - Location details remain best-effort; platform capability notes explain missing fields
+- Added onboarding profile-entry harness slice:
+  - name, phone, email, FCC acknowledgement, submit
+  - shared validation via `OnboardingValidationUseCase`
+  - stepwise simulator screenshot evidence for each interaction
 
 Shared result text contract:
 - Android (`androidTestApp`) and iOS (`iosTestApp`) now render Phase 3 output via `Phase3UiSliceFormatter`
@@ -37,6 +41,7 @@ Shared result text contract:
 - `iosTestApp/`: isolated iOS host app + XCTest target for parity testing (`sharedKit.framework` integration)
 - `iosSharedIntegrationHost/`: Minimal iOS app + XCTest target for hosted integration tests against `sharedKit.framework`
 - `doc/`: Supporting documentation (including architecture notes)
+  - quick thread handoff: `doc/PHASE5_BOOTSTRAP.md`
 
 Porting rule:
 - New migration work should go to `shared/`, `androidTestApp/`, and `iosTestApp/`.
@@ -216,6 +221,22 @@ Outputs:
   - `build/reports/ui-flow/ios/phase3-sequence-button/`
 - Per-flow execution logs + pass/fail status:
   - `build/reports/ui-flow/logs/`
+
+Current flow coverage in the report:
+- `onboarding-profile-entry`:
+  - ready
+  - after name entry
+  - after phone entry
+  - after email entry
+  - after acknowledgement toggle
+  - after submit
+- `phase3-sequence-button`:
+  - ready
+  - after phase3 execution
+
+Notes:
+- The report intentionally includes log excerpts even for successful flows to speed triage in new environments.
+- Android emulator animation settings can affect Espresso click stability; report script attempts to disable animation scales at start.
 
 ### Start/Stop Local Supabase
 
