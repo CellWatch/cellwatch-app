@@ -123,6 +123,25 @@ fun resolveRuntimeProfileFromProperties(
     allowRemoteSupabase: Boolean = false,
     env: Map<String, String> = System.getenv(),
 ): RuntimeSyncMsakProfile {
+    val config = resolveRuntimeProfileConfigFromProperties(
+        workingDir = workingDir,
+        preloadedProperties = preloadedProperties,
+        msakMode = msakMode,
+        supabaseMode = supabaseMode,
+        allowRemoteSupabase = allowRemoteSupabase,
+        env = env,
+    )
+    return RuntimeProfileResolver.resolveProfile(config)
+}
+
+fun resolveRuntimeProfileConfigFromProperties(
+    workingDir: File = File(System.getProperty("user.dir") ?: "."),
+    preloadedProperties: Properties? = null,
+    msakMode: RuntimeMsakMode = RuntimeMsakMode.PUBLIC,
+    supabaseMode: RuntimeSupabaseMode = RuntimeSupabaseMode.LOCAL,
+    allowRemoteSupabase: Boolean = false,
+    env: Map<String, String> = System.getenv(),
+): RuntimeProfileConfig {
     val props = preloadedProperties ?: loadCellwatchProperties(workingDir)
     val configuredLocalMsakHost = runtimeValue(props, env, RuntimeProfileContract.KEY_LOCAL_MSAK_HOST)
     val resolvedLocalMsakHost = when (msakMode) {
@@ -132,7 +151,7 @@ fun resolveRuntimeProfileFromProperties(
     val strictRuntimeConfig = runtimeValue(props, env, RuntimeProfileContract.KEY_STRICT_RUNTIME_CONFIG)
         ?.toBooleanStrictOrNull()
         ?: DEFAULT_STRICT_RUNTIME_CONFIG
-    val config = RuntimeProfileConfig(
+    return RuntimeProfileConfig(
         msakMode = msakMode,
         supabaseMode = supabaseMode,
         localSupabaseUrl = normalizeAndroidLocalSupabaseUrl(runtimeValue(props, env, RuntimeProfileContract.KEY_LOCAL_SUPABASE_URL))
@@ -152,7 +171,6 @@ fun resolveRuntimeProfileFromProperties(
             ?.toBooleanStrictOrNull()
             ?: false,
     )
-    return RuntimeProfileResolver.resolveProfile(config)
 }
 
 private fun runtimeValue(props: Properties, env: Map<String, String>, key: String): String? {

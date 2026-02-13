@@ -106,6 +106,7 @@ Strict runtime config hardening (current):
 - iOS hosted Tier 2 Gradle tasks now inject `SUPABASE_LOCAL_URL` and `SUPABASE_LOCAL_SERVICE_KEY` directly into `xcodebuild` test settings to avoid environment drift.
 - iOS app and iOS hosted tests now consume one shared source in `iosTestApp/App/AppDelegate.swift` (`RuntimeConfigSource`) instead of duplicating env/property parsing per test.
 - Android runtime resolver now uses shared runtime keys (`RuntimeProfileContract`) and explicit env > properties precedence.
+- Android/iOS runtime mode buttons now use shared mode-cycle/label/resolve behavior via `RuntimeModeUiBridge` (`shared/src/commonMain/kotlin/edu/gatech/cc/cellwatch/domain/runtime/RuntimeModeUiBridge.kt`) so UI entrypoints cannot drift in mode ordering.
 
 Deployed-build intent:
 - Production/staged app entrypoints should use strict runtime config and require explicit values from persisted app/user profile state.

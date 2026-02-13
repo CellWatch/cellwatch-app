@@ -121,6 +121,7 @@ final class HarnessViewController: UIViewController {
     private let outputTextView = UITextView()
     private let smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private let smokeFormatter = SyncSmokeResultFormatter()
+    private let runtimeModeBridge = RuntimeModeUiBridge()
     private var lastGroupId: String?
     private let msakModeButton = UIButton(type: .system)
     private let supabaseModeButton = UIButton(type: .system)
@@ -161,7 +162,7 @@ final class HarnessViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         configureSyncDiagnostics()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = .systemGroupedBackground
         buildUi()
     }
 
@@ -169,42 +170,58 @@ final class HarnessViewController: UIViewController {
         let title = UILabel()
         title.text = "iOS Test App Harness"
         title.font = UIFont.preferredFont(forTextStyle: .title2)
+        title.textColor = .label
         title.translatesAutoresizingMaskIntoConstraints = false
+
+        let subtitle = UILabel()
+        subtitle.text = "CellWatch runtime onboarding + phase 3 actions"
+        subtitle.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        subtitle.textColor = .secondaryLabel
+        subtitle.numberOfLines = 0
+        subtitle.translatesAutoresizingMaskIntoConstraints = false
 
         let localEnvButton = UIButton(type: .system)
         localEnvButton.setTitle("Resolve Local Environment", for: .normal)
+        applyButtonStyle(localEnvButton, role: .secondary)
         localEnvButton.addTarget(self, action: #selector(resolveLocalEnvironment), for: .touchUpInside)
         localEnvButton.translatesAutoresizingMaskIntoConstraints = false
 
         let copyOutputButton = UIButton(type: .system)
         copyOutputButton.setTitle("Copy Output", for: .normal)
+        applyButtonStyle(copyOutputButton, role: .secondary)
         copyOutputButton.addTarget(self, action: #selector(copyOutput), for: .touchUpInside)
         copyOutputButton.translatesAutoresizingMaskIntoConstraints = false
 
+        applyButtonStyle(msakModeButton, role: .mode)
         msakModeButton.addTarget(self, action: #selector(cycleMsakMode), for: .touchUpInside)
         msakModeButton.translatesAutoresizingMaskIntoConstraints = false
 
+        applyButtonStyle(supabaseModeButton, role: .mode)
         supabaseModeButton.addTarget(self, action: #selector(cycleSupabaseMode), for: .touchUpInside)
         supabaseModeButton.translatesAutoresizingMaskIntoConstraints = false
 
         let mapStartButton = UIButton(type: .system)
         mapStartButton.setTitle("Run Map-Start Shared Slice", for: .normal)
+        applyButtonStyle(mapStartButton, role: .secondary)
         mapStartButton.addTarget(self, action: #selector(runMapStart), for: .touchUpInside)
         mapStartButton.translatesAutoresizingMaskIntoConstraints = false
         mapStartButton.accessibilityIdentifier = Self.mapStartSharedSliceButtonIdentifier
 
         let completeButton = UIButton(type: .system)
         completeButton.setTitle("Run Measurement-Complete Shared Slice", for: .normal)
+        applyButtonStyle(completeButton, role: .secondary)
         completeButton.addTarget(self, action: #selector(runMeasurementComplete), for: .touchUpInside)
         completeButton.translatesAutoresizingMaskIntoConstraints = false
 
         let selectServersButton = UIButton(type: .system)
         selectServersButton.setTitle("Select MSAK Servers (Shared Selector)", for: .normal)
+        applyButtonStyle(selectServersButton, role: .secondary)
         selectServersButton.addTarget(self, action: #selector(runServerSelection), for: .touchUpInside)
         selectServersButton.translatesAutoresizingMaskIntoConstraints = false
 
         let runPhase3SequenceButton = UIButton(type: .system)
         runPhase3SequenceButton.setTitle("Run Phase3 Sequence (Shared Orchestrator)", for: .normal)
+        applyButtonStyle(runPhase3SequenceButton, role: .primary)
         runPhase3SequenceButton.addTarget(self, action: #selector(runPhase3Sequence), for: .touchUpInside)
         runPhase3SequenceButton.translatesAutoresizingMaskIntoConstraints = false
 
@@ -225,12 +242,18 @@ final class HarnessViewController: UIViewController {
         outputTextView.textContainerInset = UIEdgeInsets(top: 12, left: 10, bottom: 12, right: 10)
         outputTextView.translatesAutoresizingMaskIntoConstraints = false
 
+        let runtimeHeader = sectionLabel("Runtime")
+        let actionsHeader = sectionLabel("Actions")
+
         let buttonsStack = UIStackView(arrangedSubviews: [
             title,
+            subtitle,
+            runtimeHeader,
             localEnvButton,
             copyOutputButton,
             msakModeButton,
             supabaseModeButton,
+            actionsHeader,
             mapStartButton,
             completeButton,
             selectServersButton,
@@ -275,51 +298,45 @@ final class HarnessViewController: UIViewController {
     }
 
     @objc private func cycleMsakMode() {
-        switch selectedMsakMode {
-        case .public_: selectedMsakMode = .staging
-        case .staging: selectedMsakMode = .local
-        case .local: selectedMsakMode = .public_
-        default: selectedMsakMode = .public_
-        }
+        selectedMsakMode = runtimeModeBridge.nextMsakMode(current: selectedMsakMode)
         applyRuntimeModeChange()
     }
 
     @objc private func cycleSupabaseMode() {
-        switch selectedSupabaseMode {
-        case .local: selectedSupabaseMode = .testing
-        case .testing: selectedSupabaseMode = .live
-        case .live: selectedSupabaseMode = .local
-        default: selectedSupabaseMode = .local
-        }
+        selectedSupabaseMode = runtimeModeBridge.nextSupabaseMode(current: selectedSupabaseMode)
         applyRuntimeModeChange()
     }
 
     private func applyRuntimeModeChange() {
-        do {
-            runtimeSnapshot = try RuntimeSelection.resolveSnapshot(
-                msakMode: selectedMsakMode,
-                supabaseMode: selectedSupabaseMode
+        let resolution = RuntimeSelection.resolve(
+            bridge: runtimeModeBridge,
+            msakMode: selectedMsakMode,
+            supabaseMode: selectedSupabaseMode
+        )
+        runtimeSnapshot = resolution.snapshot
+        msakModeButton.setTitle(
+            "MSAK Mode: \(runtimeModeBridge.msakModeLabel(mode: selectedMsakMode)) (tap to cycle)",
+            for: .normal
+        )
+        supabaseModeButton.setTitle(
+            "Supabase Mode: \(runtimeModeBridge.supabaseModeLabel(mode: selectedSupabaseMode)) (tap to cycle)",
+            for: .normal
+        )
+        if let snapshot = runtimeSnapshot {
+            NSLog(
+                "[iosTestApp] runtime mode updated msak=%@ supabase=%@ msakEnv=%@ msakLocalHost=%@ supabaseUrl=%@ keyPresent=%@ diagnostics=%@",
+                runtimeModeBridge.msakModeLabel(mode: selectedMsakMode),
+                runtimeModeBridge.supabaseModeLabel(mode: selectedSupabaseMode),
+                "\(snapshot.msakEnvironment)",
+                snapshot.msakLocalServerHost ?? "n/a",
+                snapshot.supabaseUrl,
+                snapshot.supabaseApiKey.isEmpty ? "false" : "true",
+                diagnosticsSummary
             )
-            if let snapshot = runtimeSnapshot {
-                NSLog(
-                    "[iosTestApp] runtime mode updated msak=%@ supabase=%@ msakEnv=%@ msakLocalHost=%@ supabaseUrl=%@ keyPresent=%@ diagnostics=%@",
-                    selectedMsakMode.displayName,
-                    selectedSupabaseMode.displayName,
-                    "\(snapshot.msakEnvironment)",
-                    snapshot.msakLocalServerHost ?? "n/a",
-                    snapshot.supabaseUrl,
-                    snapshot.supabaseApiKey.isEmpty ? "false" : "true",
-                    diagnosticsSummary
-                )
-            }
-            msakModeButton.setTitle("MSAK Mode: \(selectedMsakMode.displayName) (tap to cycle)", for: .normal)
-            supabaseModeButton.setTitle("Supabase Mode: \(selectedSupabaseMode.displayName) (tap to cycle)", for: .normal)
-        } catch {
+        } else if let error = resolution.errorMessage {
             runtimeSnapshot = nil
-            msakModeButton.setTitle("MSAK Mode: \(selectedMsakMode.displayName) (tap to cycle)", for: .normal)
-            supabaseModeButton.setTitle("Supabase Mode: \(selectedSupabaseMode.displayName) (tap to cycle)", for: .normal)
-            NSLog("[iosTestApp] runtime mode invalid: %@", error.localizedDescription)
-            setStatus("Runtime mode invalid: \(error.localizedDescription)")
+            NSLog("[iosTestApp] runtime mode invalid: %@", error)
+            setStatus("Runtime mode invalid: \(error)")
         }
     }
 
@@ -607,13 +624,53 @@ final class HarnessViewController: UIViewController {
         }
         return raw
     }
+
+    private func sectionLabel(_ text: String) -> UILabel {
+        let label = UILabel()
+        label.text = text
+        label.font = UIFont.preferredFont(forTextStyle: .caption1)
+        label.textColor = .secondaryLabel
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }
+
+    private enum ButtonRole {
+        case primary
+        case secondary
+        case mode
+    }
+
+    private func applyButtonStyle(_ button: UIButton, role: ButtonRole) {
+        var configuration = UIButton.Configuration.filled()
+        configuration.cornerStyle = .large
+        configuration.titleAlignment = .leading
+        configuration.baseForegroundColor = .label
+        switch role {
+        case .primary:
+            configuration.baseBackgroundColor = .systemBlue
+            configuration.baseForegroundColor = .white
+        case .secondary:
+            configuration = UIButton.Configuration.tinted()
+            configuration.cornerStyle = .large
+            configuration.baseBackgroundColor = .systemBlue
+            configuration.baseForegroundColor = .systemBlue
+        case .mode:
+            configuration = UIButton.Configuration.tinted()
+            configuration.cornerStyle = .large
+            configuration.baseBackgroundColor = .systemGreen
+            configuration.baseForegroundColor = .systemGreen
+        }
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
+        button.configuration = configuration
+    }
 }
 
 private enum RuntimeSelection {
-    static func resolveSnapshot(
+    static func resolve(
+        bridge: RuntimeModeUiBridge,
         msakMode: RuntimeMsakMode,
         supabaseMode: RuntimeSupabaseMode
-    ) throws -> RuntimeSyncMsakProfileSnapshot {
+    ) -> RuntimeModeUiResolution {
         let localMsakHost = RuntimeConfigSource.localMsakHostForIos(msakModeRaw: msakMode.displayName)
         let localSupabaseApiKey = RuntimeConfigSource.localSupabaseApiKeyPreferServiceRoleJwt()
         let resolvedLocalSupabaseUrl = RuntimeConfigSource.localSupabaseUrlForIos()
@@ -632,7 +689,7 @@ private enum RuntimeSelection {
             localMsakSecure: RuntimeConfigSource.bool("MSAK_LOCAL_SERVER_SECURE"),
             userAgent: "ios-test-app-runtime-profile"
         )
-        return try RuntimeProfileResolverBridge().resolveSnapshot(config: config)
+        return bridge.resolve(config: config)
     }
 
     static func readConfig(_ key: String) -> String? {
