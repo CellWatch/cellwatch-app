@@ -327,6 +327,22 @@ tasks.register("verifyAndroidFailureStatusSmoke") {
     }
 }
 
+tasks.register("verifyAndroidUiPhase3ButtonSmoke") {
+    description = "Tier 2: Android emulator UI smoke that taps RUN PHASE3 and validates rendered smoke envelope."
+    group = "verification"
+    doLast {
+        exec {
+            commandLine(
+                "./gradlew",
+                ":androidTestApp:connectedDebugAndroidTest",
+                "-Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.Phase3SequenceButtonUiSmokeTest",
+                "-Pandroid.testInstrumentationRunnerArguments.cellwatchRunPhase3UiSmoke=1",
+            )
+            workingDir = rootProject.projectDir
+        }
+    }
+}
+
 tasks.register("verifyIosHostedKeychain") {
     description = "Tier 2: iOS host-app Keychain tests (requires an Xcode project/test target)."
     group = "verification"
@@ -502,6 +518,40 @@ tasks.register("verifyIosTestAppHostedFailureStatusSmoke") {
     }
 }
 
+tasks.register("verifyIosTestAppHostedPhase3ButtonSmoke") {
+    description = "Tier 2: iOS hosted UI smoke that taps Run Phase3 Sequence button in iosTestApp."
+    group = "verification"
+    dependsOn("refreshIosSimulatorCurrentFramework")
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException("Missing iOS hosted test app project at ${projectPath.absolutePath}.")
+        }
+    }
+    doLast {
+        val marker = file("/tmp/cellwatch-ios-phase3-button-smoke-required")
+        marker.writeText("1\n")
+        try {
+            exec {
+                commandLine(
+                    "xcodebuild",
+                    "-project",
+                    projectPath.absolutePath,
+                    "-scheme",
+                    "iosTestAppLocalMsakSmoke",
+                    "-destination",
+                    "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                    "-only-testing:iosTestAppTests/Phase3SequenceButtonHostedTests/testHostedPhase3SequenceButtonTap_whenEnabled",
+                    "test",
+                )
+                workingDir = rootProject.projectDir
+            }
+        } finally {
+            marker.delete()
+        }
+    }
+}
+
 // Hosted iOS simulator tasks share runtime state (simulator process, keychain scope, local services).
 // Keep them serialized to avoid flaky failures when Gradle runs tasks in parallel.
 tasks.named("verifyIosTestAppHosted") {
@@ -516,6 +566,9 @@ tasks.named("verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke") {
 tasks.named("verifyIosTestAppHostedFailureStatusSmoke") {
     mustRunAfter("verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke")
 }
+tasks.named("verifyIosTestAppHostedPhase3ButtonSmoke") {
+    mustRunAfter("verifyIosTestAppHostedFailureStatusSmoke")
+}
 
 tasks.register("verifyIosHostedTier2Sequential") {
     description = "Tier 2: run all hosted iOS checks sequentially to avoid simulator concurrency flake."
@@ -526,6 +579,7 @@ tasks.register("verifyIosHostedTier2Sequential") {
         "verifyIosTestAppHostedLocalMsakSmoke",
         "verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke",
         "verifyIosTestAppHostedFailureStatusSmoke",
+        "verifyIosTestAppHostedPhase3ButtonSmoke",
     )
 }
 
@@ -536,9 +590,11 @@ tasks.register("verifyPhase3Tier2FailureMatrix") {
         "verifyAndroidLocalMsakPhase3Smoke",
         "verifyAndroidPublicMsakLocalSupabaseSmoke",
         "verifyAndroidFailureStatusSmoke",
+        "verifyAndroidUiPhase3ButtonSmoke",
         "verifyIosTestAppHostedLocalMsakSmoke",
         "verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke",
         "verifyIosTestAppHostedFailureStatusSmoke",
+        "verifyIosTestAppHostedPhase3ButtonSmoke",
     )
 }
 

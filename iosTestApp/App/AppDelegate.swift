@@ -28,7 +28,7 @@ final class HarnessViewController: UIViewController {
     private var lastGroupId: String?
     private let msakModeButton = UIButton(type: .system)
     private let supabaseModeButton = UIButton(type: .system)
-    private var selectedMsakMode: RuntimeMsakMode = .public_
+    private var selectedMsakMode: RuntimeMsakMode = .local
     private var selectedSupabaseMode: RuntimeSupabaseMode = .local
     private var runtimeSnapshot: RuntimeSyncMsakProfileSnapshot?
 
@@ -305,7 +305,9 @@ final class HarnessViewController: UIViewController {
                 measurementCompleteUploadTimeSet: value.measurementCompleteUploadTimeSet,
                 persistedMeasurements: Int32(value.persistedMeasurements),
                 persistedSubmissions: Int32(value.persistedSubmissions),
-                errorMessage: nil
+                errorMessage: value.measurementCompleteUploadTimeSet
+                    ? nil
+                    : "measurement-complete upload time missing; \(value.measurementCompleteReportSummary)"
             )
                 self.setStatus(
                     Phase3UiSliceFormatter().format(
@@ -347,7 +349,38 @@ final class HarnessViewController: UIViewController {
         if snapshot.supabaseApiKey.isEmpty {
             issues.append("Supabase API key is blank")
         }
+        if let localMsakIssue = localMsakReachabilityIssue(snapshot: snapshot) {
+            issues.append(localMsakIssue)
+        }
         return issues.isEmpty ? nil : issues.joined(separator: "; ")
+    }
+
+    private func localMsakReachabilityIssue(snapshot: RuntimeSyncMsakProfileSnapshot) -> String? {
+        guard selectedMsakMode == .local else { return nil }
+        guard let host = snapshot.msakLocalServerHost, !host.isEmpty else {
+            return "MSAK LOCAL requires local server host"
+        }
+        guard let url = URL(string: "http://\(host)/") else {
+            return "MSAK local host is invalid: \(host)"
+        }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 1.5
+        let semaphore = DispatchSemaphore(value: 0)
+        var reachable = false
+
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            if let error = error as NSError? {
+                reachable = error.code != NSURLErrorCannotConnectToHost && error.code != NSURLErrorTimedOut
+            } else {
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                reachable = status > 0
+            }
+            semaphore.signal()
+        }.resume()
+
+        _ = semaphore.wait(timeout: .now() + 2)
+        return reachable ? nil : "MSAK local server is unreachable at \(host)"
     }
 
     private func withProtocolHint(_ raw: String) -> String {

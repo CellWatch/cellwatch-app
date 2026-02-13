@@ -8,6 +8,7 @@ import kotlinx.datetime.Instant
 data class MeasurementSequenceSyncOutcome(
     val sequenceOutcome: MeasurementSequenceOutcome,
     val mapStartReport: SyncAllReport,
+    val measurementCompleteReport: SyncAllReport,
     val measurementCompleteUploadTime: Instant?,
 )
 
@@ -24,10 +25,12 @@ class MeasurementSequenceSyncOrchestrator(
     suspend fun run(request: MeasurementSequenceRequest): MeasurementSequenceSyncOutcome {
         val mapStartReport = uploadTriggerUseCase.onMapStart()
         val sequenceOutcome = sequenceOrchestrator.run(request)
-        val uploadTime = uploadTriggerUseCase.onMeasurementComplete(sequenceOutcome.group)
+        val (measurementCompleteReport, uploadTime) =
+            uploadTriggerUseCase.onMeasurementCompleteWithReport(sequenceOutcome.group)
         return MeasurementSequenceSyncOutcome(
             sequenceOutcome = sequenceOutcome,
             mapStartReport = mapStartReport,
+            measurementCompleteReport = measurementCompleteReport,
             measurementCompleteUploadTime = uploadTime,
         )
     }
