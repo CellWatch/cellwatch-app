@@ -859,6 +859,8 @@ Not yet ported (still Android-only in `frozenApp/`):
   - iOS hosted tests for best-effort capability signaling and persisted support-state coverage
 
 ### Phase 5: App-layer convergence
+- Planning tracker: `doc/PHASE5_USER_STORY_PLAN.md`
+- Architecture contract: `doc/APP_LAYER_ARCHITECTURE_CONTRACT.md`
 - Build replacement Android/iOS product app layers that consume shared repositories/use-cases
 - Stand up iOS app UI against the same shared APIs
 - Retire frozen Android-only logic as each slice is migrated into shared
