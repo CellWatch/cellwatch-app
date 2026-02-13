@@ -5,6 +5,37 @@ This document tracks app-layer convergence work (Phase 5) by user story, startin
 Companion contract:
 - `doc/APP_LAYER_ARCHITECTURE_CONTRACT.md`
 
+## Current Snapshot (2026-02-13)
+
+Implemented now:
+- Shared onboarding contracts:
+  - `OnboardingProfile`
+  - `OnboardingValidationUseCase`
+  - validation tests in `shared` Tier 1
+- Shared runtime onboarding draft contract:
+  - `RuntimeOnboardingDraft` + mapping to `RuntimeProfileConfig`
+- Harness onboarding UI on both platforms:
+  - Android: profile-entry fields + submit
+  - iOS: profile-entry fields + submit
+- Cross-platform simulator UI flow evidence:
+  - stepwise onboarding screenshots (per input action)
+  - phase3 button screenshots
+  - unified markdown report with per-flow pass/fail + log excerpt
+
+Not implemented yet (Phase 5 core remaining):
+- Story 1 persistence and re-entry of onboarding profile (save/load/edit complete flow)
+- Story 2+ product-facing app flow integration (measurement start/preflight through final app modules)
+- Story 5/6/8 user-facing history/retry/sync-status product UX
+- Story 7 settings edit UX bound to persisted shared profile state
+
+Primary active execution surfaces:
+- `androidTestApp/`
+- `iosTestApp/`
+- `shared/`
+
+Reference-only (no feature work target):
+- `frozenApp/`
+
 ## Source-of-Truth Inputs
 
 Legacy onboarding and initial app entry behavior currently lives in:
@@ -90,10 +121,17 @@ Product decision (updated):
   - Both modes require validated name/phone/email/ack.
   - `FCC_CHALLENGE` and `TESTING` differ in downstream submission policy, not profile completeness.
 
+Status:
+- Implemented in `shared/src/commonMain/kotlin/edu/gatech/cc/cellwatch/domain/onboarding/`
+- Tier 1 tests implemented in `shared/src/commonTest/kotlin/edu/gatech/cc/cellwatch/domain/onboarding/`
+
 3. `OnboardingPersistenceUseCase` (shared)
 - Save profile
 - Save onboarding completion
 - Load existing profile for edit/re-entry
+
+Status:
+- Not implemented yet (next Story 1 hardening step)
 
 ### Acceptance criteria (Story 1)
 
@@ -116,6 +154,13 @@ Tier 2 (recommended smoke):
 - iOS simulator: complete onboarding once in each mode
 - Verify completion flag and profile values are visible via app state/log output
 - Verify persistent mode indicator remains visible in both platforms
+
+Current Tier 2 implementation status:
+- Implemented now as stepwise profile-entry smoke in both harness apps.
+- Automated evidence report command:
+  - `./scripts/generate-ui-flow-report.sh`
+- Report path:
+  - `build/reports/ui-flow/UI_FLOW_REPORT.md`
 
 ## Story 2 Analysis: Start A Measurement From Main Screen
 
