@@ -5,6 +5,23 @@ data class SyncAllReport(
     val submissions: SyncReport,
 )
 
+fun SyncAllReport.renderForStatus(): String {
+    return buildString {
+        appendLine(
+            "measurements: attempted=${measurements.attempted}, uploaded=${measurements.uploaded}, " +
+                "markedUploaded=${measurements.markedUploaded}, networkErrors=${measurements.networkErrors}, " +
+                "unexpectedErrors=${measurements.unexpectedErrors}",
+        )
+        appendLine(measurements.errorSummary.renderForStatus())
+        appendLine(
+            "submissions: attempted=${submissions.attempted}, uploaded=${submissions.uploaded}, " +
+                "blockedBeforeUpload=${submissions.blockedBeforeUpload}, networkErrors=${submissions.networkErrors}, " +
+                "unexpectedErrors=${submissions.unexpectedErrors}",
+        )
+        append(submissions.errorSummary.renderForStatus())
+    }
+}
+
 interface MeasurementSyncService {
     suspend fun syncMeasurements(): SyncReport
     suspend fun syncFccSubmissions(): SyncReport

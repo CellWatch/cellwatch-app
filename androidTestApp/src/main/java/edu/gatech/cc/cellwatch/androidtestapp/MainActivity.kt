@@ -42,10 +42,14 @@ import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSequenceSyncOrchestrator
 import edu.gatech.cc.cellwatch.domain.sync.Phase3UiSliceFormatter
 import edu.gatech.cc.cellwatch.domain.sync.Phase3UiSliceResult
+import edu.gatech.cc.cellwatch.domain.sync.SyncDiagnosticsConfig
+import edu.gatech.cc.cellwatch.domain.sync.SyncDiagnosticsLevel
+import edu.gatech.cc.cellwatch.domain.sync.SyncDiagnosticsRegistry
 import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeEnvelopeBuilder
 import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeResultFormatter
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerParityHarness
+import edu.gatech.cc.cellwatch.domain.sync.renderForStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
@@ -102,6 +106,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SyncDiagnosticsRegistry.configure(
+            SyncDiagnosticsConfig(
+                level = SyncDiagnosticsLevel.fromString(BuildConfig.CELLWATCH_SYNC_DIAGNOSTICS_LEVEL),
+                maxSampledErrorsPerReport = BuildConfig.CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES,
+                includeCauseChain = BuildConfig.CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN,
+            ),
+        )
         installHarnessUncaughtExceptionHandler()
         initDataLayer()
         setContentView(buildUi())
@@ -432,15 +443,7 @@ class MainActivity : AppCompatActivity() {
                 )
                 val uploadTime = outcome.measurementCompleteUploadTime?.toEpochMilliseconds() ?: -1L
                 val measurementCompleteReportSummary =
-                    "measurementCompleteReport(" +
-                        "attempted=${outcome.measurementCompleteReport.measurements.attempted}," +
-                        "uploaded=${outcome.measurementCompleteReport.measurements.uploaded}," +
-                        "networkErrors=${outcome.measurementCompleteReport.measurements.networkErrors}," +
-                        "unexpectedErrors=${outcome.measurementCompleteReport.measurements.unexpectedErrors}," +
-                        "submissionsUploaded=${outcome.measurementCompleteReport.submissions.uploaded}," +
-                        "submissionNetworkErrors=${outcome.measurementCompleteReport.submissions.networkErrors}," +
-                        "submissionUnexpectedErrors=${outcome.measurementCompleteReport.submissions.unexpectedErrors}" +
-                        ")"
+                    outcome.measurementCompleteReport.renderForStatus()
                 val envelope = smokeEnvelopeBuilder.phase3Sequence(
                     measurementCompleteUploadTimeSet = outcome.measurementCompleteUploadTime != null,
                     persistedMeasurements = persistedMeasurements,
@@ -661,10 +664,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun formatReport(report: edu.gatech.cc.cellwatch.domain.sync.SyncAllReport?): String {
         if (report == null) return "null (driver error: ${syncDriver?.state?.value?.lastError})"
-        return buildString {
-            appendLine("measurements: attempted=${report.measurements.attempted}, uploaded=${report.measurements.uploaded}, markedUploaded=${report.measurements.markedUploaded}, networkErrors=${report.measurements.networkErrors}, unexpectedErrors=${report.measurements.unexpectedErrors}")
-            appendLine("submissions: attempted=${report.submissions.attempted}, uploaded=${report.submissions.uploaded}, blockedBeforeUpload=${report.submissions.blockedBeforeUpload}, networkErrors=${report.submissions.networkErrors}, unexpectedErrors=${report.submissions.unexpectedErrors}")
-        }
+        return report.renderForStatus()
     }
 }
 

@@ -7,6 +7,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MeasurementSyncUseCaseTest {
 
@@ -65,6 +66,8 @@ class MeasurementSyncUseCaseTest {
         assertEquals(0, report.uploaded)
         assertEquals(0, report.markedUploaded)
         assertEquals(1, report.unexpectedErrors)
+        assertEquals(1, report.errorSummary.totalErrors)
+        assertEquals(SyncErrorCategory.DUPLICATE_NOT_MARKED, report.errorSummary.sampledErrors.firstOrNull()?.category)
         assertEquals(0, local.markedMeasurementIds.size)
     }
 
@@ -79,6 +82,8 @@ class MeasurementSyncUseCaseTest {
 
         assertEquals(1, report.attempted)
         assertEquals(1, report.networkErrors)
+        assertEquals(1, report.errorSummary.totalErrors)
+        assertEquals(SyncErrorCategory.NETWORK, report.errorSummary.sampledErrors.firstOrNull()?.category)
         assertEquals(0, local.markedMeasurementIds.size)
     }
 
@@ -113,6 +118,9 @@ class MeasurementSyncUseCaseTest {
         assertEquals(1, report.attempted)
         assertEquals(true, report.blockedBeforeUpload)
         assertEquals(1, report.unexpectedErrors)
+        assertEquals(1, report.errorSummary.totalErrors)
+        assertEquals(SyncErrorCategory.BLOCKED, report.errorSummary.sampledErrors.firstOrNull()?.category)
+        assertTrue(report.errorSummary.sampledErrors.firstOrNull()?.message?.contains("tuple-fail") == true)
         assertEquals(0, local.markedSubmissionIds.size)
     }
 }
