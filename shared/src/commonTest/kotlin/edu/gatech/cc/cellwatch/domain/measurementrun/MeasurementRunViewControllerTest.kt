@@ -37,6 +37,7 @@ class MeasurementRunViewControllerTest {
         assertEquals("download", completed.results?.download?.type)
         assertEquals("upload", completed.results?.upload?.type)
         assertNull(completed.errorMessage)
+        assertEquals(MeasurementRunErrorCategory.NONE, completed.errorCategory)
     }
 
     @Test
@@ -51,6 +52,7 @@ class MeasurementRunViewControllerTest {
 
         assertEquals(MeasurementRunProgress.ERROR, failed.progress)
         assertEquals(MeasurementRunViewController.RATE_LIMITED_ERROR_MESSAGE, failed.errorMessage)
+        assertEquals(MeasurementRunErrorCategory.SERVER, failed.errorCategory)
     }
 
     @Test
@@ -65,6 +67,33 @@ class MeasurementRunViewControllerTest {
 
         assertEquals(MeasurementRunProgress.ERROR, failed.progress)
         assertEquals(MeasurementRunViewController.DEFAULT_ERROR_MESSAGE, failed.errorMessage)
+        assertEquals(MeasurementRunErrorCategory.UNKNOWN, failed.errorCategory)
+    }
+
+    @Test
+    fun controller_failedCompletion_classifiesDeterministicErrorCategories() {
+        val controller = MeasurementRunViewController()
+
+        val network = controller.onCompleted(
+            group = null,
+            errorCode = null,
+            errorText = "Network timeout while uploading",
+        )
+        assertEquals(MeasurementRunErrorCategory.NETWORK, network.errorCategory)
+
+        val auth = controller.onCompleted(
+            group = null,
+            errorCode = 401,
+            errorText = "Unauthorized: invalid api key",
+        )
+        assertEquals(MeasurementRunErrorCategory.AUTH_CONFIG, auth.errorCategory)
+
+        val server = controller.onCompleted(
+            group = null,
+            errorCode = 500,
+            errorText = "Server protocol decode failure",
+        )
+        assertEquals(MeasurementRunErrorCategory.SERVER, server.errorCategory)
     }
 
     @Test

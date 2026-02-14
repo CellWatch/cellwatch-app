@@ -1,4 +1,5 @@
 import XCTest
+import sharedKit
 @testable import iosTestApp
 
 final class HarnessUiSmokeTests: XCTestCase {
@@ -35,6 +36,38 @@ final class HarnessUiSmokeTests: XCTestCase {
         }
 
         waitForExpectations(timeout: 2.0)
+    }
+
+    func testMeasurementRunErrorCategory_parityMatrix_matchesSharedContract() {
+        let controller = MeasurementRunViewController()
+
+        let network = controller.onCompleted(
+            group: nil,
+            errorCode: nil,
+            errorText: "network timeout during upload"
+        )
+        XCTAssertEqual(network.errorCategory, .network)
+
+        let auth = controller.onCompleted(
+            group: nil,
+            errorCode: 401,
+            errorText: "Unauthorized: invalid api key"
+        )
+        XCTAssertEqual(auth.errorCategory, .authConfig)
+
+        let server = controller.onCompleted(
+            group: nil,
+            errorCode: 500,
+            errorText: "Server protocol decode failure"
+        )
+        XCTAssertEqual(server.errorCategory, .server)
+
+        let unknown = controller.onCompleted(
+            group: nil,
+            errorCode: nil,
+            errorText: "unexpected boom"
+        )
+        XCTAssertEqual(unknown.errorCategory, .unknown)
     }
 
     private func attachScreenshot(of view: UIView, named name: String) {

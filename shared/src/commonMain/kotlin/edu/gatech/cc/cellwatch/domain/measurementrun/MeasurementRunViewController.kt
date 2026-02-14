@@ -25,12 +25,21 @@ enum class MeasurementRunHeaderKey {
     MEASUREMENT_FAILED,
 }
 
+enum class MeasurementRunErrorCategory {
+    NONE,
+    NETWORK,
+    AUTH_CONFIG,
+    SERVER,
+    UNKNOWN,
+}
+
 data class MeasurementRunState(
     val progress: MeasurementRunProgress = MeasurementRunProgress.PRE,
     val results: MeasurementGroup? = null,
     val uploadTime: Instant? = null,
     val inVehicle: Boolean = false,
     val errorMessage: String? = null,
+    val errorCategory: MeasurementRunErrorCategory = MeasurementRunErrorCategory.NONE,
 )
 
 data class MeasurementRunUiModel(
@@ -105,6 +114,7 @@ class MeasurementRunViewController {
                 id = groupId,
             ),
             errorMessage = null,
+            errorCategory = MeasurementRunErrorCategory.NONE,
         )
         return state
     }
@@ -161,6 +171,7 @@ class MeasurementRunViewController {
             state = state.copy(
                 progress = MeasurementRunProgress.ERROR,
                 errorMessage = msg,
+                errorCategory = classifyErrorCategory(errorCode = errorCode, errorText = errorText),
             )
             return state
         }
@@ -169,6 +180,7 @@ class MeasurementRunViewController {
             progress = MeasurementRunProgress.END,
             results = group,
             errorMessage = null,
+            errorCategory = MeasurementRunErrorCategory.NONE,
         )
         return state
     }
@@ -181,6 +193,43 @@ class MeasurementRunViewController {
     private fun updateProgress(progress: MeasurementRunProgress): MeasurementRunState {
         state = state.copy(progress = progress)
         return state
+    }
+
+    private fun classifyErrorCategory(errorCode: Int?, errorText: String?): MeasurementRunErrorCategory {
+        if (errorCode == 429) return MeasurementRunErrorCategory.SERVER
+        val normalized = errorText.orEmpty().lowercase()
+        if (normalized.isBlank()) return MeasurementRunErrorCategory.UNKNOWN
+        if (
+            "timeout" in normalized ||
+            "timed out" in normalized ||
+            "network" in normalized ||
+            "unable to resolve host" in normalized ||
+            "connection refused" in normalized ||
+            "unreachable" in normalized
+        ) {
+            return MeasurementRunErrorCategory.NETWORK
+        }
+        if (
+            "unauthorized" in normalized ||
+            "forbidden" in normalized ||
+            "invalid api key" in normalized ||
+            "api key" in normalized ||
+            "auth" in normalized ||
+            "jwt" in normalized ||
+            "permission denied" in normalized
+        ) {
+            return MeasurementRunErrorCategory.AUTH_CONFIG
+        }
+        if (
+            "server" in normalized ||
+            "protocol" in normalized ||
+            "decode" in normalized ||
+            "missingfieldexception" in normalized ||
+            "http 5" in normalized
+        ) {
+            return MeasurementRunErrorCategory.SERVER
+        }
+        return MeasurementRunErrorCategory.UNKNOWN
     }
 
     companion object {
