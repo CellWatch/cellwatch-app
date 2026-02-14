@@ -49,6 +49,9 @@ import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementNetworkPath
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightUseCase
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightEnvironmentOverrides
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightEnvironmentResolver
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightObservedEnvironment
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightViewModel
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightUiPresenter
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingPersistenceUseCase
@@ -162,6 +165,7 @@ class MainActivity : AppCompatActivity() {
     private val measurementStartPreflightViewModel = MeasurementStartPreflightViewModel(
         useCase = MeasurementPreflightUseCase(),
     )
+    private val measurementStartEnvironmentResolver = MeasurementStartPreflightEnvironmentResolver()
     private val measurementStartUiPresenter = MeasurementStartPreflightUiPresenter()
     private var onboardingUiRenderInProgress = false
     private val smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
@@ -870,12 +874,16 @@ class MainActivity : AppCompatActivity() {
     private fun evaluateMeasurementStartPreflightFromUi() {
         measurementStartPreflightViewModel.setInVehicle(measurementPreflightInVehicleCheckbox.isChecked)
         measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(false)
-        val mode = resolvedMeasurementCollectionMode()
-        val networkPath = resolvedMeasurementNetworkPath()
+        val resolvedInputs = measurementStartEnvironmentResolver.resolve(
+            observed = observedMeasurementStartEnvironment(),
+            overrides = measurementStartEnvironmentOverrides(),
+        )
+        val mode = resolvedInputs.collectionMode
+        val networkPath = resolvedInputs.networkPath
         val result = measurementStartPreflightViewModel.evaluate(
             collectionMode = mode,
-            hasRuntimeProfile = hasRuntimeProfileForMeasurementStart(),
-            hasLocationPermission = hasLocationPermissionForMeasurementStart(),
+            hasRuntimeProfile = resolvedInputs.hasRuntimeProfile,
+            hasLocationPermission = resolvedInputs.hasLocationPermission,
             networkPath = networkPath,
         )
         if (result.requiresUserConfirm) {
@@ -887,8 +895,8 @@ class MainActivity : AppCompatActivity() {
                     measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(true)
                     val confirmed = measurementStartPreflightViewModel.evaluate(
                         collectionMode = mode,
-                        hasRuntimeProfile = hasRuntimeProfileForMeasurementStart(),
-                        hasLocationPermission = hasLocationPermissionForMeasurementStart(),
+                        hasRuntimeProfile = resolvedInputs.hasRuntimeProfile,
+                        hasLocationPermission = resolvedInputs.hasLocationPermission,
                         networkPath = networkPath,
                     )
                     renderMeasurementPreflightOutput(confirmed, networkPath)
@@ -921,24 +929,54 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun resolvedMeasurementCollectionMode(): edu.gatech.cc.cellwatch.domain.model.CollectionMode {
-        val override = intent?.getStringExtra(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_COLLECTION_MODE)?.trim()?.lowercase()
-        return when (override) {
+    private fun observedMeasurementStartEnvironment(): MeasurementStartPreflightObservedEnvironment {
+        val persistedCollectionMode = onboardingPersistenceUseCase.loadProfile()?.collectionMode
+            ?: edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE
+        return MeasurementStartPreflightObservedEnvironment(
+            collectionMode = persistedCollectionMode,
+            hasRuntimeProfile = true,
+            hasLocationPermission = hasHarnessLocationPermissions(),
+            networkPath = observedMeasurementNetworkPath(),
+        )
+    }
+
+    private fun measurementStartEnvironmentOverrides(): MeasurementStartPreflightEnvironmentOverrides {
+        return MeasurementStartPreflightEnvironmentOverrides(
+            collectionMode = parseCollectionModeOverride(
+                intent?.getStringExtra(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_COLLECTION_MODE),
+            ),
+            hasRuntimeProfile = booleanExtraOverride(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_RUNTIME_PROFILE),
+            hasLocationPermission = booleanExtraOverride(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION),
+            networkPath = parseNetworkPathOverride(
+                intent?.getStringExtra(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_NETWORK_PATH),
+            ),
+        )
+    }
+
+    private fun parseCollectionModeOverride(raw: String?): edu.gatech.cc.cellwatch.domain.model.CollectionMode? {
+        return when (raw?.trim()?.lowercase()) {
             "testing" -> edu.gatech.cc.cellwatch.domain.model.CollectionMode.TESTING
             "fcc_challenge", "fcc" -> edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE
-            else -> edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE
+            else -> null
         }
     }
 
-    private fun resolvedMeasurementNetworkPath(): MeasurementNetworkPath {
-        val override = intent?.getStringExtra(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_NETWORK_PATH)?.trim()?.lowercase()
-        if (override != null) {
-            return when (override) {
-                "cellular", "cell" -> MeasurementNetworkPath.CELLULAR
-                "wifi" -> MeasurementNetworkPath.WIFI
-                else -> MeasurementNetworkPath.UNKNOWN
-            }
+    private fun parseNetworkPathOverride(raw: String?): MeasurementNetworkPath? {
+        return when (raw?.trim()?.lowercase()) {
+            "cellular", "cell" -> MeasurementNetworkPath.CELLULAR
+            "wifi" -> MeasurementNetworkPath.WIFI
+            "unknown" -> MeasurementNetworkPath.UNKNOWN
+            else -> null
         }
+    }
+
+    private fun booleanExtraOverride(key: String): Boolean? {
+        val extras = intent?.extras ?: return null
+        if (!extras.containsKey(key)) return null
+        return extras.getBoolean(key)
+    }
+
+    private fun observedMeasurementNetworkPath(): MeasurementNetworkPath {
         val cm = getSystemService(ConnectivityManager::class.java) ?: return MeasurementNetworkPath.UNKNOWN
         val active = cm.activeNetwork ?: return MeasurementNetworkPath.UNKNOWN
         val caps = cm.getNetworkCapabilities(active) ?: return MeasurementNetworkPath.UNKNOWN
@@ -947,18 +985,6 @@ class MainActivity : AppCompatActivity() {
             caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> MeasurementNetworkPath.WIFI
             else -> MeasurementNetworkPath.UNKNOWN
         }
-    }
-
-    private fun hasRuntimeProfileForMeasurementStart(): Boolean {
-        val override = intent?.extras?.get(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_RUNTIME_PROFILE)
-        if (override is Boolean) return override
-        return true
-    }
-
-    private fun hasLocationPermissionForMeasurementStart(): Boolean {
-        val override = intent?.extras?.get(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION)
-        if (override is Boolean) return override
-        return hasHarnessLocationPermissions()
     }
 
     private suspend fun checkLocalMsakReachabilityIssue(): String? {
