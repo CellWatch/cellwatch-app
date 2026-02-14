@@ -180,8 +180,9 @@ class OnboardingRuntimeUiSmokeTest {
 
     private fun runShell(command: String) {
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
-        val fd = automation.executeShellCommand(command)
-        FileInputStream(fd.fileDescriptor).use { it.readBytes() }
+        automation.executeShellCommand(command).use { fd ->
+            FileInputStream(fd.fileDescriptor).use { it.readBytes() }
+        }
     }
 
     private fun grantHarnessRuntimePermissions() {
@@ -193,10 +194,11 @@ class OnboardingRuntimeUiSmokeTest {
                 "android.permission.ACCESS_COARSE_LOCATION",
                 "android.permission.ACCESS_FINE_LOCATION",
             ).forEach { permission ->
-                val fd = automation.executeShellCommand(
+                automation.executeShellCommand(
                     "pm grant edu.gatech.cc.cellwatch.androidtestapp $permission",
-                )
-                FileInputStream(fd.fileDescriptor).use { it.readBytes() }
+                ).use { fd ->
+                    FileInputStream(fd.fileDescriptor).use { it.readBytes() }
+                }
             }
         } finally {
             automation.dropShellPermissionIdentity()
