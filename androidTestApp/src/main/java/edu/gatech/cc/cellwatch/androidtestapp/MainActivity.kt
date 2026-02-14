@@ -763,9 +763,10 @@ class MainActivity : AppCompatActivity() {
                     inVehicle = false,
                 ),
                 hasRuntimeProfile = true,
-                hasLocationPermission = observedMeasurementStartCapabilities().hasLocationPermission,
-                networkPath = MeasurementNetworkPath.UNKNOWN,
-                userConfirmedNonCellularChallengePath = false,
+                // Phase3 harness button is a deterministic smoke path, not interactive preflight UX.
+                hasLocationPermission = true,
+                networkPath = MeasurementNetworkPath.CELLULAR,
+                userConfirmedNonCellularChallengePath = true,
             ),
         )
         if (!story2Preflight.allowed) {

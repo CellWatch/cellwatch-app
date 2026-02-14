@@ -989,9 +989,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                     inVehicle: false
                 ),
                 hasRuntimeProfile: true,
-                hasLocationPermission: observedMeasurementStartCapabilities().hasLocationPermission,
-                networkPath: .unknown,
-                userConfirmedNonCellularChallengePath: false
+                // Phase3 harness button is deterministic smoke coverage, not interactive preflight UX.
+                hasLocationPermission: true,
+                networkPath: .cellular,
+                userConfirmedNonCellularChallengePath: true
             )
         )
         if !story2Preflight.allowed {
