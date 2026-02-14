@@ -987,7 +987,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                     inVehicle: false
                 ),
                 hasRuntimeProfile: true,
-                hasLocationPermission: observedMeasurementStartEnvironment().hasLocationPermission,
+                hasLocationPermission: observedMeasurementStartCapabilities().hasLocationPermission,
                 networkPath: .unknown,
                 userConfirmedNonCellularChallengePath: false
             )
@@ -1180,11 +1180,13 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         return raw
     }
 
-    private func observedMeasurementStartEnvironment() -> MeasurementStartPreflightObservedEnvironment {
-        let persistedMode = onboardingPersistenceUseCase.loadProfile()?.collectionMode ?? .fccChallenge
+    private func measurementStartCollectionMode() -> CollectionMode {
+        onboardingPersistenceUseCase.loadProfile()?.collectionMode ?? .fccChallenge
+    }
+
+    private func observedMeasurementStartCapabilities() -> MeasurementStartCapabilitySnapshot {
         let status = CLLocationManager.authorizationStatus()
-        return MeasurementStartPreflightObservedEnvironment(
-            collectionMode: persistedMode,
+        return MeasurementStartCapabilitySnapshot(
             hasRuntimeProfile: true,
             hasLocationPermission: (status == .authorizedAlways || status == .authorizedWhenInUse),
             networkPath: measurementNetworkPathProbe.currentPath()
@@ -1264,7 +1266,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     @objc private func evaluateMeasurementStartPreflightFromUi() {
         measurementStartFlowViewModel.setInVehicle(value: measurementPreflightInVehicleSwitch.isOn)
         let resolvedInputs = measurementStartEnvironmentResolver.resolve(
-            observed: observedMeasurementStartEnvironment(),
+            collectionMode: measurementStartCollectionMode(),
+            capabilitySnapshot: observedMeasurementStartCapabilities(),
             overrides: measurementStartEnvironmentOverrides()
         )
         let path = resolvedInputs.networkPath

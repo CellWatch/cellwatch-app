@@ -2,6 +2,12 @@ package edu.gatech.cc.cellwatch.domain.measurementstart
 
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 
+data class MeasurementStartCapabilitySnapshot(
+    val hasRuntimeProfile: Boolean,
+    val hasLocationPermission: Boolean,
+    val networkPath: MeasurementNetworkPath,
+)
+
 data class MeasurementStartPreflightObservedEnvironment(
     val collectionMode: CollectionMode,
     val hasRuntimeProfile: Boolean,
@@ -17,6 +23,26 @@ data class MeasurementStartPreflightEnvironmentOverrides(
 )
 
 class MeasurementStartPreflightEnvironmentResolver {
+    fun observedEnvironment(
+        collectionMode: CollectionMode,
+        capabilitySnapshot: MeasurementStartCapabilitySnapshot,
+    ): MeasurementStartPreflightObservedEnvironment {
+        return MeasurementStartPreflightObservedEnvironment(
+            collectionMode = collectionMode,
+            hasRuntimeProfile = capabilitySnapshot.hasRuntimeProfile,
+            hasLocationPermission = capabilitySnapshot.hasLocationPermission,
+            networkPath = capabilitySnapshot.networkPath,
+        )
+    }
+
+    fun resolve(
+        collectionMode: CollectionMode,
+        capabilitySnapshot: MeasurementStartCapabilitySnapshot,
+        overrides: MeasurementStartPreflightEnvironmentOverrides = MeasurementStartPreflightEnvironmentOverrides(),
+    ): MeasurementStartPreflightObservedEnvironment {
+        return resolve(observedEnvironment(collectionMode, capabilitySnapshot), overrides)
+    }
+
     fun resolve(
         observed: MeasurementStartPreflightObservedEnvironment,
         overrides: MeasurementStartPreflightEnvironmentOverrides = MeasurementStartPreflightEnvironmentOverrides(),

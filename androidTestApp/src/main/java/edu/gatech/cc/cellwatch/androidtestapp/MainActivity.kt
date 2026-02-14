@@ -48,13 +48,13 @@ import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementNetworkPath
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartCapabilitySnapshot
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightResult
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightUseCase
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightFlowUiState
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightFlowViewModel
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightEnvironmentOverrides
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightEnvironmentResolver
-import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightObservedEnvironment
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightUiPresenter
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingPersistenceUseCase
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileSubmission
@@ -758,7 +758,7 @@ class MainActivity : AppCompatActivity() {
                     inVehicle = false,
                 ),
                 hasRuntimeProfile = true,
-                hasLocationPermission = hasHarnessLocationPermissions(),
+                hasLocationPermission = observedMeasurementStartCapabilities().hasLocationPermission,
                 networkPath = MeasurementNetworkPath.UNKNOWN,
                 userConfirmedNonCellularChallengePath = false,
             ),
@@ -883,7 +883,8 @@ class MainActivity : AppCompatActivity() {
     private fun evaluateMeasurementStartPreflightFromUi() {
         measurementStartFlowViewModel.setInVehicle(measurementPreflightInVehicleCheckbox.isChecked)
         val resolvedInputs = measurementStartEnvironmentResolver.resolve(
-            observed = observedMeasurementStartEnvironment(),
+            collectionMode = measurementStartCollectionMode(),
+            capabilitySnapshot = observedMeasurementStartCapabilities(),
             overrides = measurementStartEnvironmentOverrides(),
         )
         val goState = measurementStartFlowViewModel.onGoPressed(resolvedInputs)
@@ -927,11 +928,13 @@ class MainActivity : AppCompatActivity() {
         return "allowed=${result.allowed};reason=${result.reasonCode};networkPath=$networkPath"
     }
 
-    private fun observedMeasurementStartEnvironment(): MeasurementStartPreflightObservedEnvironment {
-        val persistedCollectionMode = onboardingPersistenceUseCase.loadProfile()?.collectionMode
+    private fun measurementStartCollectionMode(): edu.gatech.cc.cellwatch.domain.model.CollectionMode {
+        return onboardingPersistenceUseCase.loadProfile()?.collectionMode
             ?: edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE
-        return MeasurementStartPreflightObservedEnvironment(
-            collectionMode = persistedCollectionMode,
+    }
+
+    private fun observedMeasurementStartCapabilities(): MeasurementStartCapabilitySnapshot {
+        return MeasurementStartCapabilitySnapshot(
             hasRuntimeProfile = true,
             hasLocationPermission = hasHarnessLocationPermissions(),
             networkPath = observedMeasurementNetworkPath(),
