@@ -7,6 +7,7 @@ Use this file as a quick start when opening a new conversation thread.
 1. `README.md`
 2. `doc/PHASE5_USER_STORY_PLAN.md`
 3. `doc/APP_LAYER_ARCHITECTURE_CONTRACT.md`
+4. `doc/IOS_APP_BOOTSTRAP_CHECKLIST.md` (for iOS app/simulator setup gotchas)
 
 ## Current State
 
@@ -24,7 +25,7 @@ Use this file as a quick start when opening a new conversation thread.
 
 ## Verify Current Health
 
-Run:
+Run onboarding UI evidence:
 
 ```bash
 ./scripts/generate-ui-flow-report.sh
@@ -39,8 +40,34 @@ Inspect:
 Expected flow keys:
 
 - `android-onboarding-profile-entry`
+- `ios-onboarding-profile-entry-hosted`
+- `ios-onboarding-profile-entry-xcuitest`
+
+iOS test-runner note:
+- `2A` hosted invariant smoke remains in `iosTestAppTests` (in-process).
+- `2B` onboarding UI evidence runs in `iosTestAppUITests` (XCUITest, out-of-process) for trustworthy simulator-frame UI interactions/snapshots.
+- This split is intentional to avoid overloading hosted XCTest with UI-automation duties it is not designed for.
+- `2A` hosted onboarding smoke is assertion-first and does not publish screenshot evidence by default.
+
+iOS fullscreen + interaction guardrails:
+- Keep `UILaunchScreen` declared in `iosTestApp/App/Info.plist` to prevent legacy `320x480` compatibility launch mode.
+- In XCUITest, use explicit `waitForExistence` + targeted element taps/typing and dismiss keyboard before lower-screen actions.
+
+Run Phase 3 simulator smoke evidence:
+
+```bash
+./scripts/generate-simulator-smoke-report.sh
+```
+
+Inspect:
+
+- `build/reports/simulator-smoke/SIMULATOR_SMOKE_REPORT.md`
+- `build/reports/simulator-smoke/logs/*.status`
+- `build/reports/simulator-smoke/logs/*.log`
+
+Expected flow keys:
+
 - `android-phase3-sequence-button`
-- `ios-onboarding-profile-entry`
 - `ios-phase3-sequence-button`
 
 ## Next Recommended Work
