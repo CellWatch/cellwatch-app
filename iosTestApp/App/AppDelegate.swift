@@ -1,5 +1,6 @@
 import UIKit
 import SwiftUI
+import CoreLocation
 import sharedKit
 
 enum RuntimeConfigSource {
@@ -246,6 +247,13 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let runtimeModeBridge = RuntimeModeUiBridge()
     private let onboardingValidationUseCase = OnboardingValidationUseCase()
     private let onboardingPersistenceUseCase = OnboardingPersistenceUseCase(store: OnboardingUserDefaultsStore())
+    private let measurementStartPreflightViewModel = MeasurementStartPreflightViewModel(
+        useCase: MeasurementPreflightUseCase()
+    )
+    private lazy var onboardingViewModel = OnboardingProfileViewModel(
+        validationUseCase: onboardingValidationUseCase,
+        persistenceUseCase: onboardingPersistenceUseCase
+    )
     private var lastGroupId: String?
     private let msakModeButton = UIButton(type: .system)
     private let supabaseModeButton = UIButton(type: .system)
@@ -638,48 +646,13 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
 
     private func buildOnboardingFlowSwiftUi() {
         view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
-        let persisted = onboardingPersistenceUseCase.loadProfile()
-        let model = OnboardingFlowSwiftUiModel(
-            name: persisted?.name ?? "",
-            phone: persisted?.phone ?? "",
-            email: persisted?.email ?? "",
-            ack: persisted?.fccAcknowledged ?? false
-        )
-        model.feedback = "Complete the form and save your profile."
-        model.feedbackIsError = false
+        let model = OnboardingFlowSwiftUiModel(viewModel: onboardingViewModel)
+        model.bootstrap()
 
         let root = OnboardingFlowSwiftUiView(
             model: model,
-            onSubmit: { [weak self] name, phone, email, ack in
-                guard let self else {
-                    return (false, "Controller unavailable.")
-                }
-                let profile = OnboardingProfile(
-                    collectionMode: .testing,
-                    name: name,
-                    phone: phone,
-                    email: email,
-                    fccAcknowledged: ack,
-                    onboardingComplete: false
-                )
-                let result = self.onboardingValidationUseCase.validate(profile: profile)
-                if result.valid {
-                    let persisted = self.onboardingPersistenceUseCase.saveValidated(result: result)
-                    let status = "Onboarding submit=SUCCESS\n" +
-                        "name=\(persisted.name)\n" +
-                        "phone=\(persisted.phone)\n" +
-                        "email=\(persisted.email)\n" +
-                        "ack=\(persisted.fccAcknowledged)\n" +
-                        "onboardingComplete=\(persisted.onboardingComplete)\n" +
-                        "persisted=true"
-                    self.setStatus(status)
-                    return (true, "Profile saved.")
-                }
-                let errors = result.fieldErrors.map { key, value in
-                    "\(key):\(value)"
-                }.joined(separator: "; ")
-                self.setStatus("Onboarding submit=FAILURE\nerrors=\(errors)")
-                return (false, "Fix validation errors and try again.")
+            onStatusUpdate: { [weak self] statusText in
+                self?.setStatus(statusText)
             }
         )
 
@@ -904,6 +877,21 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     }
 
     @objc private func runPhase3Sequence() {
+        let story2Preflight = measurementStartPreflightViewModel.evaluate(
+            collectionMode: .fccChallenge,
+            hasRuntimeProfile: true,
+            hasLocationPermission: hasLocationPermissionForMeasurementStart(),
+            networkPath: .unknown
+        )
+        if !story2Preflight.allowed {
+            let envelope = smokeEnvelopeBuilder.failure(
+                scenario: "measurement-start-preflight",
+                errorMessage: "reason=\(story2Preflight.reasonCode)"
+            )
+            setStatus(smokeFormatter.format(envelope: envelope))
+            return
+        }
+
         guard let runtimeSnapshot else {
             setStatus("Runtime profile unavailable.")
             return
@@ -1083,41 +1071,16 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         return raw
     }
 
+    private func hasLocationPermissionForMeasurementStart() -> Bool {
+        let status = CLLocationManager.authorizationStatus()
+        return status == .authorizedAlways || status == .authorizedWhenInUse
+    }
+
     @objc private func submitOnboarding() {
-        let profile = OnboardingProfile(
-            collectionMode: .testing,
-            name: onboardingNameField.text ?? "",
-            phone: onboardingPhoneField.text ?? "",
-            email: onboardingEmailField.text ?? "",
-            fccAcknowledged: onboardingAckSwitch.isOn,
-            onboardingComplete: false
-        )
-        let result = onboardingValidationUseCase.validate(profile: profile)
-        if result.valid {
-            let persisted = onboardingPersistenceUseCase.saveValidated(result: result)
-            onboardingNameField.text = persisted.name
-            onboardingPhoneField.text = persisted.phone
-            onboardingEmailField.text = persisted.email
-            onboardingAckSwitch.isOn = persisted.fccAcknowledged
-            onboardingFeedbackLabel.text = "Profile saved."
-            onboardingFeedbackLabel.textColor = UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
-            setStatus(
-                "Onboarding submit=SUCCESS\n" +
-                "name=\(persisted.name)\n" +
-                "phone=\(persisted.phone)\n" +
-                "email=\(persisted.email)\n" +
-                "ack=\(persisted.fccAcknowledged)\n" +
-                "onboardingComplete=\(persisted.onboardingComplete)\n" +
-                "persisted=true"
-            )
-        } else {
-            let errors = result.fieldErrors.map { key, value in
-                "\(key):\(value)"
-            }.joined(separator: "; ")
-            onboardingFeedbackLabel.text = "Fix validation errors and try again."
-            onboardingFeedbackLabel.textColor = UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
-            setStatus("Onboarding submit=FAILURE\nerrors=\(errors)")
-        }
+        _ = syncOnboardingViewModelWithInputs()
+        let submission = onboardingViewModel.submit()
+        applyOnboardingUiState(submission.state)
+        setStatus(submission.statusText)
     }
 
     @objc private func submitOnboardingFromReturnKey() {
@@ -1125,24 +1088,17 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     }
 
     @objc private func onboardingFieldChanged(_ sender: UITextField) {
-        if sender === onboardingPhoneField {
-            let digits = (sender.text ?? "").filter { $0.isNumber }
-            sender.text = formatPhoneDisplay(digits: digits)
-        }
-        updateOnboardingInlineFeedback()
+        _ = syncOnboardingViewModelWithInputs()
+        applyOnboardingUiState(onboardingViewModel.currentState())
     }
 
     @objc private func onboardingAckChanged() {
-        updateOnboardingInlineFeedback()
+        _ = syncOnboardingViewModelWithInputs()
+        applyOnboardingUiState(onboardingViewModel.currentState())
     }
 
     private func loadPersistedOnboardingProfile() {
-        guard let persisted = onboardingPersistenceUseCase.loadProfile() else { return }
-        onboardingNameField.text = persisted.name
-        onboardingPhoneField.text = persisted.phone
-        onboardingEmailField.text = persisted.email
-        onboardingAckSwitch.isOn = persisted.fccAcknowledged
-        onboardingFeedbackLabel.text = "Saved profile loaded. You can edit and save again."
+        applyOnboardingUiState(onboardingViewModel.loadPersistedProfile())
     }
 
     private func applyOnboardingUiPrefillFromEnvironment() {
@@ -1163,7 +1119,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         if env["CELLWATCH_UI_AUTOSUBMIT"] == "1" {
             submitOnboarding()
         }
-        updateOnboardingInlineFeedback()
+        _ = syncOnboardingViewModelWithInputs()
+        applyOnboardingUiState(onboardingViewModel.currentState())
     }
 
     static func clearPersistedOnboardingForTests() {
@@ -1271,52 +1228,37 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         }
     }
 
-    private func updateOnboardingInlineFeedback() {
-        let name = (onboardingNameField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let phoneDigits = (onboardingPhoneField.text ?? "").filter { $0.isNumber }
-        let email = (onboardingEmailField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if !phoneDigits.isEmpty && phoneDigits.count < 10 {
-            onboardingFeedbackLabel.text = "Phone should be 10 digits."
-            onboardingFeedbackLabel.textColor = UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
-            return
-        }
-        if !email.isEmpty && !email.contains("@") {
-            onboardingFeedbackLabel.text = "Email appears incomplete."
-            onboardingFeedbackLabel.textColor = UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
-            return
-        }
-        if name.isEmpty || phoneDigits.isEmpty || email.isEmpty {
-            onboardingFeedbackLabel.text = "Complete the form and save your profile."
-            onboardingFeedbackLabel.textColor = UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
-            return
-        }
-        if !onboardingAckSwitch.isOn {
-            onboardingFeedbackLabel.text = "Please acknowledge FCC challenge sharing terms."
-            onboardingFeedbackLabel.textColor = UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
-            return
-        }
-        onboardingFeedbackLabel.text = "Looks good. Tap Save Profile."
-        onboardingFeedbackLabel.textColor = UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
+    @discardableResult
+    private func syncOnboardingViewModelWithInputs() -> OnboardingProfileUiState {
+        _ = onboardingViewModel.onNameChanged(name: onboardingNameField.text ?? "")
+        _ = onboardingViewModel.onPhoneChanged(phone: onboardingPhoneField.text ?? "")
+        _ = onboardingViewModel.onEmailChanged(email: onboardingEmailField.text ?? "")
+        let state = onboardingViewModel.onAcknowledgementChanged(acknowledged: onboardingAckSwitch.isOn)
+        return state
     }
 
-    private func formatPhoneDisplay(digits: String) -> String {
-        let limited = String(digits.prefix(10))
-        if limited.count <= 3 {
-            return limited
+    private func applyOnboardingUiState(_ state: OnboardingProfileUiState) {
+        if onboardingNameField.text != state.name {
+            onboardingNameField.text = state.name
         }
-        if limited.count <= 6 {
-            let a = limited.prefix(3)
-            let b = limited.dropFirst(3)
-            return "\(a)-\(b)"
+        if onboardingPhoneField.text != state.phone {
+            onboardingPhoneField.text = state.phone
         }
-        let a = limited.prefix(3)
-        let b = limited.dropFirst(3).prefix(3)
-        let c = limited.dropFirst(6)
-        return "\(a)-\(b)-\(c)"
+        if onboardingEmailField.text != state.email {
+            onboardingEmailField.text = state.email
+        }
+        if onboardingAckSwitch.isOn != state.fccAcknowledged {
+            onboardingAckSwitch.isOn = state.fccAcknowledged
+        }
+        onboardingFeedbackLabel.text = state.feedbackMessage
+        onboardingFeedbackLabel.textColor = state.feedbackIsError
+            ? UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
+            : UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
     }
 }
 
 final class OnboardingFlowSwiftUiModel: ObservableObject {
+    private let viewModel: OnboardingProfileViewModel
     @Published var name: String
     @Published var phone: String
     @Published var email: String
@@ -1324,17 +1266,56 @@ final class OnboardingFlowSwiftUiModel: ObservableObject {
     @Published var feedback: String = ""
     @Published var feedbackIsError: Bool = false
 
-    init(name: String, phone: String, email: String, ack: Bool) {
-        self.name = name
-        self.phone = phone
-        self.email = email
-        self.ack = ack
+    init(viewModel: OnboardingProfileViewModel) {
+        self.viewModel = viewModel
+        let state = viewModel.currentState()
+        self.name = state.name
+        self.phone = state.phone
+        self.email = state.email
+        self.ack = state.fccAcknowledged
+        self.feedback = state.feedbackMessage
+        self.feedbackIsError = state.feedbackIsError
+    }
+
+    func bootstrap() {
+        apply(viewModel.loadPersistedProfile())
+    }
+
+    func onNameChanged(_ value: String) {
+        apply(viewModel.onNameChanged(name: value))
+    }
+
+    func onPhoneChanged(_ value: String) {
+        apply(viewModel.onPhoneChanged(phone: value))
+    }
+
+    func onEmailChanged(_ value: String) {
+        apply(viewModel.onEmailChanged(email: value))
+    }
+
+    func onAcknowledgementChanged(_ value: Bool) {
+        apply(viewModel.onAcknowledgementChanged(acknowledged: value))
+    }
+
+    func submit() -> OnboardingProfileSubmission {
+        let submission = viewModel.submit()
+        apply(submission.state)
+        return submission
+    }
+
+    private func apply(_ state: OnboardingProfileUiState) {
+        name = state.name
+        phone = state.phone
+        email = state.email
+        ack = state.fccAcknowledged
+        feedback = state.feedbackMessage
+        feedbackIsError = state.feedbackIsError
     }
 }
 
 struct OnboardingFlowSwiftUiView: View {
     @ObservedObject var model: OnboardingFlowSwiftUiModel
-    let onSubmit: (_ name: String, _ phone: String, _ email: String, _ ack: Bool) -> (Bool, String)
+    let onStatusUpdate: (_ statusText: String) -> Void
 
     var body: some View {
         GeometryReader { geometry in
@@ -1361,14 +1342,16 @@ struct OnboardingFlowSwiftUiView: View {
                             .textInputAutocapitalization(.words)
                             .accessibilityIdentifier("harness.onboarding.name")
                             .textFieldStyle(.roundedBorder)
+                            .onChange(of: model.name) { _, _ in
+                                model.onNameChanged(model.name)
+                            }
 
                         TextField("Phone (###-###-####)", text: $model.phone)
                             .keyboardType(.numberPad)
                             .accessibilityIdentifier("harness.onboarding.phone")
                             .textFieldStyle(.roundedBorder)
-                            .onChange(of: model.phone) { _, value in
-                                model.phone = formatPhoneDisplay(raw: value)
-                                updateFeedback()
+                            .onChange(of: model.phone) { _, _ in
+                                model.onPhoneChanged(model.phone)
                             }
 
                         TextField("Email", text: $model.email)
@@ -1376,7 +1359,9 @@ struct OnboardingFlowSwiftUiView: View {
                             .keyboardType(.emailAddress)
                             .accessibilityIdentifier("harness.onboarding.email")
                             .textFieldStyle(.roundedBorder)
-                            .onChange(of: model.email) { _, _ in updateFeedback() }
+                            .onChange(of: model.email) { _, _ in
+                                model.onEmailChanged(model.email)
+                            }
 
                         HStack(alignment: .center, spacing: 12) {
                             Text("I acknowledge FCC challenge sharing terms.")
@@ -1386,16 +1371,14 @@ struct OnboardingFlowSwiftUiView: View {
                             Toggle("", isOn: $model.ack)
                                 .labelsHidden()
                                 .accessibilityIdentifier("harness.onboarding.ack")
-                                .onChange(of: model.ack) { _, _ in updateFeedback() }
+                                .onChange(of: model.ack) { _, _ in
+                                    model.onAcknowledgementChanged(model.ack)
+                                }
                         }
 
                         Button("Save Profile") {
-                            let result = onSubmit(model.name, model.phone, model.email, model.ack)
-                            model.feedback = result.1
-                            model.feedbackIsError = !result.0
-                            if result.0 {
-                                model.phone = formatPhoneDisplay(raw: model.phone)
-                            }
+                            let submission = model.submit()
+                            onStatusUpdate(submission.statusText)
                         }
                         .buttonStyle(.borderedProminent)
                         .font(.system(size: 20, weight: .semibold))
@@ -1422,52 +1405,6 @@ struct OnboardingFlowSwiftUiView: View {
             }
         }
         .preferredColorScheme(.light)
-        .onAppear { updateFeedback() }
-    }
-
-    private func updateFeedback() {
-        let trimmedName = model.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedEmail = model.email.trimmingCharacters(in: .whitespacesAndNewlines)
-        let digits = model.phone.filter(\.isNumber)
-        if !digits.isEmpty && digits.count < 10 {
-            model.feedback = "Phone should be 10 digits."
-            model.feedbackIsError = true
-            return
-        }
-        if !trimmedEmail.isEmpty && !trimmedEmail.contains("@") {
-            model.feedback = "Email appears incomplete."
-            model.feedbackIsError = true
-            return
-        }
-        if trimmedName.isEmpty || digits.isEmpty || trimmedEmail.isEmpty {
-            model.feedback = "Complete the form and save your profile."
-            model.feedbackIsError = false
-            return
-        }
-        if !model.ack {
-            model.feedback = "Please acknowledge FCC challenge sharing terms."
-            model.feedbackIsError = true
-            return
-        }
-        model.feedback = "Looks good. Tap Save Profile."
-        model.feedbackIsError = false
-    }
-
-    private func formatPhoneDisplay(raw: String) -> String {
-        let digits = raw.filter(\.isNumber)
-        let limited = String(digits.prefix(10))
-        if limited.count <= 3 {
-            return limited
-        }
-        if limited.count <= 6 {
-            let a = limited.prefix(3)
-            let b = limited.dropFirst(3)
-            return "\(a)-\(b)"
-        }
-        let a = limited.prefix(3)
-        let b = limited.dropFirst(3).prefix(3)
-        let c = limited.dropFirst(6)
-        return "\(a)-\(b)-\(c)"
     }
 }
 
