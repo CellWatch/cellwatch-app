@@ -214,6 +214,13 @@ Platform responsibilities:
 3. `MeasurementStartCoordinator` (shared boundary)
 - Produces deterministic transition from `Idle` -> `Starting` with explicit context payload
 
+Current implementation status:
+- Initial shared Story 2 preflight contract is now in `shared`:
+  - `MeasurementPreflightUseCase`
+  - `MeasurementStartPreflightViewModel`
+  - reason-code/result model for allowed/blocked/confirm-required outcomes
+- Harness wiring now invokes this shared preflight before Phase 3 start actions as an intermediate migration step.
+
 ### Acceptance criteria (Story 2)
 
 1. Both Android and iOS show equivalent preflight outcomes for the same shared inputs.

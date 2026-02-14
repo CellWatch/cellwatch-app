@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.widget.Button
 import android.widget.CheckBox
@@ -41,8 +43,13 @@ import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementNetworkPath
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightUseCase
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightViewModel
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingPersistenceUseCase
-import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfile
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileSubmission
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileUiState
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileViewModel
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingValidationUseCase
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeModeUiBridge
@@ -135,6 +142,11 @@ class MainActivity : AppCompatActivity() {
         RuntimeProfileResolver.resolveProfile(resolveRuntimeProfileConfig())
     private val onboardingValidationUseCase = OnboardingValidationUseCase()
     private lateinit var onboardingPersistenceUseCase: OnboardingPersistenceUseCase
+    private lateinit var onboardingViewModel: OnboardingProfileViewModel
+    private val measurementStartPreflightViewModel = MeasurementStartPreflightViewModel(
+        useCase = MeasurementPreflightUseCase(),
+    )
+    private var onboardingUiRenderInProgress = false
     private val smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private val smokeFormatter = SyncSmokeResultFormatter()
     private var uiMode: UiMode = UiMode.FULL_HARNESS
@@ -158,8 +170,13 @@ class MainActivity : AppCompatActivity() {
         onboardingPersistenceUseCase = OnboardingPersistenceUseCase(
             AndroidOnboardingProfileStore(applicationContext),
         )
+        onboardingViewModel = OnboardingProfileViewModel(
+            validationUseCase = onboardingValidationUseCase,
+            persistenceUseCase = onboardingPersistenceUseCase,
+        )
         setContentView(buildUi())
-        loadPersistedOnboardingProfile()
+        bindOnboardingInputs()
+        applyOnboardingUiState(onboardingViewModel.loadPersistedProfile())
         requestHarnessRuntimePermissions()
     }
 
@@ -472,38 +489,85 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun submitOnboarding() {
-        val rawProfile = OnboardingProfile(
-            name = onboardingNameInput.text?.toString().orEmpty(),
-            phone = onboardingPhoneInput.text?.toString().orEmpty(),
-            email = onboardingEmailInput.text?.toString().orEmpty(),
-            fccAcknowledged = onboardingAckCheckbox.isChecked,
+        syncOnboardingVmWithCurrentInputs()
+        val submission: OnboardingProfileSubmission = onboardingViewModel.submit()
+        applyOnboardingUiState(submission.state)
+        statusText.text = submission.statusText
+    }
+
+    private fun bindOnboardingInputs() {
+        onboardingNameInput.addTextChangedListener(
+            object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                override fun afterTextChanged(s: Editable?) {
+                    if (onboardingUiRenderInProgress) return
+                    applyOnboardingUiState(onboardingViewModel.onNameChanged(s?.toString().orEmpty()))
+                }
+            },
         )
-        val result = onboardingValidationUseCase.validate(rawProfile)
-        val errorSummary = result.fieldErrors.entries.joinToString(separator = "; ") { "${it.key}:${it.value}" }
-        statusText.text = if (result.valid) {
-            val persisted = onboardingPersistenceUseCase.saveValidated(result)
-            onboardingNameInput.setText(persisted.name)
-            onboardingPhoneInput.setText(persisted.phone)
-            onboardingEmailInput.setText(persisted.email)
-            onboardingAckCheckbox.isChecked = persisted.fccAcknowledged
-            "Onboarding submit=SUCCESS\n" +
-                "name=${persisted.name}\n" +
-                "phone=${persisted.phone}\n" +
-                "email=${persisted.email}\n" +
-                "ack=${persisted.fccAcknowledged}\n" +
-                "onboardingComplete=${persisted.onboardingComplete}\n" +
-                "persisted=true"
-        } else {
-            "Onboarding submit=FAILURE\nerrors=$errorSummary"
+        onboardingPhoneInput.addTextChangedListener(
+            object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                override fun afterTextChanged(s: Editable?) {
+                    if (onboardingUiRenderInProgress) return
+                    applyOnboardingUiState(onboardingViewModel.onPhoneChanged(s?.toString().orEmpty()))
+                }
+            },
+        )
+        onboardingEmailInput.addTextChangedListener(
+            object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                override fun afterTextChanged(s: Editable?) {
+                    if (onboardingUiRenderInProgress) return
+                    applyOnboardingUiState(onboardingViewModel.onEmailChanged(s?.toString().orEmpty()))
+                }
+            },
+        )
+        onboardingAckCheckbox.setOnCheckedChangeListener { _, checked ->
+            if (onboardingUiRenderInProgress) return@setOnCheckedChangeListener
+            applyOnboardingUiState(onboardingViewModel.onAcknowledgementChanged(checked))
         }
     }
 
-    private fun loadPersistedOnboardingProfile() {
-        val persisted = onboardingPersistenceUseCase.loadProfile() ?: return
-        onboardingNameInput.setText(persisted.name)
-        onboardingPhoneInput.setText(persisted.phone)
-        onboardingEmailInput.setText(persisted.email)
-        onboardingAckCheckbox.isChecked = persisted.fccAcknowledged
+    private fun syncOnboardingVmWithCurrentInputs() {
+        onboardingViewModel.onNameChanged(onboardingNameInput.text?.toString().orEmpty())
+        onboardingViewModel.onPhoneChanged(onboardingPhoneInput.text?.toString().orEmpty())
+        onboardingViewModel.onEmailChanged(onboardingEmailInput.text?.toString().orEmpty())
+        onboardingViewModel.onAcknowledgementChanged(onboardingAckCheckbox.isChecked)
+    }
+
+    private fun applyOnboardingUiState(state: OnboardingProfileUiState) {
+        onboardingUiRenderInProgress = true
+        try {
+            if (onboardingNameInput.text?.toString() != state.name) {
+                onboardingNameInput.setText(state.name)
+                onboardingNameInput.setSelection(onboardingNameInput.text.length)
+            }
+            if (onboardingPhoneInput.text?.toString() != state.phone) {
+                onboardingPhoneInput.setText(state.phone)
+                onboardingPhoneInput.setSelection(onboardingPhoneInput.text.length)
+            }
+            if (onboardingEmailInput.text?.toString() != state.email) {
+                onboardingEmailInput.setText(state.email)
+                onboardingEmailInput.setSelection(onboardingEmailInput.text.length)
+            }
+            if (onboardingAckCheckbox.isChecked != state.fccAcknowledged) {
+                onboardingAckCheckbox.isChecked = state.fccAcknowledged
+            }
+            if (uiMode == UiMode.ONBOARDING_FLOW) {
+                statusText.text = state.feedbackMessage
+                statusText.setTextColor(
+                    if (state.feedbackIsError) Color.parseColor("#A82329") else Color.parseColor("#003618"),
+                )
+            } else {
+                statusText.setTextColor(Color.parseColor("#003618"))
+            }
+        } finally {
+            onboardingUiRenderInProgress = false
+        }
     }
 
     private fun runSeedAndMapSync() {
@@ -602,6 +666,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun runPhase3Sequence() {
+        val story2Preflight = measurementStartPreflightViewModel.evaluate(
+            collectionMode = edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE,
+            hasRuntimeProfile = true,
+            hasLocationPermission = hasHarnessLocationPermissions(),
+            networkPath = MeasurementNetworkPath.UNKNOWN,
+        )
+        if (!story2Preflight.allowed) {
+            val envelope = smokeEnvelopeBuilder.failure(
+                scenario = "measurement-start-preflight",
+                errorMessage = "reason=${story2Preflight.reasonCode}",
+            )
+            statusText.text = smokeFormatter.format(envelope)
+            return
+        }
+
         val preflightError = phase3PreflightError()
         if (preflightError != null) {
             val envelope = smokeEnvelopeBuilder.failure(
@@ -734,6 +813,15 @@ class MainActivity : AppCompatActivity() {
         }
         previousDefaultUncaughtExceptionHandler = currentDefault
         Thread.setDefaultUncaughtExceptionHandler(harnessUncaughtExceptionHandler)
+    }
+
+    private fun hasHarnessLocationPermissions(): Boolean {
+        return listOf(
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ).all { permission ->
+            ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+        }
     }
 
     private fun restoreDefaultUncaughtExceptionHandler() {
