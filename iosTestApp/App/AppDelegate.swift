@@ -1,4 +1,5 @@
 import UIKit
+import SwiftUI
 import sharedKit
 
 enum RuntimeConfigSource {
@@ -11,6 +12,9 @@ enum RuntimeConfigSource {
         let env = ProcessInfo.processInfo.environment
         if let envValue = env[key], !envValue.isEmpty {
             return envValue
+        }
+        if let launchValue = launchArgumentValue(key) {
+            return launchValue
         }
         return property(key)
     }
@@ -83,6 +87,39 @@ enum RuntimeConfigSource {
         return nil
     }
 
+    private static func launchArgumentValue(_ key: String) -> String? {
+        let args = ProcessInfo.processInfo.arguments.dropFirst()
+        for raw in args {
+            let compact = raw.replacingOccurrences(of: " ", with: "")
+            if compact.hasPrefix("\(key)=") {
+                let value = String(compact.dropFirst(key.count + 1))
+                if !value.isEmpty {
+                    return value
+                }
+            }
+        }
+
+        let tokens = args.map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        }
+        for i in tokens.indices {
+            if tokens[i] == key, i + 2 < tokens.count, tokens[i + 1] == "=" {
+                let value = tokens[i + 2]
+                if !value.isEmpty {
+                    return value
+                }
+            }
+            if tokens[i] == key, i + 1 < tokens.count, tokens[i + 1] != "=" {
+                let value = tokens[i + 1]
+                if !value.isEmpty {
+                    return value
+                }
+            }
+        }
+        return nil
+    }
+
     private static func normalizeIosLoopback(_ raw: String?) -> String? {
         guard let raw else { return nil }
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -98,22 +135,96 @@ enum RuntimeConfigSource {
 
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
-    var window: UIWindow?
+    static func shouldClearOnboardingAtLaunch() -> Bool {
+        RuntimeConfigSource.bool("CELLWATCH_CLEAR_ONBOARDING", default: false)
+    }
+
+    static func resolveDisplayMode() -> HarnessViewController.DisplayMode {
+        if RuntimeConfigSource.value("CELLWATCH_UI_MODE")?.lowercased() == "full-harness" {
+            return .fullHarness
+        }
+        return .onboardingFlow
+    }
 
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        let window = UIWindow(frame: UIScreen.main.bounds)
-        let controller = HarnessViewController()
-        window.rootViewController = controller
-        window.makeKeyAndVisible()
-        self.window = window
+        if Self.shouldClearOnboardingAtLaunch() {
+            OnboardingUserDefaultsStore().clearProfile()
+        }
         return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        configurationForConnecting connectingSceneSession: UISceneSession,
+        options: UIScene.ConnectionOptions
+    ) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
+        configuration.delegateClass = SceneDelegate.self
+        return configuration
     }
 }
 
-final class HarnessViewController: UIViewController {
+final class OnboardingUserDefaultsStore: NSObject, OnboardingProfileStore {
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        super.init()
+    }
+
+    func loadProfile() -> OnboardingProfile? {
+        guard defaults.object(forKey: Keys.name) != nil else {
+            return nil
+        }
+        let modeRaw = defaults.string(forKey: Keys.collectionMode) ?? "TESTING"
+        let collectionMode = modeRaw == "FCC_CHALLENGE" ? CollectionMode.fccChallenge : CollectionMode.testing
+        return OnboardingProfile(
+            collectionMode: collectionMode,
+            name: defaults.string(forKey: Keys.name) ?? "",
+            phone: defaults.string(forKey: Keys.phone) ?? "",
+            email: defaults.string(forKey: Keys.email) ?? "",
+            fccAcknowledged: defaults.bool(forKey: Keys.ack),
+            onboardingComplete: defaults.bool(forKey: Keys.complete)
+        )
+    }
+
+    func saveProfile(profile: OnboardingProfile) {
+        defaults.set(profile.collectionMode == .fccChallenge ? "FCC_CHALLENGE" : "TESTING", forKey: Keys.collectionMode)
+        defaults.set(profile.name, forKey: Keys.name)
+        defaults.set(profile.phone, forKey: Keys.phone)
+        defaults.set(profile.email, forKey: Keys.email)
+        defaults.set(profile.fccAcknowledged, forKey: Keys.ack)
+        defaults.set(profile.onboardingComplete, forKey: Keys.complete)
+    }
+
+    func clearProfile() {
+        [Keys.collectionMode, Keys.name, Keys.phone, Keys.email, Keys.ack, Keys.complete]
+            .forEach { defaults.removeObject(forKey: $0) }
+    }
+
+    private enum Keys {
+        static let collectionMode = "cellwatch.onboarding.collection_mode"
+        static let name = "cellwatch.onboarding.name"
+        static let phone = "cellwatch.onboarding.phone"
+        static let email = "cellwatch.onboarding.email"
+        static let ack = "cellwatch.onboarding.ack"
+        static let complete = "cellwatch.onboarding.complete"
+    }
+}
+
+final class HarnessViewController: UIViewController, UITextFieldDelegate {
+    enum DisplayMode {
+        case fullHarness
+        case onboardingFlow
+    }
+
+    enum OnboardingUiImplementation {
+        case swiftui
+        case uikit
+    }
     static let mapStartSharedSliceButtonIdentifier = "harness.mapStartSharedSliceButton"
     static let statusLabelIdentifier = "harness.statusLabel"
     static let outputTextViewIdentifier = "harness.outputTextView"
@@ -124,6 +235,9 @@ final class HarnessViewController: UIViewController {
     static let onboardingEmailFieldIdentifier = "harness.onboarding.email"
     static let onboardingAckSwitchIdentifier = "harness.onboarding.ack"
     static let onboardingSubmitButtonIdentifier = "harness.onboarding.submit"
+    static let onboardingFeedbackLabelIdentifier = "harness.onboarding.feedback"
+    static let onboardingRootContainerIdentifier = "harness.onboarding.container"
+    static let onboardingCardIdentifier = "harness.onboarding.card"
 
     private let statusLabel = UILabel()
     private let outputTextView = UITextView()
@@ -131,6 +245,7 @@ final class HarnessViewController: UIViewController {
     private let smokeFormatter = SyncSmokeResultFormatter()
     private let runtimeModeBridge = RuntimeModeUiBridge()
     private let onboardingValidationUseCase = OnboardingValidationUseCase()
+    private let onboardingPersistenceUseCase = OnboardingPersistenceUseCase(store: OnboardingUserDefaultsStore())
     private var lastGroupId: String?
     private let msakModeButton = UIButton(type: .system)
     private let supabaseModeButton = UIButton(type: .system)
@@ -145,6 +260,28 @@ final class HarnessViewController: UIViewController {
     private let onboardingPhoneField = UITextField()
     private let onboardingEmailField = UITextField()
     private let onboardingAckSwitch = UISwitch()
+    private let onboardingFeedbackLabel = UILabel()
+    private let onboardingSubmitButton = UIButton(type: .system)
+    private var onboardingTopConstraint: NSLayoutConstraint?
+    private var onboardingKeyboardObservers: [NSObjectProtocol] = []
+    private var onboardingKeyboardHeight: CGFloat = 0
+    private let displayMode: DisplayMode
+    private let onboardingUiImplementation: OnboardingUiImplementation
+
+    init(
+        displayMode: DisplayMode = .fullHarness,
+        onboardingUiImplementation: OnboardingUiImplementation = .swiftui
+    ) {
+        self.displayMode = displayMode
+        self.onboardingUiImplementation = onboardingUiImplementation
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        self.displayMode = .fullHarness
+        self.onboardingUiImplementation = .swiftui
+        super.init(coder: coder)
+    }
 
     private func setStatus(_ text: String) {
         let timestamp = timestampFormatter.string(from: Date())
@@ -177,9 +314,25 @@ final class HarnessViewController: UIViewController {
         configureSyncDiagnostics()
         view.backgroundColor = .systemGroupedBackground
         buildUi()
+        loadPersistedOnboardingProfile()
+        applyOnboardingUiPrefillFromEnvironment()
+    }
+
+    deinit {
+        onboardingKeyboardObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        onboardingKeyboardObservers.removeAll()
     }
 
     private func buildUi() {
+        if displayMode == .onboardingFlow {
+            if onboardingUiImplementation == .uikit {
+                buildOnboardingFlowUi()
+                return
+            }
+            buildOnboardingFlowSwiftUi()
+            return
+        }
+
         let title = UILabel()
         title.text = "iOS Test App Harness"
         title.font = UIFont.preferredFont(forTextStyle: .title2)
@@ -272,13 +425,13 @@ final class HarnessViewController: UIViewController {
             placeholder: "Phone (###-###-####)",
             identifier: Self.onboardingPhoneFieldIdentifier
         )
-        onboardingPhoneField.keyboardType = .phonePad
         configureOnboardingField(
             onboardingEmailField,
             placeholder: "Email",
             identifier: Self.onboardingEmailFieldIdentifier
         )
-        onboardingEmailField.keyboardType = .emailAddress
+        onboardingEmailField.returnKeyType = .done
+        onboardingEmailField.addTarget(self, action: #selector(submitOnboardingFromReturnKey), for: .editingDidEndOnExit)
 
         onboardingAckSwitch.accessibilityIdentifier = Self.onboardingAckSwitchIdentifier
         let ackRow = UIStackView(arrangedSubviews: [UILabel(), onboardingAckSwitch])
@@ -351,6 +504,251 @@ final class HarnessViewController: UIViewController {
         ])
         applyRuntimeModeChange()
         setStatus("Ready. Remote target is blocked unless explicitly enabled.")
+    }
+
+    private func buildOnboardingFlowUi() {
+        overrideUserInterfaceStyle = .light
+        view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
+
+        let title = UILabel()
+        title.text = "Complete Your Profile"
+        title.font = UIFont.preferredFont(forTextStyle: .title2)
+        title.textColor = .label
+        title.translatesAutoresizingMaskIntoConstraints = false
+
+        let subtitle = UILabel()
+        subtitle.text = "Tell us who you are before starting measurements."
+        subtitle.font = UIFont.preferredFont(forTextStyle: .body)
+        subtitle.textColor = .secondaryLabel
+        subtitle.numberOfLines = 0
+        subtitle.translatesAutoresizingMaskIntoConstraints = false
+
+        configureOnboardingField(
+            onboardingNameField,
+            placeholder: "Full name",
+            identifier: Self.onboardingNameFieldIdentifier
+        )
+        configureOnboardingField(
+            onboardingPhoneField,
+            placeholder: "Phone (###-###-####)",
+            identifier: Self.onboardingPhoneFieldIdentifier
+        )
+        onboardingPhoneField.keyboardType = .phonePad
+        configureOnboardingField(
+            onboardingEmailField,
+            placeholder: "Email",
+            identifier: Self.onboardingEmailFieldIdentifier
+        )
+        onboardingEmailField.keyboardType = .emailAddress
+        onboardingNameField.addTarget(self, action: #selector(onboardingFieldChanged(_:)), for: .editingChanged)
+        onboardingPhoneField.addTarget(self, action: #selector(onboardingFieldChanged(_:)), for: .editingChanged)
+        onboardingEmailField.addTarget(self, action: #selector(onboardingFieldChanged(_:)), for: .editingChanged)
+
+        onboardingAckSwitch.accessibilityIdentifier = Self.onboardingAckSwitchIdentifier
+        onboardingAckSwitch.translatesAutoresizingMaskIntoConstraints = false
+        onboardingAckSwitch.addTarget(self, action: #selector(onboardingAckChanged), for: .valueChanged)
+        let ackLabel = UILabel()
+        ackLabel.text = "I acknowledge FCC challenge sharing terms."
+        ackLabel.numberOfLines = 0
+        ackLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        ackLabel.textColor = .secondaryLabel
+        ackLabel.translatesAutoresizingMaskIntoConstraints = false
+        ackLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+        NSLayoutConstraint.activate([
+            onboardingAckSwitch.widthAnchor.constraint(equalToConstant: 51),
+            onboardingAckSwitch.heightAnchor.constraint(equalToConstant: 31),
+        ])
+        let ackRow = UIStackView(arrangedSubviews: [ackLabel, onboardingAckSwitch])
+        ackRow.axis = .horizontal
+        ackRow.alignment = .center
+        ackRow.spacing = 12
+        ackRow.translatesAutoresizingMaskIntoConstraints = false
+
+        onboardingSubmitButton.setTitle("Save Profile", for: .normal)
+        onboardingSubmitButton.accessibilityIdentifier = Self.onboardingSubmitButtonIdentifier
+        applyButtonStyle(onboardingSubmitButton, role: .primary)
+        applyOnboardingActionButtonStyle(onboardingSubmitButton)
+        onboardingSubmitButton.addTarget(self, action: #selector(submitOnboarding), for: .touchUpInside)
+        onboardingSubmitButton.translatesAutoresizingMaskIntoConstraints = false
+        onboardingSubmitButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 50).isActive = true
+
+        onboardingFeedbackLabel.text = "Complete the form and save your profile."
+        onboardingFeedbackLabel.numberOfLines = 0
+        onboardingFeedbackLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
+        onboardingFeedbackLabel.textColor = UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
+        onboardingFeedbackLabel.translatesAutoresizingMaskIntoConstraints = false
+        onboardingFeedbackLabel.accessibilityIdentifier = Self.onboardingFeedbackLabelIdentifier
+
+        let card = UIView()
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.backgroundColor = .secondarySystemGroupedBackground
+        card.layer.cornerRadius = 14
+        card.accessibilityIdentifier = Self.onboardingCardIdentifier
+        card.setContentHuggingPriority(.required, for: .vertical)
+        card.setContentCompressionResistancePriority(.required, for: .vertical)
+        card.heightAnchor.constraint(greaterThanOrEqualToConstant: 400).isActive = true
+
+        let cardStack = UIStackView(arrangedSubviews: [
+            onboardingNameField,
+            onboardingPhoneField,
+            onboardingEmailField,
+            ackRow,
+            onboardingSubmitButton,
+            onboardingFeedbackLabel
+        ])
+        cardStack.axis = .vertical
+        cardStack.spacing = 9
+        cardStack.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(cardStack)
+
+        statusLabel.text = "Complete the form and save your profile."
+        statusLabel.numberOfLines = 0
+        statusLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        statusLabel.accessibilityIdentifier = Self.statusLabelIdentifier
+        statusLabel.isHidden = true
+        statusLabel.alpha = 0.01
+
+        let stack = UIStackView(arrangedSubviews: [title, subtitle, card, statusLabel])
+        stack.axis = .vertical
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.accessibilityIdentifier = Self.onboardingRootContainerIdentifier
+
+        view.addSubview(stack)
+        let topConstraint = stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8)
+        onboardingTopConstraint = topConstraint
+        NSLayoutConstraint.activate([
+            topConstraint,
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+
+            cardStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 10),
+            cardStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+            cardStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            cardStack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -10),
+            card.widthAnchor.constraint(lessThanOrEqualToConstant: 680),
+            card.centerXAnchor.constraint(equalTo: stack.centerXAnchor)
+        ])
+        installOnboardingKeyboardAvoidance()
+        installOnboardingKeyboardDismissGesture()
+        setStatus("Ready. Enter onboarding profile details.")
+    }
+
+    private func buildOnboardingFlowSwiftUi() {
+        view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
+        let persisted = onboardingPersistenceUseCase.loadProfile()
+        let model = OnboardingFlowSwiftUiModel(
+            name: persisted?.name ?? "",
+            phone: persisted?.phone ?? "",
+            email: persisted?.email ?? "",
+            ack: persisted?.fccAcknowledged ?? false
+        )
+        model.feedback = "Complete the form and save your profile."
+        model.feedbackIsError = false
+
+        let root = OnboardingFlowSwiftUiView(
+            model: model,
+            onSubmit: { [weak self] name, phone, email, ack in
+                guard let self else {
+                    return (false, "Controller unavailable.")
+                }
+                let profile = OnboardingProfile(
+                    collectionMode: .testing,
+                    name: name,
+                    phone: phone,
+                    email: email,
+                    fccAcknowledged: ack,
+                    onboardingComplete: false
+                )
+                let result = self.onboardingValidationUseCase.validate(profile: profile)
+                if result.valid {
+                    let persisted = self.onboardingPersistenceUseCase.saveValidated(result: result)
+                    let status = "Onboarding submit=SUCCESS\n" +
+                        "name=\(persisted.name)\n" +
+                        "phone=\(persisted.phone)\n" +
+                        "email=\(persisted.email)\n" +
+                        "ack=\(persisted.fccAcknowledged)\n" +
+                        "onboardingComplete=\(persisted.onboardingComplete)\n" +
+                        "persisted=true"
+                    self.setStatus(status)
+                    return (true, "Profile saved.")
+                }
+                let errors = result.fieldErrors.map { key, value in
+                    "\(key):\(value)"
+                }.joined(separator: "; ")
+                self.setStatus("Onboarding submit=FAILURE\nerrors=\(errors)")
+                return (false, "Fix validation errors and try again.")
+            }
+        )
+
+        let host = UIHostingController(rootView: root)
+        host.view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
+        host.overrideUserInterfaceStyle = .light
+        addChild(host)
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(host.view)
+        NSLayoutConstraint.activate([
+            host.view.topAnchor.constraint(equalTo: view.topAnchor),
+            host.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            host.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        host.didMove(toParent: self)
+        setStatus("Ready. Enter onboarding profile details.")
+    }
+
+    private func installOnboardingKeyboardAvoidance() {
+        guard displayMode == .onboardingFlow else { return }
+        guard onboardingKeyboardObservers.isEmpty else { return }
+        let center = NotificationCenter.default
+        let willShow = center.addObserver(
+            forName: UIResponder.keyboardWillShowNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            self?.handleKeyboard(note: note, showing: true)
+        }
+        let willHide = center.addObserver(
+            forName: UIResponder.keyboardWillHideNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            self?.handleKeyboard(note: note, showing: false)
+        }
+        onboardingKeyboardObservers = [willShow, willHide]
+    }
+
+    private func handleKeyboard(note: Notification, showing: Bool) {
+        guard let topConstraint = onboardingTopConstraint else { return }
+        let userInfo = note.userInfo
+        let duration = (userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.2
+        let curveRaw = (userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt) ?? 0
+        let options = UIView.AnimationOptions(rawValue: curveRaw << 16)
+        if showing,
+           let value = userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue {
+            let keyboardFrame = value.cgRectValue
+            let converted = view.convert(keyboardFrame, from: nil)
+            onboardingKeyboardHeight = max(0, view.bounds.maxY - converted.minY)
+        } else {
+            onboardingKeyboardHeight = 0
+        }
+        topConstraint.constant = 8 - min(120, onboardingKeyboardHeight * 0.35)
+        UIView.animate(withDuration: duration, delay: 0, options: options) {
+            self.view.layoutIfNeeded()
+        }
+    }
+
+    private func installOnboardingKeyboardDismissGesture() {
+        guard displayMode == .onboardingFlow else { return }
+        let gesture = UITapGestureRecognizer(target: self, action: #selector(dismissOnboardingKeyboard))
+        gesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(gesture)
+    }
+
+    @objc private func dismissOnboardingKeyboard() {
+        view.endEditing(true)
     }
 
     private func scrollOutputToTop() {
@@ -696,20 +1094,80 @@ final class HarnessViewController: UIViewController {
         )
         let result = onboardingValidationUseCase.validate(profile: profile)
         if result.valid {
+            let persisted = onboardingPersistenceUseCase.saveValidated(result: result)
+            onboardingNameField.text = persisted.name
+            onboardingPhoneField.text = persisted.phone
+            onboardingEmailField.text = persisted.email
+            onboardingAckSwitch.isOn = persisted.fccAcknowledged
+            onboardingFeedbackLabel.text = "Profile saved."
+            onboardingFeedbackLabel.textColor = UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
             setStatus(
                 "Onboarding submit=SUCCESS\n" +
-                "name=\(result.normalizedProfile.name)\n" +
-                "phone=\(result.normalizedProfile.phone)\n" +
-                "email=\(result.normalizedProfile.email)\n" +
-                "ack=\(result.normalizedProfile.fccAcknowledged)\n" +
-                "onboardingComplete=\(result.normalizedProfile.onboardingComplete)"
+                "name=\(persisted.name)\n" +
+                "phone=\(persisted.phone)\n" +
+                "email=\(persisted.email)\n" +
+                "ack=\(persisted.fccAcknowledged)\n" +
+                "onboardingComplete=\(persisted.onboardingComplete)\n" +
+                "persisted=true"
             )
         } else {
             let errors = result.fieldErrors.map { key, value in
                 "\(key):\(value)"
             }.joined(separator: "; ")
+            onboardingFeedbackLabel.text = "Fix validation errors and try again."
+            onboardingFeedbackLabel.textColor = UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
             setStatus("Onboarding submit=FAILURE\nerrors=\(errors)")
         }
+    }
+
+    @objc private func submitOnboardingFromReturnKey() {
+        submitOnboarding()
+    }
+
+    @objc private func onboardingFieldChanged(_ sender: UITextField) {
+        if sender === onboardingPhoneField {
+            let digits = (sender.text ?? "").filter { $0.isNumber }
+            sender.text = formatPhoneDisplay(digits: digits)
+        }
+        updateOnboardingInlineFeedback()
+    }
+
+    @objc private func onboardingAckChanged() {
+        updateOnboardingInlineFeedback()
+    }
+
+    private func loadPersistedOnboardingProfile() {
+        guard let persisted = onboardingPersistenceUseCase.loadProfile() else { return }
+        onboardingNameField.text = persisted.name
+        onboardingPhoneField.text = persisted.phone
+        onboardingEmailField.text = persisted.email
+        onboardingAckSwitch.isOn = persisted.fccAcknowledged
+        onboardingFeedbackLabel.text = "Saved profile loaded. You can edit and save again."
+    }
+
+    private func applyOnboardingUiPrefillFromEnvironment() {
+        guard displayMode == .onboardingFlow else { return }
+        let env = ProcessInfo.processInfo.environment
+        if let name = env["CELLWATCH_UI_PREFILL_NAME"] {
+            onboardingNameField.text = name
+        }
+        if let phone = env["CELLWATCH_UI_PREFILL_PHONE"] {
+            onboardingPhoneField.text = phone
+        }
+        if let email = env["CELLWATCH_UI_PREFILL_EMAIL"] {
+            onboardingEmailField.text = email
+        }
+        if let ackRaw = env["CELLWATCH_UI_PREFILL_ACK"] {
+            onboardingAckSwitch.isOn = (ackRaw == "1" || ackRaw.lowercased() == "true")
+        }
+        if env["CELLWATCH_UI_AUTOSUBMIT"] == "1" {
+            submitOnboarding()
+        }
+        updateOnboardingInlineFeedback()
+    }
+
+    static func clearPersistedOnboardingForTests() {
+        OnboardingUserDefaultsStore().clearProfile()
     }
 
     private func sectionLabel(_ text: String) -> UILabel {
@@ -751,13 +1209,265 @@ final class HarnessViewController: UIViewController {
         button.configuration = configuration
     }
 
+    private func applyOnboardingActionButtonStyle(_ button: UIButton) {
+        guard var configuration = button.configuration else { return }
+        configuration.titleAlignment = .center
+        configuration.buttonSize = .large
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20)
+        button.configuration = configuration
+        button.titleLabel?.adjustsFontSizeToFitWidth = false
+    }
+
     private func configureOnboardingField(_ field: UITextField, placeholder: String, identifier: String) {
         field.placeholder = placeholder
         field.borderStyle = .roundedRect
         field.clearButtonMode = .whileEditing
-        field.autocapitalizationType = .none
+        field.autocapitalizationType = (identifier == Self.onboardingNameFieldIdentifier) ? .words : .none
         field.translatesAutoresizingMaskIntoConstraints = false
         field.accessibilityIdentifier = identifier
+        field.delegate = self
+        field.inputAccessoryView = makeOnboardingInputAccessory()
+    }
+
+    private func makeOnboardingInputAccessory() -> UIToolbar {
+        let toolbar = UIToolbar()
+        toolbar.sizeToFit()
+        let spacer = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let done = UIBarButtonItem(
+            barButtonSystemItem: .done,
+            target: self,
+            action: #selector(dismissOnboardingKeyboard)
+        )
+        toolbar.items = [spacer, done]
+        return toolbar
+    }
+
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        if textField === onboardingNameField {
+            onboardingPhoneField.becomeFirstResponder()
+            return false
+        }
+        if textField === onboardingPhoneField {
+            onboardingEmailField.becomeFirstResponder()
+            return false
+        }
+        if textField === onboardingEmailField {
+            dismissOnboardingKeyboard()
+            submitOnboarding()
+            return false
+        }
+        dismissOnboardingKeyboard()
+        return true
+    }
+
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        guard displayMode == .onboardingFlow else { return }
+        guard let text = textField.text, !text.isEmpty else { return }
+        DispatchQueue.main.async {
+            textField.selectedTextRange = textField.textRange(
+                from: textField.beginningOfDocument,
+                to: textField.endOfDocument
+            )
+        }
+    }
+
+    private func updateOnboardingInlineFeedback() {
+        let name = (onboardingNameField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let phoneDigits = (onboardingPhoneField.text ?? "").filter { $0.isNumber }
+        let email = (onboardingEmailField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !phoneDigits.isEmpty && phoneDigits.count < 10 {
+            onboardingFeedbackLabel.text = "Phone should be 10 digits."
+            onboardingFeedbackLabel.textColor = UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
+            return
+        }
+        if !email.isEmpty && !email.contains("@") {
+            onboardingFeedbackLabel.text = "Email appears incomplete."
+            onboardingFeedbackLabel.textColor = UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
+            return
+        }
+        if name.isEmpty || phoneDigits.isEmpty || email.isEmpty {
+            onboardingFeedbackLabel.text = "Complete the form and save your profile."
+            onboardingFeedbackLabel.textColor = UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
+            return
+        }
+        if !onboardingAckSwitch.isOn {
+            onboardingFeedbackLabel.text = "Please acknowledge FCC challenge sharing terms."
+            onboardingFeedbackLabel.textColor = UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
+            return
+        }
+        onboardingFeedbackLabel.text = "Looks good. Tap Save Profile."
+        onboardingFeedbackLabel.textColor = UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
+    }
+
+    private func formatPhoneDisplay(digits: String) -> String {
+        let limited = String(digits.prefix(10))
+        if limited.count <= 3 {
+            return limited
+        }
+        if limited.count <= 6 {
+            let a = limited.prefix(3)
+            let b = limited.dropFirst(3)
+            return "\(a)-\(b)"
+        }
+        let a = limited.prefix(3)
+        let b = limited.dropFirst(3).prefix(3)
+        let c = limited.dropFirst(6)
+        return "\(a)-\(b)-\(c)"
+    }
+}
+
+final class OnboardingFlowSwiftUiModel: ObservableObject {
+    @Published var name: String
+    @Published var phone: String
+    @Published var email: String
+    @Published var ack: Bool
+    @Published var feedback: String = ""
+    @Published var feedbackIsError: Bool = false
+
+    init(name: String, phone: String, email: String, ack: Bool) {
+        self.name = name
+        self.phone = phone
+        self.email = email
+        self.ack = ack
+    }
+}
+
+struct OnboardingFlowSwiftUiView: View {
+    @ObservedObject var model: OnboardingFlowSwiftUiModel
+    let onSubmit: (_ name: String, _ phone: String, _ email: String, _ ack: Bool) -> (Bool, String)
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .top) {
+                Color(red: 0.94, green: 0.94, blue: 0.97)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Complete Your Profile")
+                            .font(.system(size: 32, weight: .semibold))
+                            .foregroundStyle(Color.black)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text("Tell us who you are before starting measurements.")
+                            .font(.system(size: 18))
+                            .foregroundStyle(Color(white: 0.35))
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        TextField("Full name", text: $model.name)
+                            .textInputAutocapitalization(.words)
+                            .accessibilityIdentifier("harness.onboarding.name")
+                            .textFieldStyle(.roundedBorder)
+
+                        TextField("Phone (###-###-####)", text: $model.phone)
+                            .keyboardType(.numberPad)
+                            .accessibilityIdentifier("harness.onboarding.phone")
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: model.phone) { _, value in
+                                model.phone = formatPhoneDisplay(raw: value)
+                                updateFeedback()
+                            }
+
+                        TextField("Email", text: $model.email)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.emailAddress)
+                            .accessibilityIdentifier("harness.onboarding.email")
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: model.email) { _, _ in updateFeedback() }
+
+                        HStack(alignment: .center, spacing: 12) {
+                            Text("I acknowledge FCC challenge sharing terms.")
+                                .font(.system(size: 17))
+                                .foregroundStyle(Color(white: 0.35))
+                            Spacer(minLength: 8)
+                            Toggle("", isOn: $model.ack)
+                                .labelsHidden()
+                                .accessibilityIdentifier("harness.onboarding.ack")
+                                .onChange(of: model.ack) { _, _ in updateFeedback() }
+                        }
+
+                        Button("Save Profile") {
+                            let result = onSubmit(model.name, model.phone, model.email, model.ack)
+                            model.feedback = result.1
+                            model.feedbackIsError = !result.0
+                            if result.0 {
+                                model.phone = formatPhoneDisplay(raw: model.phone)
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .font(.system(size: 20, weight: .semibold))
+                        .frame(maxWidth: .infinity, minHeight: 58)
+                        .accessibilityIdentifier("harness.onboarding.submit")
+
+                        Text(model.feedback)
+                            .font(.system(size: 18))
+                            .foregroundStyle(model.feedbackIsError ? Color.red : Color(red: 0.18, green: 0.45, blue: 0.22))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityIdentifier("harness.onboarding.feedback")
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .background(Color(white: 0.98))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14)
+                .padding(.top, 8)
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
+            }
+        }
+        .preferredColorScheme(.light)
+        .onAppear { updateFeedback() }
+    }
+
+    private func updateFeedback() {
+        let trimmedName = model.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedEmail = model.email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digits = model.phone.filter(\.isNumber)
+        if !digits.isEmpty && digits.count < 10 {
+            model.feedback = "Phone should be 10 digits."
+            model.feedbackIsError = true
+            return
+        }
+        if !trimmedEmail.isEmpty && !trimmedEmail.contains("@") {
+            model.feedback = "Email appears incomplete."
+            model.feedbackIsError = true
+            return
+        }
+        if trimmedName.isEmpty || digits.isEmpty || trimmedEmail.isEmpty {
+            model.feedback = "Complete the form and save your profile."
+            model.feedbackIsError = false
+            return
+        }
+        if !model.ack {
+            model.feedback = "Please acknowledge FCC challenge sharing terms."
+            model.feedbackIsError = true
+            return
+        }
+        model.feedback = "Looks good. Tap Save Profile."
+        model.feedbackIsError = false
+    }
+
+    private func formatPhoneDisplay(raw: String) -> String {
+        let digits = raw.filter(\.isNumber)
+        let limited = String(digits.prefix(10))
+        if limited.count <= 3 {
+            return limited
+        }
+        if limited.count <= 6 {
+            let a = limited.prefix(3)
+            let b = limited.dropFirst(3)
+            return "\(a)-\(b)"
+        }
+        let a = limited.prefix(3)
+        let b = limited.dropFirst(3).prefix(3)
+        let c = limited.dropFirst(6)
+        return "\(a)-\(b)-\(c)"
     }
 }
 
