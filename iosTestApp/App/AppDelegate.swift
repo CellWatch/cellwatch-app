@@ -259,6 +259,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let measurementStartPreflightViewModel = MeasurementStartPreflightViewModel(
         useCase: MeasurementPreflightUseCase()
     )
+    private let measurementStartUiPresenter = MeasurementStartPreflightUiPresenter()
     private lazy var onboardingViewModel = OnboardingProfileViewModel(
         validationUseCase: onboardingValidationUseCase,
         persistenceUseCase: onboardingPersistenceUseCase
@@ -1221,27 +1222,16 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         result: MeasurementPreflightResult,
         networkPath: MeasurementNetworkPath
     ) {
-        if result.allowed {
-            measurementPreflightOutputLabel.text = "Preflight passed. You can start measuring."
-        } else if result.reasonCode == .missingRuntimeProfile {
-            measurementPreflightOutputLabel.text = "Complete profile setup before starting measurement."
-        } else if result.reasonCode == .missingLocationPermission {
-            measurementPreflightOutputLabel.text = "Location permission is required before starting measurement."
-        } else if result.reasonCode == .challengeNonCellularConfirmRequired {
-            measurementPreflightOutputLabel.text = "Wi-Fi detected. Choose Measure anyway or Cancel."
-        } else {
-            measurementPreflightOutputLabel.text = "Preflight blocked. Review requirements and try again."
-        }
-        measurementPreflightOutputLabel.accessibilityValue =
-            "allowed=\(result.allowed);" +
-            "reason=\(result.reasonCode);" +
-            "networkPath=\(networkPath);" +
-            "requiresUserConfirm=\(result.requiresUserConfirm);" +
-            "warningKey=\(result.warningTextKey ?? "none");" +
-            "inVehicle=\(measurementStartPreflightViewModel.currentState().inVehicle)"
-        measurementPreflightOutputLabel.textColor = result.allowed
-            ? UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
-            : UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
+        let presentation = measurementStartUiPresenter.present(result: result)
+        measurementPreflightOutputLabel.text = presentation.statusMessage
+        measurementPreflightOutputLabel.accessibilityValue = measurementStartUiPresenter.debugSummary(
+            result: result,
+            networkPath: networkPath,
+            inVehicle: measurementStartPreflightViewModel.currentState().inVehicle
+        )
+        measurementPreflightOutputLabel.textColor = presentation.statusIsError
+            ? UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
+            : UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
     }
 
     @objc private func evaluateMeasurementStartPreflightFromUi() {
@@ -1256,9 +1246,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             networkPath: path
         )
         if result.requiresUserConfirm {
+            let presentation = measurementStartUiPresenter.present(result: result)
             let dialog = UIAlertController(
                 title: nil,
-                message: "It looks like you are connected to Wi-Fi or network path is unknown. If you proceed, your measurement may not be submitted to the FCC.",
+                message: presentation.confirmationDialogMessage ?? measurementStartUiPresenter.challengePathConfirmMessage(),
                 preferredStyle: .alert
             )
             dialog.addAction(UIAlertAction(title: "Measure anyway", style: .default) { [weak self] _ in
