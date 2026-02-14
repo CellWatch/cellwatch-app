@@ -1,6 +1,7 @@
 import UIKit
 import SwiftUI
 import CoreLocation
+import Network
 import sharedKit
 
 enum RuntimeConfigSource {
@@ -141,8 +142,12 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     static func resolveDisplayMode() -> HarnessViewController.DisplayMode {
-        if RuntimeConfigSource.value("CELLWATCH_UI_MODE")?.lowercased() == "full-harness" {
+        let mode = RuntimeConfigSource.value("CELLWATCH_UI_MODE")?.lowercased()
+        if mode == "full-harness" {
             return .fullHarness
+        }
+        if mode == "measurement-start-flow" {
+            return .measurementStartFlow
         }
         return .onboardingFlow
     }
@@ -220,6 +225,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     enum DisplayMode {
         case fullHarness
         case onboardingFlow
+        case measurementStartFlow
     }
 
     enum OnboardingUiImplementation {
@@ -239,6 +245,9 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     static let onboardingFeedbackLabelIdentifier = "harness.onboarding.feedback"
     static let onboardingRootContainerIdentifier = "harness.onboarding.container"
     static let onboardingCardIdentifier = "harness.onboarding.card"
+    static let measurementPreflightInVehicleIdentifier = "harness.measurementStart.inVehicle"
+    static let measurementPreflightEvaluateIdentifier = "harness.measurementStart.evaluate"
+    static let measurementPreflightOutputIdentifier = "harness.measurementStart.output"
 
     private let statusLabel = UILabel()
     private let outputTextView = UITextView()
@@ -270,6 +279,9 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let onboardingAckSwitch = UISwitch()
     private let onboardingFeedbackLabel = UILabel()
     private let onboardingSubmitButton = UIButton(type: .system)
+    private let measurementPreflightInVehicleSwitch = UISwitch()
+    private let measurementPreflightOutputLabel = UILabel()
+    private let measurementNetworkPathProbe = IosMeasurementNetworkPathProbe()
     private var onboardingTopConstraint: NSLayoutConstraint?
     private var onboardingKeyboardObservers: [NSObjectProtocol] = []
     private var onboardingKeyboardHeight: CGFloat = 0
@@ -338,6 +350,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                 return
             }
             buildOnboardingFlowSwiftUi()
+            return
+        }
+        if displayMode == .measurementStartFlow {
+            buildMeasurementStartFlowUi()
             return
         }
 
@@ -642,6 +658,90 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         installOnboardingKeyboardAvoidance()
         installOnboardingKeyboardDismissGesture()
         setStatus("Ready. Enter onboarding profile details.")
+    }
+
+    private func buildMeasurementStartFlowUi() {
+        overrideUserInterfaceStyle = .light
+        view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
+
+        let title = UILabel()
+        title.text = "Measurement Start Preflight"
+        title.font = UIFont.preferredFont(forTextStyle: .title2)
+        title.textColor = .label
+
+        let subtitle = UILabel()
+        subtitle.text = "Confirm your setup before starting a measurement."
+        subtitle.font = UIFont.preferredFont(forTextStyle: .body)
+        subtitle.textColor = .secondaryLabel
+        subtitle.numberOfLines = 0
+
+        measurementPreflightInVehicleSwitch.isOn = false
+        measurementPreflightInVehicleSwitch.accessibilityIdentifier = Self.measurementPreflightInVehicleIdentifier
+        let inVehicleLabel = UILabel()
+        inVehicleLabel.text = "In moving vehicle"
+        inVehicleLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        inVehicleLabel.numberOfLines = 0
+        let inVehicleRow = UIStackView(arrangedSubviews: [inVehicleLabel, measurementPreflightInVehicleSwitch])
+        inVehicleRow.axis = .horizontal
+        inVehicleRow.spacing = 12
+        inVehicleRow.alignment = .center
+
+        let evaluateButton = UIButton(type: .system)
+        evaluateButton.setTitle("Go", for: .normal)
+        evaluateButton.accessibilityIdentifier = Self.measurementPreflightEvaluateIdentifier
+        applyButtonStyle(evaluateButton, role: .primary)
+        evaluateButton.addTarget(self, action: #selector(evaluateMeasurementStartPreflightFromUi), for: .touchUpInside)
+
+        measurementPreflightOutputLabel.text = "Tap Go to check readiness."
+        measurementPreflightOutputLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        measurementPreflightOutputLabel.numberOfLines = 0
+        measurementPreflightOutputLabel.accessibilityIdentifier = Self.measurementPreflightOutputIdentifier
+        measurementPreflightOutputLabel.textColor = UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
+        measurementPreflightOutputLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let outputCard = UIView()
+        outputCard.backgroundColor = .white
+        outputCard.layer.cornerRadius = 12
+        outputCard.layer.borderWidth = 1
+        outputCard.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        outputCard.clipsToBounds = true
+        outputCard.translatesAutoresizingMaskIntoConstraints = false
+        outputCard.addSubview(measurementPreflightOutputLabel)
+        NSLayoutConstraint.activate([
+            measurementPreflightOutputLabel.topAnchor.constraint(equalTo: outputCard.topAnchor, constant: 10),
+            measurementPreflightOutputLabel.leadingAnchor.constraint(equalTo: outputCard.leadingAnchor, constant: 10),
+            measurementPreflightOutputLabel.trailingAnchor.constraint(equalTo: outputCard.trailingAnchor, constant: -10),
+            measurementPreflightOutputLabel.bottomAnchor.constraint(equalTo: outputCard.bottomAnchor, constant: -10)
+        ])
+
+        let cardStack = UIStackView(arrangedSubviews: [
+            title,
+            subtitle,
+            inVehicleRow,
+            evaluateButton,
+            outputCard
+        ])
+        cardStack.axis = .vertical
+        cardStack.spacing = 12
+        cardStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let card = UIView()
+        card.backgroundColor = UIColor(white: 0.98, alpha: 1.0)
+        card.layer.cornerRadius = 16
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(cardStack)
+
+        view.addSubview(card)
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            card.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            card.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            card.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            cardStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            cardStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+            cardStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            cardStack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14)
+        ])
     }
 
     private func buildOnboardingFlowSwiftUi() {
@@ -1072,8 +1172,114 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     }
 
     private func hasLocationPermissionForMeasurementStart() -> Bool {
+        if let override = ProcessInfo.processInfo.environment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION"] {
+            return override == "1" || override.lowercased() == "true"
+        }
         let status = CLLocationManager.authorizationStatus()
         return status == .authorizedAlways || status == .authorizedWhenInUse
+    }
+
+    private func hasRuntimeProfileForMeasurementStart() -> Bool {
+        if let override = ProcessInfo.processInfo.environment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_RUNTIME_PROFILE"] {
+            return override == "1" || override.lowercased() == "true"
+        }
+        return true
+    }
+
+    private func resolvedMeasurementStartCollectionMode() -> CollectionMode {
+        let override = ProcessInfo.processInfo.environment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_COLLECTION_MODE"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        switch override {
+        case "testing":
+            return .testing
+        case "fcc", "fcc_challenge":
+            return .fccChallenge
+        default:
+            return .fccChallenge
+        }
+    }
+
+    private func resolvedMeasurementStartNetworkPath() -> MeasurementNetworkPath {
+        let override = ProcessInfo.processInfo.environment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_NETWORK_PATH"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        if let override {
+            switch override {
+            case "cell", "cellular":
+                return .cellular
+            case "wifi":
+                return .wifi
+            default:
+                return .unknown
+            }
+        }
+        return measurementNetworkPathProbe.currentPath()
+    }
+
+    private func renderMeasurementStartPreflightOutput(
+        result: MeasurementPreflightResult,
+        networkPath: MeasurementNetworkPath
+    ) {
+        if result.allowed {
+            measurementPreflightOutputLabel.text = "Preflight passed. You can start measuring."
+        } else if result.reasonCode == .missingRuntimeProfile {
+            measurementPreflightOutputLabel.text = "Complete profile setup before starting measurement."
+        } else if result.reasonCode == .missingLocationPermission {
+            measurementPreflightOutputLabel.text = "Location permission is required before starting measurement."
+        } else if result.reasonCode == .challengeNonCellularConfirmRequired {
+            measurementPreflightOutputLabel.text = "Wi-Fi detected. Choose Measure anyway or Cancel."
+        } else {
+            measurementPreflightOutputLabel.text = "Preflight blocked. Review requirements and try again."
+        }
+        measurementPreflightOutputLabel.accessibilityValue =
+            "allowed=\(result.allowed);" +
+            "reason=\(result.reasonCode);" +
+            "networkPath=\(networkPath);" +
+            "requiresUserConfirm=\(result.requiresUserConfirm);" +
+            "warningKey=\(result.warningTextKey ?? "none");" +
+            "inVehicle=\(measurementStartPreflightViewModel.currentState().inVehicle)"
+        measurementPreflightOutputLabel.textColor = result.allowed
+            ? UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
+            : UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
+    }
+
+    @objc private func evaluateMeasurementStartPreflightFromUi() {
+        measurementStartPreflightViewModel.setInVehicle(value: measurementPreflightInVehicleSwitch.isOn)
+        measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(value: false)
+        let mode = resolvedMeasurementStartCollectionMode()
+        let path = resolvedMeasurementStartNetworkPath()
+        let result = measurementStartPreflightViewModel.evaluate(
+            collectionMode: mode,
+            hasRuntimeProfile: hasRuntimeProfileForMeasurementStart(),
+            hasLocationPermission: hasLocationPermissionForMeasurementStart(),
+            networkPath: path
+        )
+        if result.requiresUserConfirm {
+            let dialog = UIAlertController(
+                title: nil,
+                message: "It looks like you are connected to Wi-Fi or network path is unknown. If you proceed, your measurement may not be submitted to the FCC.",
+                preferredStyle: .alert
+            )
+            dialog.addAction(UIAlertAction(title: "Measure anyway", style: .default) { [weak self] _ in
+                guard let self else { return }
+                self.measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(value: true)
+                let confirmed = self.measurementStartPreflightViewModel.evaluate(
+                    collectionMode: mode,
+                    hasRuntimeProfile: self.hasRuntimeProfileForMeasurementStart(),
+                    hasLocationPermission: self.hasLocationPermissionForMeasurementStart(),
+                    networkPath: path
+                )
+                self.renderMeasurementStartPreflightOutput(result: confirmed, networkPath: path)
+            })
+            dialog.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
+                self?.renderMeasurementStartPreflightOutput(result: result, networkPath: path)
+            })
+            present(dialog, animated: true)
+            renderMeasurementStartPreflightOutput(result: result, networkPath: path)
+            return
+        }
+        renderMeasurementStartPreflightOutput(result: result, networkPath: path)
     }
 
     @objc private func submitOnboarding() {
@@ -1405,6 +1611,41 @@ struct OnboardingFlowSwiftUiView: View {
             }
         }
         .preferredColorScheme(.light)
+    }
+}
+
+final class IosMeasurementNetworkPathProbe {
+    private let monitor = NWPathMonitor()
+    private let queue = DispatchQueue(label: "cellwatch.measurement.path-probe")
+    private let lock = NSLock()
+    private var path: MeasurementNetworkPath = .unknown
+
+    init() {
+        monitor.pathUpdateHandler = { [weak self] nwPath in
+            guard let self else { return }
+            let mapped: MeasurementNetworkPath
+            if nwPath.usesInterfaceType(.cellular) {
+                mapped = .cellular
+            } else if nwPath.usesInterfaceType(.wifi) {
+                mapped = .wifi
+            } else {
+                mapped = .unknown
+            }
+            self.lock.lock()
+            self.path = mapped
+            self.lock.unlock()
+        }
+        monitor.start(queue: queue)
+    }
+
+    func currentPath() -> MeasurementNetworkPath {
+        lock.lock()
+        defer { lock.unlock() }
+        return path
+    }
+
+    deinit {
+        monitor.cancel()
     }
 }
 

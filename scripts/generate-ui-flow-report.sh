@@ -49,6 +49,13 @@ pull_android_flow() {
   fi
 }
 
+reset_android_flow() {
+  local flow="$1"
+  local remote_dir="$ANDROID_REMOTE_BASE_DIR/$flow"
+  "$ADB_BIN" shell "rm -rf '$remote_dir' && mkdir -p '$remote_dir'" >/dev/null 2>&1 || true
+  rm -rf "$ANDROID_DIR/$flow"
+}
+
 disable_android_animations() {
   "$ADB_BIN" shell settings put global window_animation_scale 0 >/dev/null 2>&1 || true
   "$ADB_BIN" shell settings put global transition_animation_scale 0 >/dev/null 2>&1 || true
@@ -118,10 +125,17 @@ render_flow_section() {
 
 disable_android_animations
 
+reset_android_flow "onboarding-profile-entry"
 run_step \
   "android-onboarding-profile-entry" \
   "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.OnboardingRuntimeUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunOnboardingUiSmoke=1"
 pull_android_flow "onboarding-profile-entry"
+
+reset_android_flow "measurement-start-preflight"
+run_step \
+  "android-measurement-start-preflight" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.MeasurementStartPreflightUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunMeasurementStartPreflightUiSmoke=1"
+pull_android_flow "measurement-start-preflight"
 
 run_step \
   "ios-onboarding-profile-entry-hosted" \
@@ -132,15 +146,22 @@ run_step \
   "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppUiOnboardingFlowSmoke"
 copy_ios_flow "onboarding-profile-entry-xcuitest"
 
+run_step \
+  "ios-measurement-start-preflight-xcuitest" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppUiMeasurementStartPreflightSmoke"
+copy_ios_flow "measurement-start-preflight-xcuitest"
+
 {
   echo "# UI Flow Report"
   echo
   echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   echo
-  echo "_Scope: product-like onboarding flow evidence only. iOS hosted onboarding smoke is assertion-only (no screenshots); iOS visual evidence comes from XCUITest device screenshots. Phase 3 button smoke moved to simulator smoke reporting._"
+  echo "_Scope: product-like onboarding and measurement-start preflight flow evidence. iOS hosted onboarding smoke is assertion-only (no screenshots); iOS visual evidence comes from XCUITest device screenshots. Phase 3 button smoke moved to simulator smoke reporting._"
   echo
   render_flow_section "android" "onboarding-profile-entry" "Android: Onboarding Profile Entry Smoke"
+  render_flow_section "android" "measurement-start-preflight" "Android: Measurement Start Preflight Smoke"
   render_flow_section "ios" "onboarding-profile-entry-xcuitest" "iOS: Onboarding Profile Entry Smoke (XCUITest)"
+  render_flow_section "ios" "measurement-start-preflight-xcuitest" "iOS: Measurement Start Preflight Smoke (XCUITest)"
 } > "$MARKDOWN_FILE"
 
 echo
