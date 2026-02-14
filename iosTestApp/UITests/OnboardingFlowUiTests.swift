@@ -9,11 +9,16 @@ final class OnboardingFlowUiTests: XCTestCase {
         .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
         .appendingPathComponent("ios", isDirectory: true)
         .appendingPathComponent("measurement-start-preflight-xcuitest", isDirectory: true)
+    private let phase3SequenceScreenshotRoot = URL(fileURLWithPath: "/tmp", isDirectory: true)
+        .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
+        .appendingPathComponent("ios", isDirectory: true)
+        .appendingPathComponent("phase3-sequence-button", isDirectory: true)
 
     override func setUpWithError() throws {
         continueAfterFailure = false
         try FileManager.default.createDirectory(at: screenshotRoot, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: measurementStartScreenshotRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: phase3SequenceScreenshotRoot, withIntermediateDirectories: true)
     }
 
     func testOnboardingFlow_roundTripPersistenceScreenshots() throws {
@@ -139,6 +144,49 @@ final class OnboardingFlowUiTests: XCTestCase {
         unknown.terminate()
     }
 
+    func testPhase3SequenceButton_flowRunsWithTrueUiTap() throws {
+        let app = XCUIApplication()
+        app.launchEnvironment["CELLWATCH_UI_MODE"] = "full-harness"
+        app.launchEnvironment["CELLWATCH_CLEAR_ONBOARDING"] = "1"
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: app)
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_SERVICE_KEY", to: app)
+        assignOptionalRuntimeValue("MSAK_LOCAL_SERVER_HOST", to: app)
+        app.launch()
+
+        let runButton = app.buttons["harness.phase3.sequenceButton"]
+        let output = app.textViews["harness.outputTextView"]
+
+        XCTAssertTrue(runButton.waitForExistence(timeout: 10))
+        XCTAssertTrue(output.waitForExistence(timeout: 10))
+        capturePhase3SequenceScreenshot(named: "01-ready")
+
+        runButton.tap()
+        XCTAssertTrue(
+            waitForOutputText(
+                app: app,
+                containsAny: [
+                    "smokeEnvelope scenario=phase3-sequence-sync",
+                    "smokeEnvelope scenario=phase3-preflight",
+                    "smokeEnvelope scenario=measurement-start-preflight"
+                ],
+                timeout: 150
+            ),
+            "Expected phase3 smoke envelope in output text view."
+        )
+
+        capturePhase3SequenceScreenshot(named: "02-after-phase3")
+        let outputText = output.value as? String ?? ""
+        XCTAssertTrue(
+            outputText.contains("status=SUCCESS"),
+            "Expected SUCCESS envelope after true UI tap; output was: \(outputText)"
+        )
+        XCTAssertFalse(
+            outputText.contains("status=FAILURE"),
+            "Expected no FAILURE envelope after true UI tap; output was: \(outputText)"
+        )
+        app.terminate()
+    }
+
     private func launchOnboarding(clearProfile: Bool) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "onboarding-flow"
@@ -188,6 +236,31 @@ final class OnboardingFlowUiTests: XCTestCase {
         let data = XCUIScreen.main.screenshot().pngRepresentation
         let url = measurementStartScreenshotRoot.appendingPathComponent("\(name).png")
         try? data.write(to: url, options: [.atomic])
+    }
+
+    private func capturePhase3SequenceScreenshot(named name: String) {
+        let data = XCUIScreen.main.screenshot().pngRepresentation
+        let url = phase3SequenceScreenshotRoot.appendingPathComponent("\(name).png")
+        try? data.write(to: url, options: [.atomic])
+    }
+
+    private func waitForOutputText(app: XCUIApplication, containsAny needles: [String], timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let text = app.textViews["harness.outputTextView"].value as? String ?? ""
+            if needles.contains(where: { text.contains($0) }) {
+                return true
+            }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))
+        }
+        return false
+    }
+
+    private func assignOptionalRuntimeValue(_ key: String, to app: XCUIApplication) {
+        guard let value = ProcessInfo.processInfo.environment[key], !value.isEmpty else {
+            return
+        }
+        app.launchEnvironment[key] = value
     }
 
     private func dismissKeyboardIfPresent(_ app: XCUIApplication) {

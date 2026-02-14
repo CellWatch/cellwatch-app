@@ -685,7 +685,7 @@ tasks.register("verifyIosTestAppHostedFailureStatusSmoke") {
 }
 
 tasks.register("verifyIosTestAppHostedPhase3ButtonSmoke") {
-    description = "Tier 2: iOS hosted UI smoke that taps Run Phase3 Sequence button in iosTestApp."
+    description = "Tier 2: iOS XCUITest smoke that taps Run Phase3 Sequence button in iosTestApp."
     group = "verification"
     dependsOn("refreshIosSimulatorCurrentFramework")
     val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
@@ -695,37 +695,31 @@ tasks.register("verifyIosTestAppHostedPhase3ButtonSmoke") {
         }
     }
     doLast {
-        val marker = file("/tmp/cellwatch-ios-phase3-button-smoke-required")
         val localServiceKey = project.resolveLocalSupabaseServiceRoleKey()
         val localSupabaseUrl = project.resolveLocalSupabaseUrlForIosHosted()
-        marker.writeText("1\n")
-        try {
-            project.withIosLocalServiceKeyOverride(localServiceKey) {
-                exec {
-                    commandLine(
-                        "xcodebuild",
-                        "-project",
-                        projectPath.absolutePath,
-                        "-scheme",
-                        "iosTestAppLocalMsakSmoke",
-                        "-destination",
-                        "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
-                        "-only-testing:iosTestAppTests/Phase3SequenceButtonHostedTests/testHostedPhase3SequenceButtonTap_whenEnabled",
-                        "test",
-                    )
-                    if (!localServiceKey.isNullOrBlank()) {
-                        args("SUPABASE_LOCAL_SERVICE_KEY=$localServiceKey")
-                    }
-                    args("SUPABASE_LOCAL_URL=$localSupabaseUrl")
-                    if (!localServiceKey.isNullOrBlank()) {
-                        environment("SUPABASE_LOCAL_SERVICE_KEY", localServiceKey)
-                    }
-                    environment("SUPABASE_LOCAL_URL", localSupabaseUrl)
-                    workingDir = rootProject.projectDir
+        project.withIosLocalServiceKeyOverride(localServiceKey) {
+            exec {
+                commandLine(
+                    "xcodebuild",
+                    "-project",
+                    projectPath.absolutePath,
+                    "-scheme",
+                    "iosTestAppUiSmoke",
+                    "-destination",
+                    "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                    "-only-testing:iosTestAppUITests/OnboardingFlowUiTests/testPhase3SequenceButton_flowRunsWithTrueUiTap",
+                    "test",
+                )
+                if (!localServiceKey.isNullOrBlank()) {
+                    args("SUPABASE_LOCAL_SERVICE_KEY=$localServiceKey")
                 }
+                args("SUPABASE_LOCAL_URL=$localSupabaseUrl")
+                if (!localServiceKey.isNullOrBlank()) {
+                    environment("SUPABASE_LOCAL_SERVICE_KEY", localServiceKey)
+                }
+                environment("SUPABASE_LOCAL_URL", localSupabaseUrl)
+                workingDir = rootProject.projectDir
             }
-        } finally {
-            marker.delete()
         }
     }
 }

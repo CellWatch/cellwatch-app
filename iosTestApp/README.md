@@ -78,3 +78,4 @@ The resolved diagnostics config is included in iOS status/log lines (prefix `[io
 - Evidence strategy:
   - Use `iosTestAppUITests` (XCUITest) for product-like screenshots.
   - Keep `iosTestAppTests` hosted tests for in-process invariants and status-text assertions.
+  - Phase3 button smoke in simulator reports now runs through XCUITest tap flow (`OnboardingFlowUiTests.testPhase3SequenceButton_flowRunsWithTrueUiTap`) and writes screenshots to `/tmp/cellwatch-ui-flow/ios/phase3-sequence-button`.
