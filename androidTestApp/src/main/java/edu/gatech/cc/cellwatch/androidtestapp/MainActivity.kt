@@ -52,6 +52,7 @@ import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementNetworkPath
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartCapabilitySnapshot
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightResult
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightUseCase
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightFlowController
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightFlowUiState
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightFlowViewModel
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightEnvironmentOverrides
@@ -169,9 +170,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var onboardingViewModel: OnboardingProfileViewModel
     private val measurementPreflightUseCase = MeasurementPreflightUseCase()
     private val measurementStartEnvironmentResolver = MeasurementStartPreflightEnvironmentResolver()
-    private val measurementStartFlowViewModel = MeasurementStartPreflightFlowViewModel(
-        useCase = measurementPreflightUseCase,
-        uiPresenter = MeasurementStartPreflightUiPresenter(),
+    private val measurementStartFlowController = MeasurementStartPreflightFlowController(
+        environmentResolver = measurementStartEnvironmentResolver,
+        flowViewModel = MeasurementStartPreflightFlowViewModel(
+            useCase = measurementPreflightUseCase,
+            uiPresenter = MeasurementStartPreflightUiPresenter(),
+        ),
     )
     private val measurementRunViewController = MeasurementRunViewController()
     private val measurementRunUiPresenter = MeasurementRunUiPresenter()
@@ -921,26 +925,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun evaluateMeasurementStartPreflightFromUi() {
-        measurementStartFlowViewModel.setInVehicle(measurementPreflightInVehicleCheckbox.isChecked)
-        val resolvedInputs = measurementStartEnvironmentResolver.resolve(
+        measurementStartFlowController.setInVehicle(measurementPreflightInVehicleCheckbox.isChecked)
+        val go = measurementStartFlowController.onGoPressed(
             collectionMode = measurementStartCollectionMode(),
             capabilitySnapshot = observedMeasurementStartCapabilities(),
             overrides = measurementStartEnvironmentOverrides(),
         )
-        val goState = measurementStartFlowViewModel.onGoPressed(resolvedInputs)
-        renderMeasurementPreflightOutput(goState, resolvedInputs.networkPath)
-        if (goState.shouldPromptConfirmation) {
+        renderMeasurementPreflightOutput(go.state, go.environment.networkPath)
+        if (go.state.shouldPromptConfirmation) {
             AlertDialog.Builder(this)
-                .setMessage(goState.confirmationMessage)
+                .setMessage(go.state.confirmationMessage)
                 .setPositiveButton("Measure anyway") { dialog, _ ->
                     dialog.dismiss()
-                    val confirmedState = measurementStartFlowViewModel.onConfirmProceed(resolvedInputs)
-                    renderMeasurementPreflightOutput(confirmedState, resolvedInputs.networkPath)
+                    val confirmed = measurementStartFlowController.onConfirmProceed()
+                    renderMeasurementPreflightOutput(confirmed.state, confirmed.environment.networkPath)
                 }
                 .setNegativeButton("Cancel") { dialog, _ ->
                     dialog.dismiss()
-                    val canceledState = measurementStartFlowViewModel.onConfirmCancel()
-                    renderMeasurementPreflightOutput(canceledState, resolvedInputs.networkPath)
+                    val canceled = measurementStartFlowController.onConfirmCancel()
+                    renderMeasurementPreflightOutput(canceled.state, canceled.environment.networkPath)
                 }
                 .show()
         }
