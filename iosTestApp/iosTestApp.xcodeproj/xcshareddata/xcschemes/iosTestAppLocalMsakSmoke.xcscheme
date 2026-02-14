@@ -67,18 +67,6 @@
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>
-      <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "SUPABASE_LOCAL_URL"
-            value = "$(SUPABASE_LOCAL_URL)"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "SUPABASE_LOCAL_SERVICE_KEY"
-            value = "$(SUPABASE_LOCAL_SERVICE_KEY)"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-      </EnvironmentVariables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -100,18 +88,6 @@
             ReferencedContainer = "container:iosTestApp.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "SUPABASE_LOCAL_URL"
-            value = "$(SUPABASE_LOCAL_URL)"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "SUPABASE_LOCAL_SERVICE_KEY"
-            value = "$(SUPABASE_LOCAL_SERVICE_KEY)"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
