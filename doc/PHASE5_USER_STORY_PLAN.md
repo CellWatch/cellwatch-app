@@ -277,6 +277,13 @@ Platform responsibilities:
 3. `MeasurementResultReadModelUseCase`
 - Builds UI-facing read model from persisted group id.
 
+Current scaffold status:
+- Legacy behavior matrix captured in `doc/STORY3_LEGACY_BEHAVIOR_MATRIX.md`.
+- Shared Story 3 reducer/presenter scaffold added:
+  - `MeasurementRunViewController`
+  - `MeasurementRunUiPresenter`
+  - legacy-faithful progress/header/terminal visibility mapping
+
 ### Acceptance criteria (Story 3)
 
 1. Progress stage order is deterministic and identical across platforms for successful runs.
