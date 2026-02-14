@@ -42,6 +42,7 @@ Shared result text contract:
 - `iosSharedIntegrationHost/`: Minimal iOS app + XCTest target for hosted integration tests against `sharedKit.framework`
 - `doc/`: Supporting documentation (including architecture notes)
   - quick thread handoff: `doc/PHASE5_BOOTSTRAP.md`
+  - iOS app setup guardrails: `doc/IOS_APP_BOOTSTRAP_CHECKLIST.md`
 
 Porting rule:
 - New migration work should go to `shared/`, `androidTestApp/`, and `iosTestApp/`.
@@ -205,7 +206,7 @@ Use this sequence to bootstrap both harnesses before running interactive buttons
 
 ### Automated UI Flow Evidence (Android + iOS)
 
-For simulated user-action smoke plus screenshot-backed markdown evidence:
+For product-like onboarding UI smoke plus screenshot-backed markdown evidence:
 
 ```bash
 ./scripts/generate-ui-flow-report.sh
@@ -215,10 +216,8 @@ Outputs:
 - Markdown report: `build/reports/ui-flow/UI_FLOW_REPORT.md`
 - Android per-flow screenshots:
   - `build/reports/ui-flow/android/onboarding-profile-entry/`
-  - `build/reports/ui-flow/android/phase3-sequence-button/`
 - iOS per-flow screenshots:
-  - `build/reports/ui-flow/ios/onboarding-profile-entry/`
-  - `build/reports/ui-flow/ios/phase3-sequence-button/`
+  - `build/reports/ui-flow/ios/onboarding-profile-entry-xcuitest/` (XCUITest simulator-frame, product-like evidence)
 - Per-flow execution logs + pass/fail status:
   - `build/reports/ui-flow/logs/`
 
@@ -230,13 +229,37 @@ Current flow coverage in the report:
   - after email entry
   - after acknowledgement toggle
   - after submit
-- `phase3-sequence-button`:
-  - ready
-  - after phase3 execution
+  - reopen pre-filled
+  - after edit
+  - after edit submit
+  - reopen after edit
 
 Notes:
 - The report intentionally includes log excerpts even for successful flows to speed triage in new environments.
-- Android emulator animation settings can affect Espresso click stability; report script attempts to disable animation scales at start.
+- Onboarding UI flow runs in a dedicated onboarding-only display mode (full-screen, no harness debug panel).
+- Android emulator animation settings can affect Espresso click stability.
+- iOS onboarding screenshots come from XCUITest (`iosTestAppUITests`) only.
+  - Hosted iOS tests (`iosTestAppTests`) remain for deep in-process invariants and status-text assertions.
+  - Hosted iOS onboarding smoke is assertion-first and does not publish screenshot evidence by default.
+- iOS fullscreen guardrail:
+  - Keep `UILaunchScreen` in `iosTestApp/App/Info.plist`. Without it, iOS can launch in legacy `320x480` compatibility mode (letterboxed).
+- iOS XCUI input stability pattern:
+  - `waitForExistence` -> `tap` -> `typeText` -> assert field value/state
+  - hide keyboard via toolbar `Done` first, then fallback tap on app background before tapping off-screen controls
+
+### Simulator Smoke Report (Phase 3 Button Path)
+
+For cross-platform Phase 3 sequence smoke and evidence:
+
+```bash
+./scripts/generate-simulator-smoke-report.sh
+```
+
+Outputs:
+- Markdown report: `build/reports/simulator-smoke/SIMULATOR_SMOKE_REPORT.md`
+- Android screenshots: `build/reports/simulator-smoke/android/phase3-sequence-button/`
+- iOS screenshots: `build/reports/simulator-smoke/ios/phase3-sequence-button/`
+- Logs + status files: `build/reports/simulator-smoke/logs/`
 
 ### Start/Stop Local Supabase
 

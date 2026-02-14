@@ -142,6 +142,17 @@ User-facing UI:
   - measurement run
   - pending sync retry
 
+iOS runner split (required):
+- Hosted XCTest (`iosTestAppTests`) is for in-process invariant/integration checks.
+- XCUITest (`iosTestAppUITests`) is for product-like UI-flow evidence and simulator-frame screenshots.
+- Do not duplicate full assertion sets across both runners.
+  - Hosted owns deep business/runtime invariants.
+  - XCUITest owns user-visible interaction and screenshot proof.
+- iOS launch geometry requirement:
+  - keep a launch-screen declaration (`UILaunchScreen`) so simulator/device runs use full-screen native geometry (not legacy `320x480` compatibility mode).
+- XCUITest interaction requirement:
+  - use explicit wait/tap/type/assert per control; avoid environment-only prefill/autosubmit shortcuts for full user-flow parity tests.
+
 ## Implementation Guardrails
 
 1. No new feature logic in `frozenApp/`.

@@ -63,3 +63,18 @@ xcodebuild \
 - `CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN=true|false` (default in iOS harness: `true`)
 
 The resolved diagnostics config is included in iOS status/log lines (prefix `[iosTestApp]`) for faster triage of simulator button-flow failures.
+
+## iOS UI Harness Tips (Keep For Future Projects)
+
+- Fullscreen requirement:
+  - Keep `UILaunchScreen` declared in `App/Info.plist`.
+  - Missing launch-screen declaration can force legacy `320x480` compatibility mode (letterboxed simulator/app UI).
+- Onboarding UI mode:
+  - `CELLWATCH_UI_MODE=onboarding-flow` for onboarding-only layout (no split harness/debug panel).
+  - SwiftUI is the default app path; UIKit onboarding path is retained for hosted in-process invariants only.
+- Keyboard handling for UI tests:
+  - Prefer field `waitForExistence` then targeted `tap`/`typeText`.
+  - Before tapping lower controls (switch/save), hide keyboard via `Done` button if present, else fallback tap on a safe background coordinate.
+- Evidence strategy:
+  - Use `iosTestAppUITests` (XCUITest) for product-like screenshots.
+  - Keep `iosTestAppTests` hosted tests for in-process invariants and status-text assertions.

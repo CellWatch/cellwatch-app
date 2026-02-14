@@ -23,7 +23,7 @@ Implemented now:
   - unified markdown report with per-flow pass/fail + log excerpt
 
 Not implemented yet (Phase 5 core remaining):
-- Story 1 persistence and re-entry of onboarding profile (save/load/edit complete flow)
+- Story 1 product-app integration beyond harnesses (shared persistence + harness round-trip is implemented)
 - Story 2+ product-facing app flow integration (measurement start/preflight through final app modules)
 - Story 5/6/8 user-facing history/retry/sync-status product UX
 - Story 7 settings edit UX bound to persisted shared profile state
@@ -131,7 +131,7 @@ Status:
 - Load existing profile for edit/re-entry
 
 Status:
-- Not implemented yet (next Story 1 hardening step)
+- Implemented in shared onboarding domain + wired in Android/iOS harnesses
 
 ### Acceptance criteria (Story 1)
 
@@ -156,11 +156,18 @@ Tier 2 (recommended smoke):
 - Verify persistent mode indicator remains visible in both platforms
 
 Current Tier 2 implementation status:
-- Implemented now as stepwise profile-entry smoke in both harness apps.
-- Automated evidence report command:
+- Implemented now as stepwise profile-entry round-trip smoke in both harness apps.
+- Product-like onboarding UI evidence report command:
   - `./scripts/generate-ui-flow-report.sh`
-- Report path:
+- Onboarding report path:
   - `build/reports/ui-flow/UI_FLOW_REPORT.md`
+- iOS onboarding flow evidence is captured via XCUITest (`iosTestAppUITests`) with real widget interaction (no env-prefill shortcuts in full-flow test).
+- Hosted tests (`iosTestAppTests`) remain for in-process invariants and status-text assertions.
+- iOS fullscreen guardrail is now explicit: `UILaunchScreen` must remain in `iosTestApp/App/Info.plist` to avoid `320x480` compatibility-mode letterboxing.
+- Phase 3 simulator smoke report command:
+  - `./scripts/generate-simulator-smoke-report.sh`
+- Phase 3 report path:
+  - `build/reports/simulator-smoke/SIMULATOR_SMOKE_REPORT.md`
 
 ## Story 2 Analysis: Start A Measurement From Main Screen
 
