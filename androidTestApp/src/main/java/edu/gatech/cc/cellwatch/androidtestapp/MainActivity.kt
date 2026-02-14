@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import edu.gatech.cc.cellwatch.androidtestapp.onboarding.AndroidOnboardingProfileStore
 import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriver
 import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriverFactory
 import edu.gatech.cc.cellwatch.androidtestapp.sync.FixedSupabaseEnvironmentProvider
@@ -40,6 +41,7 @@ import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingPersistenceUseCase
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfile
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingValidationUseCase
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
@@ -85,8 +87,15 @@ class MainActivity : AppCompatActivity() {
         const val ONBOARDING_EMAIL_INPUT_ID = 1008
         const val ONBOARDING_ACK_CHECKBOX_ID = 1009
         const val ONBOARDING_SUBMIT_BUTTON_ID = 1010
+        const val EXTRA_UI_MODE = "cellwatch.uiMode"
+        const val UI_MODE_ONBOARDING_FLOW = "onboarding-flow"
         private const val LOG_TAG = "AndroidTestHarness"
         private const val PERMISSION_REQUEST_CODE = 7001
+    }
+
+    private enum class UiMode {
+        FULL_HARNESS,
+        ONBOARDING_FLOW,
     }
 
     private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
@@ -125,11 +134,18 @@ class MainActivity : AppCompatActivity() {
     private var runtimeProfile: RuntimeSyncMsakProfile =
         RuntimeProfileResolver.resolveProfile(resolveRuntimeProfileConfig())
     private val onboardingValidationUseCase = OnboardingValidationUseCase()
+    private lateinit var onboardingPersistenceUseCase: OnboardingPersistenceUseCase
     private val smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private val smokeFormatter = SyncSmokeResultFormatter()
+    private var uiMode: UiMode = UiMode.FULL_HARNESS
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        uiMode = if (intent?.getStringExtra(EXTRA_UI_MODE) == UI_MODE_ONBOARDING_FLOW) {
+            UiMode.ONBOARDING_FLOW
+        } else {
+            UiMode.FULL_HARNESS
+        }
         SyncDiagnosticsRegistry.configure(
             SyncDiagnosticsConfig(
                 level = SyncDiagnosticsLevel.fromString(BuildConfig.CELLWATCH_SYNC_DIAGNOSTICS_LEVEL),
@@ -139,7 +155,11 @@ class MainActivity : AppCompatActivity() {
         )
         installHarnessUncaughtExceptionHandler()
         initDataLayer()
+        onboardingPersistenceUseCase = OnboardingPersistenceUseCase(
+            AndroidOnboardingProfileStore(applicationContext),
+        )
         setContentView(buildUi())
+        loadPersistedOnboardingProfile()
         requestHarnessRuntimePermissions()
     }
 
@@ -197,6 +217,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildUi(): ScrollView {
+        return if (uiMode == UiMode.ONBOARDING_FLOW) {
+            buildOnboardingOnlyUi()
+        } else {
+            buildHarnessUi()
+        }
+    }
+
+    private fun buildHarnessUi(): ScrollView {
         val root = ScrollView(this)
         root.setBackgroundColor(Color.parseColor("#F2F2F2"))
         val content = LinearLayout(this).apply {
@@ -322,6 +350,76 @@ class MainActivity : AppCompatActivity() {
         return root
     }
 
+    private fun buildOnboardingOnlyUi(): ScrollView {
+        val root = ScrollView(this)
+        root.setBackgroundColor(Color.parseColor("#F7F9FC"))
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(42, 64, 42, 42)
+        }
+
+        val title = TextView(this).apply {
+            text = "Complete Your Profile"
+            textSize = 28f
+            setTextColor(Color.parseColor("#0A2A43"))
+            setPadding(0, 0, 0, 8)
+        }
+        val subtitle = TextView(this).apply {
+            text = "Tell us who you are before starting measurements."
+            textSize = 16f
+            setTextColor(Color.parseColor("#3B5D77"))
+            setPadding(0, 0, 0, 28)
+        }
+
+        onboardingNameInput = EditText(this).apply {
+            id = ONBOARDING_NAME_INPUT_ID
+            hint = "Full name"
+            setSingleLine()
+        }
+        onboardingPhoneInput = EditText(this).apply {
+            id = ONBOARDING_PHONE_INPUT_ID
+            hint = "Phone (###-###-####)"
+            inputType = android.text.InputType.TYPE_CLASS_PHONE
+            setSingleLine()
+        }
+        onboardingEmailInput = EditText(this).apply {
+            id = ONBOARDING_EMAIL_INPUT_ID
+            hint = "Email"
+            inputType = android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            setSingleLine()
+        }
+        onboardingAckCheckbox = CheckBox(this).apply {
+            id = ONBOARDING_ACK_CHECKBOX_ID
+            text = "I acknowledge FCC challenge sharing terms."
+            setTextColor(Color.parseColor("#003618"))
+        }
+        val onboardingSubmitButton = Button(this).apply {
+            id = ONBOARDING_SUBMIT_BUTTON_ID
+            text = "Save Profile"
+            stylePrimaryButton(this)
+            setOnClickListener { submitOnboarding() }
+        }
+        statusText = TextView(this).apply {
+            id = STATUS_TEXT_VIEW_ID
+            text = "Complete the form and save your profile."
+            textSize = 14f
+            setTextColor(Color.parseColor("#003618"))
+            setPadding(16, 20, 16, 20)
+            background = roundedCard(
+                fillColor = Color.parseColor("#FFFFFF"),
+                strokeColor = Color.parseColor("#C8E3CC"),
+            )
+        }
+
+        content.addView(title)
+        content.addView(subtitle)
+        content.addView(buildCard(onboardingNameInput, onboardingPhoneInput, onboardingEmailInput, onboardingAckCheckbox, onboardingSubmitButton))
+        content.addView(statusText)
+        root.addView(content)
+        return root
+    }
+
     private fun resolveRuntimeProfileConfig(): RuntimeProfileConfig {
         val baseConfig = resolveRuntimeProfileConfigFromProperties(
             msakMode = selectedMsakMode,
@@ -383,15 +481,29 @@ class MainActivity : AppCompatActivity() {
         val result = onboardingValidationUseCase.validate(rawProfile)
         val errorSummary = result.fieldErrors.entries.joinToString(separator = "; ") { "${it.key}:${it.value}" }
         statusText.text = if (result.valid) {
+            val persisted = onboardingPersistenceUseCase.saveValidated(result)
+            onboardingNameInput.setText(persisted.name)
+            onboardingPhoneInput.setText(persisted.phone)
+            onboardingEmailInput.setText(persisted.email)
+            onboardingAckCheckbox.isChecked = persisted.fccAcknowledged
             "Onboarding submit=SUCCESS\n" +
-                "name=${result.normalizedProfile.name}\n" +
-                "phone=${result.normalizedProfile.phone}\n" +
-                "email=${result.normalizedProfile.email}\n" +
-                "ack=${result.normalizedProfile.fccAcknowledged}\n" +
-                "onboardingComplete=${result.normalizedProfile.onboardingComplete}"
+                "name=${persisted.name}\n" +
+                "phone=${persisted.phone}\n" +
+                "email=${persisted.email}\n" +
+                "ack=${persisted.fccAcknowledged}\n" +
+                "onboardingComplete=${persisted.onboardingComplete}\n" +
+                "persisted=true"
         } else {
             "Onboarding submit=FAILURE\nerrors=$errorSummary"
         }
+    }
+
+    private fun loadPersistedOnboardingProfile() {
+        val persisted = onboardingPersistenceUseCase.loadProfile() ?: return
+        onboardingNameInput.setText(persisted.name)
+        onboardingPhoneInput.setText(persisted.phone)
+        onboardingEmailInput.setText(persisted.email)
+        onboardingAckCheckbox.isChecked = persisted.fccAcknowledged
     }
 
     private fun runSeedAndMapSync() {
