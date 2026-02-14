@@ -50,6 +50,7 @@ import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementNetworkPath
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightUseCase
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightViewModel
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightUiPresenter
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingPersistenceUseCase
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileSubmission
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileUiState
@@ -161,6 +162,7 @@ class MainActivity : AppCompatActivity() {
     private val measurementStartPreflightViewModel = MeasurementStartPreflightViewModel(
         useCase = MeasurementPreflightUseCase(),
     )
+    private val measurementStartUiPresenter = MeasurementStartPreflightUiPresenter()
     private var onboardingUiRenderInProgress = false
     private val smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private val smokeFormatter = SyncSmokeResultFormatter()
@@ -877,11 +879,9 @@ class MainActivity : AppCompatActivity() {
             networkPath = networkPath,
         )
         if (result.requiresUserConfirm) {
+            val presentation = measurementStartUiPresenter.present(result)
             AlertDialog.Builder(this)
-                .setMessage(
-                    "It looks like you are connected to Wi-Fi or network path is unknown. " +
-                        "If you proceed, your measurement may not be submitted to the FCC."
-                )
+                .setMessage(presentation.confirmationDialogMessage ?: measurementStartUiPresenter.challengePathConfirmMessage())
                 .setPositiveButton("Measure anyway") { dialog, _ ->
                     dialog.dismiss()
                     measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(true)
@@ -908,25 +908,16 @@ class MainActivity : AppCompatActivity() {
         result: edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightResult,
         networkPath: MeasurementNetworkPath,
     ) {
-        measurementPreflightOutput.text = when {
-            result.allowed -> "Preflight passed. You can start measuring."
-            result.reasonCode.name == "MISSING_LOCATION_PERMISSION" ->
-                "Location permission is required before starting measurement."
-            result.reasonCode.name == "MISSING_RUNTIME_PROFILE" ->
-                "Complete profile setup before starting measurement."
-            result.reasonCode.name == "CHALLENGE_NON_CELLULAR_CONFIRM_REQUIRED" ->
-                "Wi-Fi detected. Choose Measure anyway or Cancel."
-            else -> "Preflight blocked. Review requirements and try again."
-        }
+        val presentation = measurementStartUiPresenter.present(result)
+        measurementPreflightOutput.text = presentation.statusMessage
         measurementPreflightOutput.contentDescription =
-            "allowed=${result.allowed};" +
-                "reason=${result.reasonCode};" +
-                "networkPath=$networkPath;" +
-                "requiresUserConfirm=${result.requiresUserConfirm};" +
-                "warningKey=${result.warningTextKey ?: "none"};" +
-                "inVehicle=${measurementStartPreflightViewModel.currentState().inVehicle}"
+            measurementStartUiPresenter.debugSummary(
+                result = result,
+                networkPath = networkPath,
+                inVehicle = measurementStartPreflightViewModel.currentState().inVehicle,
+            )
         measurementPreflightOutput.setTextColor(
-            if (result.allowed) Color.parseColor("#003618") else Color.parseColor("#A82329"),
+            if (presentation.statusIsError) Color.parseColor("#A82329") else Color.parseColor("#003618"),
         )
     }
 
