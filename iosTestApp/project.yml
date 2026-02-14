@@ -29,6 +29,7 @@ targets:
     platform: iOS
     sources:
       - Tests
+      - TestSupport
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatch.iosTestAppTests
@@ -38,6 +39,19 @@ targets:
     dependencies:
       - target: iosTestApp
       - framework: ../shared/build/bin/Current/sharedKit.framework
+  iosTestAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+      - TestSupport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatch.iosTestAppUITests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: iosTestApp
+    dependencies:
+      - target: iosTestApp
 schemes:
   iosTestApp:
     build:
@@ -47,4 +61,22 @@ schemes:
     test:
       targets:
         - iosTestAppTests
+      gatherCoverageData: false
+  iosTestAppLocalMsakSmoke:
+    build:
+      targets:
+        iosTestApp: all
+        iosTestAppTests: [test]
+    test:
+      targets:
+        - iosTestAppTests
+      gatherCoverageData: false
+  iosTestAppUiSmoke:
+    build:
+      targets:
+        iosTestApp: all
+        iosTestAppUITests: [test]
+    test:
+      targets:
+        - iosTestAppUITests
       gatherCoverageData: false
