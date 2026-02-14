@@ -74,6 +74,19 @@ final class OnboardingFlowUiTests: XCTestCase {
         verifyUpdated.terminate()
     }
 
+    func testOnboardingFlow_validationFailureFeedback() throws {
+        let app = launchOnboarding(clearProfile: true)
+        clearAndType(app.textFields["harness.onboarding.name"], text: "Jane Doe")
+        clearAndType(app.textFields["harness.onboarding.phone"], text: "404")
+        clearAndType(app.textFields["harness.onboarding.email"], text: "bad")
+        dismissKeyboardIfPresent(app)
+        app.buttons["harness.onboarding.submit"].tap()
+
+        XCTAssertTrue(app.staticTexts["Fix validation errors and try again."].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Profile saved."].exists)
+        app.terminate()
+    }
+
     private func launchOnboarding(clearProfile: Bool) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "onboarding-flow"

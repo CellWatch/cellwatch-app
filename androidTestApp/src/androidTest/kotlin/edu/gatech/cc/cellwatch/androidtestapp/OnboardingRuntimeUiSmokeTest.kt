@@ -133,6 +133,43 @@ class OnboardingRuntimeUiSmokeTest {
         }
     }
 
+    @Test
+    fun onboardingProfileEntry_showsValidationFailureFeedback() {
+        val args = InstrumentationRegistry.getArguments()
+        assumeTrue(
+            "Enable with -Pandroid.testInstrumentationRunnerArguments.cellwatchRunOnboardingUiSmoke=1",
+            args.getString("cellwatchRunOnboardingUiSmoke") == "1",
+        )
+        grantHarnessRuntimePermissions()
+        clearPersistedOnboardingProfile()
+
+        val scenario = ActivityScenario.launch<MainActivity>(onboardingFlowIntent())
+        try {
+            onView(withId(MainActivity.ONBOARDING_NAME_INPUT_ID)).perform(replaceText("Jane Doe"), closeSoftKeyboard())
+            onView(withId(MainActivity.ONBOARDING_PHONE_INPUT_ID)).perform(replaceText("404"), closeSoftKeyboard())
+            onView(withId(MainActivity.ONBOARDING_EMAIL_INPUT_ID)).perform(replaceText("bad"), closeSoftKeyboard())
+            onView(withId(MainActivity.ONBOARDING_SUBMIT_BUTTON_ID)).perform(click())
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+            var rendered = ""
+            scenario.onActivity { activity ->
+                rendered = activity.findViewById<android.widget.TextView>(
+                    MainActivity.STATUS_TEXT_VIEW_ID,
+                ).text?.toString().orEmpty()
+            }
+            assertTrue(
+                "Expected onboarding failure status text, got: $rendered",
+                rendered.contains("Onboarding submit=FAILURE"),
+            )
+            assertTrue(
+                "Expected validation errors for phone/email/ack in status text, got: $rendered",
+                rendered.contains("PHONE") && rendered.contains("EMAIL") && rendered.contains("FCC_ACKNOWLEDGED"),
+            )
+        } finally {
+            scenario.close()
+        }
+    }
+
     private fun ensureScreenshotDir() {
         runShell("mkdir -p $screenshotDir")
     }
