@@ -261,6 +261,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         useCase: measurementPreflightUseCase,
         uiPresenter: MeasurementStartPreflightUiPresenter()
     )
+    private let measurementRunViewController = MeasurementRunViewController()
+    private let measurementRunUiPresenter = MeasurementRunUiPresenter()
     private let measurementStartEnvironmentResolver = MeasurementStartPreflightEnvironmentResolver()
     private lazy var onboardingViewModel = OnboardingProfileViewModel(
         validationUseCase: onboardingValidationUseCase,
@@ -1024,6 +1026,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             runtimeSnapshot.supabaseApiKey.isEmpty ? "false" : "true",
             diagnosticsSummary
         )
+        let runGroupId = UUID().uuidString
+        _ = measurementRunViewController.reset()
+        _ = measurementRunViewController.onSequenceStarted(groupId: runGroupId)
+        setStatus(measurementRunUiPresenter.present(state: measurementRunViewController.currentState()).headerText)
         let config = MsakLocateConfig(
             environment: runtimeSnapshot.msakEnvironment,
             userAgent: "ios-test-app-phase3",
@@ -1042,7 +1048,15 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                     scenario: "phase3-sequence-sync",
                     errorMessage: hinted
                 )
-                self.setStatus(self.smokeFormatter.format(envelope: envelope))
+                _ = self.measurementRunViewController.onCompleted(
+                    group: nil,
+                    errorCode: nil,
+                    errorText: hinted
+                )
+                let runHeader = self.measurementRunUiPresenter
+                    .present(state: self.measurementRunViewController.currentState())
+                    .headerText
+                self.setStatus(runHeader + "\n" + self.smokeFormatter.format(envelope: envelope))
                 return
             }
             guard let value = result else {
@@ -1050,9 +1064,31 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                     scenario: "phase3-sequence-sync",
                     errorMessage: "no result"
                 )
-                self.setStatus(self.smokeFormatter.format(envelope: envelope))
+                _ = self.measurementRunViewController.onCompleted(
+                    group: nil,
+                    errorCode: nil,
+                    errorText: "no result"
+                )
+                let runHeader = self.measurementRunUiPresenter
+                    .present(state: self.measurementRunViewController.currentState())
+                    .headerText
+                self.setStatus(runHeader + "\n" + self.smokeFormatter.format(envelope: envelope))
                 return
             }
+            _ = self.measurementRunViewController.onCompleted(
+                group: MeasurementGroup(
+                    latency: nil,
+                    download: nil,
+                    upload: nil,
+                    submission: nil,
+                    id: value.groupId
+                ),
+                errorCode: nil,
+                errorText: nil
+            )
+            let runHeader = self.measurementRunUiPresenter
+                .present(state: self.measurementRunViewController.currentState())
+                .headerText
             let envelope = self.smokeEnvelopeBuilder.phase3Sequence(
                 measurementCompleteUploadTimeSet: value.measurementCompleteUploadTimeSet,
                 persistedMeasurements: Int32(value.persistedMeasurements),
@@ -1062,7 +1098,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                     : "measurement-complete upload time missing; \(value.measurementCompleteReportSummary)"
             )
                 self.setStatus(
-                    Phase3UiSliceFormatter().format(
+                    runHeader + "\n" + Phase3UiSliceFormatter().format(
                     envelopeText: self.smokeFormatter.format(envelope: envelope),
                     result: Phase3UiSliceResult(
                         groupId: value.groupId,

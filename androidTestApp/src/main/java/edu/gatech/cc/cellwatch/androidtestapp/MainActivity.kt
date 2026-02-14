@@ -56,6 +56,8 @@ import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflight
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightEnvironmentOverrides
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightEnvironmentResolver
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightUiPresenter
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunUiPresenter
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunViewController
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingPersistenceUseCase
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileSubmission
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileUiState
@@ -170,6 +172,8 @@ class MainActivity : AppCompatActivity() {
         useCase = measurementPreflightUseCase,
         uiPresenter = MeasurementStartPreflightUiPresenter(),
     )
+    private val measurementRunViewController = MeasurementRunViewController()
+    private val measurementRunUiPresenter = MeasurementRunUiPresenter()
     private var onboardingUiRenderInProgress = false
     private val smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private val smokeFormatter = SyncSmokeResultFormatter()
@@ -789,6 +793,9 @@ class MainActivity : AppCompatActivity() {
                 "msakLocalHost=${runtimeProfile.msakConfig.localServerHost}, supabaseMode=${runtimeProfile.supabaseMode}, " +
                 "supabaseUrl=${runtimeProfile.resolveSyncSupabaseConfig().url}, supabaseKeyPresent=${runtimeProfile.resolveSyncSupabaseConfig().apiKey.isNotBlank()}",
         )
+        measurementRunViewController.reset()
+        measurementRunViewController.onSequenceStarted(UUID.randomUUID().toString())
+        statusText.text = measurementRunUiPresenter.present(measurementRunViewController.currentState()).headerText
         phase3RunInFlight = true
         scope.launch {
             runCatching {
@@ -807,7 +814,7 @@ class MainActivity : AppCompatActivity() {
                     "capabilities(capture=FAILED, error=${error.message})"
                 }
                 val request = MeasurementSequenceRequest(
-                    groupId = UUID.randomUUID().toString(),
+                    groupId = measurementRunViewController.currentState().results?.id ?: UUID.randomUUID().toString(),
                     inVehicle = false,
                     mode = edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE,
                     measurementId = null,
@@ -850,6 +857,14 @@ class MainActivity : AppCompatActivity() {
                         null
                     },
                 )
+                measurementRunViewController.onCompleted(
+                    group = sequence.group,
+                    errorCode = null,
+                    errorText = null,
+                )
+                val runHeader = measurementRunUiPresenter
+                    .present(measurementRunViewController.currentState())
+                    .headerText
                 statusText.text = Phase3UiSliceFormatter.format(
                     envelopeText = smokeFormatter.format(envelope),
                     result = Phase3UiSliceResult(
@@ -865,7 +880,7 @@ class MainActivity : AppCompatActivity() {
                         capabilityPersistenceSummary = capabilityPersistenceSummary,
                         capabilitySummary = capabilitySummary,
                     ),
-                )
+                ).let { "$runHeader\n$it" }
                 phase3RunInFlight = false
             }.onFailure {
                 phase3RunInFlight = false
@@ -875,7 +890,15 @@ class MainActivity : AppCompatActivity() {
                     scenario = "phase3-sequence-sync",
                     errorMessage = hintedMessage,
                 )
-                statusText.text = smokeFormatter.format(envelope)
+                measurementRunViewController.onCompleted(
+                    group = null,
+                    errorCode = null,
+                    errorText = hintedMessage,
+                )
+                val runHeader = measurementRunUiPresenter
+                    .present(measurementRunViewController.currentState())
+                    .headerText
+                statusText.text = "$runHeader\n${smokeFormatter.format(envelope)}"
             }
         }
     }
