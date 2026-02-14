@@ -256,11 +256,12 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let runtimeModeBridge = RuntimeModeUiBridge()
     private let onboardingValidationUseCase = OnboardingValidationUseCase()
     private let onboardingPersistenceUseCase = OnboardingPersistenceUseCase(store: OnboardingUserDefaultsStore())
-    private let measurementStartPreflightViewModel = MeasurementStartPreflightViewModel(
-        useCase: MeasurementPreflightUseCase()
+    private let measurementPreflightUseCase = MeasurementPreflightUseCase()
+    private lazy var measurementStartFlowViewModel = MeasurementStartPreflightFlowViewModel(
+        useCase: measurementPreflightUseCase,
+        uiPresenter: MeasurementStartPreflightUiPresenter()
     )
     private let measurementStartEnvironmentResolver = MeasurementStartPreflightEnvironmentResolver()
-    private let measurementStartUiPresenter = MeasurementStartPreflightUiPresenter()
     private lazy var onboardingViewModel = OnboardingProfileViewModel(
         validationUseCase: onboardingValidationUseCase,
         persistenceUseCase: onboardingPersistenceUseCase
@@ -979,11 +980,17 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     }
 
     @objc private func runPhase3Sequence() {
-        let story2Preflight = measurementStartPreflightViewModel.evaluate(
-            collectionMode: .fccChallenge,
-            hasRuntimeProfile: true,
-            hasLocationPermission: observedMeasurementStartEnvironment().hasLocationPermission,
-            networkPath: .unknown
+        let story2Preflight = measurementPreflightUseCase.evaluate(
+            input: MeasurementStartPreflightInput(
+                request: MeasurementStartRequest(
+                    collectionMode: .fccChallenge,
+                    inVehicle: false
+                ),
+                hasRuntimeProfile: true,
+                hasLocationPermission: observedMeasurementStartEnvironment().hasLocationPermission,
+                networkPath: .unknown,
+                userConfirmedNonCellularChallengePath: false
+            )
         )
         if !story2Preflight.allowed {
             let envelope = smokeEnvelopeBuilder.failure(
@@ -1242,62 +1249,55 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     }
 
     private func renderMeasurementStartPreflightOutput(
-        result: MeasurementPreflightResult,
+        flowState: MeasurementStartPreflightFlowUiState,
         networkPath: MeasurementNetworkPath
     ) {
-        let presentation = measurementStartUiPresenter.present(result: result)
-        measurementPreflightOutputLabel.text = presentation.statusMessage
-        measurementPreflightOutputLabel.accessibilityValue = measurementStartUiPresenter.debugSummary(
-            result: result,
-            networkPath: networkPath,
-            inVehicle: measurementStartPreflightViewModel.currentState().inVehicle
-        )
-        measurementPreflightOutputLabel.textColor = presentation.statusIsError
+        measurementPreflightOutputLabel.text = flowState.statusMessage
+        measurementPreflightOutputLabel.accessibilityValue = flowState.debugSummary.isEmpty
+            ? fallbackDebugSummary(result: flowState.latestResult, networkPath: networkPath)
+            : flowState.debugSummary
+        measurementPreflightOutputLabel.textColor = flowState.statusIsError
             ? UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
             : UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
     }
 
     @objc private func evaluateMeasurementStartPreflightFromUi() {
-        measurementStartPreflightViewModel.setInVehicle(value: measurementPreflightInVehicleSwitch.isOn)
-        measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(value: false)
+        measurementStartFlowViewModel.setInVehicle(value: measurementPreflightInVehicleSwitch.isOn)
         let resolvedInputs = measurementStartEnvironmentResolver.resolve(
             observed: observedMeasurementStartEnvironment(),
             overrides: measurementStartEnvironmentOverrides()
         )
-        let mode = resolvedInputs.collectionMode
         let path = resolvedInputs.networkPath
-        let result = measurementStartPreflightViewModel.evaluate(
-            collectionMode: mode,
-            hasRuntimeProfile: resolvedInputs.hasRuntimeProfile,
-            hasLocationPermission: resolvedInputs.hasLocationPermission,
-            networkPath: path
-        )
-        if result.requiresUserConfirm {
-            let presentation = measurementStartUiPresenter.present(result: result)
+        let goState = measurementStartFlowViewModel.onGoPressed(environment: resolvedInputs)
+        renderMeasurementStartPreflightOutput(flowState: goState, networkPath: path)
+        if goState.shouldPromptConfirmation {
             let dialog = UIAlertController(
                 title: nil,
-                message: presentation.confirmationDialogMessage ?? measurementStartUiPresenter.challengePathConfirmMessage(),
+                message: goState.confirmationMessage ?? "Current network is not cellular. Continue anyway?",
                 preferredStyle: .alert
             )
             dialog.addAction(UIAlertAction(title: "Measure anyway", style: .default) { [weak self] _ in
                 guard let self else { return }
-                self.measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(value: true)
-                let confirmed = self.measurementStartPreflightViewModel.evaluate(
-                    collectionMode: mode,
-                    hasRuntimeProfile: resolvedInputs.hasRuntimeProfile,
-                    hasLocationPermission: resolvedInputs.hasLocationPermission,
-                    networkPath: path
-                )
-                self.renderMeasurementStartPreflightOutput(result: confirmed, networkPath: path)
+                let confirmedState = self.measurementStartFlowViewModel.onConfirmProceed(environment: resolvedInputs)
+                self.renderMeasurementStartPreflightOutput(flowState: confirmedState, networkPath: path)
             })
             dialog.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
-                self?.renderMeasurementStartPreflightOutput(result: result, networkPath: path)
+                guard let self else { return }
+                let canceledState = self.measurementStartFlowViewModel.onConfirmCancel()
+                self.renderMeasurementStartPreflightOutput(flowState: canceledState, networkPath: path)
             })
             present(dialog, animated: true)
-            renderMeasurementStartPreflightOutput(result: result, networkPath: path)
-            return
         }
-        renderMeasurementStartPreflightOutput(result: result, networkPath: path)
+    }
+
+    private func fallbackDebugSummary(
+        result: MeasurementPreflightResult?,
+        networkPath: MeasurementNetworkPath
+    ) -> String {
+        guard let result else {
+            return "networkPath=\(networkPath)"
+        }
+        return "allowed=\(result.allowed);reason=\(result.reasonCode);networkPath=\(networkPath)"
     }
 
     @objc private func submitOnboarding() {

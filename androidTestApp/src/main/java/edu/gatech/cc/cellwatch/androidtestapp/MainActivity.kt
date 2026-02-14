@@ -48,11 +48,13 @@ import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementNetworkPath
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightResult
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightUseCase
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightFlowUiState
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightFlowViewModel
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightEnvironmentOverrides
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightEnvironmentResolver
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightObservedEnvironment
-import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightViewModel
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightUiPresenter
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingPersistenceUseCase
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileSubmission
@@ -162,11 +164,12 @@ class MainActivity : AppCompatActivity() {
     private val onboardingValidationUseCase = OnboardingValidationUseCase()
     private lateinit var onboardingPersistenceUseCase: OnboardingPersistenceUseCase
     private lateinit var onboardingViewModel: OnboardingProfileViewModel
-    private val measurementStartPreflightViewModel = MeasurementStartPreflightViewModel(
-        useCase = MeasurementPreflightUseCase(),
-    )
+    private val measurementPreflightUseCase = MeasurementPreflightUseCase()
     private val measurementStartEnvironmentResolver = MeasurementStartPreflightEnvironmentResolver()
-    private val measurementStartUiPresenter = MeasurementStartPreflightUiPresenter()
+    private val measurementStartFlowViewModel = MeasurementStartPreflightFlowViewModel(
+        useCase = measurementPreflightUseCase,
+        uiPresenter = MeasurementStartPreflightUiPresenter(),
+    )
     private var onboardingUiRenderInProgress = false
     private val smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private val smokeFormatter = SyncSmokeResultFormatter()
@@ -748,11 +751,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun runPhase3Sequence() {
-        val story2Preflight = measurementStartPreflightViewModel.evaluate(
-            collectionMode = edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE,
-            hasRuntimeProfile = true,
-            hasLocationPermission = hasHarnessLocationPermissions(),
-            networkPath = MeasurementNetworkPath.UNKNOWN,
+        val story2Preflight = measurementPreflightUseCase.evaluate(
+            edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightInput(
+                request = edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartRequest(
+                    collectionMode = edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE,
+                    inVehicle = false,
+                ),
+                hasRuntimeProfile = true,
+                hasLocationPermission = hasHarnessLocationPermissions(),
+                networkPath = MeasurementNetworkPath.UNKNOWN,
+                userConfirmedNonCellularChallengePath = false,
+            ),
         )
         if (!story2Preflight.allowed) {
             val envelope = smokeEnvelopeBuilder.failure(
@@ -872,61 +881,50 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun evaluateMeasurementStartPreflightFromUi() {
-        measurementStartPreflightViewModel.setInVehicle(measurementPreflightInVehicleCheckbox.isChecked)
-        measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(false)
+        measurementStartFlowViewModel.setInVehicle(measurementPreflightInVehicleCheckbox.isChecked)
         val resolvedInputs = measurementStartEnvironmentResolver.resolve(
             observed = observedMeasurementStartEnvironment(),
             overrides = measurementStartEnvironmentOverrides(),
         )
-        val mode = resolvedInputs.collectionMode
-        val networkPath = resolvedInputs.networkPath
-        val result = measurementStartPreflightViewModel.evaluate(
-            collectionMode = mode,
-            hasRuntimeProfile = resolvedInputs.hasRuntimeProfile,
-            hasLocationPermission = resolvedInputs.hasLocationPermission,
-            networkPath = networkPath,
-        )
-        if (result.requiresUserConfirm) {
-            val presentation = measurementStartUiPresenter.present(result)
+        val goState = measurementStartFlowViewModel.onGoPressed(resolvedInputs)
+        renderMeasurementPreflightOutput(goState, resolvedInputs.networkPath)
+        if (goState.shouldPromptConfirmation) {
             AlertDialog.Builder(this)
-                .setMessage(presentation.confirmationDialogMessage ?: measurementStartUiPresenter.challengePathConfirmMessage())
+                .setMessage(goState.confirmationMessage)
                 .setPositiveButton("Measure anyway") { dialog, _ ->
                     dialog.dismiss()
-                    measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(true)
-                    val confirmed = measurementStartPreflightViewModel.evaluate(
-                        collectionMode = mode,
-                        hasRuntimeProfile = resolvedInputs.hasRuntimeProfile,
-                        hasLocationPermission = resolvedInputs.hasLocationPermission,
-                        networkPath = networkPath,
-                    )
-                    renderMeasurementPreflightOutput(confirmed, networkPath)
+                    val confirmedState = measurementStartFlowViewModel.onConfirmProceed(resolvedInputs)
+                    renderMeasurementPreflightOutput(confirmedState, resolvedInputs.networkPath)
                 }
                 .setNegativeButton("Cancel") { dialog, _ ->
                     dialog.dismiss()
-                    renderMeasurementPreflightOutput(result, networkPath)
+                    val canceledState = measurementStartFlowViewModel.onConfirmCancel()
+                    renderMeasurementPreflightOutput(canceledState, resolvedInputs.networkPath)
                 }
                 .show()
-            renderMeasurementPreflightOutput(result, networkPath)
-            return
         }
-        renderMeasurementPreflightOutput(result, networkPath)
     }
 
     private fun renderMeasurementPreflightOutput(
-        result: edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightResult,
+        flowState: MeasurementStartPreflightFlowUiState,
         networkPath: MeasurementNetworkPath,
     ) {
-        val presentation = measurementStartUiPresenter.present(result)
-        measurementPreflightOutput.text = presentation.statusMessage
-        measurementPreflightOutput.contentDescription =
-            measurementStartUiPresenter.debugSummary(
-                result = result,
-                networkPath = networkPath,
-                inVehicle = measurementStartPreflightViewModel.currentState().inVehicle,
-            )
+        measurementPreflightOutput.text = flowState.statusMessage
+        measurementPreflightOutput.contentDescription = flowState.debugSummary
+            .ifEmpty {
+                fallbackDebugSummary(flowState.latestResult, networkPath)
+            }
         measurementPreflightOutput.setTextColor(
-            if (presentation.statusIsError) Color.parseColor("#A82329") else Color.parseColor("#003618"),
+            if (flowState.statusIsError) Color.parseColor("#A82329") else Color.parseColor("#003618"),
         )
+    }
+
+    private fun fallbackDebugSummary(
+        result: MeasurementPreflightResult?,
+        networkPath: MeasurementNetworkPath,
+    ): String {
+        if (result == null) return "networkPath=$networkPath"
+        return "allowed=${result.allowed};reason=${result.reasonCode};networkPath=$networkPath"
     }
 
     private fun observedMeasurementStartEnvironment(): MeasurementStartPreflightObservedEnvironment {
