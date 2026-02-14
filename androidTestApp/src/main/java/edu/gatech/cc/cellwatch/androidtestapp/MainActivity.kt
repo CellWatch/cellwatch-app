@@ -1,9 +1,12 @@
 package edu.gatech.cc.cellwatch.androidtestapp
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -14,6 +17,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -94,8 +98,16 @@ class MainActivity : AppCompatActivity() {
         const val ONBOARDING_EMAIL_INPUT_ID = 1008
         const val ONBOARDING_ACK_CHECKBOX_ID = 1009
         const val ONBOARDING_SUBMIT_BUTTON_ID = 1010
+        const val MEASUREMENT_PREFLIGHT_IN_VEHICLE_ID = 1011
+        const val MEASUREMENT_PREFLIGHT_EVALUATE_BUTTON_ID = 1019
+        const val MEASUREMENT_PREFLIGHT_OUTPUT_ID = 1020
         const val EXTRA_UI_MODE = "cellwatch.uiMode"
         const val UI_MODE_ONBOARDING_FLOW = "onboarding-flow"
+        const val UI_MODE_MEASUREMENT_START_FLOW = "measurement-start-flow"
+        const val EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_NETWORK_PATH = "cellwatch.measurementPreflight.overrideNetworkPath"
+        const val EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION = "cellwatch.measurementPreflight.overrideLocationPermission"
+        const val EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_RUNTIME_PROFILE = "cellwatch.measurementPreflight.overrideRuntimeProfile"
+        const val EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_COLLECTION_MODE = "cellwatch.measurementPreflight.overrideCollectionMode"
         private const val LOG_TAG = "AndroidTestHarness"
         private const val PERMISSION_REQUEST_CODE = 7001
     }
@@ -103,6 +115,7 @@ class MainActivity : AppCompatActivity() {
     private enum class UiMode {
         FULL_HARNESS,
         ONBOARDING_FLOW,
+        MEASUREMENT_START_FLOW,
     }
 
     private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
@@ -129,6 +142,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var onboardingPhoneInput: EditText
     private lateinit var onboardingEmailInput: EditText
     private lateinit var onboardingAckCheckbox: CheckBox
+    private lateinit var measurementPreflightInVehicleCheckbox: CheckBox
+    private lateinit var measurementPreflightOutput: TextView
 
     private var syncDriver: AndroidTestSyncDriver? = null
     private var lastGroup: MeasurementGroup? = null
@@ -155,6 +170,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         uiMode = if (intent?.getStringExtra(EXTRA_UI_MODE) == UI_MODE_ONBOARDING_FLOW) {
             UiMode.ONBOARDING_FLOW
+        } else if (intent?.getStringExtra(EXTRA_UI_MODE) == UI_MODE_MEASUREMENT_START_FLOW) {
+            UiMode.MEASUREMENT_START_FLOW
         } else {
             UiMode.FULL_HARNESS
         }
@@ -175,8 +192,10 @@ class MainActivity : AppCompatActivity() {
             persistenceUseCase = onboardingPersistenceUseCase,
         )
         setContentView(buildUi())
-        bindOnboardingInputs()
-        applyOnboardingUiState(onboardingViewModel.loadPersistedProfile())
+        if (uiMode != UiMode.MEASUREMENT_START_FLOW) {
+            bindOnboardingInputs()
+            applyOnboardingUiState(onboardingViewModel.loadPersistedProfile())
+        }
         requestHarnessRuntimePermissions()
     }
 
@@ -234,10 +253,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildUi(): ScrollView {
-        return if (uiMode == UiMode.ONBOARDING_FLOW) {
-            buildOnboardingOnlyUi()
-        } else {
-            buildHarnessUi()
+        return when (uiMode) {
+            UiMode.ONBOARDING_FLOW -> buildOnboardingOnlyUi()
+            UiMode.MEASUREMENT_START_FLOW -> buildMeasurementStartOnlyUi()
+            UiMode.FULL_HARNESS -> buildHarnessUi()
         }
     }
 
@@ -433,6 +452,63 @@ class MainActivity : AppCompatActivity() {
         content.addView(subtitle)
         content.addView(buildCard(onboardingNameInput, onboardingPhoneInput, onboardingEmailInput, onboardingAckCheckbox, onboardingSubmitButton))
         content.addView(statusText)
+        root.addView(content)
+        return root
+    }
+
+    private fun buildMeasurementStartOnlyUi(): ScrollView {
+        val root = ScrollView(this)
+        root.setBackgroundColor(Color.parseColor("#F7F9FC"))
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(42, 64, 42, 42)
+        }
+
+        val title = TextView(this).apply {
+            text = "Measurement Start Preflight"
+            textSize = 28f
+            setTextColor(Color.parseColor("#0A2A43"))
+            setPadding(0, 0, 0, 8)
+        }
+        val subtitle = TextView(this).apply {
+            text = "Confirm your setup before starting a measurement."
+            textSize = 16f
+            setTextColor(Color.parseColor("#3B5D77"))
+            setPadding(0, 0, 0, 20)
+        }
+
+        measurementPreflightInVehicleCheckbox = CheckBox(this).apply {
+            id = MEASUREMENT_PREFLIGHT_IN_VEHICLE_ID
+            text = "In moving vehicle"
+            isChecked = false
+        }
+        val evaluateButton = Button(this).apply {
+            id = MEASUREMENT_PREFLIGHT_EVALUATE_BUTTON_ID
+            text = "Go"
+            stylePrimaryButton(this)
+            setOnClickListener { evaluateMeasurementStartPreflightFromUi() }
+        }
+        measurementPreflightOutput = TextView(this).apply {
+            id = MEASUREMENT_PREFLIGHT_OUTPUT_ID
+            text = "Tap Go to check readiness."
+            textSize = 14f
+            setTextColor(Color.parseColor("#003618"))
+            setPadding(16, 20, 16, 20)
+            background = roundedCard(
+                fillColor = Color.parseColor("#FFFFFF"),
+                strokeColor = Color.parseColor("#C8E3CC"),
+            )
+        }
+
+        content.addView(title)
+        content.addView(subtitle)
+        content.addView(
+            buildCard(
+                measurementPreflightInVehicleCheckbox,
+                evaluateButton,
+            ),
+        )
+        content.addView(measurementPreflightOutput)
         root.addView(content)
         return root
     }
@@ -787,6 +863,111 @@ class MainActivity : AppCompatActivity() {
                 statusText.text = smokeFormatter.format(envelope)
             }
         }
+    }
+
+    private fun evaluateMeasurementStartPreflightFromUi() {
+        measurementStartPreflightViewModel.setInVehicle(measurementPreflightInVehicleCheckbox.isChecked)
+        measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(false)
+        val mode = resolvedMeasurementCollectionMode()
+        val networkPath = resolvedMeasurementNetworkPath()
+        val result = measurementStartPreflightViewModel.evaluate(
+            collectionMode = mode,
+            hasRuntimeProfile = hasRuntimeProfileForMeasurementStart(),
+            hasLocationPermission = hasLocationPermissionForMeasurementStart(),
+            networkPath = networkPath,
+        )
+        if (result.requiresUserConfirm) {
+            AlertDialog.Builder(this)
+                .setMessage(
+                    "It looks like you are connected to Wi-Fi or network path is unknown. " +
+                        "If you proceed, your measurement may not be submitted to the FCC."
+                )
+                .setPositiveButton("Measure anyway") { dialog, _ ->
+                    dialog.dismiss()
+                    measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(true)
+                    val confirmed = measurementStartPreflightViewModel.evaluate(
+                        collectionMode = mode,
+                        hasRuntimeProfile = hasRuntimeProfileForMeasurementStart(),
+                        hasLocationPermission = hasLocationPermissionForMeasurementStart(),
+                        networkPath = networkPath,
+                    )
+                    renderMeasurementPreflightOutput(confirmed, networkPath)
+                }
+                .setNegativeButton("Cancel") { dialog, _ ->
+                    dialog.dismiss()
+                    renderMeasurementPreflightOutput(result, networkPath)
+                }
+                .show()
+            renderMeasurementPreflightOutput(result, networkPath)
+            return
+        }
+        renderMeasurementPreflightOutput(result, networkPath)
+    }
+
+    private fun renderMeasurementPreflightOutput(
+        result: edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementPreflightResult,
+        networkPath: MeasurementNetworkPath,
+    ) {
+        measurementPreflightOutput.text = when {
+            result.allowed -> "Preflight passed. You can start measuring."
+            result.reasonCode.name == "MISSING_LOCATION_PERMISSION" ->
+                "Location permission is required before starting measurement."
+            result.reasonCode.name == "MISSING_RUNTIME_PROFILE" ->
+                "Complete profile setup before starting measurement."
+            result.reasonCode.name == "CHALLENGE_NON_CELLULAR_CONFIRM_REQUIRED" ->
+                "Wi-Fi detected. Choose Measure anyway or Cancel."
+            else -> "Preflight blocked. Review requirements and try again."
+        }
+        measurementPreflightOutput.contentDescription =
+            "allowed=${result.allowed};" +
+                "reason=${result.reasonCode};" +
+                "networkPath=$networkPath;" +
+                "requiresUserConfirm=${result.requiresUserConfirm};" +
+                "warningKey=${result.warningTextKey ?: "none"};" +
+                "inVehicle=${measurementStartPreflightViewModel.currentState().inVehicle}"
+        measurementPreflightOutput.setTextColor(
+            if (result.allowed) Color.parseColor("#003618") else Color.parseColor("#A82329"),
+        )
+    }
+
+    private fun resolvedMeasurementCollectionMode(): edu.gatech.cc.cellwatch.domain.model.CollectionMode {
+        val override = intent?.getStringExtra(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_COLLECTION_MODE)?.trim()?.lowercase()
+        return when (override) {
+            "testing" -> edu.gatech.cc.cellwatch.domain.model.CollectionMode.TESTING
+            "fcc_challenge", "fcc" -> edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE
+            else -> edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE
+        }
+    }
+
+    private fun resolvedMeasurementNetworkPath(): MeasurementNetworkPath {
+        val override = intent?.getStringExtra(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_NETWORK_PATH)?.trim()?.lowercase()
+        if (override != null) {
+            return when (override) {
+                "cellular", "cell" -> MeasurementNetworkPath.CELLULAR
+                "wifi" -> MeasurementNetworkPath.WIFI
+                else -> MeasurementNetworkPath.UNKNOWN
+            }
+        }
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return MeasurementNetworkPath.UNKNOWN
+        val active = cm.activeNetwork ?: return MeasurementNetworkPath.UNKNOWN
+        val caps = cm.getNetworkCapabilities(active) ?: return MeasurementNetworkPath.UNKNOWN
+        return when {
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> MeasurementNetworkPath.CELLULAR
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> MeasurementNetworkPath.WIFI
+            else -> MeasurementNetworkPath.UNKNOWN
+        }
+    }
+
+    private fun hasRuntimeProfileForMeasurementStart(): Boolean {
+        val override = intent?.extras?.get(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_RUNTIME_PROFILE)
+        if (override is Boolean) return override
+        return true
+    }
+
+    private fun hasLocationPermissionForMeasurementStart(): Boolean {
+        val override = intent?.extras?.get(EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION)
+        if (override is Boolean) return override
+        return hasHarnessLocationPermissions()
     }
 
     private suspend fun checkLocalMsakReachabilityIssue(): String? {

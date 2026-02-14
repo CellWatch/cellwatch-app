@@ -5,10 +5,15 @@ final class OnboardingFlowUiTests: XCTestCase {
         .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
         .appendingPathComponent("ios", isDirectory: true)
         .appendingPathComponent("onboarding-profile-entry-xcuitest", isDirectory: true)
+    private let measurementStartScreenshotRoot = URL(fileURLWithPath: "/tmp", isDirectory: true)
+        .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
+        .appendingPathComponent("ios", isDirectory: true)
+        .appendingPathComponent("measurement-start-preflight-xcuitest", isDirectory: true)
 
     override func setUpWithError() throws {
         continueAfterFailure = false
         try FileManager.default.createDirectory(at: screenshotRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: measurementStartScreenshotRoot, withIntermediateDirectories: true)
     }
 
     func testOnboardingFlow_roundTripPersistenceScreenshots() throws {
@@ -87,6 +92,59 @@ final class OnboardingFlowUiTests: XCTestCase {
         app.terminate()
     }
 
+    func testMeasurementStartPreflight_flowShowsConfirmGateForUnknownPath() throws {
+        let app = XCUIApplication()
+        app.launchEnvironment["CELLWATCH_UI_MODE"] = "measurement-start-flow"
+        app.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_COLLECTION_MODE"] = "fcc_challenge"
+        app.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION"] = "1"
+        app.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_RUNTIME_PROFILE"] = "1"
+        app.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_NETWORK_PATH"] = "wifi"
+        app.launch()
+
+        let inVehicleSwitch = app.switches["harness.measurementStart.inVehicle"]
+        let evaluateButton = app.buttons["harness.measurementStart.evaluate"]
+        let output = app.staticTexts["harness.measurementStart.output"]
+
+        XCTAssertTrue(inVehicleSwitch.waitForExistence(timeout: 8))
+        XCTAssertTrue(evaluateButton.waitForExistence(timeout: 8))
+        XCTAssertTrue(output.waitForExistence(timeout: 8))
+        captureMeasurementStartScreenshot(named: "01-ready")
+
+        evaluateButton.tap()
+        captureMeasurementStartScreenshot(named: "02-wifi-warning-dialog")
+        XCTAssertTrue(app.alerts.element.waitForExistence(timeout: 5))
+        app.alerts.buttons["Measure anyway"].tap()
+        XCTAssertTrue(output.waitForExistence(timeout: 5))
+        captureMeasurementStartScreenshot(named: "03-wifi-confirmed-allowed")
+        XCTAssertTrue(output.label.contains("Preflight passed. You can start measuring."))
+        let allowedDebug = (output.value as? String) ?? ""
+        XCTAssertTrue(allowedDebug.contains("allowed=true"))
+        XCTAssertTrue(allowedDebug.lowercased().contains("reason=allowed"))
+
+        app.terminate()
+
+        let unknown = XCUIApplication()
+        unknown.launchEnvironment["CELLWATCH_UI_MODE"] = "measurement-start-flow"
+        unknown.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_COLLECTION_MODE"] = "fcc_challenge"
+        unknown.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION"] = "1"
+        unknown.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_RUNTIME_PROFILE"] = "1"
+        unknown.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_NETWORK_PATH"] = "unknown"
+        unknown.launch()
+        let unknownEvaluate = unknown.buttons["harness.measurementStart.evaluate"]
+        let unknownOutput = unknown.staticTexts["harness.measurementStart.output"]
+        XCTAssertTrue(unknownEvaluate.waitForExistence(timeout: 8))
+        XCTAssertTrue(unknownOutput.waitForExistence(timeout: 8))
+        unknownEvaluate.tap()
+        XCTAssertTrue(unknown.alerts.element.waitForExistence(timeout: 5))
+        captureMeasurementStartScreenshot(named: "04-unknown-warning-dialog")
+        unknown.alerts.buttons["Cancel"].tap()
+        XCTAssertTrue(unknownOutput.label.contains("Wi-Fi detected. Choose Measure anyway or Cancel."))
+        let unknownDebug = (unknownOutput.value as? String) ?? ""
+        XCTAssertTrue(unknownDebug.contains("allowed=false"))
+        XCTAssertTrue(unknownDebug.contains("networkPath=UNKNOWN"))
+        unknown.terminate()
+    }
+
     private func launchOnboarding(clearProfile: Bool) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "onboarding-flow"
@@ -106,8 +164,22 @@ final class OnboardingFlowUiTests: XCTestCase {
 
     private func clearAndType(_ field: XCUIElement, text: String) {
         field.tap()
-        if let current = field.value as? String, !current.isEmpty, !current.contains("#"), !current.lowercased().contains("name"), !current.lowercased().contains("phone"), !current.lowercased().contains("email") {
-            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
+        if let clearButton = field.buttons.allElementsBoundByIndex.first(where: { $0.label == "Clear text" }), clearButton.exists {
+            clearButton.tap()
+        } else if let current = field.value as? String,
+                  !current.isEmpty,
+                  !current.contains("#"),
+                  !current.lowercased().contains("name"),
+                  !current.lowercased().contains("phone"),
+                  !current.lowercased().contains("email") {
+            field.press(forDuration: 0.8)
+            let selectAll = XCUIApplication().menuItems["Select All"]
+            if selectAll.waitForExistence(timeout: 1) {
+                selectAll.tap()
+                field.typeText(XCUIKeyboardKey.delete.rawValue)
+            } else {
+                field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
+            }
         }
         field.typeText(text)
     }
@@ -115,6 +187,12 @@ final class OnboardingFlowUiTests: XCTestCase {
     private func captureScreenshot(named name: String) {
         let data = XCUIScreen.main.screenshot().pngRepresentation
         let url = screenshotRoot.appendingPathComponent("\(name).png")
+        try? data.write(to: url, options: [.atomic])
+    }
+
+    private func captureMeasurementStartScreenshot(named name: String) {
+        let data = XCUIScreen.main.screenshot().pngRepresentation
+        let url = measurementStartScreenshotRoot.appendingPathComponent("\(name).png")
         try? data.write(to: url, options: [.atomic])
     }
 
