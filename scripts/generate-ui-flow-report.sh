@@ -137,6 +137,12 @@ run_step \
   "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.MeasurementStartPreflightUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunMeasurementStartPreflightUiSmoke=1"
 pull_android_flow "measurement-start-preflight"
 
+reset_android_flow "phase3-sequence-button"
+run_step \
+  "android-phase3-sequence-button" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.Phase3SequenceButtonUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunPhase3UiSmoke=1"
+pull_android_flow "phase3-sequence-button"
+
 run_step \
   "ios-onboarding-profile-entry-hosted" \
   "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppHostedOnboardingRuntimeSmoke"
@@ -151,17 +157,24 @@ run_step \
   "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppUiMeasurementStartPreflightSmoke"
 copy_ios_flow "measurement-start-preflight-xcuitest"
 
+run_step \
+  "ios-phase3-sequence-button" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppHostedPhase3ButtonSmoke"
+copy_ios_flow "phase3-sequence-button"
+
 {
   echo "# UI Flow Report"
   echo
   echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   echo
-  echo "_Scope: product-like onboarding and measurement-start preflight flow evidence. iOS hosted onboarding smoke is assertion-only (no screenshots); iOS visual evidence comes from XCUITest device screenshots. Phase 3 button smoke moved to simulator smoke reporting._"
+  echo "_Scope: product-like onboarding, measurement-start preflight, and measurement-run (Phase 3 sequence) flow evidence. iOS hosted onboarding smoke is assertion-only (no screenshots); iOS visual evidence comes from XCUITest device screenshots._"
   echo
   render_flow_section "android" "onboarding-profile-entry" "Android: Onboarding Profile Entry Smoke"
   render_flow_section "android" "measurement-start-preflight" "Android: Measurement Start Preflight Smoke"
+  render_flow_section "android" "phase3-sequence-button" "Android: Measurement Run Phase3 Sequence Smoke"
   render_flow_section "ios" "onboarding-profile-entry-xcuitest" "iOS: Onboarding Profile Entry Smoke (XCUITest)"
   render_flow_section "ios" "measurement-start-preflight-xcuitest" "iOS: Measurement Start Preflight Smoke (XCUITest)"
+  render_flow_section "ios" "phase3-sequence-button" "iOS: Measurement Run Phase3 Sequence Smoke (XCUITest)"
 } > "$MARKDOWN_FILE"
 
 echo
