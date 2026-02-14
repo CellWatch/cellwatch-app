@@ -258,13 +258,16 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let onboardingValidationUseCase = OnboardingValidationUseCase()
     private let onboardingPersistenceUseCase = OnboardingPersistenceUseCase(store: OnboardingUserDefaultsStore())
     private let measurementPreflightUseCase = MeasurementPreflightUseCase()
-    private lazy var measurementStartFlowViewModel = MeasurementStartPreflightFlowViewModel(
-        useCase: measurementPreflightUseCase,
-        uiPresenter: MeasurementStartPreflightUiPresenter()
+    private let measurementStartEnvironmentResolver = MeasurementStartPreflightEnvironmentResolver()
+    private lazy var measurementStartFlowController = MeasurementStartPreflightFlowController(
+        environmentResolver: measurementStartEnvironmentResolver,
+        flowViewModel: MeasurementStartPreflightFlowViewModel(
+            useCase: measurementPreflightUseCase,
+            uiPresenter: MeasurementStartPreflightUiPresenter()
+        )
     )
     private let measurementRunViewController = MeasurementRunViewController()
     private let measurementRunUiPresenter = MeasurementRunUiPresenter()
-    private let measurementStartEnvironmentResolver = MeasurementStartPreflightEnvironmentResolver()
     private lazy var onboardingViewModel = OnboardingProfileViewModel(
         validationUseCase: onboardingValidationUseCase,
         persistenceUseCase: onboardingPersistenceUseCase
@@ -1308,30 +1311,35 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     }
 
     @objc private func evaluateMeasurementStartPreflightFromUi() {
-        measurementStartFlowViewModel.setInVehicle(value: measurementPreflightInVehicleSwitch.isOn)
-        let resolvedInputs = measurementStartEnvironmentResolver.resolve(
+        _ = measurementStartFlowController.setInVehicle(value: measurementPreflightInVehicleSwitch.isOn)
+        let go = measurementStartFlowController.onGoPressed(
             collectionMode: measurementStartCollectionMode(),
             capabilitySnapshot: observedMeasurementStartCapabilities(),
             overrides: measurementStartEnvironmentOverrides()
         )
-        let path = resolvedInputs.networkPath
-        let goState = measurementStartFlowViewModel.onGoPressed(environment: resolvedInputs)
-        renderMeasurementStartPreflightOutput(flowState: goState, networkPath: path)
-        if goState.shouldPromptConfirmation {
+        let path = go.environment.networkPath
+        renderMeasurementStartPreflightOutput(flowState: go.state, networkPath: path)
+        if go.state.shouldPromptConfirmation {
             let dialog = UIAlertController(
                 title: nil,
-                message: goState.confirmationMessage ?? "Current network is not cellular. Continue anyway?",
+                message: go.state.confirmationMessage ?? "Current network is not cellular. Continue anyway?",
                 preferredStyle: .alert
             )
             dialog.addAction(UIAlertAction(title: "Measure anyway", style: .default) { [weak self] _ in
                 guard let self else { return }
-                let confirmedState = self.measurementStartFlowViewModel.onConfirmProceed(environment: resolvedInputs)
-                self.renderMeasurementStartPreflightOutput(flowState: confirmedState, networkPath: path)
+                let confirmed = self.measurementStartFlowController.onConfirmProceed()
+                self.renderMeasurementStartPreflightOutput(
+                    flowState: confirmed.state,
+                    networkPath: confirmed.environment.networkPath
+                )
             })
             dialog.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
                 guard let self else { return }
-                let canceledState = self.measurementStartFlowViewModel.onConfirmCancel()
-                self.renderMeasurementStartPreflightOutput(flowState: canceledState, networkPath: path)
+                let canceled = self.measurementStartFlowController.onConfirmCancel()
+                self.renderMeasurementStartPreflightOutput(
+                    flowState: canceled.state,
+                    networkPath: canceled.environment.networkPath
+                )
             })
             present(dialog, animated: true)
         }
