@@ -233,6 +233,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         case uikit
     }
     static let mapStartSharedSliceButtonIdentifier = "harness.mapStartSharedSliceButton"
+    static let phase3SequenceButtonIdentifier = "harness.phase3.sequenceButton"
     static let statusLabelIdentifier = "harness.statusLabel"
     static let outputTextViewIdentifier = "harness.outputTextView"
     static let msakModeButtonIdentifier = "harness.msakModeButton"
@@ -418,6 +419,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
 
         let runPhase3SequenceButton = UIButton(type: .system)
         runPhase3SequenceButton.setTitle("Run Phase3 Sequence (Shared Orchestrator)", for: .normal)
+        runPhase3SequenceButton.accessibilityIdentifier = Self.phase3SequenceButtonIdentifier
         applyButtonStyle(runPhase3SequenceButton, role: .primary)
         runPhase3SequenceButton.addTarget(self, action: #selector(runPhase3Sequence), for: .touchUpInside)
         runPhase3SequenceButton.translatesAutoresizingMaskIntoConstraints = false
