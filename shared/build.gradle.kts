@@ -776,6 +776,34 @@ tasks.register("verifyIosTestAppHostedOnboardingRuntimeSmoke") {
     }
 }
 
+tasks.register("verifyIosTestAppUiOnboardingFlowSmoke") {
+    description = "Tier 2: iOS XCUITest onboarding flow smoke for product-like UI evidence screenshots."
+    group = "verification"
+    dependsOn("refreshIosSimulatorCurrentFramework")
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException("Missing iOS hosted test app project at ${projectPath.absolutePath}.")
+        }
+    }
+    doLast {
+        exec {
+            commandLine(
+                "xcodebuild",
+                "-project",
+                projectPath.absolutePath,
+                "-scheme",
+                "iosTestAppUiSmoke",
+                "-destination",
+                "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                "-only-testing:iosTestAppUITests/OnboardingFlowUiTests/testOnboardingFlow_roundTripPersistenceScreenshots",
+                "test",
+            )
+            workingDir = rootProject.projectDir
+        }
+    }
+}
+
 // Hosted iOS simulator tasks share runtime state (simulator process, keychain scope, local services).
 // Keep them serialized to avoid flaky failures when Gradle runs tasks in parallel.
 tasks.named("verifyIosTestAppHosted") {
@@ -796,6 +824,9 @@ tasks.named("verifyIosTestAppHostedPhase3ButtonSmoke") {
 tasks.named("verifyIosTestAppHostedOnboardingRuntimeSmoke") {
     mustRunAfter("verifyIosTestAppHostedPhase3ButtonSmoke")
 }
+tasks.named("verifyIosTestAppUiOnboardingFlowSmoke") {
+    mustRunAfter("verifyIosTestAppHostedOnboardingRuntimeSmoke")
+}
 
 tasks.register("verifyIosHostedTier2Sequential") {
     description = "Tier 2: run all hosted iOS checks sequentially to avoid simulator concurrency flake."
@@ -808,6 +839,7 @@ tasks.register("verifyIosHostedTier2Sequential") {
         "verifyIosTestAppHostedFailureStatusSmoke",
         "verifyIosTestAppHostedPhase3ButtonSmoke",
         "verifyIosTestAppHostedOnboardingRuntimeSmoke",
+        "verifyIosTestAppUiOnboardingFlowSmoke",
     )
 }
 
@@ -825,6 +857,7 @@ tasks.register("verifyPhase3Tier2FailureMatrix") {
         "verifyIosTestAppHostedFailureStatusSmoke",
         "verifyIosTestAppHostedPhase3ButtonSmoke",
         "verifyIosTestAppHostedOnboardingRuntimeSmoke",
+        "verifyIosTestAppUiOnboardingFlowSmoke",
     )
 }
 
@@ -835,7 +868,7 @@ tasks.register("verifySimulatorUiRegressionSequence") {
         "verifyAndroidUiPhase3ButtonSmoke",
         "verifyAndroidUiOnboardingRuntimeSmoke",
         "verifyIosTestAppHostedPhase3ButtonSmoke",
-        "verifyIosTestAppHostedOnboardingRuntimeSmoke",
+        "verifyIosTestAppUiOnboardingFlowSmoke",
     )
 }
 

@@ -119,34 +119,28 @@ render_flow_section() {
 disable_android_animations
 
 run_step \
-  "android-phase3-sequence-button" \
-  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.Phase3SequenceButtonUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunPhase3UiSmoke=1"
-pull_android_flow "phase3-sequence-button"
-
-run_step \
   "android-onboarding-profile-entry" \
   "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.OnboardingRuntimeUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunOnboardingUiSmoke=1"
 pull_android_flow "onboarding-profile-entry"
 
 run_step \
-  "ios-phase3-sequence-button" \
-  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppHostedPhase3ButtonSmoke"
-copy_ios_flow "phase3-sequence-button"
+  "ios-onboarding-profile-entry-hosted" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppHostedOnboardingRuntimeSmoke"
 
 run_step \
-  "ios-onboarding-profile-entry" \
-  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppHostedOnboardingRuntimeSmoke"
-copy_ios_flow "onboarding-profile-entry"
+  "ios-onboarding-profile-entry-xcuitest" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppUiOnboardingFlowSmoke"
+copy_ios_flow "onboarding-profile-entry-xcuitest"
 
 {
   echo "# UI Flow Report"
   echo
   echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   echo
+  echo "_Scope: product-like onboarding flow evidence only. iOS hosted onboarding smoke is assertion-only (no screenshots); iOS visual evidence comes from XCUITest device screenshots. Phase 3 button smoke moved to simulator smoke reporting._"
+  echo
   render_flow_section "android" "onboarding-profile-entry" "Android: Onboarding Profile Entry Smoke"
-  render_flow_section "android" "phase3-sequence-button" "Android: Phase3 Sequence Button Smoke"
-  render_flow_section "ios" "onboarding-profile-entry" "iOS: Onboarding Profile Entry Smoke"
-  render_flow_section "ios" "phase3-sequence-button" "iOS: Phase3 Sequence Button Smoke"
+  render_flow_section "ios" "onboarding-profile-entry-xcuitest" "iOS: Onboarding Profile Entry Smoke (XCUITest)"
 } > "$MARKDOWN_FILE"
 
 echo
