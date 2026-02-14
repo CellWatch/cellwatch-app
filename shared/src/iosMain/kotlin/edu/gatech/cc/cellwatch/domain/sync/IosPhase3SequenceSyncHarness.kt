@@ -15,10 +15,13 @@ import edu.gatech.cc.cellwatch.domain.capability.CapabilityPersistenceSummaryFor
 import edu.gatech.cc.cellwatch.domain.capability.IosPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
+import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceStage
 import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateConfig
 import edu.gatech.cc.cellwatch.domain.fcc.RepositoryBackedMeasurementResultStore
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunUiPresenter
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunViewController
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -50,6 +53,7 @@ class IosPhase3SequenceSyncHarness {
         msakConfig: MsakLocateConfig,
         supabaseUrl: String,
         supabaseApiKey: String,
+        onProgressHeader: ((String) -> Unit)? = null,
         onComplete: (IosPhase3SequenceSyncResult?, Throwable?) -> Unit,
     ) {
         val handler = CoroutineExceptionHandler { _, throwable ->
@@ -61,6 +65,7 @@ class IosPhase3SequenceSyncHarness {
                     msakConfig = msakConfig,
                     supabaseUrl = supabaseUrl,
                     supabaseApiKey = supabaseApiKey,
+                    onProgressHeader = onProgressHeader,
                 )
             }.onSuccess { result ->
                 onComplete(result, null)
@@ -75,8 +80,11 @@ class IosPhase3SequenceSyncHarness {
         msakConfig: MsakLocateConfig,
         supabaseUrl: String,
         supabaseApiKey: String,
+        onProgressHeader: ((String) -> Unit)? = null,
     ): IosPhase3SequenceSyncResult {
         val now = Clock.System.now()
+        val runController = MeasurementRunViewController()
+        val runPresenter = MeasurementRunUiPresenter()
         val deviceAuthStore = SequenceHarnessDeviceAuthStore()
         val driver = NativeSqliteDriver(
             schema = CellwatchDatabase.Schema,
@@ -134,6 +142,12 @@ class IosPhase3SequenceSyncHarness {
                     override fun now(): Instant = now
                 },
             )
+            val request = MeasurementSequenceRequest(
+                groupId = uuid4().toString(),
+                inVehicle = false,
+                mode = CollectionMode.FCC_CHALLENGE,
+                measurementId = null,
+            )
             val sequenceOrchestrator = DefaultMsakMeasurementSequenceOrchestratorFactory.create(
                 config = msakConfig,
                 resultStore = RepositoryBackedMeasurementResultStore(
@@ -147,6 +161,17 @@ class IosPhase3SequenceSyncHarness {
                 },
                 appSource = "ios-test-app-phase3-sync",
                 capabilityProvider = capabilityProvider,
+                progressListener = { stage ->
+                    when (stage) {
+                        MeasurementSequenceStage.STARTED -> runController.onSequenceStarted(request.groupId)
+                        MeasurementSequenceStage.LOCATE -> runController.onLocateStarted()
+                        MeasurementSequenceStage.LATENCY -> runController.onLatencyStarted()
+                        MeasurementSequenceStage.DOWNLOAD -> runController.onDownloadStarted()
+                        MeasurementSequenceStage.UPLOAD -> runController.onUploadStarted()
+                        MeasurementSequenceStage.DONE -> Unit
+                    }
+                    onProgressHeader?.invoke(runPresenter.present(runController.currentState()).headerText)
+                },
             )
             val capabilitySummary = runCatching {
                 CapabilityCaptureReportFormatter.format(
@@ -160,12 +185,6 @@ class IosPhase3SequenceSyncHarness {
             val syncOrchestrator = MeasurementSequenceSyncOrchestrator(
                 sequenceOrchestrator = sequenceOrchestrator,
                 uploadTriggerUseCase = uploadTriggerUseCase,
-            )
-            val request = MeasurementSequenceRequest(
-                groupId = uuid4().toString(),
-                inVehicle = false,
-                mode = CollectionMode.FCC_CHALLENGE,
-                measurementId = null,
             )
             val outcome = syncOrchestrator.run(request)
             val groupId = outcome.sequenceOutcome.group.id

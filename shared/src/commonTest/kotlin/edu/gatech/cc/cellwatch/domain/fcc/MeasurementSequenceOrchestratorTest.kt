@@ -133,6 +133,41 @@ class MeasurementSequenceOrchestratorTest {
             recorder.events,
         )
     }
+
+    @Test
+    fun `run emits stage callbacks in deterministic order`() = runBlocking {
+        val recorder = Recorder()
+        val stages = mutableListOf<MeasurementSequenceStage>()
+        val orchestrator = MeasurementSequenceOrchestrator(
+            serverPairProvider = FakeServerPairProvider(),
+            measurementExecutor = FakeMeasurementExecutor(recorder),
+            resultStore = FakeMeasurementResultStore(recorder),
+            submissionContextFactory = FakeSubmissionContextFactory(),
+            progressListener = MeasurementSequenceProgressListener { stage ->
+                stages += stage
+            },
+        )
+
+        orchestrator.run(
+            MeasurementSequenceRequest(
+                groupId = "group-4",
+                inVehicle = false,
+                mode = CollectionMode.TESTING,
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                MeasurementSequenceStage.STARTED,
+                MeasurementSequenceStage.LOCATE,
+                MeasurementSequenceStage.LATENCY,
+                MeasurementSequenceStage.DOWNLOAD,
+                MeasurementSequenceStage.UPLOAD,
+                MeasurementSequenceStage.DONE,
+            ),
+            stages,
+        )
+    }
 }
 
 private class Recorder {
