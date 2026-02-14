@@ -233,6 +233,11 @@ Current flow coverage in the report:
   - after edit
   - after edit submit
   - reopen after edit
+- `measurement-start-preflight`:
+  - ready
+  - warning dialog on Wi-Fi/unknown path
+  - confirm path (`Measure anyway`) and allowed state
+  - cancel path and blocked state
 
 Notes:
 - The report intentionally includes log excerpts even for successful flows to speed triage in new environments.
@@ -246,6 +251,10 @@ Notes:
 - iOS XCUI input stability pattern:
   - `waitForExistence` -> `tap` -> `typeText` -> assert field value/state
   - hide keyboard via toolbar `Done` first, then fallback tap on app background before tapping off-screen controls
+- measurement-start preflight architecture:
+  - shared resolver merges observed device state with optional test overrides
+  - platform glue remains observation-only (network path, location permission, persisted profile/runtime state)
+  - shared use case + presenter own policy and user-facing status mapping
 
 ### Simulator Smoke Report (Phase 3 Button Path)
 

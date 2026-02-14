@@ -259,6 +259,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let measurementStartPreflightViewModel = MeasurementStartPreflightViewModel(
         useCase: MeasurementPreflightUseCase()
     )
+    private let measurementStartEnvironmentResolver = MeasurementStartPreflightEnvironmentResolver()
     private let measurementStartUiPresenter = MeasurementStartPreflightUiPresenter()
     private lazy var onboardingViewModel = OnboardingProfileViewModel(
         validationUseCase: onboardingValidationUseCase,
@@ -981,7 +982,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         let story2Preflight = measurementStartPreflightViewModel.evaluate(
             collectionMode: .fccChallenge,
             hasRuntimeProfile: true,
-            hasLocationPermission: hasLocationPermissionForMeasurementStart(),
+            hasLocationPermission: observedMeasurementStartEnvironment().hasLocationPermission,
             networkPath: .unknown
         )
         if !story2Preflight.allowed {
@@ -1172,50 +1173,72 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         return raw
     }
 
-    private func hasLocationPermissionForMeasurementStart() -> Bool {
-        if let override = ProcessInfo.processInfo.environment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION"] {
-            return override == "1" || override.lowercased() == "true"
-        }
+    private func observedMeasurementStartEnvironment() -> MeasurementStartPreflightObservedEnvironment {
+        let persistedMode = onboardingPersistenceUseCase.loadProfile()?.collectionMode ?? .fccChallenge
         let status = CLLocationManager.authorizationStatus()
-        return status == .authorizedAlways || status == .authorizedWhenInUse
+        return MeasurementStartPreflightObservedEnvironment(
+            collectionMode: persistedMode,
+            hasRuntimeProfile: true,
+            hasLocationPermission: (status == .authorizedAlways || status == .authorizedWhenInUse),
+            networkPath: measurementNetworkPathProbe.currentPath()
+        )
     }
 
-    private func hasRuntimeProfileForMeasurementStart() -> Bool {
-        if let override = ProcessInfo.processInfo.environment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_RUNTIME_PROFILE"] {
-            return override == "1" || override.lowercased() == "true"
-        }
-        return true
+    private func measurementStartEnvironmentOverrides() -> MeasurementStartPreflightEnvironmentOverrides {
+        let env = ProcessInfo.processInfo.environment
+        return MeasurementStartPreflightEnvironmentOverrides(
+            collectionMode: parseCollectionModeOverride(env["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_COLLECTION_MODE"]),
+            hasRuntimeProfile: parseBooleanOverride(env["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_RUNTIME_PROFILE"])
+                .map { KotlinBoolean(bool: $0) },
+            hasLocationPermission: parseBooleanOverride(env["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION"])
+                .map { KotlinBoolean(bool: $0) },
+            networkPath: parseNetworkPathOverride(env["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_NETWORK_PATH"])
+        )
     }
 
-    private func resolvedMeasurementStartCollectionMode() -> CollectionMode {
-        let override = ProcessInfo.processInfo.environment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_COLLECTION_MODE"]?
+    private func parseCollectionModeOverride(_ raw: String?) -> CollectionMode? {
+        let override = raw?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
         switch override {
         case "testing":
-            return .testing
+            return CollectionMode.testing
         case "fcc", "fcc_challenge":
-            return .fccChallenge
+            return CollectionMode.fccChallenge
         default:
-            return .fccChallenge
+            return nil
         }
     }
 
-    private func resolvedMeasurementStartNetworkPath() -> MeasurementNetworkPath {
-        let override = ProcessInfo.processInfo.environment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_NETWORK_PATH"]?
+    private func parseNetworkPathOverride(_ raw: String?) -> MeasurementNetworkPath? {
+        let override = raw?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
         if let override {
             switch override {
             case "cell", "cellular":
-                return .cellular
+                return MeasurementNetworkPath.cellular
             case "wifi":
-                return .wifi
+                return MeasurementNetworkPath.wifi
+            case "unknown":
+                return MeasurementNetworkPath.unknown
             default:
-                return .unknown
+                return nil
             }
         }
-        return measurementNetworkPathProbe.currentPath()
+        return nil
+    }
+
+    private func parseBooleanOverride(_ raw: String?) -> Bool? {
+        guard let raw else { return nil }
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if value == "1" || value == "true" || value == "yes" || value == "y" {
+            return true
+        }
+        if value == "0" || value == "false" || value == "no" || value == "n" {
+            return false
+        }
+        return nil
     }
 
     private func renderMeasurementStartPreflightOutput(
@@ -1237,12 +1260,16 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     @objc private func evaluateMeasurementStartPreflightFromUi() {
         measurementStartPreflightViewModel.setInVehicle(value: measurementPreflightInVehicleSwitch.isOn)
         measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(value: false)
-        let mode = resolvedMeasurementStartCollectionMode()
-        let path = resolvedMeasurementStartNetworkPath()
+        let resolvedInputs = measurementStartEnvironmentResolver.resolve(
+            observed: observedMeasurementStartEnvironment(),
+            overrides: measurementStartEnvironmentOverrides()
+        )
+        let mode = resolvedInputs.collectionMode
+        let path = resolvedInputs.networkPath
         let result = measurementStartPreflightViewModel.evaluate(
             collectionMode: mode,
-            hasRuntimeProfile: hasRuntimeProfileForMeasurementStart(),
-            hasLocationPermission: hasLocationPermissionForMeasurementStart(),
+            hasRuntimeProfile: resolvedInputs.hasRuntimeProfile,
+            hasLocationPermission: resolvedInputs.hasLocationPermission,
             networkPath: path
         )
         if result.requiresUserConfirm {
@@ -1257,8 +1284,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                 self.measurementStartPreflightViewModel.setChallengeNonCellularConfirmed(value: true)
                 let confirmed = self.measurementStartPreflightViewModel.evaluate(
                     collectionMode: mode,
-                    hasRuntimeProfile: self.hasRuntimeProfileForMeasurementStart(),
-                    hasLocationPermission: self.hasLocationPermissionForMeasurementStart(),
+                    hasRuntimeProfile: resolvedInputs.hasRuntimeProfile,
+                    hasLocationPermission: resolvedInputs.hasLocationPermission,
                     networkPath: path
                 )
                 self.renderMeasurementStartPreflightOutput(result: confirmed, networkPath: path)

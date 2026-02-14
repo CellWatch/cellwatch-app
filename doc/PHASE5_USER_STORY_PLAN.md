@@ -218,8 +218,10 @@ Current implementation status:
 - Initial shared Story 2 preflight contract is now in `shared`:
   - `MeasurementPreflightUseCase`
   - `MeasurementStartPreflightViewModel`
+  - `MeasurementStartPreflightEnvironmentResolver` (observed-device-state + override merge)
+  - `MeasurementStartPreflightUiPresenter` (user-facing status/dialog mapping)
   - reason-code/result model for allowed/blocked/confirm-required outcomes
-- Harness wiring now invokes this shared preflight before Phase 3 start actions as an intermediate migration step.
+- Harness wiring now invokes shared preflight + shared environment resolver from both Android and iOS platform glue.
 
 ### Acceptance criteria (Story 2)
 
