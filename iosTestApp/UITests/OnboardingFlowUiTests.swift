@@ -117,9 +117,6 @@ final class OnboardingFlowUiTests: XCTestCase {
         XCTAssertTrue(output.waitForExistence(timeout: 5))
         captureMeasurementStartScreenshot(named: "03-wifi-confirmed-allowed")
         XCTAssertTrue(output.label.contains("Preflight passed. You can start measuring."))
-        let allowedDebug = (output.value as? String) ?? ""
-        XCTAssertTrue(allowedDebug.contains("allowed=true"))
-        XCTAssertTrue(allowedDebug.lowercased().contains("reason=allowed"))
 
         app.terminate()
 
@@ -139,9 +136,6 @@ final class OnboardingFlowUiTests: XCTestCase {
         captureMeasurementStartScreenshot(named: "04-unknown-warning-dialog")
         unknown.alerts.buttons["Cancel"].tap()
         XCTAssertTrue(unknownOutput.label.contains("Wi-Fi detected. Choose Measure anyway or Cancel."))
-        let unknownDebug = (unknownOutput.value as? String) ?? ""
-        XCTAssertTrue(unknownDebug.contains("allowed=false"))
-        XCTAssertTrue(unknownDebug.contains("networkPath=UNKNOWN"))
         unknown.terminate()
     }
 

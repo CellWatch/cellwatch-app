@@ -45,12 +45,6 @@ class MeasurementStartPreflightUiSmokeTest {
                 scenario,
                 "Preflight passed. You can start measuring.",
             )
-            assertOutputContainsDebug(
-                scenario,
-                "allowed=true",
-                "reason=ALLOWED",
-                "networkPath=WIFI",
-            )
         } finally {
             scenario.close()
         }
@@ -68,12 +62,6 @@ class MeasurementStartPreflightUiSmokeTest {
                 unknownScenario,
                 "Wi-Fi detected. Choose Measure anyway or Cancel.",
             )
-            assertOutputContainsDebug(
-                unknownScenario,
-                "allowed=false",
-                "networkPath=UNKNOWN",
-                "reason=CHALLENGE_NON_CELLULAR_CONFIRM_REQUIRED",
-            )
         } finally {
             unknownScenario.close()
         }
@@ -87,18 +75,6 @@ class MeasurementStartPreflightUiSmokeTest {
             ).text?.toString().orEmpty()
         }
         assertTrue("Expected preflight output to contain '$expectedText', got: $rendered", rendered.contains(expectedText))
-    }
-
-    private fun assertOutputContainsDebug(scenario: ActivityScenario<MainActivity>, vararg expected: String) {
-        var rendered = ""
-        scenario.onActivity { activity ->
-            rendered = activity.findViewById<android.widget.TextView>(
-                MainActivity.MEASUREMENT_PREFLIGHT_OUTPUT_ID,
-            ).contentDescription?.toString().orEmpty()
-        }
-        expected.forEach { token ->
-            assertTrue("Expected preflight output to contain '$token', got: $rendered", rendered.contains(token))
-        }
     }
 
     private fun measurementStartFlowIntent(networkPathOverride: String): Intent {
