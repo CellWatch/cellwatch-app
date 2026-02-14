@@ -15,6 +15,7 @@ object DefaultMsakMeasurementSequenceOrchestratorFactory {
         clock: Clock = Clock.System,
         appSource: String = "phase3-harness",
         capabilityProvider: PlatformCapabilityProvider = NoOpPlatformCapabilityProvider,
+        progressListener: MeasurementSequenceProgressListener = MeasurementSequenceProgressListener { _ -> },
     ): MeasurementSequenceOrchestrator {
         return MeasurementSequenceOrchestrator(
             serverPairProvider = FactorySelectorBackedServerPairProvider(config),
@@ -34,6 +35,7 @@ object DefaultMsakMeasurementSequenceOrchestratorFactory {
                 clock = clock,
                 appSource = appSource,
             ),
+            progressListener = progressListener,
         )
     }
 }

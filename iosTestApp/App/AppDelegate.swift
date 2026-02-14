@@ -1039,7 +1039,12 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         IosPhase3SequenceSyncHarness().runAsync(
             msakConfig: config,
             supabaseUrl: runtimeSnapshot.supabaseUrl,
-            supabaseApiKey: runtimeSnapshot.supabaseApiKey
+            supabaseApiKey: runtimeSnapshot.supabaseApiKey,
+            onProgressHeader: { headerText in
+                DispatchQueue.main.async {
+                    self.setStatus(headerText)
+                }
+            }
         ) { result, error in
             if let error = error {
                 NSLog("[iosTestApp] Phase3 sequence failed: %@", String(describing: error))

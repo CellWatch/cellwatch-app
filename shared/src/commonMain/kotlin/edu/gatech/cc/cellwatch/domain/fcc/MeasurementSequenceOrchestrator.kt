@@ -55,15 +55,36 @@ data class MeasurementSequenceOutcome(
     val group: MeasurementGroup,
 )
 
+enum class MeasurementSequenceStage {
+    STARTED,
+    LOCATE,
+    LATENCY,
+    DOWNLOAD,
+    UPLOAD,
+    DONE,
+}
+
+fun interface MeasurementSequenceProgressListener {
+    fun onStageChanged(stage: MeasurementSequenceStage)
+}
+
+private object NoOpMeasurementSequenceProgressListener : MeasurementSequenceProgressListener {
+    override fun onStageChanged(stage: MeasurementSequenceStage) = Unit
+}
+
 class MeasurementSequenceOrchestrator(
     private val serverPairProvider: MsakServerPairProvider,
     private val measurementExecutor: MeasurementExecutor,
     private val resultStore: MeasurementResultStore,
     private val submissionContextFactory: FccSubmissionContextFactory,
+    private val progressListener: MeasurementSequenceProgressListener = NoOpMeasurementSequenceProgressListener,
 ) {
     suspend fun run(request: MeasurementSequenceRequest): MeasurementSequenceOutcome {
+        progressListener.onStageChanged(MeasurementSequenceStage.STARTED)
+        progressListener.onStageChanged(MeasurementSequenceStage.LOCATE)
         val servers = serverPairProvider.chooseServers()
 
+        progressListener.onStageChanged(MeasurementSequenceStage.LATENCY)
         val latencyMeasurement = measurementExecutor.runLatency(
             server = servers.latencyServer,
             groupId = request.groupId,
@@ -71,6 +92,7 @@ class MeasurementSequenceOrchestrator(
         )
         resultStore.insertMeasurement(latencyMeasurement)
 
+        progressListener.onStageChanged(MeasurementSequenceStage.DOWNLOAD)
         val downloadMeasurement = measurementExecutor.runThroughput(
             server = servers.throughputServer,
             direction = ThroughputDirection.DOWNLOAD,
@@ -79,6 +101,7 @@ class MeasurementSequenceOrchestrator(
         )
         resultStore.insertMeasurement(downloadMeasurement)
 
+        progressListener.onStageChanged(MeasurementSequenceStage.UPLOAD)
         val uploadMeasurement = measurementExecutor.runThroughput(
             server = servers.throughputServer,
             direction = ThroughputDirection.UPLOAD,
@@ -96,6 +119,7 @@ class MeasurementSequenceOrchestrator(
         if (submission != null) {
             resultStore.insertFccSubmission(submission)
         }
+        progressListener.onStageChanged(MeasurementSequenceStage.DONE)
 
         return MeasurementSequenceOutcome(
             throughputServerMachine = servers.throughputServer.machine,

@@ -40,6 +40,7 @@ import edu.gatech.cc.cellwatch.domain.capability.CapabilityPersistenceSummaryFor
 import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
 import edu.gatech.cc.cellwatch.domain.fcc.MsakServerSelectionHarness
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
+import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceStage
 import edu.gatech.cc.cellwatch.domain.fcc.RepositoryBackedMeasurementResultStore
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
@@ -830,6 +831,21 @@ class MainActivity : AppCompatActivity() {
                     resultStore = resultStore,
                     appSource = "android-test-app-phase3-sync",
                     capabilityProvider = capabilityProvider,
+                    progressListener = { stage ->
+                        when (stage) {
+                            MeasurementSequenceStage.STARTED -> {
+                                measurementRunViewController.onSequenceStarted(request.groupId)
+                            }
+                            MeasurementSequenceStage.LOCATE -> measurementRunViewController.onLocateStarted()
+                            MeasurementSequenceStage.LATENCY -> measurementRunViewController.onLatencyStarted()
+                            MeasurementSequenceStage.DOWNLOAD -> measurementRunViewController.onDownloadStarted()
+                            MeasurementSequenceStage.UPLOAD -> measurementRunViewController.onUploadStarted()
+                            MeasurementSequenceStage.DONE -> Unit
+                        }
+                        statusText.text = measurementRunUiPresenter
+                            .present(measurementRunViewController.currentState())
+                            .headerText
+                    },
                 )
                 val syncOrchestrator = MeasurementSequenceSyncOrchestrator(
                     sequenceOrchestrator = sequenceOrchestrator,
