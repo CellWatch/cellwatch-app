@@ -25,10 +25,12 @@ Implemented now:
   - unified markdown report with per-flow pass/fail + log excerpt
 
 Not implemented yet (Phase 5 core remaining):
-- Story 1 product-app integration beyond harnesses (shared persistence + harness round-trip is implemented)
-- Story 2+ product-facing app flow integration (measurement start/preflight through final app modules)
-- Story 5/6/8 user-facing history/retry/sync-status product UX
-- Story 7 settings edit UX bound to persisted shared profile state
+- Story 2 app-shell/home routing definition in product modules
+- Story 3+ product-facing flow integration beyond harness cards
+- Story 5 measurement complete user-facing results UX
+- Story 7/8/9 user-facing history/retry/sync-status product UX
+- Story 10 settings edit UX bound to persisted shared profile state
+- Story 11/12 export and GIS map surfaces
 
 Primary active execution surfaces:
 - `androidTestApp/`
@@ -46,16 +48,30 @@ Legacy onboarding and initial app entry behavior currently lives in:
 - `frozenApp/src/main/java/edu/gatech/cc/cellwatch/ui/onboarding/FCCInfoFragment.kt`
 - `frozenApp/src/main/java/edu/gatech/cc/cellwatch/ui/onboarding/SettingsSetupFragment.kt`
 
-## Story Inventory (Initial)
+## Story Inventory (Current)
 
 1. First-run onboarding and profile setup
-2. Start a measurement from main screen
-3. Complete measurement sequence and persist results
-4. Attempt sync after measurement (store-and-forward)
-5. View measurement history and status
-6. Retry unsynced uploads/submissions
-7. Manage basic settings (collection mode, profile fields)
-8. Observe sync state and actionable sync errors
+2. App shell and home entry routing
+3. Start a measurement from home/main entry point
+4. Complete measurement sequence and persist results
+5. Measurement complete results UX (metrics + take another measurement)
+6. Attempt sync after measurement (store-and-forward)
+7. View measurement history and status
+8. Retry unsynced uploads/submissions
+9. Observe sync state and actionable sync errors
+10. Manage basic settings (collection mode, profile fields)
+11. Export measurement history
+12. GIS map experience (deferred until core vertical slice stabilizes)
+
+## Priority Vertical Slice (Current Focus)
+
+Deliver this end-to-end first:
+- profile setup -> start measurement -> run measurement -> view measurement complete results
+
+Scope decisions:
+- Collection mode is a persisted profile/settings choice, not a required modal step before every run.
+- Home can be a temporary product-like shell card surface first; map-as-home can come later.
+- Export + GIS map remain planned lower-priority items after this slice is stable on Android and iOS.
 
 ## App-Layer Architecture (Phase 5)
 
@@ -172,7 +188,46 @@ Current Tier 2 implementation status:
 - Phase 3 report path:
   - `build/reports/simulator-smoke/SIMULATOR_SMOKE_REPORT.md`
 
-## Story 2 Analysis: Start A Measurement From Main Screen
+## Story 2 Analysis: App Shell And Home Entry Routing
+
+### Legacy behavior
+
+Legacy Android typically lands users on map-oriented entry surfaces after onboarding.
+Measurement start is reached from this home context.
+
+### KMP-era intent
+
+Shared responsibilities:
+- Persist onboarding completion/profile state and expose deterministic startup route inputs.
+
+Platform responsibilities:
+- Render first screen after onboarding and route to measurement start/history/settings.
+- Keep this shell user-facing; no engineering debug panels in `ui-flow` story captures.
+
+### Proposed shared contracts for Story 2
+
+1. `AppLaunchRoutingUseCase`
+- Inputs: onboarding completion, profile completeness, runtime profile availability
+- Output: launch destination (`Onboarding`, `Home`, `BlockingError`)
+
+2. `HomeEntryState`
+- Shared read model for top-level CTA availability (for example, start measurement readiness)
+
+### Acceptance criteria (Story 2)
+
+1. Startup route is deterministic on both platforms for the same shared inputs.
+2. User-facing home entry exists and can reach measurement start.
+3. Home entry in UI-flow mode does not include engineering-only output panels.
+
+### Test plan
+
+Tier 1:
+- Shared launch-routing tests.
+
+Tier 2:
+- Android + iOS UI-flow smoke showing post-onboarding home entry and transition into measurement start.
+
+## Story 3 Analysis: Start A Measurement From Main Screen
 
 ### Legacy behavior
 
@@ -203,7 +258,7 @@ Platform responsibilities:
 - UI warning dialogs and confirmation actions
 - Start/stop foreground/background execution primitives
 
-### Proposed shared contracts for Story 2
+### Proposed shared contracts for Story 4
 
 1. `MeasurementStartRequest` (shared model)
 - `collectionMode`
@@ -218,7 +273,7 @@ Platform responsibilities:
 - Produces deterministic transition from `Idle` -> `Starting` with explicit context payload
 
 Current implementation status:
-- Initial shared Story 2 preflight contract is now in `shared`:
+- Initial shared Story 3 preflight contract is now in `shared`:
   - `MeasurementPreflightUseCase`
   - `MeasurementStartPreflightViewModel`
   - `MeasurementStartPreflightEnvironmentResolver` (observed-device-state + override merge)
@@ -226,7 +281,7 @@ Current implementation status:
   - reason-code/result model for allowed/blocked/confirm-required outcomes
 - Harness wiring now invokes shared preflight + shared environment resolver from both Android and iOS platform glue.
 
-### Acceptance criteria (Story 2)
+### Acceptance criteria (Story 3)
 
 1. Both Android and iOS show equivalent preflight outcomes for the same shared inputs.
 2. Challenge mode warns before non-cellular path execution.
@@ -241,7 +296,7 @@ Tier 1:
 Tier 2:
 - Android + iOS simulator smoke: start flow from UI CTA through preflight gate and transition to running state.
 
-## Story 3 Analysis: Complete Measurement Sequence And Persist Results
+## Story 4 Analysis: Complete Measurement Sequence And Persist Results
 
 ### Legacy behavior
 
@@ -282,7 +337,7 @@ Platform responsibilities:
 
 Current scaffold status:
 - Legacy behavior matrix captured in `doc/STORY3_LEGACY_BEHAVIOR_MATRIX.md`.
-- Shared Story 3 reducer/presenter scaffold added:
+- Shared Story 4 reducer/presenter scaffold added:
   - `MeasurementRunViewController`
   - `MeasurementRunUiPresenter`
   - legacy-faithful progress/header/terminal visibility mapping
@@ -291,7 +346,7 @@ Current scaffold status:
   - stage progression (`LOCATE`, `LATENCY`, `DOWNLOAD/UPLOAD`, terminal)
   - completion/terminal rendering
 
-### Acceptance criteria (Story 3)
+### Acceptance criteria (Story 4)
 
 1. Progress stage order is deterministic and identical across platforms for successful runs.
 2. Completed run persists latency/download/upload records (and submission when eligible).
@@ -307,7 +362,52 @@ Tier 1:
 Tier 2:
 - Android+iOS simulator run completes against local/public MSAK profile and results remain queryable afterward.
 
-## Story 4 Analysis: Attempt Sync After Measurement (Store-And-Forward)
+## Story 5 Analysis: Measurement Complete Results UX
+
+### Legacy behavior
+
+Legacy Android displays a completion/results screen after the measurement sequence:
+- User-visible key metrics and status summary
+- Upload/sync outcome context
+- Action to start another measurement
+
+### KMP-era intent
+
+Shared responsibilities:
+- Build a stable result read model from persisted measurement artifacts.
+- Keep metric/status semantics aligned across Android and iOS.
+
+Platform responsibilities:
+- Render completion UI using user-facing language.
+- Provide deterministic "Take another measurement" navigation back to start/preflight.
+
+### Proposed shared contracts for Story 7
+
+1. `MeasurementResultReadModelUseCase`
+- Input: latest (or selected) measurement group id
+- Output: completion-screen payload (headline, key metrics, sync summary)
+
+2. `MeasurementResultUiPresenter`
+- Shared formatting/label contract for platform rendering
+
+### Acceptance criteria (Story 7)
+
+1. After a run, both platforms show completion UI with key metrics.
+2. Completion UI includes "Take another measurement" and returns user to start flow.
+3. Completion content can be reloaded from persistence.
+4. Completion copy uses user-facing language only (no harness/internal terms).
+
+### Test plan
+
+Tier 1:
+- Shared result read-model/presenter tests for success, partial, and failure payloads.
+
+Tier 2:
+- Android + iOS UI-flow screenshots:
+  - measurement complete
+  - re-entry through "take another measurement"
+
+## Story 6 Analysis: Attempt Sync After Measurement (Store-And-Forward)
 
 ### Legacy behavior
 
@@ -329,7 +429,7 @@ Platform responsibilities:
 - Trigger timing (screen transitions, app resume, user retry action).
 - Surface sync status/errors in UI.
 
-### Proposed shared contracts for Story 4
+### Proposed shared contracts for Story 6
 
 1. `SyncTriggerUseCase` family
 - `runMapStartSync()`
@@ -340,7 +440,7 @@ Platform responsibilities:
 - attempts/uploaded/markedUploaded/networkErrors/unexpectedErrors
 - invariant flags (e.g., measurement-complete upload-time set)
 
-### Acceptance criteria (Story 4)
+### Acceptance criteria (Story 6)
 
 1. Measurement-complete trigger attempts sync immediately after persistence.
 2. Failed network uploads remain pending and retryable.
@@ -356,7 +456,7 @@ Tier 1:
 Tier 2:
 - Local Supabase simulator smoke confirming records appear remotely and local upload flags are set.
 
-## Story 5 Analysis: View Measurement History And Status
+## Story 7 Analysis: View Measurement History And Status
 
 ### Legacy behavior
 
@@ -402,7 +502,7 @@ Tier 1:
 Tier 2:
 - Android+iOS manual smoke for history refresh and export path.
 
-## Story 6 Analysis: Retry Unsynced Uploads/Submissions
+## Story 8 Analysis: Retry Unsynced Uploads/Submissions
 
 ### Legacy behavior
 
@@ -420,7 +520,7 @@ Platform responsibilities:
 - Add explicit UI action ("Retry pending uploads") in history/settings/debug surfaces.
 - Show retry result counts and sampled errors.
 
-### Proposed shared contracts for Story 6
+### Proposed shared contracts for Story 8
 
 1. `RetryPendingSyncUseCase`
 - Runs pending measurement + submission sync pass
@@ -429,14 +529,14 @@ Platform responsibilities:
 2. `GetPendingSyncCountsUseCase`
 - Returns counts for unsynced measurements/submissions for badge/CTA display
 
-### Acceptance criteria (Story 6)
+### Acceptance criteria (Story 8)
 
 1. User can manually trigger retry from UI.
 2. Pending counts decrease after successful retry.
 3. Failures remain visible with actionable diagnostics.
 4. Retry is safe to run repeatedly.
 
-## Story 8 Analysis: Observe Sync State And Actionable Sync Errors
+## Story 9 Analysis: Observe Sync State And Actionable Sync Errors
 
 ### Why this is explicit now
 
@@ -453,7 +553,7 @@ Platform responsibilities:
 - Persistently surface current sync state in user-facing UI.
 - Provide drill-down error text suitable for user action (retry/check connection/contact support).
 
-### Proposed shared contracts for Story 8
+### Proposed shared contracts for Story 9
 
 1. `SyncStatusReadModelUseCase`
 - Aggregates pending counts + latest run summary + mode/context info.
@@ -464,7 +564,7 @@ Platform responsibilities:
 3. `SyncStatusStream`
 - Observable stream for app-wide indicator surfaces.
 
-### Acceptance criteria (Story 8)
+### Acceptance criteria (Story 9)
 
 1. User can always tell whether local data is synced or pending.
 2. Sync failures are visible without opening debug logs.
@@ -479,15 +579,7 @@ Tier 1:
 Tier 2:
 - Simulator smoke inducing network and auth/config failures, verifying expected user-visible status messages.
 
-### Test plan
-
-Tier 1:
-- Shared pending-count and retry use-case tests with fake remote outcomes.
-
-Tier 2:
-- Local Supabase smoke: force pending records, run retry, verify remote + local status transitions.
-
-## Story 7 Analysis: Manage Basic Settings (Collection Mode, Profile Fields)
+## Story 10 Analysis: Manage Basic Settings (Collection Mode, Profile Fields)
 
 ### Legacy behavior
 
@@ -510,7 +602,7 @@ Platform responsibilities:
 - Form UI/UX and inline validation display.
 - Clipboard copy interactions for device/app metadata.
 
-### Proposed shared contracts for Story 7
+### Proposed shared contracts for Story 10
 
 1. `SettingsProfileUseCase`
 - Load/save profile fields with normalized formats.
@@ -522,7 +614,7 @@ Platform responsibilities:
 3. `GetAppIdentityReadModelUseCase`
 - Returns device id/app version/runtime mode summary for display.
 
-### Acceptance criteria (Story 7)
+### Acceptance criteria (Story 10)
 
 1. Invalid phone/email cannot be saved.
 2. Enabling challenge mode without required FCC info is blocked with clear reason.
@@ -537,11 +629,27 @@ Tier 1:
 Tier 2:
 - Android+iOS simulator smoke: edit settings, rerun pre-measure flow, verify new settings are applied.
 
+## Story 11 Analysis: Export Measurement History
+
+Status:
+- Planned, lower priority until core end-to-end vertical slice is stable.
+
+Intent:
+- Allow user to export measurement history in a stable JSON schema using platform file pickers/destinations.
+
+## Story 12 Analysis: GIS Map Experience
+
+Status:
+- Planned, lower priority until core end-to-end vertical slice is stable.
+
+Intent:
+- Restore/replace legacy map-oriented home UX after profile -> measure -> results flow is complete.
+
 ## PR-Sized Implementation Checklist (Suggested)
 
-1. Introduce shared onboarding/settings validation use cases and tests (Stories 1, 7 core rules).
-2. Add shared measurement preflight use case and migrate harness preflight callers (Story 2).
-3. Add shared measurement run-state UI model mapping and sequence result read model (Story 3).
-4. Add shared history read model + export serializer (Story 5).
-5. Add explicit pending-sync count + retry use cases and wire into harness UI actions (Story 6).
+1. Introduce shared onboarding/settings validation use cases and tests (Stories 1, 10 core rules).
+2. Add shared app-launch/home routing + measurement preflight use cases and migrate harness callers (Stories 2, 3).
+3. Add shared measurement run-state + completion result read model and wire user-facing completion UX (Stories 4, 5).
+4. Add shared history read model + export serializer (Stories 7, 11).
+5. Add explicit pending-sync count + retry use cases and wire into harness UI actions (Story 8).
 6. Stand up first product app-layer slice using MVVM on one platform, then mirror on second platform.

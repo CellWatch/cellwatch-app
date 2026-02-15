@@ -72,8 +72,10 @@ Rules:
 Minimum shared use-case surface for Phase 5:
 - `OnboardingValidationUseCase`
 - `OnboardingPersistenceUseCase`
+- `AppLaunchRoutingUseCase`
 - `MeasurementPreflightUseCase`
 - `RunMeasurementSequenceUseCase`
+- `MeasurementResultReadModelUseCase`
 - `GetMeasurementHistoryUseCase`
 - `ExportMeasurementsUseCase`
 - `RetryPendingSyncUseCase`
@@ -162,7 +164,7 @@ iOS runner split (required):
 
 ## Definition of Done (Phase 5 Baseline)
 
-1. Stories 1-8 from `doc/PHASE5_USER_STORY_PLAN.md` implemented with shared-first logic.
+1. Stories 1-12 from `doc/PHASE5_USER_STORY_PLAN.md` implemented with shared-first logic in priority order.
 2. Android and iOS app layers consume same shared use-case path for core measurement + sync.
 3. User-visible sync state exists and is actionable on both platforms.
 4. Tier 1 + required Tier 2 smoke set pass.
