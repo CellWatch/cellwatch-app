@@ -13,12 +13,22 @@ final class OnboardingFlowUiTests: XCTestCase {
         .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
         .appendingPathComponent("ios", isDirectory: true)
         .appendingPathComponent("phase3-sequence-button", isDirectory: true)
+    private let pendingSyncScreenshotRoot = URL(fileURLWithPath: "/tmp", isDirectory: true)
+        .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
+        .appendingPathComponent("ios", isDirectory: true)
+        .appendingPathComponent("pending-sync-retry-xcuitest", isDirectory: true)
+    private let measurementRunScreenshotRoot = URL(fileURLWithPath: "/tmp", isDirectory: true)
+        .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
+        .appendingPathComponent("ios", isDirectory: true)
+        .appendingPathComponent("measurement-run-flow-xcuitest", isDirectory: true)
 
     override func setUpWithError() throws {
         continueAfterFailure = false
         try FileManager.default.createDirectory(at: screenshotRoot, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: measurementStartScreenshotRoot, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: phase3SequenceScreenshotRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: pendingSyncScreenshotRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: measurementRunScreenshotRoot, withIntermediateDirectories: true)
     }
 
     func testOnboardingFlow_roundTripPersistenceScreenshots() throws {
@@ -187,6 +197,136 @@ final class OnboardingFlowUiTests: XCTestCase {
         app.terminate()
     }
 
+    func testPendingSyncRetry_flowShowsCountsAndRetryStatus() throws {
+        let app = XCUIApplication()
+        app.launchEnvironment["CELLWATCH_UI_MODE"] = "pending-sync-flow"
+        app.launchEnvironment["CELLWATCH_CLEAR_ONBOARDING"] = "1"
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: app)
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_SERVICE_KEY", to: app)
+        app.launch()
+
+        let countsButton = app.buttons["harness.pendingSync.countsButton"]
+        let retryButton = app.buttons["harness.pendingSync.retryButton"]
+        let summary = app.staticTexts["harness.pendingSync.summary"]
+        let detail = app.staticTexts["harness.pendingSync.detail"]
+
+        XCTAssertTrue(countsButton.waitForExistence(timeout: 10))
+        XCTAssertTrue(retryButton.waitForExistence(timeout: 10))
+        XCTAssertTrue(summary.waitForExistence(timeout: 10))
+        XCTAssertTrue(detail.waitForExistence(timeout: 10))
+        capturePendingSyncScreenshot(named: "01-ready")
+
+        countsButton.tap()
+        XCTAssertTrue(waitForText(element: summary, contains: "Pending uploads:", timeout: 60))
+        XCTAssertTrue(summary.label.contains("Pending uploads:"))
+        capturePendingSyncScreenshot(named: "02-counts")
+
+        retryButton.tap()
+        XCTAssertTrue(
+            waitForAnyText(
+                element: detail,
+                containsAny: [
+                    "Sync complete",
+                    "Sync partially complete",
+                    "Sync failed",
+                    "Sync still pending",
+                    "No pending uploads"
+                ],
+                timeout: 90
+            )
+        )
+        XCTAssertTrue(
+            summary.label.contains("Sync") || summary.label.contains("No pending uploads"),
+            "Expected user-facing pending sync summary, got: \(summary.label)"
+        )
+        capturePendingSyncScreenshot(named: "03-retry")
+        app.terminate()
+    }
+
+    func testMeasurementRunFlow_showsLiveProgressAndCompletionState() throws {
+        let app = XCUIApplication()
+        app.launchEnvironment["CELLWATCH_UI_MODE"] = "measurement-run-flow"
+        app.launchEnvironment["CELLWATCH_CLEAR_ONBOARDING"] = "1"
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: app)
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_SERVICE_KEY", to: app)
+        assignOptionalRuntimeValue("MSAK_LOCAL_SERVER_HOST", to: app)
+        app.launch()
+
+        let startButton = app.buttons["harness.measurementRun.start"]
+        let header = app.staticTexts["harness.measurementRun.header"]
+        let detail = app.staticTexts["harness.measurementRun.detail"]
+        let progress = app.progressIndicators["harness.measurementRun.progress"]
+
+        XCTAssertTrue(startButton.waitForExistence(timeout: 10))
+        XCTAssertTrue(header.waitForExistence(timeout: 10))
+        XCTAssertTrue(detail.waitForExistence(timeout: 10))
+        XCTAssertTrue(progress.waitForExistence(timeout: 10))
+        captureMeasurementRunScreenshot(named: "01-ready")
+
+        startButton.tap()
+        captureMeasurementRunScreenshot(named: "02-after-start-tap")
+
+        let blockedMessages = [
+            "Runtime profile unavailable",
+            "Configuration issue:",
+            "Unable to start measurement right now"
+        ]
+        if blockedMessages.contains(where: { detail.label.contains($0) }) {
+            captureMeasurementRunScreenshot(named: "02-start-blocked")
+            XCTFail("Measurement run blocked. header=\(header.label) detail=\(detail.label)")
+        }
+
+        XCTAssertTrue(
+            waitForProgressState(progress, contains: "LOCATE", timeout: 120),
+            "Expected LOCATE state. state=\(progress.value as? String ?? "") header=\(header.label) detail=\(detail.label)"
+        )
+        captureMeasurementRunScreenshot(named: "03-finding-server")
+
+        XCTAssertTrue(
+            waitForProgressState(progress, contains: "LATENCY", timeout: 120),
+            "Expected LATENCY state. state=\(progress.value as? String ?? "") header=\(header.label) detail=\(detail.label)"
+        )
+        captureMeasurementRunScreenshot(named: "04-running-latency")
+
+        XCTAssertTrue(
+            waitForAnyProgressState(
+                progress,
+                containsAny: ["DOWNLOAD", "UPLOAD"],
+                timeout: 120
+            ),
+            "Expected DOWNLOAD or UPLOAD state. state=\(progress.value as? String ?? "") header=\(header.label) detail=\(detail.label)"
+        )
+        captureMeasurementRunScreenshot(named: "05-running-throughput")
+
+        XCTAssertTrue(
+            waitForAnyProgressState(
+                progress,
+                containsAny: ["END", "ERROR"],
+                timeout: 180
+            ),
+            "Expected END or ERROR state. state=\(progress.value as? String ?? "") header=\(header.label) detail=\(detail.label)"
+        )
+        captureMeasurementRunScreenshot(named: "06-after-run")
+        app.terminate()
+    }
+
+    private func waitForProgressState(_ element: XCUIElement, contains: String, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "value CONTAINS %@", contains)
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func waitForAnyProgressState(
+        _ element: XCUIElement,
+        containsAny: [String],
+        timeout: TimeInterval
+    ) -> Bool {
+        let patterns = containsAny.joined(separator: "|")
+        let predicate = NSPredicate(format: "value MATCHES %@", ".*(\(patterns)).*")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
     private func launchOnboarding(clearProfile: Bool) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "onboarding-flow"
@@ -244,11 +384,46 @@ final class OnboardingFlowUiTests: XCTestCase {
         try? data.write(to: url, options: [.atomic])
     }
 
+    private func capturePendingSyncScreenshot(named name: String) {
+        let data = XCUIScreen.main.screenshot().pngRepresentation
+        let url = pendingSyncScreenshotRoot.appendingPathComponent("\(name).png")
+        try? data.write(to: url, options: [.atomic])
+    }
+
+    private func captureMeasurementRunScreenshot(named name: String) {
+        let data = XCUIScreen.main.screenshot().pngRepresentation
+        let url = measurementRunScreenshotRoot.appendingPathComponent("\(name).png")
+        try? data.write(to: url, options: [.atomic])
+    }
+
     private func waitForOutputText(app: XCUIApplication, containsAny needles: [String], timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             let text = app.textViews["harness.outputTextView"].value as? String ?? ""
             if needles.contains(where: { text.contains($0) }) {
+                return true
+            }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))
+        }
+        return false
+    }
+
+    private func waitForText(element: XCUIElement, contains needle: String, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.label.contains(needle) {
+                return true
+            }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))
+        }
+        return false
+    }
+
+    private func waitForAnyText(element: XCUIElement, containsAny needles: [String], timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let label = element.label
+            if needles.contains(where: { label.contains($0) }) {
                 return true
             }
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))

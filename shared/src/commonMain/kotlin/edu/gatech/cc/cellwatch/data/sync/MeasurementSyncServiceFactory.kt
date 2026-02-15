@@ -11,9 +11,11 @@ import edu.gatech.cc.cellwatch.data.repo.MeasurementRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.UploadDownloadDataRepositoryImpl
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.sync.DefaultMeasurementSyncService
+import edu.gatech.cc.cellwatch.domain.sync.GetPendingSyncCountsUseCase
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncRemoteDataSource
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncService
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncUseCase
+import edu.gatech.cc.cellwatch.domain.sync.RetryPendingSyncUseCase
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerUseCase
 import kotlinx.datetime.Clock
@@ -43,6 +45,11 @@ class SupabaseSyncRemoteDataSourceProvider(
 }
 
 object MeasurementSyncServiceFactory {
+
+    data class SyncUseCaseRepositories(
+        val measurementRepository: MeasurementRepositoryImpl,
+        val submissionRepository: FccSubmissionRepositoryImpl,
+    )
 
     private data class SyncRepositories(
         val measurementRepo: MeasurementRepositoryImpl,
@@ -165,6 +172,68 @@ object MeasurementSyncServiceFactory {
             syncService = syncService,
             measurementRepository = repos.measurementRepo,
             submissionRepository = repos.submissionRepo,
+        )
+    }
+
+    fun createSyncService(
+        database: CellwatchDatabase,
+        io: CoroutineContext = EmptyCoroutineContext,
+        remoteProfile: SyncRemoteProfile,
+        remoteFactory: SyncRemoteDataSourceFactory,
+        tcpTupleProvider: TcpTupleProvider,
+        clock: Clock = Clock.System,
+    ): MeasurementSyncService {
+        val repos = createRepositories(database, io)
+        val localStore = RepositoryBackedMeasurementSyncLocalStore(
+            measurementRepository = repos.measurementRepo,
+            uploadDownloadDataRepository = repos.uploadRepo,
+            latencyDataRepository = repos.latencyRepo,
+            locationRepository = repos.locationRepo,
+            cellRepository = repos.cellRepo,
+            fccSubmissionRepository = repos.submissionRepo,
+        )
+        return create(
+            localStore = localStore,
+            remoteDataSource = remoteFactory.create(remoteProfile),
+            tcpTupleProvider = tcpTupleProvider,
+            clock = clock,
+        )
+    }
+
+    fun createRepositoriesForSyncUseCases(
+        database: CellwatchDatabase,
+        io: CoroutineContext = EmptyCoroutineContext,
+    ): SyncUseCaseRepositories {
+        val repositories = createRepositories(database = database, io = io)
+        return SyncUseCaseRepositories(
+            measurementRepository = repositories.measurementRepo,
+            submissionRepository = repositories.submissionRepo,
+        )
+    }
+
+    fun createRetryPendingSyncUseCase(
+        database: CellwatchDatabase,
+        io: CoroutineContext = EmptyCoroutineContext,
+        remoteProfile: SyncRemoteProfile,
+        remoteFactory: SyncRemoteDataSourceFactory,
+        tcpTupleProvider: TcpTupleProvider,
+        clock: Clock = Clock.System,
+    ): RetryPendingSyncUseCase {
+        val repositories = createRepositoriesForSyncUseCases(database = database, io = io)
+        val syncService = createSyncService(
+            database = database,
+            io = io,
+            remoteProfile = remoteProfile,
+            remoteFactory = remoteFactory,
+            tcpTupleProvider = tcpTupleProvider,
+            clock = clock,
+        )
+        return RetryPendingSyncUseCase(
+            syncService = syncService,
+            pendingCountsUseCase = GetPendingSyncCountsUseCase(
+                measurementRepository = repositories.measurementRepository,
+                submissionRepository = repositories.submissionRepository,
+            ),
         )
     }
 

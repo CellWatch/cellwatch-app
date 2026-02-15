@@ -149,6 +149,12 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         if mode == "measurement-start-flow" {
             return .measurementStartFlow
         }
+        if mode == "pending-sync-flow" {
+            return .pendingSyncFlow
+        }
+        if mode == "measurement-run-flow" {
+            return .measurementRunFlow
+        }
         return .onboardingFlow
     }
 
@@ -226,6 +232,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         case fullHarness
         case onboardingFlow
         case measurementStartFlow
+        case pendingSyncFlow
+        case measurementRunFlow
     }
 
     enum OnboardingUiImplementation {
@@ -233,6 +241,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         case uikit
     }
     static let mapStartSharedSliceButtonIdentifier = "harness.mapStartSharedSliceButton"
+    static let pendingSyncCountsButtonIdentifier = "harness.pendingSync.countsButton"
+    static let retryPendingSyncButtonIdentifier = "harness.pendingSync.retryButton"
+    static let pendingSyncSummaryIdentifier = "harness.pendingSync.summary"
+    static let pendingSyncDetailIdentifier = "harness.pendingSync.detail"
     static let phase3SequenceButtonIdentifier = "harness.phase3.sequenceButton"
     static let statusLabelIdentifier = "harness.statusLabel"
     static let outputTextViewIdentifier = "harness.outputTextView"
@@ -249,6 +261,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     static let measurementPreflightInVehicleIdentifier = "harness.measurementStart.inVehicle"
     static let measurementPreflightEvaluateIdentifier = "harness.measurementStart.evaluate"
     static let measurementPreflightOutputIdentifier = "harness.measurementStart.output"
+    static let measurementRunStartIdentifier = "harness.measurementRun.start"
+    static let measurementRunHeaderIdentifier = "harness.measurementRun.header"
+    static let measurementRunDetailIdentifier = "harness.measurementRun.detail"
+    static let measurementRunProgressIdentifier = "harness.measurementRun.progress"
 
     private let statusLabel = UILabel()
     private let outputTextView = UITextView()
@@ -290,7 +306,17 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let onboardingSubmitButton = UIButton(type: .system)
     private let measurementPreflightInVehicleSwitch = UISwitch()
     private let measurementPreflightOutputLabel = UILabel()
+    private let pendingSyncSummaryLabel = UILabel()
+    private let pendingSyncDetailLabel = UILabel()
+    private let measurementRunHeaderLabel = UILabel()
+    private let measurementRunDetailLabel = UILabel()
+    private let measurementRunProgressView = UIProgressView(progressViewStyle: .default)
+    private let measurementRunFlowQueue = DispatchQueue(label: "cellwatch.measurementRunFlow.queue")
+    private var measurementRunFlowScheduledSteps: Int = 0
+    private var measurementRunFlowFinalizing: Bool = false
+    private let measurementRunFlowStepDelay: TimeInterval = 1.2
     private let measurementNetworkPathProbe = IosMeasurementNetworkPathProbe()
+    private let pendingSyncHarness = IosPendingSyncHarness()
     private var onboardingTopConstraint: NSLayoutConstraint?
     private var onboardingKeyboardObservers: [NSObjectProtocol] = []
     private var onboardingKeyboardHeight: CGFloat = 0
@@ -365,6 +391,14 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             buildMeasurementStartFlowUi()
             return
         }
+        if displayMode == .pendingSyncFlow {
+            buildPendingSyncFlowUi()
+            return
+        }
+        if displayMode == .measurementRunFlow {
+            buildMeasurementRunFlowUi()
+            return
+        }
 
         let title = UILabel()
         title.text = "iOS Test App Harness"
@@ -413,6 +447,41 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         applyButtonStyle(completeButton, role: .secondary)
         completeButton.addTarget(self, action: #selector(runMeasurementComplete), for: .touchUpInside)
         completeButton.translatesAutoresizingMaskIntoConstraints = false
+
+        let pendingCountsButton = UIButton(type: .system)
+        pendingCountsButton.setTitle("Show Pending Sync Counts", for: .normal)
+        pendingCountsButton.accessibilityIdentifier = Self.pendingSyncCountsButtonIdentifier
+        applyButtonStyle(pendingCountsButton, role: .secondary)
+        pendingCountsButton.addTarget(self, action: #selector(runPendingSyncCounts), for: .touchUpInside)
+        pendingCountsButton.translatesAutoresizingMaskIntoConstraints = false
+
+        let retryPendingButton = UIButton(type: .system)
+        retryPendingButton.setTitle("Retry Pending Sync", for: .normal)
+        retryPendingButton.accessibilityIdentifier = Self.retryPendingSyncButtonIdentifier
+        applyButtonStyle(retryPendingButton, role: .secondary)
+        retryPendingButton.addTarget(self, action: #selector(runRetryPendingSync), for: .touchUpInside)
+        retryPendingButton.translatesAutoresizingMaskIntoConstraints = false
+
+        pendingSyncSummaryLabel.text = "Pending sync status: not checked."
+        pendingSyncSummaryLabel.textColor = UIColor(red: 0.23, green: 0.37, blue: 0.47, alpha: 1)
+        pendingSyncSummaryLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        pendingSyncSummaryLabel.numberOfLines = 0
+        pendingSyncSummaryLabel.accessibilityIdentifier = Self.pendingSyncSummaryIdentifier
+        pendingSyncSummaryLabel.translatesAutoresizingMaskIntoConstraints = false
+        pendingSyncSummaryLabel.backgroundColor = UIColor(red: 0.95, green: 0.98, blue: 0.96, alpha: 1)
+        pendingSyncSummaryLabel.layer.cornerRadius = 10
+        pendingSyncSummaryLabel.layer.masksToBounds = true
+        pendingSyncSummaryLabel.layoutMargins = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+
+        let pendingSyncSummaryContainer = UIView()
+        pendingSyncSummaryContainer.translatesAutoresizingMaskIntoConstraints = false
+        pendingSyncSummaryContainer.addSubview(pendingSyncSummaryLabel)
+        NSLayoutConstraint.activate([
+            pendingSyncSummaryLabel.topAnchor.constraint(equalTo: pendingSyncSummaryContainer.topAnchor),
+            pendingSyncSummaryLabel.leadingAnchor.constraint(equalTo: pendingSyncSummaryContainer.leadingAnchor),
+            pendingSyncSummaryLabel.trailingAnchor.constraint(equalTo: pendingSyncSummaryContainer.trailingAnchor),
+            pendingSyncSummaryLabel.bottomAnchor.constraint(equalTo: pendingSyncSummaryContainer.bottomAnchor)
+        ])
 
         let selectServersButton = UIButton(type: .system)
         selectServersButton.setTitle("Select MSAK Servers (Shared Selector)", for: .normal)
@@ -503,6 +572,9 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             actionsHeader,
             mapStartButton,
             completeButton,
+            pendingCountsButton,
+            retryPendingButton,
+            pendingSyncSummaryContainer,
             selectServersButton,
             runPhase3SequenceButton,
             statusLabel
@@ -754,6 +826,180 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         ])
     }
 
+    private func buildPendingSyncFlowUi() {
+        overrideUserInterfaceStyle = .light
+        view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
+
+        let title = UILabel()
+        title.text = "Sync Pending Uploads"
+        title.font = UIFont.preferredFont(forTextStyle: .title2)
+        title.textColor = .label
+
+        let subtitle = UILabel()
+        subtitle.text = "Check pending uploads and retry sync."
+        subtitle.font = UIFont.preferredFont(forTextStyle: .body)
+        subtitle.textColor = .secondaryLabel
+        subtitle.numberOfLines = 0
+
+        let countsButton = UIButton(type: .system)
+        countsButton.setTitle("Check Pending Uploads", for: .normal)
+        countsButton.accessibilityIdentifier = Self.pendingSyncCountsButtonIdentifier
+        applyButtonStyle(countsButton, role: .secondary)
+        countsButton.addTarget(self, action: #selector(runPendingSyncCounts), for: .touchUpInside)
+
+        let retryButton = UIButton(type: .system)
+        retryButton.setTitle("Retry Sync", for: .normal)
+        retryButton.accessibilityIdentifier = Self.retryPendingSyncButtonIdentifier
+        applyButtonStyle(retryButton, role: .primary)
+        retryButton.addTarget(self, action: #selector(runRetryPendingSync), for: .touchUpInside)
+
+        pendingSyncSummaryLabel.text = "Pending sync status: not checked."
+        pendingSyncSummaryLabel.textColor = UIColor(red: 0.23, green: 0.37, blue: 0.47, alpha: 1)
+        pendingSyncSummaryLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        pendingSyncSummaryLabel.numberOfLines = 0
+        pendingSyncSummaryLabel.accessibilityIdentifier = Self.pendingSyncSummaryIdentifier
+
+        pendingSyncDetailLabel.text = "Tap Check Pending Uploads to begin."
+        pendingSyncDetailLabel.textColor = UIColor(red: 0.23, green: 0.37, blue: 0.47, alpha: 1)
+        pendingSyncDetailLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        pendingSyncDetailLabel.numberOfLines = 0
+        pendingSyncDetailLabel.accessibilityIdentifier = Self.pendingSyncDetailIdentifier
+
+        let summaryCard = UIView()
+        summaryCard.backgroundColor = .white
+        summaryCard.layer.cornerRadius = 12
+        summaryCard.layer.borderWidth = 1
+        summaryCard.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        summaryCard.clipsToBounds = true
+        summaryCard.translatesAutoresizingMaskIntoConstraints = false
+        pendingSyncSummaryLabel.translatesAutoresizingMaskIntoConstraints = false
+        summaryCard.addSubview(pendingSyncSummaryLabel)
+        NSLayoutConstraint.activate([
+            pendingSyncSummaryLabel.topAnchor.constraint(equalTo: summaryCard.topAnchor, constant: 10),
+            pendingSyncSummaryLabel.leadingAnchor.constraint(equalTo: summaryCard.leadingAnchor, constant: 10),
+            pendingSyncSummaryLabel.trailingAnchor.constraint(equalTo: summaryCard.trailingAnchor, constant: -10),
+            pendingSyncSummaryLabel.bottomAnchor.constraint(equalTo: summaryCard.bottomAnchor, constant: -10)
+        ])
+
+        let detailCard = UIView()
+        detailCard.backgroundColor = .white
+        detailCard.layer.cornerRadius = 12
+        detailCard.layer.borderWidth = 1
+        detailCard.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        detailCard.clipsToBounds = true
+        detailCard.translatesAutoresizingMaskIntoConstraints = false
+        pendingSyncDetailLabel.translatesAutoresizingMaskIntoConstraints = false
+        detailCard.addSubview(pendingSyncDetailLabel)
+        NSLayoutConstraint.activate([
+            pendingSyncDetailLabel.topAnchor.constraint(equalTo: detailCard.topAnchor, constant: 10),
+            pendingSyncDetailLabel.leadingAnchor.constraint(equalTo: detailCard.leadingAnchor, constant: 10),
+            pendingSyncDetailLabel.trailingAnchor.constraint(equalTo: detailCard.trailingAnchor, constant: -10),
+            pendingSyncDetailLabel.bottomAnchor.constraint(equalTo: detailCard.bottomAnchor, constant: -10)
+        ])
+
+        let cardStack = UIStackView(arrangedSubviews: [
+            title,
+            subtitle,
+            countsButton,
+            retryButton,
+            summaryCard,
+            detailCard
+        ])
+        cardStack.axis = .vertical
+        cardStack.spacing = 12
+        cardStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let card = UIView()
+        card.backgroundColor = UIColor(white: 0.98, alpha: 1.0)
+        card.layer.cornerRadius = 16
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(cardStack)
+
+        view.addSubview(card)
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            card.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            card.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            card.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            cardStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            cardStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+            cardStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            cardStack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14)
+        ])
+
+        applyRuntimeModeChange()
+    }
+
+    private func buildMeasurementRunFlowUi() {
+        overrideUserInterfaceStyle = .light
+        view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
+
+        let title = UILabel()
+        title.text = "Run Measurement"
+        title.font = UIFont.preferredFont(forTextStyle: .title2)
+        title.textColor = .label
+
+        let subtitle = UILabel()
+        subtitle.text = "Start a measurement and follow live progress."
+        subtitle.font = UIFont.preferredFont(forTextStyle: .body)
+        subtitle.textColor = .secondaryLabel
+        subtitle.numberOfLines = 0
+
+        let startButton = UIButton(type: .system)
+        startButton.setTitle("Start Measurement", for: .normal)
+        startButton.accessibilityIdentifier = Self.measurementRunStartIdentifier
+        applyButtonStyle(startButton, role: .primary)
+        startButton.addTarget(self, action: #selector(runPhase3Sequence), for: .touchUpInside)
+
+        measurementRunHeaderLabel.text = "Ready to start."
+        measurementRunHeaderLabel.font = UIFont.preferredFont(forTextStyle: .title3)
+        measurementRunHeaderLabel.textColor = .label
+        measurementRunHeaderLabel.numberOfLines = 0
+        measurementRunHeaderLabel.accessibilityIdentifier = Self.measurementRunHeaderIdentifier
+
+        measurementRunProgressView.progress = 0
+        measurementRunProgressView.accessibilityValue = "PRE"
+        measurementRunProgressView.accessibilityIdentifier = Self.measurementRunProgressIdentifier
+
+        measurementRunDetailLabel.text = "Tap Start Measurement to begin."
+        measurementRunDetailLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        measurementRunDetailLabel.textColor = .secondaryLabel
+        measurementRunDetailLabel.numberOfLines = 0
+        measurementRunDetailLabel.accessibilityIdentifier = Self.measurementRunDetailIdentifier
+
+        let cardStack = UIStackView(arrangedSubviews: [
+            title,
+            subtitle,
+            startButton,
+            measurementRunHeaderLabel,
+            measurementRunProgressView,
+            measurementRunDetailLabel
+        ])
+        cardStack.axis = .vertical
+        cardStack.spacing = 12
+        cardStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let card = UIView()
+        card.backgroundColor = UIColor(white: 0.98, alpha: 1.0)
+        card.layer.cornerRadius = 16
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(cardStack)
+
+        view.addSubview(card)
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            card.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            card.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            card.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            cardStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            cardStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+            cardStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            cardStack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14)
+        ])
+
+        applyRuntimeModeChange()
+    }
+
     private func buildOnboardingFlowSwiftUi() {
         view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
         let model = OnboardingFlowSwiftUiModel(viewModel: onboardingViewModel)
@@ -949,6 +1195,126 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         }
     }
 
+    @objc private func runPendingSyncCounts() {
+        if displayMode == .pendingSyncFlow {
+            pendingSyncDetailLabel.text = "Checking pending uploads..."
+            pendingSyncDetailLabel.textColor = UIColor(red: 0.23, green: 0.37, blue: 0.47, alpha: 1)
+        }
+        setStatus("Checking pending sync counts...")
+        pendingSyncHarness.runPendingCountsAsync { text, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self.pendingSyncSummaryLabel.text = "Unable to load pending uploads."
+                    self.pendingSyncSummaryLabel.textColor = UIColor.systemRed
+                    if self.displayMode == .pendingSyncFlow {
+                        self.pendingSyncDetailLabel.text = "Unable to load pending uploads."
+                        self.pendingSyncDetailLabel.textColor = UIColor.systemRed
+                    }
+                    let envelope = self.smokeEnvelopeBuilder.failure(
+                        scenario: "pending-sync-counts",
+                        errorMessage: "\(error)"
+                    )
+                    self.setStatus(self.smokeFormatter.format(envelope: envelope))
+                    return
+                }
+                let rendered = text ?? "Pending sync counts unavailable."
+                self.pendingSyncSummaryLabel.text = self.pendingSummaryFromCounts(rendered)
+                self.pendingSyncSummaryLabel.textColor = UIColor(red: 0.11, green: 0.43, blue: 0.23, alpha: 1)
+                if self.displayMode == .pendingSyncFlow {
+                    self.pendingSyncDetailLabel.text = self.pendingSummaryFromCounts(rendered)
+                    self.pendingSyncDetailLabel.textColor = UIColor(red: 0.11, green: 0.43, blue: 0.23, alpha: 1)
+                }
+                self.setStatus(rendered)
+            }
+        }
+    }
+
+    @objc private func runRetryPendingSync() {
+        guard let snapshot = runtimeSnapshot else {
+            if displayMode == .pendingSyncFlow {
+                pendingSyncDetailLabel.text = "Runtime profile unavailable."
+                pendingSyncDetailLabel.textColor = UIColor.systemRed
+            }
+            setStatus("Runtime profile unavailable.")
+            return
+        }
+        if displayMode == .pendingSyncFlow {
+            pendingSyncDetailLabel.text = "Retrying sync..."
+            pendingSyncDetailLabel.textColor = UIColor(red: 0.23, green: 0.37, blue: 0.47, alpha: 1)
+        }
+        setStatus("Retrying pending sync...")
+        pendingSyncHarness.runRetryPendingSyncAsync(
+            supabaseUrl: snapshot.supabaseUrl,
+            supabaseApiKey: snapshot.supabaseApiKey
+        ) { text, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self.pendingSyncSummaryLabel.text = "Retry failed. Check connection and retry."
+                    self.pendingSyncSummaryLabel.textColor = UIColor.systemRed
+                    if self.displayMode == .pendingSyncFlow {
+                        self.pendingSyncDetailLabel.text = "Retry failed. Check connection and retry."
+                        self.pendingSyncDetailLabel.textColor = UIColor.systemRed
+                    }
+                    let envelope = self.smokeEnvelopeBuilder.failure(
+                        scenario: "retry-pending-sync",
+                        errorMessage: "\(error)"
+                    )
+                    self.setStatus(self.smokeFormatter.format(envelope: envelope))
+                    return
+                }
+                let rendered = text ?? "Retry pending sync returned no output."
+                self.pendingSyncSummaryLabel.text = self.pendingSummaryFromRetry(rendered)
+                self.pendingSyncSummaryLabel.textColor = self.pendingSummaryColorFromRetry(rendered)
+                if self.displayMode == .pendingSyncFlow {
+                    self.pendingSyncDetailLabel.text = self.pendingSummaryFromRetry(rendered)
+                    self.pendingSyncDetailLabel.textColor = self.pendingSummaryColorFromRetry(rendered)
+                }
+                self.setStatus(rendered)
+            }
+        }
+    }
+
+    private func pendingSummaryFromCounts(_ rendered: String) -> String {
+        let total = extractInt(rendered, key: "total=") ?? 0
+        return "Pending uploads: \(total) item(s)"
+    }
+
+    private func pendingSummaryFromRetry(_ rendered: String) -> String {
+        if rendered.contains("status=SUCCEEDED") {
+            return "Sync complete. No pending uploads."
+        }
+        if rendered.contains("status=PARTIAL_FAILURE") {
+            return "Sync partially complete. Some uploads are still pending."
+        }
+        if rendered.contains("status=FAILED") {
+            return "Sync failed. Check connection and retry."
+        }
+        if rendered.contains("status=PENDING") {
+            return "Sync still pending."
+        }
+        if rendered.contains("status=IN_PROGRESS") {
+            return "Sync in progress."
+        }
+        return "No pending uploads."
+    }
+
+    private func pendingSummaryColorFromRetry(_ rendered: String) -> UIColor {
+        if rendered.contains("status=SUCCEEDED") || rendered.contains("status=IDLE") {
+            return UIColor(red: 0.11, green: 0.43, blue: 0.23, alpha: 1)
+        }
+        if rendered.contains("status=FAILED") {
+            return .systemRed
+        }
+        return UIColor(red: 0.63, green: 0.42, blue: 0.00, alpha: 1)
+    }
+
+    private func extractInt(_ text: String, key: String) -> Int? {
+        guard let range = text.range(of: key) else { return nil }
+        let suffix = text[range.upperBound...]
+        let digits = suffix.prefix { $0.isNumber }
+        return Int(digits)
+    }
+
     @objc private func runServerSelection() {
         guard let runtimeSnapshot else {
             setStatus("Runtime profile unavailable.")
@@ -987,6 +1353,11 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     }
 
     @objc private func runPhase3Sequence() {
+        let bypassStrictPreflight = (displayMode == .measurementRunFlow)
+        if displayMode == .measurementRunFlow {
+            measurementRunDetailLabel.text = "Initializing measurement run..."
+            measurementRunDetailLabel.textColor = .secondaryLabel
+        }
         let story2Preflight = measurementPreflightUseCase.evaluate(
             input: MeasurementStartPreflightInput(
                 request: MeasurementStartRequest(
@@ -1000,26 +1371,51 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                 userConfirmedNonCellularChallengePath: true
             )
         )
-        if !story2Preflight.allowed {
+        if !story2Preflight.allowed && !bypassStrictPreflight {
             let envelope = smokeEnvelopeBuilder.failure(
                 scenario: "measurement-start-preflight",
                 errorMessage: "reason=\(story2Preflight.reasonCode)"
             )
-            setStatus(smokeFormatter.format(envelope: envelope))
+            if displayMode == .measurementRunFlow {
+                measurementRunDetailLabel.text = "Unable to start measurement right now (preflight gate)."
+                measurementRunDetailLabel.textColor = .systemRed
+            } else {
+                setStatus(smokeFormatter.format(envelope: envelope))
+            }
             return
         }
 
-        guard let runtimeSnapshot else {
+        if runtimeSnapshot == nil {
+            applyRuntimeModeChange()
+        }
+        let activeSnapshot = runtimeSnapshot ?? RuntimeSelection.resolve(
+            bridge: runtimeModeBridge,
+            msakMode: selectedMsakMode,
+            supabaseMode: selectedSupabaseMode
+        ).snapshot
+        guard let runtimeSnapshot = activeSnapshot else {
+            if displayMode == .measurementRunFlow {
+                measurementRunDetailLabel.text = "Runtime profile unavailable (configuration required)."
+                measurementRunDetailLabel.textColor = .systemRed
+            }
             setStatus("Runtime profile unavailable.")
             return
         }
-        if let preflightError = phase3PreflightError(snapshot: runtimeSnapshot) {
+        if !bypassStrictPreflight, let preflightError = phase3PreflightError(
+            snapshot: runtimeSnapshot,
+            includeReachabilityCheck: displayMode != .measurementRunFlow
+        ) {
             NSLog("[iosTestApp] Phase3 preflight failed: %@", preflightError)
             let envelope = smokeEnvelopeBuilder.failure(
                 scenario: "phase3-preflight",
                 errorMessage: preflightError
             )
-            setStatus(smokeFormatter.format(envelope: envelope))
+            if displayMode == .measurementRunFlow {
+                measurementRunDetailLabel.text = "Configuration issue: \(preflightError)"
+                measurementRunDetailLabel.textColor = .systemRed
+            } else {
+                setStatus(smokeFormatter.format(envelope: envelope))
+            }
             return
         }
         NSLog(
@@ -1035,7 +1431,12 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         let runGroupId = UUID().uuidString
         _ = measurementRunViewController.reset()
         _ = measurementRunViewController.onSequenceStarted(groupId: runGroupId)
-        setStatus(measurementRunUiPresenter.present(state: measurementRunViewController.currentState()).headerText)
+        resetMeasurementRunFlowScheduling()
+        if displayMode == .measurementRunFlow {
+            renderMeasurementRunFlowState(detailText: "Measurement started. Preparing test run...")
+        } else {
+            setStatus(measurementRunUiPresenter.present(state: measurementRunViewController.currentState()).headerText)
+        }
         let config = MsakLocateConfig(
             environment: runtimeSnapshot.msakEnvironment,
             userAgent: "ios-test-app-phase3",
@@ -1047,86 +1448,245 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             supabaseUrl: runtimeSnapshot.supabaseUrl,
             supabaseApiKey: runtimeSnapshot.supabaseApiKey,
             onProgressHeader: { headerText in
-                DispatchQueue.main.async {
-                    self.setStatus(headerText)
+                if self.displayMode == .measurementRunFlow {
+                    self.scheduleMeasurementRunFlowUpdate {
+                        self.applyMeasurementRunProgressHeader(headerText)
+                        self.renderMeasurementRunFlowState(
+                            detailText: self.detailTextForMeasurementHeader(headerText)
+                        )
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        self.applyMeasurementRunProgressHeader(headerText)
+                        self.setStatus(headerText)
+                    }
                 }
             }
         ) { result, error in
-            if let error = error {
-                NSLog("[iosTestApp] Phase3 sequence failed: %@", String(describing: error))
-                let hinted = self.withProtocolHint("\(error)")
-                let envelope = self.smokeEnvelopeBuilder.failure(
-                    scenario: "phase3-sequence-sync",
-                    errorMessage: hinted
-                )
-                _ = self.measurementRunViewController.onCompleted(
-                    group: nil,
-                    errorCode: nil,
-                    errorText: hinted
-                )
-                let runHeader = self.measurementRunUiPresenter
-                    .present(state: self.measurementRunViewController.currentState())
-                    .headerText
-                self.setStatus(runHeader + "\n" + self.smokeFormatter.format(envelope: envelope))
-                return
-            }
-            guard let value = result else {
-                let envelope = self.smokeEnvelopeBuilder.failure(
-                    scenario: "phase3-sequence-sync",
-                    errorMessage: "no result"
-                )
-                _ = self.measurementRunViewController.onCompleted(
-                    group: nil,
-                    errorCode: nil,
-                    errorText: "no result"
-                )
-                let runHeader = self.measurementRunUiPresenter
-                    .present(state: self.measurementRunViewController.currentState())
-                    .headerText
-                self.setStatus(runHeader + "\n" + self.smokeFormatter.format(envelope: envelope))
-                return
-            }
-            _ = self.measurementRunViewController.onCompleted(
-                group: MeasurementGroup(
-                    latency: nil,
-                    download: nil,
-                    upload: nil,
-                    submission: nil,
-                    id: value.groupId
-                ),
-                errorCode: nil,
-                errorText: nil
-            )
-            let runHeader = self.measurementRunUiPresenter
-                .present(state: self.measurementRunViewController.currentState())
-                .headerText
-            let envelope = self.smokeEnvelopeBuilder.phase3Sequence(
-                measurementCompleteUploadTimeSet: value.measurementCompleteUploadTimeSet,
-                persistedMeasurements: Int32(value.persistedMeasurements),
-                persistedSubmissions: Int32(value.persistedSubmissions),
-                errorMessage: value.measurementCompleteUploadTimeSet
-                    ? nil
-                    : "measurement-complete upload time missing; \(value.measurementCompleteReportSummary)"
-            )
-                self.setStatus(
-                    runHeader + "\n" + Phase3UiSliceFormatter().format(
-                    envelopeText: self.smokeFormatter.format(envelope: envelope),
-                    result: Phase3UiSliceResult(
-                        groupId: value.groupId,
-                        throughputMachine: value.throughputMachine,
-                        latencyMachine: value.latencyMachine,
-                        submissionCreated: value.submissionCreated,
-                        mapStartMeasurementsUploaded: Int32(value.mapStartMeasurementsUploaded),
-                        mapStartSubmissionsUploaded: Int32(value.mapStartSubmissionsUploaded),
-                        measurementCompleteUploadTimeSet: value.measurementCompleteUploadTimeSet,
-                        persistedMeasurements: Int32(value.persistedMeasurements),
-                        persistedSubmissions: Int32(value.persistedSubmissions),
-                        capabilityPersistenceSummary: value.capabilityPersistenceSummary,
-                        capabilitySummary: value.capabilitySummary
+            DispatchQueue.main.async {
+                if let error = error {
+                    NSLog("[iosTestApp] Phase3 sequence failed: %@", String(describing: error))
+                    let hinted = self.withProtocolHint("\(error)")
+                    let envelope = self.smokeEnvelopeBuilder.failure(
+                        scenario: "phase3-sequence-sync",
+                        errorMessage: hinted
                     )
+                    if self.displayMode == .measurementRunFlow {
+                        self.scheduleMeasurementRunFlowCompletion {
+                            _ = self.measurementRunViewController.onCompleted(
+                                group: nil,
+                                errorCode: nil,
+                                errorText: hinted
+                            )
+                            self.renderMeasurementRunFlowState(detailText: "Measurement failed. \(hinted)")
+                        }
+                    } else {
+                        _ = self.measurementRunViewController.onCompleted(
+                            group: nil,
+                            errorCode: nil,
+                            errorText: hinted
+                        )
+                        let runHeader = self.measurementRunUiPresenter
+                            .present(state: self.measurementRunViewController.currentState())
+                            .headerText
+                        self.setStatus(runHeader + "\n" + self.smokeFormatter.format(envelope: envelope))
+                    }
+                    return
+                }
+                guard let value = result else {
+                    let envelope = self.smokeEnvelopeBuilder.failure(
+                        scenario: "phase3-sequence-sync",
+                        errorMessage: "no result"
                     )
+                    if self.displayMode == .measurementRunFlow {
+                        self.scheduleMeasurementRunFlowCompletion {
+                            _ = self.measurementRunViewController.onCompleted(
+                                group: nil,
+                                errorCode: nil,
+                                errorText: "no result"
+                            )
+                            self.renderMeasurementRunFlowState(detailText: "Measurement failed. No result.")
+                        }
+                    } else {
+                        _ = self.measurementRunViewController.onCompleted(
+                            group: nil,
+                            errorCode: nil,
+                            errorText: "no result"
+                        )
+                        let runHeader = self.measurementRunUiPresenter
+                            .present(state: self.measurementRunViewController.currentState())
+                            .headerText
+                        self.setStatus(runHeader + "\n" + self.smokeFormatter.format(envelope: envelope))
+                    }
+                    return
+                }
+                let envelope = self.smokeEnvelopeBuilder.phase3Sequence(
+                    measurementCompleteUploadTimeSet: value.measurementCompleteUploadTimeSet,
+                    persistedMeasurements: Int32(value.persistedMeasurements),
+                    persistedSubmissions: Int32(value.persistedSubmissions),
+                    errorMessage: value.measurementCompleteUploadTimeSet
+                        ? nil
+                        : "measurement-complete upload time missing; \(value.measurementCompleteReportSummary)"
                 )
+                if self.displayMode == .measurementRunFlow {
+                    self.scheduleMeasurementRunFlowCompletion {
+                        _ = self.measurementRunViewController.onCompleted(
+                            group: MeasurementGroup(
+                                latency: nil,
+                                download: nil,
+                                upload: nil,
+                                submission: nil,
+                                id: value.groupId
+                            ),
+                            errorCode: nil,
+                            errorText: nil
+                        )
+                        self.renderMeasurementRunFlowState(
+                            detailText: "Measurement complete. Results are saved and sync was attempted."
+                        )
+                    }
+                } else {
+                    _ = self.measurementRunViewController.onCompleted(
+                        group: MeasurementGroup(
+                            latency: nil,
+                            download: nil,
+                            upload: nil,
+                            submission: nil,
+                            id: value.groupId
+                        ),
+                        errorCode: nil,
+                        errorText: nil
+                    )
+                    let runHeader = self.measurementRunUiPresenter
+                        .present(state: self.measurementRunViewController.currentState())
+                        .headerText
+                    self.setStatus(
+                        runHeader + "\n" + Phase3UiSliceFormatter().format(
+                        envelopeText: self.smokeFormatter.format(envelope: envelope),
+                        result: Phase3UiSliceResult(
+                            groupId: value.groupId,
+                            throughputMachine: value.throughputMachine,
+                            latencyMachine: value.latencyMachine,
+                            submissionCreated: value.submissionCreated,
+                            mapStartMeasurementsUploaded: Int32(value.mapStartMeasurementsUploaded),
+                            mapStartSubmissionsUploaded: Int32(value.mapStartSubmissionsUploaded),
+                            measurementCompleteUploadTimeSet: value.measurementCompleteUploadTimeSet,
+                            persistedMeasurements: Int32(value.persistedMeasurements),
+                            persistedSubmissions: Int32(value.persistedSubmissions),
+                            capabilityPersistenceSummary: value.capabilityPersistenceSummary,
+                            capabilitySummary: value.capabilitySummary
+                        )
+                        )
+                    )
+                }
                 NSLog("[iosTestApp] Phase3 sequence success diagnostics=%@", self.diagnosticsSummary)
+            }
+        }
+    }
+
+    private func resetMeasurementRunFlowScheduling() {
+        measurementRunFlowQueue.sync {
+            measurementRunFlowScheduledSteps = 0
+            measurementRunFlowFinalizing = false
+        }
+    }
+
+    private func scheduleMeasurementRunFlowUpdate(_ action: @escaping () -> Void) {
+        let delay = measurementRunFlowQueue.sync { () -> TimeInterval? in
+            if measurementRunFlowFinalizing {
+                return nil
+            }
+            measurementRunFlowScheduledSteps += 1
+            return TimeInterval(measurementRunFlowScheduledSteps) * measurementRunFlowStepDelay
+        }
+        guard let delay else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action)
+    }
+
+    private func scheduleMeasurementRunFlowCompletion(_ action: @escaping () -> Void) {
+        let delay = measurementRunFlowQueue.sync { () -> TimeInterval in
+            measurementRunFlowFinalizing = true
+            let nextStep = max(measurementRunFlowScheduledSteps + 1, 1)
+            return TimeInterval(nextStep) * measurementRunFlowStepDelay
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action)
+    }
+
+    private func renderMeasurementRunFlowState(detailText: String) {
+        let state = measurementRunViewController.currentState()
+        let model = measurementRunUiPresenter.present(state: state)
+        measurementRunHeaderLabel.text = model.headerText
+        measurementRunDetailLabel.text = detailText
+        measurementRunDetailLabel.textColor = state.progress == .error ? .systemRed : .secondaryLabel
+        measurementRunProgressView.progress = measurementRunProgressValue(state.progress)
+        measurementRunProgressView.accessibilityValue = canonicalMeasurementRunStateName(state.progress)
+    }
+
+    private func canonicalMeasurementRunStateName(_ progress: MeasurementRunProgress) -> String {
+        switch progress {
+        case .pre: return "PRE"
+        case .start: return "START"
+        case .locate: return "LOCATE"
+        case .latency: return "LATENCY"
+        case .download: return "DOWNLOAD"
+        case .upload: return "UPLOAD"
+        case .end: return "END"
+        case .error: return "ERROR"
+        default: return "UNKNOWN"
+        }
+    }
+
+    private func measurementRunProgressValue(_ progress: MeasurementRunProgress) -> Float {
+        switch progress {
+        case .pre: return 0.0
+        case .start: return 0.10
+        case .locate: return 0.25
+        case .latency: return 0.45
+        case .download: return 0.65
+        case .upload: return 0.85
+        case .end, .error: return 1.0
+        default: return 0.0
+        }
+    }
+
+    private func detailTextForMeasurementHeader(_ headerText: String) -> String {
+        if headerText.contains("Finding server") {
+            return "Finding closest test server..."
+        }
+        if headerText.contains("Measuring latency") {
+            return "Running latency test..."
+        }
+        if headerText.contains("Measuring download speed") {
+            return "Running download throughput test..."
+        }
+        if headerText.contains("Measuring upload speed") {
+            return "Running upload throughput test..."
+        }
+        if headerText.contains("Measurement complete") {
+            return "Measurement complete. Results are saved and sync was attempted."
+        }
+        if headerText.contains("Measurement failed") {
+            return "Measurement failed. Please try again."
+        }
+        return "Running tests against selected server..."
+    }
+
+    private func applyMeasurementRunProgressHeader(_ headerText: String) {
+        if headerText.contains("Finding server") {
+            _ = measurementRunViewController.onLocateStarted()
+            return
+        }
+        if headerText.contains("Measuring latency") {
+            _ = measurementRunViewController.onLatencyStarted()
+            return
+        }
+        if headerText.contains("Measuring download speed") {
+            _ = measurementRunViewController.onDownloadStarted()
+            return
+        }
+        if headerText.contains("Measuring upload speed") {
+            _ = measurementRunViewController.onUploadStarted()
+            return
         }
     }
 
@@ -1146,7 +1706,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         NSLog("[iosTestApp] Sync diagnostics configured: %@", diagnosticsSummary)
     }
 
-    private func phase3PreflightError(snapshot: RuntimeSyncMsakProfileSnapshot) -> String? {
+    private func phase3PreflightError(
+        snapshot: RuntimeSyncMsakProfileSnapshot,
+        includeReachabilityCheck: Bool = true
+    ) -> String? {
         var issues: [String] = []
         if selectedMsakMode == .local {
             if snapshot.msakLocalServerHost?.isEmpty != false {
@@ -1167,8 +1730,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         } else if selectedSupabaseMode == .local, isAnonJwt(snapshot.supabaseApiKey) {
             issues.append("Supabase LOCAL API key has anon role; local phase3 sync requires service-role JWT")
         }
-        if let localMsakIssue = localMsakReachabilityIssue(snapshot: snapshot) {
-            issues.append(localMsakIssue)
+        if includeReachabilityCheck {
+            if let localMsakIssue = localMsakReachabilityIssue(snapshot: snapshot) {
+                issues.append(localMsakIssue)
+            }
         }
         return issues.isEmpty ? nil : issues.joined(separator: "; ")
     }

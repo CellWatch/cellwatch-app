@@ -137,11 +137,17 @@ run_step \
   "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.MeasurementStartPreflightUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunMeasurementStartPreflightUiSmoke=1"
 pull_android_flow "measurement-start-preflight"
 
-reset_android_flow "phase3-sequence-button"
+reset_android_flow "pending-sync-retry"
 run_step \
-  "android-phase3-sequence-button" \
-  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.Phase3SequenceButtonUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunPhase3UiSmoke=1"
-pull_android_flow "phase3-sequence-button"
+  "android-pending-sync-retry" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.PendingSyncRetryUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunPendingSyncUiSmoke=1"
+pull_android_flow "pending-sync-retry"
+
+reset_android_flow "measurement-run-flow"
+run_step \
+  "android-measurement-run-flow" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.MeasurementRunFlowUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunMeasurementRunUiSmoke=1"
+pull_android_flow "measurement-run-flow"
 
 run_step \
   "ios-onboarding-profile-entry-hosted" \
@@ -158,23 +164,30 @@ run_step \
 copy_ios_flow "measurement-start-preflight-xcuitest"
 
 run_step \
-  "ios-phase3-sequence-button" \
-  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppHostedPhase3ButtonSmoke"
-copy_ios_flow "phase3-sequence-button"
+  "ios-pending-sync-retry-xcuitest" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppUiPendingSyncSmoke"
+copy_ios_flow "pending-sync-retry-xcuitest"
+
+run_step \
+  "ios-measurement-run-flow-xcuitest" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppUiMeasurementRunFlowSmoke"
+copy_ios_flow "measurement-run-flow-xcuitest"
 
 {
   echo "# UI Flow Report"
   echo
   echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   echo
-  echo "_Scope: product-like onboarding, measurement-start preflight, and measurement-run (Phase 3 sequence) flow evidence. iOS hosted onboarding smoke is assertion-only (no screenshots); iOS visual evidence comes from XCUITest device screenshots._"
+  echo "_Scope: product-like onboarding, measurement-start preflight, pending-sync count/retry, and measurement-run flow evidence. iOS hosted onboarding smoke is assertion-only (no screenshots); iOS visual evidence comes from XCUITest device screenshots._"
   echo
   render_flow_section "android" "onboarding-profile-entry" "Android: Onboarding Profile Entry Smoke"
   render_flow_section "android" "measurement-start-preflight" "Android: Measurement Start Preflight Smoke"
-  render_flow_section "android" "phase3-sequence-button" "Android: Measurement Run Phase3 Sequence Smoke"
+  render_flow_section "android" "pending-sync-retry" "Android: Pending Sync Count/Retry Smoke"
+  render_flow_section "android" "measurement-run-flow" "Android: Measurement Run Flow Smoke"
   render_flow_section "ios" "onboarding-profile-entry-xcuitest" "iOS: Onboarding Profile Entry Smoke (XCUITest)"
   render_flow_section "ios" "measurement-start-preflight-xcuitest" "iOS: Measurement Start Preflight Smoke (XCUITest)"
-  render_flow_section "ios" "phase3-sequence-button" "iOS: Measurement Run Phase3 Sequence Smoke (XCUITest)"
+  render_flow_section "ios" "pending-sync-retry-xcuitest" "iOS: Pending Sync Count/Retry Smoke (XCUITest)"
+  render_flow_section "ios" "measurement-run-flow-xcuitest" "iOS: Measurement Run Flow Smoke (XCUITest)"
 } > "$MARKDOWN_FILE"
 
 echo
