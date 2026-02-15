@@ -814,22 +814,23 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         applyButtonStyle(measureButton, role: .primary)
         measureButton.addTarget(self, action: #selector(openMeasureFromMvpMenu), for: .touchUpInside)
 
-        statusLabel.text = onboardingPersistenceUseCase.loadProfile()?.onboardingComplete == true
+        let mvpStatusLabel = InsetLabel()
+        mvpStatusLabel.text = onboardingPersistenceUseCase.loadProfile()?.onboardingComplete == true
             ? "Profile saved. Start a measurement when ready."
             : "Complete your profile before taking a measurement."
-        statusLabel.numberOfLines = 0
-        statusLabel.font = UIFont.preferredFont(forTextStyle: .body)
-        statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.accessibilityIdentifier = Self.statusLabelIdentifier
-        statusLabel.isHidden = false
-        statusLabel.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
-        statusLabel.backgroundColor = .white
-        statusLabel.layer.cornerRadius = 12
-        statusLabel.layer.masksToBounds = true
-        statusLabel.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
-        statusLabel.layer.borderWidth = 1
+        mvpStatusLabel.numberOfLines = 0
+        mvpStatusLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        mvpStatusLabel.translatesAutoresizingMaskIntoConstraints = false
+        mvpStatusLabel.accessibilityIdentifier = Self.statusLabelIdentifier
+        mvpStatusLabel.textInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+        mvpStatusLabel.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
+        mvpStatusLabel.backgroundColor = .white
+        mvpStatusLabel.layer.cornerRadius = 12
+        mvpStatusLabel.layer.masksToBounds = true
+        mvpStatusLabel.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        mvpStatusLabel.layer.borderWidth = 1
 
-        let cardStack = UIStackView(arrangedSubviews: [title, subtitle, profileButton, measureButton, statusLabel])
+        let cardStack = UIStackView(arrangedSubviews: [title, subtitle, profileButton, measureButton, mvpStatusLabel])
         cardStack.axis = .vertical
         cardStack.spacing = 12
         cardStack.translatesAutoresizingMaskIntoConstraints = false
