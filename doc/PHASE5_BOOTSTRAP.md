@@ -80,7 +80,11 @@ Expected flow keys:
 ## Next Recommended Work
 
 Phase 5 continuation:
-- Move from harness-only story slices toward product app-layer integration for Story 5+ (history/status/retry UX).
+- Complete the current vertical slice in product-facing UI terms:
+  - profile setup -> start measurement -> run measurement -> measurement complete results UX.
+- Next immediate implementation target:
+  - Story 5 measurement complete results UX (key metrics + "take another measurement" action).
+- Then move from harness-only slices toward product app-layer integration for Story 7+ (history/status/retry UX).
 - Keep shared-first use-case ownership in `shared/`; keep platform modules as thin adapters + viewmodels.
 - Expand simulator UI evidence as new user-facing cards/screens are added (without reintroducing debug-panel UI into `ui-flow` captures).
 
