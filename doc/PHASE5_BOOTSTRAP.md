@@ -40,14 +40,21 @@ Inspect:
 Expected flow keys:
 
 - `android-onboarding-profile-entry`
+- `android-measurement-start-preflight`
+- `android-pending-sync-retry`
+- `android-measurement-run-flow`
 - `ios-onboarding-profile-entry-hosted`
 - `ios-onboarding-profile-entry-xcuitest`
+- `ios-measurement-start-preflight-xcuitest`
+- `ios-pending-sync-retry-xcuitest`
+- `ios-measurement-run-flow-xcuitest`
 
 iOS test-runner note:
 - `2A` hosted invariant smoke remains in `iosTestAppTests` (in-process).
-- `2B` onboarding UI evidence runs in `iosTestAppUITests` (XCUITest, out-of-process) for trustworthy simulator-frame UI interactions/snapshots.
+- `2B` user-facing UI-flow evidence runs in `iosTestAppUITests` (XCUITest, out-of-process) for trustworthy simulator-frame UI interactions/snapshots.
 - This split is intentional to avoid overloading hosted XCTest with UI-automation duties it is not designed for.
-- `2A` hosted onboarding smoke is assertion-first and does not publish screenshot evidence by default.
+- `2A` hosted smoke is assertion-first and does not publish screenshot evidence by default.
+- UI-flow pass/fail comes from deterministic assertions (state/control checks); screenshots are human-review evidence and are not auto-diffed.
 
 iOS fullscreen + interaction guardrails:
 - Keep `UILaunchScreen` declared in `iosTestApp/App/Info.plist` to prevent legacy `320x480` compatibility launch mode.
@@ -72,13 +79,10 @@ Expected flow keys:
 
 ## Next Recommended Work
 
-Story 1 hardening:
-- Implement onboarding persistence use case (save/load/edit profile).
-- Wire persisted profile into both harness apps.
-- Add simulator UI smoke proving:
-  - submit persists
-  - relaunch/reopen pre-fills fields
-  - edit/save updates persisted values
+Phase 5 continuation:
+- Move from harness-only story slices toward product app-layer integration for Story 5+ (history/status/retry UX).
+- Keep shared-first use-case ownership in `shared/`; keep platform modules as thin adapters + viewmodels.
+- Expand simulator UI evidence as new user-facing cards/screens are added (without reintroducing debug-panel UI into `ui-flow` captures).
 
 Keep constraints:
 - Do not add feature logic to `frozenApp/`.

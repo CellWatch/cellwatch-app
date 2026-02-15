@@ -216,10 +216,20 @@ Outputs:
 - Markdown report: `build/reports/ui-flow/UI_FLOW_REPORT.md`
 - Android per-flow screenshots:
   - `build/reports/ui-flow/android/onboarding-profile-entry/`
+  - `build/reports/ui-flow/android/measurement-start-preflight/`
+  - `build/reports/ui-flow/android/pending-sync-retry/`
+  - `build/reports/ui-flow/android/measurement-run-flow/`
 - iOS per-flow screenshots:
   - `build/reports/ui-flow/ios/onboarding-profile-entry-xcuitest/` (XCUITest simulator-frame, product-like evidence)
+  - `build/reports/ui-flow/ios/measurement-start-preflight-xcuitest/`
+  - `build/reports/ui-flow/ios/pending-sync-retry-xcuitest/`
+  - `build/reports/ui-flow/ios/measurement-run-flow-xcuitest/`
 - Per-flow execution logs + pass/fail status:
   - `build/reports/ui-flow/logs/`
+
+Pass/fail contract:
+- Flow pass/fail is decided by deterministic test assertions (state transitions and required control state checks), not by image diffing.
+- Screenshots are evidence artifacts for human review and regression triage.
 
 Current flow coverage in the report:
 - `onboarding-profile-entry`:
@@ -238,6 +248,17 @@ Current flow coverage in the report:
   - warning dialog on Wi-Fi/unknown path
   - confirm path (`Measure anyway`) and allowed state
   - cancel path and blocked state
+- `pending-sync-retry`:
+  - ready
+  - counts/status after refresh
+  - retry action result
+- `measurement-run-flow`:
+  - ready
+  - after start tap
+  - finding server
+  - running latency
+  - running throughput
+  - after run (end/error)
 
 Notes:
 - The report intentionally includes log excerpts even for successful flows to speed triage in new environments.

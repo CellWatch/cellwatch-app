@@ -5,7 +5,7 @@ This document tracks app-layer convergence work (Phase 5) by user story, startin
 Companion contract:
 - `doc/APP_LAYER_ARCHITECTURE_CONTRACT.md`
 
-## Current Snapshot (2026-02-13)
+## Current Snapshot (2026-02-15)
 
 Implemented now:
 - Shared onboarding contracts:
@@ -19,7 +19,9 @@ Implemented now:
   - iOS: profile-entry fields + submit
 - Cross-platform simulator UI flow evidence:
   - stepwise onboarding screenshots (per input action)
-  - phase3 button screenshots
+  - measurement-start preflight screenshots
+  - pending-sync retry screenshots
+  - measurement-run progress screenshots
   - unified markdown report with per-flow pass/fail + log excerpt
 
 Not implemented yet (Phase 5 core remaining):
@@ -164,6 +166,7 @@ Current Tier 2 implementation status:
 - iOS onboarding flow evidence is captured via XCUITest (`iosTestAppUITests`) with real widget interaction (no env-prefill shortcuts in full-flow test).
 - Hosted tests (`iosTestAppTests`) remain for in-process invariants and status-text assertions.
 - iOS fullscreen guardrail is now explicit: `UILaunchScreen` must remain in `iosTestApp/App/Info.plist` to avoid `320x480` compatibility-mode letterboxing.
+- UI-flow pass/fail uses deterministic assertion checks (state/control transitions); screenshots are evidence artifacts for human review.
 - Phase 3 simulator smoke report command:
   - `./scripts/generate-simulator-smoke-report.sh`
 - Phase 3 report path:
@@ -283,6 +286,10 @@ Current scaffold status:
   - `MeasurementRunViewController`
   - `MeasurementRunUiPresenter`
   - legacy-faithful progress/header/terminal visibility mapping
+- Harness story-flow UI + smoke coverage added on Android and iOS for:
+  - measurement-run start
+  - stage progression (`LOCATE`, `LATENCY`, `DOWNLOAD/UPLOAD`, terminal)
+  - completion/terminal rendering
 
 ### Acceptance criteria (Story 3)
 
