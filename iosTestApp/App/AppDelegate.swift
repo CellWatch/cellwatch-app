@@ -146,6 +146,12 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         if mode == "full-harness" {
             return .fullHarness
         }
+        if mode == "mvp-menu" || mode == "mvp" {
+            return .mvpMenu
+        }
+        if mode == "onboarding-flow" {
+            return .onboardingFlow
+        }
         if mode == "measurement-start-flow" {
             return .measurementStartFlow
         }
@@ -155,7 +161,13 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         if mode == "measurement-run-flow" {
             return .measurementRunFlow
         }
-        return .onboardingFlow
+        let onboardingComplete = OnboardingUserDefaultsStore().loadProfile()?.onboardingComplete == true
+        return onboardingComplete ? .mvpMenu : .onboardingFlow
+    }
+
+    static func shouldDefaultToMvpNavigation() -> Bool {
+        let mode = RuntimeConfigSource.value("CELLWATCH_UI_MODE")?.lowercased()
+        return mode == nil || mode == "mvp-menu" || mode == "mvp"
     }
 
     func application(
@@ -251,6 +263,7 @@ final class InsetLabel: UILabel {
 final class HarnessViewController: UIViewController, UITextFieldDelegate {
     enum DisplayMode {
         case fullHarness
+        case mvpMenu
         case onboardingFlow
         case measurementStartFlow
         case pendingSyncFlow
@@ -414,6 +427,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                 return
             }
             buildOnboardingFlowSwiftUi()
+            return
+        }
+        if displayMode == .mvpMenu {
+            buildMvpMenuUi()
             return
         }
         if displayMode == .measurementStartFlow {
@@ -769,6 +786,71 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         installOnboardingKeyboardAvoidance()
         installOnboardingKeyboardDismissGesture()
         setStatus("Ready. Enter onboarding profile details.")
+    }
+
+    private func buildMvpMenuUi() {
+        overrideUserInterfaceStyle = .light
+        view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
+        navigationItem.title = "CellWatch MVP"
+
+        let title = UILabel()
+        title.text = "CellWatch MVP"
+        title.font = UIFont.preferredFont(forTextStyle: .title2)
+        title.textColor = .label
+
+        let subtitle = UILabel()
+        subtitle.text = "Choose a screen to continue."
+        subtitle.font = UIFont.preferredFont(forTextStyle: .body)
+        subtitle.textColor = .secondaryLabel
+        subtitle.numberOfLines = 0
+
+        let profileButton = UIButton(type: .system)
+        profileButton.setTitle("Profile", for: .normal)
+        applyButtonStyle(profileButton, role: .secondary)
+        profileButton.addTarget(self, action: #selector(openProfileFromMvpMenu), for: .touchUpInside)
+
+        let measureButton = UIButton(type: .system)
+        measureButton.setTitle("Measure", for: .normal)
+        applyButtonStyle(measureButton, role: .primary)
+        measureButton.addTarget(self, action: #selector(openMeasureFromMvpMenu), for: .touchUpInside)
+
+        statusLabel.text = onboardingPersistenceUseCase.loadProfile()?.onboardingComplete == true
+            ? "Profile saved. Start a measurement when ready."
+            : "Complete your profile before taking a measurement."
+        statusLabel.numberOfLines = 0
+        statusLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        statusLabel.accessibilityIdentifier = Self.statusLabelIdentifier
+        statusLabel.isHidden = false
+        statusLabel.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
+        statusLabel.backgroundColor = .white
+        statusLabel.layer.cornerRadius = 12
+        statusLabel.layer.masksToBounds = true
+        statusLabel.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        statusLabel.layer.borderWidth = 1
+
+        let cardStack = UIStackView(arrangedSubviews: [title, subtitle, profileButton, measureButton, statusLabel])
+        cardStack.axis = .vertical
+        cardStack.spacing = 12
+        cardStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let card = UIView()
+        card.backgroundColor = UIColor(white: 0.98, alpha: 1.0)
+        card.layer.cornerRadius = 16
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(cardStack)
+
+        view.addSubview(card)
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            card.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            card.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            card.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            cardStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            cardStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+            cardStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            cardStack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14)
+        ])
     }
 
     private func buildMeasurementStartFlowUi() {
@@ -2010,6 +2092,12 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         let submission = onboardingViewModel.submit()
         applyOnboardingUiState(submission.state)
         setStatus(submission.statusText)
+        if submission.success &&
+            displayMode == .onboardingFlow &&
+            navigationController == nil &&
+            AppDelegate.shouldDefaultToMvpNavigation() {
+            replaceRootWithMvpMenu()
+        }
     }
 
     @objc private func submitOnboardingFromReturnKey() {
@@ -2063,6 +2151,29 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         label.textColor = .secondaryLabel
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
+    }
+
+    @objc private func openProfileFromMvpMenu() {
+        pushMvpScreen(mode: .onboardingFlow)
+    }
+
+    @objc private func openMeasureFromMvpMenu() {
+        if onboardingPersistenceUseCase.loadProfile()?.onboardingComplete == true {
+            pushMvpScreen(mode: .measurementRunFlow)
+        } else {
+            pushMvpScreen(mode: .onboardingFlow)
+        }
+    }
+
+    private func pushMvpScreen(mode: DisplayMode) {
+        let target = HarnessViewController(displayMode: mode, onboardingUiImplementation: .uikit)
+        navigationController?.pushViewController(target, animated: true)
+    }
+
+    private func replaceRootWithMvpMenu() {
+        guard let window = view.window else { return }
+        let menu = HarnessViewController(displayMode: .mvpMenu, onboardingUiImplementation: .uikit)
+        window.rootViewController = UINavigationController(rootViewController: menu)
     }
 
     private enum ButtonRole {
