@@ -128,6 +128,7 @@ class MainActivity : AppCompatActivity() {
         const val UI_MODE_MEASUREMENT_START_FLOW = "measurement-start-flow"
         const val UI_MODE_PENDING_SYNC_FLOW = "pending-sync-flow"
         const val UI_MODE_MEASUREMENT_RUN_FLOW = "measurement-run-flow"
+        const val UI_MODE_MVP_MENU = "mvp-menu"
         const val EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_NETWORK_PATH = "cellwatch.measurementPreflight.overrideNetworkPath"
         const val EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION = "cellwatch.measurementPreflight.overrideLocationPermission"
         const val EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_RUNTIME_PROFILE = "cellwatch.measurementPreflight.overrideRuntimeProfile"
@@ -142,6 +143,7 @@ class MainActivity : AppCompatActivity() {
         MEASUREMENT_START_FLOW,
         PENDING_SYNC_FLOW,
         MEASUREMENT_RUN_FLOW,
+        MVP_MENU,
     }
 
     private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
@@ -206,19 +208,24 @@ class MainActivity : AppCompatActivity() {
     private val smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private val smokeFormatter = SyncSmokeResultFormatter()
     private var uiMode: UiMode = UiMode.FULL_HARNESS
+    private var launchedWithExplicitUiMode: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        uiMode = if (intent?.getStringExtra(EXTRA_UI_MODE) == UI_MODE_ONBOARDING_FLOW) {
+        val explicitMode = intent?.getStringExtra(EXTRA_UI_MODE)
+        launchedWithExplicitUiMode = explicitMode != null
+        uiMode = if (explicitMode == UI_MODE_ONBOARDING_FLOW) {
             UiMode.ONBOARDING_FLOW
-        } else if (intent?.getStringExtra(EXTRA_UI_MODE) == UI_MODE_MEASUREMENT_START_FLOW) {
+        } else if (explicitMode == UI_MODE_MEASUREMENT_START_FLOW) {
             UiMode.MEASUREMENT_START_FLOW
-        } else if (intent?.getStringExtra(EXTRA_UI_MODE) == UI_MODE_PENDING_SYNC_FLOW) {
+        } else if (explicitMode == UI_MODE_PENDING_SYNC_FLOW) {
             UiMode.PENDING_SYNC_FLOW
-        } else if (intent?.getStringExtra(EXTRA_UI_MODE) == UI_MODE_MEASUREMENT_RUN_FLOW) {
+        } else if (explicitMode == UI_MODE_MEASUREMENT_RUN_FLOW) {
             UiMode.MEASUREMENT_RUN_FLOW
+        } else if (explicitMode == UI_MODE_MVP_MENU) {
+            UiMode.MVP_MENU
         } else {
-            UiMode.FULL_HARNESS
+            resolveDefaultUiMode()
         }
         SyncDiagnosticsRegistry.configure(
             SyncDiagnosticsConfig(
@@ -303,8 +310,68 @@ class MainActivity : AppCompatActivity() {
             UiMode.MEASUREMENT_START_FLOW -> buildMeasurementStartOnlyUi()
             UiMode.PENDING_SYNC_FLOW -> buildPendingSyncOnlyUi()
             UiMode.MEASUREMENT_RUN_FLOW -> buildMeasurementRunOnlyUi()
+            UiMode.MVP_MENU -> buildMvpMenuUi()
             UiMode.FULL_HARNESS -> buildHarnessUi()
         }
+    }
+
+    private fun buildMvpMenuUi(): ScrollView {
+        val root = ScrollView(this)
+        root.setBackgroundColor(Color.parseColor("#F7F9FC"))
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(42, 64, 42, 42)
+        }
+
+        val title = TextView(this).apply {
+            text = "CellWatch MVP"
+            textSize = 28f
+            setTextColor(Color.parseColor("#0A2A43"))
+            setPadding(0, 0, 0, 8)
+        }
+        val subtitle = TextView(this).apply {
+            text = "Choose a screen to continue."
+            textSize = 16f
+            setTextColor(Color.parseColor("#3B5D77"))
+            setPadding(0, 0, 0, 20)
+        }
+        val profileButton = Button(this).apply {
+            text = "Profile"
+            styleSecondaryButton(this)
+            setOnClickListener { openUiMode(UI_MODE_ONBOARDING_FLOW) }
+        }
+        val measureButton = Button(this).apply {
+            text = "Measure"
+            stylePrimaryButton(this)
+            setOnClickListener {
+                if (isOnboardingCompletePersisted()) {
+                    openUiMode(UI_MODE_MEASUREMENT_RUN_FLOW)
+                } else {
+                    openUiMode(UI_MODE_ONBOARDING_FLOW)
+                }
+            }
+        }
+        statusText = TextView(this).apply {
+            id = STATUS_TEXT_VIEW_ID
+            text = if (isOnboardingCompletePersisted()) {
+                "Profile saved. Start a measurement when ready."
+            } else {
+                "Complete your profile before taking a measurement."
+            }
+            textSize = 14f
+            setTextColor(Color.parseColor("#3B5D77"))
+            setPadding(16, 20, 16, 20)
+            background = roundedCard(
+                fillColor = Color.parseColor("#FFFFFF"),
+                strokeColor = Color.parseColor("#C8E3CC"),
+            )
+        }
+        content.addView(title)
+        content.addView(subtitle)
+        content.addView(buildCard(profileButton, measureButton))
+        content.addView(statusText)
+        root.addView(content)
+        return root
     }
 
     private fun buildHarnessUi(): ScrollView {
@@ -802,6 +869,28 @@ class MainActivity : AppCompatActivity() {
         val submission: OnboardingProfileSubmission = onboardingViewModel.submit()
         applyOnboardingUiState(submission.state)
         statusText.text = submission.statusText
+        if (submission.success && uiMode == UiMode.ONBOARDING_FLOW && !launchedWithExplicitUiMode) {
+            openUiMode(UI_MODE_MVP_MENU)
+            finish()
+        }
+    }
+
+    private fun resolveDefaultUiMode(): UiMode {
+        return if (isOnboardingCompletePersisted()) UiMode.MVP_MENU else UiMode.ONBOARDING_FLOW
+    }
+
+    private fun isOnboardingCompletePersisted(): Boolean {
+        return AndroidOnboardingProfileStore(applicationContext)
+            .loadProfile()
+            ?.onboardingComplete == true
+    }
+
+    private fun openUiMode(mode: String) {
+        startActivity(
+            Intent(this, MainActivity::class.java).apply {
+                putExtra(EXTRA_UI_MODE, mode)
+            },
+        )
     }
 
     private fun bindOnboardingInputs() {
