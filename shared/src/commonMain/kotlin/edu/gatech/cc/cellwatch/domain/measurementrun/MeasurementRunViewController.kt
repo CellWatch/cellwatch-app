@@ -3,6 +3,7 @@ package edu.gatech.cc.cellwatch.domain.measurementrun
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import kotlinx.datetime.Instant
+import kotlin.math.roundToInt
 
 enum class MeasurementRunProgress {
     PRE,
@@ -48,6 +49,66 @@ data class MeasurementRunUiModel(
     val showProgressBar: Boolean,
     val showCompletionActions: Boolean,
 )
+
+data class MeasurementResultReadModel(
+    val latencyText: String,
+    val downloadText: String,
+    val uploadText: String,
+    val summaryText: String,
+)
+
+class MeasurementResultReadModelUseCase {
+    fun present(state: MeasurementRunState): MeasurementResultReadModel {
+        val latencyText = formatLatency(state.results?.latency)
+        val downloadText = formatThroughput(state.results?.download)
+        val uploadText = formatThroughput(state.results?.upload)
+        val summaryText = when (state.progress) {
+            MeasurementRunProgress.END -> {
+                if (state.uploadTime != null) {
+                    "Measurement complete. Results saved and synced."
+                } else {
+                    "Measurement complete. Results saved and sync attempted."
+                }
+            }
+
+            MeasurementRunProgress.ERROR -> state.errorMessage ?: "Measurement failed. Please try again."
+            else -> "Measurement in progress."
+        }
+        return MeasurementResultReadModel(
+            latencyText = latencyText,
+            downloadText = downloadText,
+            uploadText = uploadText,
+            summaryText = summaryText,
+        )
+    }
+
+    private fun formatLatency(measurement: Measurement?): String {
+        val rttMicros = measurement?.latencyData?.rtt ?: return "--"
+        val milliseconds = rttMicros / 1_000.0
+        if (milliseconds < 1.0) return "<1 ms"
+        return "${milliseconds.roundToInt()} ms"
+    }
+
+    private fun formatThroughput(measurement: Measurement?): String {
+        val data = measurement?.uploadDownloadData ?: return "--"
+        val bytesPerSec = data.bytesPerSec ?: run {
+            val bytes = data.bytes
+            val durationMicros = data.duration
+            if (bytes == null || durationMicros == null || durationMicros <= 0L) {
+                return "--"
+            }
+            bytes.toDouble() / (durationMicros.toDouble() / 1_000_000.0)
+        }
+        val mbps = (bytesPerSec * 8.0) / 1_000_000.0
+        if (mbps < 0.1) return "<0.1 Mbps"
+        val rounded = (mbps * 10.0).roundToInt() / 10.0
+        return if ((rounded % 1.0) == 0.0) {
+            "${rounded.toInt()} Mbps"
+        } else {
+            "$rounded Mbps"
+        }
+    }
+}
 
 class MeasurementRunUiPresenter {
     fun present(state: MeasurementRunState): MeasurementRunUiModel {

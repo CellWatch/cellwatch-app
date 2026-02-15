@@ -22,6 +22,9 @@ import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunUiPresenter
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunViewController
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunState
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementResultReadModelUseCase
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +49,10 @@ data class IosPhase3SequenceSyncResult(
     val persistedSubmissions: Int,
     val capabilityPersistenceSummary: String,
     val capabilitySummary: String,
+    val latencySummary: String,
+    val downloadSummary: String,
+    val uploadSummary: String,
+    val completionSummary: String,
 )
 
 class IosPhase3SequenceSyncHarness {
@@ -190,6 +197,13 @@ class IosPhase3SequenceSyncHarness {
             val groupId = outcome.sequenceOutcome.group.id
             val persistedMeasurements = measurementRepo.getByGroupId(groupId)
             val persistenceSummary = CapabilityPersistenceSummaryFormatter.summarize(persistedMeasurements)
+            val resultReadModel = MeasurementResultReadModelUseCase().present(
+                MeasurementRunState(
+                    progress = MeasurementRunProgress.END,
+                    results = outcome.sequenceOutcome.group,
+                    uploadTime = outcome.measurementCompleteUploadTime,
+                ),
+            )
 
             return IosPhase3SequenceSyncResult(
                 groupId = groupId,
@@ -204,6 +218,10 @@ class IosPhase3SequenceSyncHarness {
                 persistedSubmissions = if (submissionRepo.getById(groupId) != null) 1 else 0,
                 capabilityPersistenceSummary = CapabilityPersistenceSummaryFormatter.format(persistenceSummary),
                 capabilitySummary = capabilitySummary,
+                latencySummary = resultReadModel.latencyText,
+                downloadSummary = resultReadModel.downloadText,
+                uploadSummary = resultReadModel.uploadText,
+                completionSummary = resultReadModel.summaryText,
             )
         } finally {
             driver.close()

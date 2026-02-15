@@ -59,17 +59,23 @@ class MeasurementRunFlowUiSmokeTest {
                 ),
             )
             captureScreenshot("05-after-run")
+            assertResultsContains(scenario, "Latency:")
+            assertResultsContains(scenario, "Download:")
+            assertResultsContains(scenario, "Upload:")
 
-            var progress = 0
-            scenario.onActivity { activity ->
-                progress = activity.findViewById<android.widget.ProgressBar>(
-                    MainActivity.MEASUREMENT_RUN_PROGRESS_ID,
-                ).progress
-            }
-            assertTrue(
-                "Expected progress bar to advance to completion, got progress=$progress",
-                progress >= 95,
+            onView(withId(MainActivity.MEASUREMENT_RUN_TAKE_ANOTHER_BUTTON_ID)).perform(click())
+            assertHeaderContainsAny(
+                scenario = scenario,
+                expected = listOf(
+                    "Finding server",
+                    "Measuring latency",
+                    "Measuring download speed",
+                    "Measuring upload speed",
+                    "Measurement complete",
+                ),
             )
+            captureScreenshot("06-after-take-another")
+
         } finally {
             scenario.close()
         }
@@ -108,6 +114,18 @@ class MeasurementRunFlowUiSmokeTest {
             id = MainActivity.MEASUREMENT_RUN_DETAIL_ID,
             expected = expected,
             timeoutMs = 240_000,
+        )
+    }
+
+    private fun assertResultsContains(
+        scenario: ActivityScenario<MainActivity>,
+        expected: String,
+    ) {
+        assertLabelContainsAny(
+            scenario = scenario,
+            id = MainActivity.MEASUREMENT_RUN_RESULTS_ID,
+            expected = listOf(expected),
+            timeoutMs = 30_000,
         )
     }
 

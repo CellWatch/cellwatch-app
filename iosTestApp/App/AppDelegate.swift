@@ -265,6 +265,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     static let measurementRunHeaderIdentifier = "harness.measurementRun.header"
     static let measurementRunDetailIdentifier = "harness.measurementRun.detail"
     static let measurementRunProgressIdentifier = "harness.measurementRun.progress"
+    static let measurementRunResultsIdentifier = "harness.measurementRun.results"
+    static let measurementRunTakeAnotherIdentifier = "harness.measurementRun.takeAnother"
 
     private let statusLabel = UILabel()
     private let outputTextView = UITextView()
@@ -284,6 +286,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     )
     private let measurementRunViewController = MeasurementRunViewController()
     private let measurementRunUiPresenter = MeasurementRunUiPresenter()
+    private let measurementResultReadModelUseCase = MeasurementResultReadModelUseCase()
     private lazy var onboardingViewModel = OnboardingProfileViewModel(
         validationUseCase: onboardingValidationUseCase,
         persistenceUseCase: onboardingPersistenceUseCase
@@ -311,6 +314,12 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let measurementRunHeaderLabel = UILabel()
     private let measurementRunDetailLabel = UILabel()
     private let measurementRunProgressView = UIProgressView(progressViewStyle: .default)
+    private let measurementRunResultsLabel = UILabel()
+    private let measurementRunTakeAnotherButton = UIButton(type: .system)
+    private var measurementRunCachedLatencySummary = "--"
+    private var measurementRunCachedDownloadSummary = "--"
+    private var measurementRunCachedUploadSummary = "--"
+    private var measurementRunCachedCompletionSummary = "Measurement in progress."
     private let measurementRunFlowQueue = DispatchQueue(label: "cellwatch.measurementRunFlow.queue")
     private var measurementRunFlowScheduledSteps: Int = 0
     private var measurementRunFlowFinalizing: Bool = false
@@ -967,13 +976,39 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         measurementRunDetailLabel.numberOfLines = 0
         measurementRunDetailLabel.accessibilityIdentifier = Self.measurementRunDetailIdentifier
 
+        measurementRunResultsLabel.text = "Latency: --\nDownload: --\nUpload: --\nStatus: Measurement in progress."
+        measurementRunResultsLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        measurementRunResultsLabel.textColor = UIColor(red: 0.18, green: 0.29, blue: 0.38, alpha: 1.0)
+        measurementRunResultsLabel.numberOfLines = 0
+        measurementRunResultsLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+        measurementRunResultsLabel.backgroundColor = .white
+        measurementRunResultsLabel.layer.cornerRadius = 12
+        measurementRunResultsLabel.layer.masksToBounds = true
+        measurementRunResultsLabel.layer.borderColor = UIColor(red: 0.78, green: 0.86, blue: 0.93, alpha: 1.0).cgColor
+        measurementRunResultsLabel.layer.borderWidth = 1
+        measurementRunResultsLabel.layoutMargins = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        measurementRunResultsLabel.isHidden = true
+        measurementRunResultsLabel.accessibilityIdentifier = Self.measurementRunResultsIdentifier
+
+        measurementRunTakeAnotherButton.setTitle("Take Another Measurement", for: .normal)
+        applyButtonStyle(measurementRunTakeAnotherButton, role: .secondary)
+        measurementRunTakeAnotherButton.addTarget(
+            self,
+            action: #selector(runPhase3Sequence),
+            for: .touchUpInside
+        )
+        measurementRunTakeAnotherButton.accessibilityIdentifier = Self.measurementRunTakeAnotherIdentifier
+        measurementRunTakeAnotherButton.isHidden = true
+
         let cardStack = UIStackView(arrangedSubviews: [
             title,
             subtitle,
             startButton,
             measurementRunHeaderLabel,
             measurementRunProgressView,
-            measurementRunDetailLabel
+            measurementRunDetailLabel,
+            measurementRunResultsLabel,
+            measurementRunTakeAnotherButton
         ])
         cardStack.axis = .vertical
         cardStack.spacing = 12
@@ -1431,6 +1466,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         let runGroupId = UUID().uuidString
         _ = measurementRunViewController.reset()
         _ = measurementRunViewController.onSequenceStarted(groupId: runGroupId)
+        measurementRunCachedLatencySummary = "--"
+        measurementRunCachedDownloadSummary = "--"
+        measurementRunCachedUploadSummary = "--"
+        measurementRunCachedCompletionSummary = "Measurement in progress."
         resetMeasurementRunFlowScheduling()
         if displayMode == .measurementRunFlow {
             renderMeasurementRunFlowState(detailText: "Measurement started. Preparing test run...")
@@ -1472,6 +1511,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                         errorMessage: hinted
                     )
                     if self.displayMode == .measurementRunFlow {
+                        self.measurementRunCachedLatencySummary = "--"
+                        self.measurementRunCachedDownloadSummary = "--"
+                        self.measurementRunCachedUploadSummary = "--"
+                        self.measurementRunCachedCompletionSummary = hinted
                         self.scheduleMeasurementRunFlowCompletion {
                             _ = self.measurementRunViewController.onCompleted(
                                 group: nil,
@@ -1499,6 +1542,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                         errorMessage: "no result"
                     )
                     if self.displayMode == .measurementRunFlow {
+                        self.measurementRunCachedLatencySummary = "--"
+                        self.measurementRunCachedDownloadSummary = "--"
+                        self.measurementRunCachedUploadSummary = "--"
+                        self.measurementRunCachedCompletionSummary = "Measurement failed. No result."
                         self.scheduleMeasurementRunFlowCompletion {
                             _ = self.measurementRunViewController.onCompleted(
                                 group: nil,
@@ -1529,6 +1576,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                         : "measurement-complete upload time missing; \(value.measurementCompleteReportSummary)"
                 )
                 if self.displayMode == .measurementRunFlow {
+                    self.measurementRunCachedLatencySummary = value.latencySummary
+                    self.measurementRunCachedDownloadSummary = value.downloadSummary
+                    self.measurementRunCachedUploadSummary = value.uploadSummary
+                    self.measurementRunCachedCompletionSummary = value.completionSummary
                     self.scheduleMeasurementRunFlowCompletion {
                         _ = self.measurementRunViewController.onCompleted(
                             group: MeasurementGroup(
@@ -1542,7 +1593,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                             errorText: nil
                         )
                         self.renderMeasurementRunFlowState(
-                            detailText: "Measurement complete. Results are saved and sync was attempted."
+                            detailText: value.completionSummary
                         )
                     }
                 } else {
@@ -1615,11 +1666,34 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private func renderMeasurementRunFlowState(detailText: String) {
         let state = measurementRunViewController.currentState()
         let model = measurementRunUiPresenter.present(state: state)
+        let readModel = measurementResultReadModelUseCase.present(state: state)
         measurementRunHeaderLabel.text = model.headerText
         measurementRunDetailLabel.text = detailText
         measurementRunDetailLabel.textColor = state.progress == .error ? .systemRed : .secondaryLabel
         measurementRunProgressView.progress = measurementRunProgressValue(state.progress)
         measurementRunProgressView.accessibilityValue = canonicalMeasurementRunStateName(state.progress)
+        let isTerminal = model.showCompletionActions
+        measurementRunResultsLabel.isHidden = !isTerminal
+        measurementRunTakeAnotherButton.isHidden = !isTerminal
+        let latency = readModel.latencyText == "--" ? measurementRunCachedLatencySummary : readModel.latencyText
+        let download = readModel.downloadText == "--" ? measurementRunCachedDownloadSummary : readModel.downloadText
+        let upload = readModel.uploadText == "--" ? measurementRunCachedUploadSummary : readModel.uploadText
+        let summary: String
+        if state.progress == .error {
+            summary = readModel.summaryText
+        } else if readModel.summaryText == "Measurement in progress." {
+            summary = measurementRunCachedCompletionSummary
+        } else {
+            summary = readModel.summaryText
+        }
+        measurementRunResultsLabel.text =
+            "Latency: \(latency)\n" +
+            "Download: \(download)\n" +
+            "Upload: \(upload)\n" +
+            "Status: \(summary)"
+        measurementRunResultsLabel.textColor = state.progress == .error
+            ? .systemRed
+            : UIColor(red: 0.18, green: 0.29, blue: 0.38, alpha: 1.0)
     }
 
     private func canonicalMeasurementRunStateName(_ progress: MeasurementRunProgress) -> String {

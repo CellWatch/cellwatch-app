@@ -12,6 +12,7 @@ import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -62,6 +63,7 @@ import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflight
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartPreflightUiPresenter
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunUiPresenter
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunViewController
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementResultReadModelUseCase
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingPersistenceUseCase
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileSubmission
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileUiState
@@ -120,6 +122,8 @@ class MainActivity : AppCompatActivity() {
         const val MEASUREMENT_RUN_HEADER_ID = 1025
         const val MEASUREMENT_RUN_DETAIL_ID = 1026
         const val MEASUREMENT_RUN_PROGRESS_ID = 1027
+        const val MEASUREMENT_RUN_RESULTS_ID = 1028
+        const val MEASUREMENT_RUN_TAKE_ANOTHER_BUTTON_ID = 1029
         const val EXTRA_UI_MODE = "cellwatch.uiMode"
         const val UI_MODE_ONBOARDING_FLOW = "onboarding-flow"
         const val UI_MODE_MEASUREMENT_START_FLOW = "measurement-start-flow"
@@ -171,6 +175,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var measurementRunHeader: TextView
     private lateinit var measurementRunDetail: TextView
     private lateinit var measurementRunProgress: ProgressBar
+    private lateinit var measurementRunResults: TextView
+    private lateinit var measurementRunTakeAnotherButton: Button
 
     private var syncDriver: AndroidTestSyncDriver? = null
     private var lastGroup: MeasurementGroup? = null
@@ -196,6 +202,7 @@ class MainActivity : AppCompatActivity() {
     )
     private val measurementRunViewController = MeasurementRunViewController()
     private val measurementRunUiPresenter = MeasurementRunUiPresenter()
+    private val measurementResultReadModelUseCase = MeasurementResultReadModelUseCase()
     private var onboardingUiRenderInProgress = false
     private val smokeEnvelopeBuilder = SyncSmokeEnvelopeBuilder()
     private val smokeFormatter = SyncSmokeResultFormatter()
@@ -700,6 +707,25 @@ class MainActivity : AppCompatActivity() {
             setTextColor(Color.parseColor("#3B5D77"))
             setPadding(0, 8, 0, 0)
         }
+        measurementRunResults = TextView(this).apply {
+            id = MEASUREMENT_RUN_RESULTS_ID
+            text = "Latency: --\nDownload: --\nUpload: --\nStatus: Measurement in progress."
+            textSize = 14f
+            setTextColor(Color.parseColor("#2E4A62"))
+            setPadding(16, 16, 16, 16)
+            background = roundedCard(
+                fillColor = Color.parseColor("#FFFFFF"),
+                strokeColor = Color.parseColor("#C8DCEE"),
+            )
+            visibility = View.GONE
+        }
+        measurementRunTakeAnotherButton = Button(this).apply {
+            id = MEASUREMENT_RUN_TAKE_ANOTHER_BUTTON_ID
+            text = "Take Another Measurement"
+            styleSecondaryButton(this)
+            visibility = View.GONE
+            setOnClickListener { runPhase3Sequence() }
+        }
         statusText = TextView(this).apply {
             id = STATUS_TEXT_VIEW_ID
             text = "Tap Start Measurement to begin."
@@ -714,7 +740,16 @@ class MainActivity : AppCompatActivity() {
 
         content.addView(title)
         content.addView(subtitle)
-        content.addView(buildCard(startButton, measurementRunHeader, measurementRunProgress, measurementRunDetail))
+        content.addView(
+            buildCard(
+                startButton,
+                measurementRunHeader,
+                measurementRunProgress,
+                measurementRunDetail,
+                measurementRunResults,
+                measurementRunTakeAnotherButton,
+            ),
+        )
         root.addView(content)
         return root
     }
@@ -1210,6 +1245,7 @@ class MainActivity : AppCompatActivity() {
                     errorCode = null,
                     errorText = null,
                 )
+                measurementRunViewController.onUploadTimeResolved(outcome.measurementCompleteUploadTime)
                 if (uiMode == UiMode.MEASUREMENT_RUN_FLOW) {
                     renderMeasurementRunFlowState(
                         detailText = "Measurement complete. Results are saved and sync was attempted.",
@@ -1270,6 +1306,7 @@ class MainActivity : AppCompatActivity() {
         }
         val state = measurementRunViewController.currentState()
         val uiModel = measurementRunUiPresenter.present(state)
+        val resultModel = measurementResultReadModelUseCase.present(state)
         measurementRunHeader.text = uiModel.headerText
         measurementRunDetail.text = detailText
         measurementRunDetail.setTextColor(
@@ -1280,6 +1317,21 @@ class MainActivity : AppCompatActivity() {
             },
         )
         measurementRunProgress.progress = measurementRunProgressValue(state.progress)
+        val showTerminal = uiModel.showCompletionActions
+        measurementRunResults.visibility = if (showTerminal) View.VISIBLE else View.GONE
+        measurementRunTakeAnotherButton.visibility = if (showTerminal) View.VISIBLE else View.GONE
+        measurementRunResults.text =
+            "Latency: ${resultModel.latencyText}\n" +
+                "Download: ${resultModel.downloadText}\n" +
+                "Upload: ${resultModel.uploadText}\n" +
+                "Status: ${resultModel.summaryText}"
+        measurementRunResults.setTextColor(
+            if (state.progress == edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress.ERROR) {
+                Color.parseColor("#A82329")
+            } else {
+                Color.parseColor("#2E4A62")
+            },
+        )
     }
 
     private fun measurementRunProgressValue(
