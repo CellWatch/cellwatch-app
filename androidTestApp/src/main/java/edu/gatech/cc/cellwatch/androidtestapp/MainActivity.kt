@@ -735,11 +735,11 @@ class MainActivity : AppCompatActivity() {
         content.addView(subtitle)
         content.addView(
             buildCard(
-                startButton,
                 measurementRunHeader,
                 measurementRunProgress,
                 measurementRunDetail,
                 measurementRunResults,
+                startButton,
             ),
         )
         root.addView(content)
