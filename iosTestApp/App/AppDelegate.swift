@@ -227,6 +227,27 @@ final class OnboardingUserDefaultsStore: NSObject, OnboardingProfileStore {
     }
 }
 
+final class InsetLabel: UILabel {
+    var textInsets: UIEdgeInsets = .zero {
+        didSet {
+            invalidateIntrinsicContentSize()
+            setNeedsDisplay()
+        }
+    }
+
+    override func drawText(in rect: CGRect) {
+        super.drawText(in: rect.inset(by: textInsets))
+    }
+
+    override var intrinsicContentSize: CGSize {
+        let size = super.intrinsicContentSize
+        return CGSize(
+            width: size.width + textInsets.left + textInsets.right,
+            height: size.height + textInsets.top + textInsets.bottom
+        )
+    }
+}
+
 final class HarnessViewController: UIViewController, UITextFieldDelegate {
     enum DisplayMode {
         case fullHarness
@@ -313,7 +334,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let measurementRunHeaderLabel = UILabel()
     private let measurementRunDetailLabel = UILabel()
     private let measurementRunProgressView = UIProgressView(progressViewStyle: .default)
-    private let measurementRunResultsLabel = UILabel()
+    private let measurementRunResultsLabel = InsetLabel()
     private let measurementRunPrimaryButton = UIButton(type: .system)
     private var measurementRunCachedLatencySummary = "--"
     private var measurementRunCachedDownloadSummary = "--"
@@ -984,7 +1005,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         measurementRunResultsLabel.layer.masksToBounds = true
         measurementRunResultsLabel.layer.borderColor = UIColor(red: 0.78, green: 0.86, blue: 0.93, alpha: 1.0).cgColor
         measurementRunResultsLabel.layer.borderWidth = 1
-        measurementRunResultsLabel.layoutMargins = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        measurementRunResultsLabel.textInsets = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         measurementRunResultsLabel.isHidden = true
         measurementRunResultsLabel.accessibilityIdentifier = Self.measurementRunResultsIdentifier
 
