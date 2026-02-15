@@ -63,7 +63,7 @@ class MeasurementRunFlowUiSmokeTest {
             assertResultsContains(scenario, "Download:")
             assertResultsContains(scenario, "Upload:")
 
-            onView(withId(MainActivity.MEASUREMENT_RUN_TAKE_ANOTHER_BUTTON_ID)).perform(click())
+            onView(withId(MainActivity.MEASUREMENT_RUN_START_BUTTON_ID)).perform(click())
             assertHeaderContainsAny(
                 scenario = scenario,
                 expected = listOf(

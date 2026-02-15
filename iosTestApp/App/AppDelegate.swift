@@ -266,7 +266,6 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     static let measurementRunDetailIdentifier = "harness.measurementRun.detail"
     static let measurementRunProgressIdentifier = "harness.measurementRun.progress"
     static let measurementRunResultsIdentifier = "harness.measurementRun.results"
-    static let measurementRunTakeAnotherIdentifier = "harness.measurementRun.takeAnother"
 
     private let statusLabel = UILabel()
     private let outputTextView = UITextView()
@@ -315,7 +314,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let measurementRunDetailLabel = UILabel()
     private let measurementRunProgressView = UIProgressView(progressViewStyle: .default)
     private let measurementRunResultsLabel = UILabel()
-    private let measurementRunTakeAnotherButton = UIButton(type: .system)
+    private let measurementRunPrimaryButton = UIButton(type: .system)
     private var measurementRunCachedLatencySummary = "--"
     private var measurementRunCachedDownloadSummary = "--"
     private var measurementRunCachedUploadSummary = "--"
@@ -954,11 +953,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         subtitle.textColor = .secondaryLabel
         subtitle.numberOfLines = 0
 
-        let startButton = UIButton(type: .system)
-        startButton.setTitle("Start Measurement", for: .normal)
-        startButton.accessibilityIdentifier = Self.measurementRunStartIdentifier
-        applyButtonStyle(startButton, role: .primary)
-        startButton.addTarget(self, action: #selector(runPhase3Sequence), for: .touchUpInside)
+        measurementRunPrimaryButton.setTitle("Start Measurement", for: .normal)
+        measurementRunPrimaryButton.accessibilityIdentifier = Self.measurementRunStartIdentifier
+        applyButtonStyle(measurementRunPrimaryButton, role: .primary)
+        measurementRunPrimaryButton.addTarget(self, action: #selector(runPhase3Sequence), for: .touchUpInside)
 
         measurementRunHeaderLabel.text = "Ready to start."
         measurementRunHeaderLabel.font = UIFont.preferredFont(forTextStyle: .title3)
@@ -990,25 +988,14 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         measurementRunResultsLabel.isHidden = true
         measurementRunResultsLabel.accessibilityIdentifier = Self.measurementRunResultsIdentifier
 
-        measurementRunTakeAnotherButton.setTitle("Take Another Measurement", for: .normal)
-        applyButtonStyle(measurementRunTakeAnotherButton, role: .secondary)
-        measurementRunTakeAnotherButton.addTarget(
-            self,
-            action: #selector(runPhase3Sequence),
-            for: .touchUpInside
-        )
-        measurementRunTakeAnotherButton.accessibilityIdentifier = Self.measurementRunTakeAnotherIdentifier
-        measurementRunTakeAnotherButton.isHidden = true
-
         let cardStack = UIStackView(arrangedSubviews: [
             title,
             subtitle,
-            startButton,
+            measurementRunPrimaryButton,
             measurementRunHeaderLabel,
             measurementRunProgressView,
             measurementRunDetailLabel,
-            measurementRunResultsLabel,
-            measurementRunTakeAnotherButton
+            measurementRunResultsLabel
         ])
         cardStack.axis = .vertical
         cardStack.spacing = 12
@@ -1674,7 +1661,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         measurementRunProgressView.accessibilityValue = canonicalMeasurementRunStateName(state.progress)
         let isTerminal = model.showCompletionActions
         measurementRunResultsLabel.isHidden = !isTerminal
-        measurementRunTakeAnotherButton.isHidden = !isTerminal
+        measurementRunPrimaryButton.setTitle(
+            isTerminal ? "Take Another Measurement" : "Start Measurement",
+            for: .normal
+        )
         let latency = readModel.latencyText == "--" ? measurementRunCachedLatencySummary : readModel.latencyText
         let download = readModel.downloadText == "--" ? measurementRunCachedDownloadSummary : readModel.downloadText
         let upload = readModel.uploadText == "--" ? measurementRunCachedUploadSummary : readModel.uploadText
