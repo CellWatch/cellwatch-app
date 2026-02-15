@@ -991,11 +991,11 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         let cardStack = UIStackView(arrangedSubviews: [
             title,
             subtitle,
-            measurementRunPrimaryButton,
             measurementRunHeaderLabel,
             measurementRunProgressView,
             measurementRunDetailLabel,
-            measurementRunResultsLabel
+            measurementRunResultsLabel,
+            measurementRunPrimaryButton
         ])
         cardStack.axis = .vertical
         cardStack.spacing = 12
