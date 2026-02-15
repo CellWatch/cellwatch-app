@@ -8,6 +8,7 @@ import android.graphics.drawable.GradientDrawable
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -15,6 +16,7 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
@@ -111,9 +113,18 @@ class MainActivity : AppCompatActivity() {
         const val MEASUREMENT_PREFLIGHT_IN_VEHICLE_ID = 1011
         const val MEASUREMENT_PREFLIGHT_EVALUATE_BUTTON_ID = 1019
         const val MEASUREMENT_PREFLIGHT_OUTPUT_ID = 1020
+        const val PENDING_SYNC_COUNTS_BUTTON_ID = 1021
+        const val RETRY_PENDING_SYNC_BUTTON_ID = 1022
+        const val PENDING_SYNC_SUMMARY_ID = 1023
+        const val MEASUREMENT_RUN_START_BUTTON_ID = 1024
+        const val MEASUREMENT_RUN_HEADER_ID = 1025
+        const val MEASUREMENT_RUN_DETAIL_ID = 1026
+        const val MEASUREMENT_RUN_PROGRESS_ID = 1027
         const val EXTRA_UI_MODE = "cellwatch.uiMode"
         const val UI_MODE_ONBOARDING_FLOW = "onboarding-flow"
         const val UI_MODE_MEASUREMENT_START_FLOW = "measurement-start-flow"
+        const val UI_MODE_PENDING_SYNC_FLOW = "pending-sync-flow"
+        const val UI_MODE_MEASUREMENT_RUN_FLOW = "measurement-run-flow"
         const val EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_NETWORK_PATH = "cellwatch.measurementPreflight.overrideNetworkPath"
         const val EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION = "cellwatch.measurementPreflight.overrideLocationPermission"
         const val EXTRA_MEASUREMENT_PREFLIGHT_OVERRIDE_RUNTIME_PROFILE = "cellwatch.measurementPreflight.overrideRuntimeProfile"
@@ -126,6 +137,8 @@ class MainActivity : AppCompatActivity() {
         FULL_HARNESS,
         ONBOARDING_FLOW,
         MEASUREMENT_START_FLOW,
+        PENDING_SYNC_FLOW,
+        MEASUREMENT_RUN_FLOW,
     }
 
     private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
@@ -154,6 +167,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var onboardingAckCheckbox: CheckBox
     private lateinit var measurementPreflightInVehicleCheckbox: CheckBox
     private lateinit var measurementPreflightOutput: TextView
+    private lateinit var pendingSyncSummary: TextView
+    private lateinit var measurementRunHeader: TextView
+    private lateinit var measurementRunDetail: TextView
+    private lateinit var measurementRunProgress: ProgressBar
 
     private var syncDriver: AndroidTestSyncDriver? = null
     private var lastGroup: MeasurementGroup? = null
@@ -190,6 +207,10 @@ class MainActivity : AppCompatActivity() {
             UiMode.ONBOARDING_FLOW
         } else if (intent?.getStringExtra(EXTRA_UI_MODE) == UI_MODE_MEASUREMENT_START_FLOW) {
             UiMode.MEASUREMENT_START_FLOW
+        } else if (intent?.getStringExtra(EXTRA_UI_MODE) == UI_MODE_PENDING_SYNC_FLOW) {
+            UiMode.PENDING_SYNC_FLOW
+        } else if (intent?.getStringExtra(EXTRA_UI_MODE) == UI_MODE_MEASUREMENT_RUN_FLOW) {
+            UiMode.MEASUREMENT_RUN_FLOW
         } else {
             UiMode.FULL_HARNESS
         }
@@ -210,7 +231,7 @@ class MainActivity : AppCompatActivity() {
             persistenceUseCase = onboardingPersistenceUseCase,
         )
         setContentView(buildUi())
-        if (uiMode != UiMode.MEASUREMENT_START_FLOW) {
+        if (uiMode == UiMode.FULL_HARNESS || uiMode == UiMode.ONBOARDING_FLOW) {
             bindOnboardingInputs()
             applyOnboardingUiState(onboardingViewModel.loadPersistedProfile())
         }
@@ -274,6 +295,8 @@ class MainActivity : AppCompatActivity() {
         return when (uiMode) {
             UiMode.ONBOARDING_FLOW -> buildOnboardingOnlyUi()
             UiMode.MEASUREMENT_START_FLOW -> buildMeasurementStartOnlyUi()
+            UiMode.PENDING_SYNC_FLOW -> buildPendingSyncOnlyUi()
+            UiMode.MEASUREMENT_RUN_FLOW -> buildMeasurementRunOnlyUi()
             UiMode.FULL_HARNESS -> buildHarnessUi()
         }
     }
@@ -345,6 +368,29 @@ class MainActivity : AppCompatActivity() {
             styleSecondaryButton(this)
             setOnClickListener { runMapSyncOnly() }
         }
+        val showPendingCountsButton = Button(this).apply {
+            id = PENDING_SYNC_COUNTS_BUTTON_ID
+            text = "Show Pending Sync Counts"
+            styleSecondaryButton(this)
+            setOnClickListener { runShowPendingSyncCounts() }
+        }
+        val retryPendingSyncButton = Button(this).apply {
+            id = RETRY_PENDING_SYNC_BUTTON_ID
+            text = "Retry Pending Sync"
+            styleSecondaryButton(this)
+            setOnClickListener { runRetryPendingSync() }
+        }
+        pendingSyncSummary = TextView(this).apply {
+            id = PENDING_SYNC_SUMMARY_ID
+            text = "Pending sync status: not checked."
+            textSize = 14f
+            setTextColor(Color.parseColor("#3B5D77"))
+            setPadding(16, 16, 16, 16)
+            background = roundedCard(
+                fillColor = Color.parseColor("#F2F8F5"),
+                strokeColor = Color.parseColor("#C8E3CC"),
+            )
+        }
         val runSharedSliceButton = Button(this).apply {
             id = RUN_SHARED_SLICE_BUTTON_ID
             text = "Run Map-Start Shared Slice"
@@ -397,7 +443,19 @@ class MainActivity : AppCompatActivity() {
             ),
         )
         content.addView(buildCard(msakModeButton, supabaseModeButton))
-        content.addView(buildCard(seedAndMapSync, measurementCompleteSync, runMapSyncOnly, runSharedSliceButton, locateServersButton, runPhase3SequenceButton))
+        content.addView(
+            buildCard(
+                seedAndMapSync,
+                measurementCompleteSync,
+                runMapSyncOnly,
+                showPendingCountsButton,
+                retryPendingSyncButton,
+                pendingSyncSummary,
+                runSharedSliceButton,
+                locateServersButton,
+                runPhase3SequenceButton,
+            ),
+        )
         content.addView(statusText)
         refreshModeUi()
         root.addView(content)
@@ -527,6 +585,136 @@ class MainActivity : AppCompatActivity() {
             ),
         )
         content.addView(measurementPreflightOutput)
+        root.addView(content)
+        return root
+    }
+
+    private fun buildPendingSyncOnlyUi(): ScrollView {
+        val root = ScrollView(this)
+        root.setBackgroundColor(Color.parseColor("#F7F9FC"))
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(42, 64, 42, 42)
+        }
+
+        val title = TextView(this).apply {
+            text = "Sync Pending Uploads"
+            textSize = 28f
+            setTextColor(Color.parseColor("#0A2A43"))
+            setPadding(0, 0, 0, 8)
+        }
+        val subtitle = TextView(this).apply {
+            text = "Check pending uploads and retry sync."
+            textSize = 16f
+            setTextColor(Color.parseColor("#3B5D77"))
+            setPadding(0, 0, 0, 20)
+        }
+        val showPendingCountsButton = Button(this).apply {
+            id = PENDING_SYNC_COUNTS_BUTTON_ID
+            text = "Check Pending Uploads"
+            styleSecondaryButton(this)
+            setOnClickListener { runShowPendingSyncCounts() }
+        }
+        val retryPendingSyncButton = Button(this).apply {
+            id = RETRY_PENDING_SYNC_BUTTON_ID
+            text = "Retry Sync"
+            stylePrimaryButton(this)
+            setOnClickListener { runRetryPendingSync() }
+        }
+        pendingSyncSummary = TextView(this).apply {
+            id = PENDING_SYNC_SUMMARY_ID
+            text = "Pending sync status: not checked."
+            textSize = 14f
+            setTextColor(Color.parseColor("#3B5D77"))
+            setPadding(16, 16, 16, 16)
+            background = roundedCard(
+                fillColor = Color.parseColor("#F2F8F5"),
+                strokeColor = Color.parseColor("#C8E3CC"),
+            )
+        }
+        statusText = TextView(this).apply {
+            id = STATUS_TEXT_VIEW_ID
+            text = "Tap Check Pending Uploads to begin."
+            textSize = 14f
+            setTextColor(Color.parseColor("#3B5D77"))
+            setPadding(16, 20, 16, 20)
+            background = roundedCard(
+                fillColor = Color.parseColor("#FFFFFF"),
+                strokeColor = Color.parseColor("#C8E3CC"),
+            )
+        }
+
+        content.addView(title)
+        content.addView(subtitle)
+        content.addView(buildCard(showPendingCountsButton, retryPendingSyncButton, pendingSyncSummary, statusText))
+        root.addView(content)
+        return root
+    }
+
+    private fun buildMeasurementRunOnlyUi(): ScrollView {
+        val root = ScrollView(this)
+        root.setBackgroundColor(Color.parseColor("#F7F9FC"))
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(42, 64, 42, 42)
+        }
+
+        val title = TextView(this).apply {
+            text = "Run Measurement"
+            textSize = 28f
+            setTextColor(Color.parseColor("#0A2A43"))
+            setPadding(0, 0, 0, 8)
+        }
+        val subtitle = TextView(this).apply {
+            text = "Start a measurement and follow live progress."
+            textSize = 16f
+            setTextColor(Color.parseColor("#3B5D77"))
+            setPadding(0, 0, 0, 20)
+        }
+        val startButton = Button(this).apply {
+            id = MEASUREMENT_RUN_START_BUTTON_ID
+            text = "Start Measurement"
+            stylePrimaryButton(this)
+            setOnClickListener { runPhase3Sequence() }
+        }
+        measurementRunHeader = TextView(this).apply {
+            id = MEASUREMENT_RUN_HEADER_ID
+            text = "Ready to start."
+            textSize = 20f
+            setTextColor(Color.parseColor("#0A2A43"))
+            setPadding(0, 6, 0, 6)
+        }
+        measurementRunProgress = ProgressBar(
+            this,
+            null,
+            android.R.attr.progressBarStyleHorizontal,
+        ).apply {
+            id = MEASUREMENT_RUN_PROGRESS_ID
+            max = 100
+            progress = 0
+        }
+        measurementRunDetail = TextView(this).apply {
+            id = MEASUREMENT_RUN_DETAIL_ID
+            text = "Tap Start Measurement to begin."
+            textSize = 14f
+            setTextColor(Color.parseColor("#3B5D77"))
+            setPadding(0, 8, 0, 0)
+        }
+        statusText = TextView(this).apply {
+            id = STATUS_TEXT_VIEW_ID
+            text = "Tap Start Measurement to begin."
+            textSize = 14f
+            setTextColor(Color.parseColor("#3B5D77"))
+            setPadding(16, 20, 16, 20)
+            background = roundedCard(
+                fillColor = Color.parseColor("#FFFFFF"),
+                strokeColor = Color.parseColor("#C8E3CC"),
+            )
+        }
+
+        content.addView(title)
+        content.addView(subtitle)
+        content.addView(buildCard(startButton, measurementRunHeader, measurementRunProgress, measurementRunDetail))
         root.addView(content)
         return root
     }
@@ -719,6 +907,95 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun runShowPendingSyncCounts() {
+        scope.launch {
+            runCatching {
+                val counts = getSyncDriver().getPendingSyncCounts()
+                pendingSyncSummary.text = "Pending uploads: ${counts.total} item(s)"
+                pendingSyncSummary.setTextColor(Color.parseColor("#1C6E3A"))
+                val debugText = "Pending sync counts:\nmeasurements=${counts.measurements}\nsubmissions=${counts.submissions}\ntotal=${counts.total}"
+                val userText = "Pending uploads found: ${counts.total}."
+                debugText to userText
+            }.onSuccess { (debugText, userText) ->
+                statusText.text = if (uiMode == UiMode.PENDING_SYNC_FLOW) userText else debugText
+                statusText.setTextColor(Color.parseColor("#1C6E3A"))
+            }
+                .onFailure {
+                    pendingSyncSummary.text = "Unable to load pending uploads."
+                    pendingSyncSummary.setTextColor(Color.parseColor("#A82329"))
+                    val envelope = smokeEnvelopeBuilder.failure(
+                        scenario = "pending-sync-counts",
+                        errorMessage = it.message,
+                    )
+                    statusText.text = if (uiMode == UiMode.PENDING_SYNC_FLOW) {
+                        "Unable to load pending uploads."
+                    } else {
+                        smokeFormatter.format(envelope)
+                    }
+                    statusText.setTextColor(Color.parseColor("#A82329"))
+                }
+        }
+    }
+
+    private fun runRetryPendingSync() {
+        scope.launch {
+            runCatching {
+                val summary = getSyncDriver().runPendingSync()
+                if (summary == null) {
+                    val fallbackCounts = getSyncDriver().getPendingSyncCounts()
+                    pendingSyncSummary.text = "Sync status unknown. Pending uploads: ${fallbackCounts.total}"
+                    pendingSyncSummary.setTextColor(Color.parseColor("#A06B00"))
+                    return@runCatching "Retry pending sync returned no summary.\npending total=${fallbackCounts.total}" to
+                        "Sync status unknown. Pending uploads: ${fallbackCounts.total}."
+                }
+                val statusLabel = when (summary.status) {
+                    edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.SUCCEEDED -> "Sync complete. No pending uploads."
+                    edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.PARTIAL_FAILURE -> "Sync partially complete. Some uploads are still pending."
+                    edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.FAILED -> "Sync failed. Check connection and retry."
+                    edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.PENDING -> "Sync still pending."
+                    edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.IDLE -> "No pending uploads."
+                    edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.IN_PROGRESS -> "Sync in progress."
+                }
+                pendingSyncSummary.text = statusLabel
+                pendingSyncSummary.setTextColor(
+                    when (summary.status) {
+                        edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.SUCCEEDED,
+                        edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.IDLE,
+                        -> Color.parseColor("#1C6E3A")
+
+                        edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.PARTIAL_FAILURE,
+                        edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.PENDING,
+                        edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.IN_PROGRESS,
+                        -> Color.parseColor("#A06B00")
+
+                        edu.gatech.cc.cellwatch.domain.sync.SyncRunStatus.FAILED -> Color.parseColor("#A82329")
+                    },
+                )
+                val debugText = "Retry pending sync:\nstatus=${summary.status}\n" +
+                    "before(total=${summary.before.total}, measurements=${summary.before.measurements}, submissions=${summary.before.submissions})\n" +
+                    "after(total=${summary.after.total}, measurements=${summary.after.measurements}, submissions=${summary.after.submissions})\n" +
+                    summary.userMessage
+                debugText to statusLabel
+            }.onSuccess { (debugText, userText) ->
+                statusText.text = if (uiMode == UiMode.PENDING_SYNC_FLOW) userText else debugText
+            }
+                .onFailure {
+                    pendingSyncSummary.text = "Retry failed. Check connection and retry."
+                    pendingSyncSummary.setTextColor(Color.parseColor("#A82329"))
+                    val envelope = smokeEnvelopeBuilder.failure(
+                        scenario = "retry-pending-sync",
+                        errorMessage = it.message,
+                    )
+                    statusText.text = if (uiMode == UiMode.PENDING_SYNC_FLOW) {
+                        "Retry failed. Check connection and retry."
+                    } else {
+                        smokeFormatter.format(envelope)
+                    }
+                    statusText.setTextColor(Color.parseColor("#A82329"))
+                }
+        }
+    }
+
     private fun runSharedSlice() {
         scope.launch {
             runCatching {
@@ -778,7 +1055,12 @@ class MainActivity : AppCompatActivity() {
                 scenario = "measurement-start-preflight",
                 errorMessage = "reason=${story2Preflight.reasonCode}",
             )
-            statusText.text = smokeFormatter.format(envelope)
+            if (uiMode == UiMode.MEASUREMENT_RUN_FLOW) {
+                measurementRunDetail.text = "Unable to start measurement right now."
+                measurementRunDetail.setTextColor(Color.parseColor("#A82329"))
+            } else {
+                statusText.text = smokeFormatter.format(envelope)
+            }
             return
         }
 
@@ -790,7 +1072,12 @@ class MainActivity : AppCompatActivity() {
             )
             val rendered = smokeFormatter.format(envelope)
             Log.e(LOG_TAG, "Phase3 preflight failed: $preflightError")
-            statusText.text = rendered
+            if (uiMode == UiMode.MEASUREMENT_RUN_FLOW) {
+                measurementRunDetail.text = "Configuration issue: $preflightError"
+                measurementRunDetail.setTextColor(Color.parseColor("#A82329"))
+            } else {
+                statusText.text = rendered
+            }
             return
         }
         Log.d(
@@ -801,10 +1088,17 @@ class MainActivity : AppCompatActivity() {
         )
         measurementRunViewController.reset()
         measurementRunViewController.onSequenceStarted(UUID.randomUUID().toString())
-        statusText.text = measurementRunUiPresenter.present(measurementRunViewController.currentState()).headerText
+        if (uiMode == UiMode.MEASUREMENT_RUN_FLOW) {
+            renderMeasurementRunFlowState(
+                detailText = "Measurement started. Collecting test data...",
+            )
+        } else {
+            statusText.text = measurementRunUiPresenter.present(measurementRunViewController.currentState()).headerText
+        }
         phase3RunInFlight = true
         scope.launch {
-            runCatching {
+            val runOutcome = withContext(Dispatchers.IO) {
+                runCatching {
                 val localReachabilityIssue = checkLocalMsakReachabilityIssue()
                 if (localReachabilityIssue != null) {
                     throw IllegalStateException(localReachabilityIssue)
@@ -837,19 +1131,50 @@ class MainActivity : AppCompatActivity() {
                     appSource = "android-test-app-phase3-sync",
                     capabilityProvider = capabilityProvider,
                     progressListener = { stage ->
+                        var phaseDetail = "Running tests against selected server..."
                         when (stage) {
                             MeasurementSequenceStage.STARTED -> {
                                 measurementRunViewController.onSequenceStarted(request.groupId)
+                                phaseDetail = "Measurement started."
                             }
-                            MeasurementSequenceStage.LOCATE -> measurementRunViewController.onLocateStarted()
-                            MeasurementSequenceStage.LATENCY -> measurementRunViewController.onLatencyStarted()
-                            MeasurementSequenceStage.DOWNLOAD -> measurementRunViewController.onDownloadStarted()
-                            MeasurementSequenceStage.UPLOAD -> measurementRunViewController.onUploadStarted()
-                            MeasurementSequenceStage.DONE -> Unit
+                            MeasurementSequenceStage.LOCATE -> {
+                                measurementRunViewController.onLocateStarted()
+                                phaseDetail = "Finding closest test server..."
+                            }
+                            MeasurementSequenceStage.LATENCY -> {
+                                measurementRunViewController.onLatencyStarted()
+                                phaseDetail = "Running latency test..."
+                            }
+                            MeasurementSequenceStage.DOWNLOAD -> {
+                                measurementRunViewController.onDownloadStarted()
+                                phaseDetail = "Running download throughput test..."
+                            }
+                            MeasurementSequenceStage.UPLOAD -> {
+                                measurementRunViewController.onUploadStarted()
+                                phaseDetail = "Running upload throughput test..."
+                            }
+                            MeasurementSequenceStage.DONE -> {
+                                phaseDetail = "Finalizing measurement results..."
+                            }
                         }
-                        statusText.text = measurementRunUiPresenter
-                            .present(measurementRunViewController.currentState())
-                            .headerText
+                        if (uiMode == UiMode.MEASUREMENT_RUN_FLOW) {
+                            renderMeasurementRunFlowState(
+                                detailText = phaseDetail,
+                            )
+                            // Keep each stage visible long enough for deterministic UI-flow screenshots.
+                            Thread.sleep(
+                                when (stage) {
+                                    MeasurementSequenceStage.DONE -> 250L
+                                    else -> 600L
+                                },
+                            )
+                        } else {
+                            runOnUiThread {
+                                statusText.text = measurementRunUiPresenter
+                                    .present(measurementRunViewController.currentState())
+                                    .headerText
+                            }
+                        }
                     },
                 )
                 val syncOrchestrator = MeasurementSequenceSyncOrchestrator(
@@ -857,7 +1182,9 @@ class MainActivity : AppCompatActivity() {
                     uploadTriggerUseCase = createSyncDriverFactory().createUploadTriggerUseCase(resolveSupabaseTarget()),
                 )
                 syncOrchestrator.run(request) to capabilitySummary
-            }.onSuccess { (outcome, capabilitySummary) ->
+                }
+            }
+            runOutcome.onSuccess { (outcome, capabilitySummary) ->
                 val sequence = outcome.sequenceOutcome
                 val persistedMeasurementsList = measurementRepo.getByGroupId(sequence.group.id)
                 val persistedMeasurements = persistedMeasurementsList.size
@@ -883,25 +1210,31 @@ class MainActivity : AppCompatActivity() {
                     errorCode = null,
                     errorText = null,
                 )
-                val runHeader = measurementRunUiPresenter
-                    .present(measurementRunViewController.currentState())
-                    .headerText
-                statusText.text = Phase3UiSliceFormatter.format(
-                    envelopeText = smokeFormatter.format(envelope),
-                    result = Phase3UiSliceResult(
-                        groupId = sequence.group.id,
-                        throughputMachine = sequence.throughputServerMachine,
-                        latencyMachine = sequence.latencyServerMachine,
-                        submissionCreated = sequence.group.submission != null,
-                        mapStartMeasurementsUploaded = outcome.mapStartReport.measurements.uploaded,
-                        mapStartSubmissionsUploaded = outcome.mapStartReport.submissions.uploaded,
-                        measurementCompleteUploadTimeSet = uploadTime >= 0L,
-                        persistedMeasurements = persistedMeasurements,
-                        persistedSubmissions = persistedSubmissions,
-                        capabilityPersistenceSummary = capabilityPersistenceSummary,
-                        capabilitySummary = capabilitySummary,
-                    ),
-                ).let { "$runHeader\n$it" }
+                if (uiMode == UiMode.MEASUREMENT_RUN_FLOW) {
+                    renderMeasurementRunFlowState(
+                        detailText = "Measurement complete. Results are saved and sync was attempted.",
+                    )
+                } else {
+                    val runHeader = measurementRunUiPresenter
+                        .present(measurementRunViewController.currentState())
+                        .headerText
+                    statusText.text = Phase3UiSliceFormatter.format(
+                        envelopeText = smokeFormatter.format(envelope),
+                        result = Phase3UiSliceResult(
+                            groupId = sequence.group.id,
+                            throughputMachine = sequence.throughputServerMachine,
+                            latencyMachine = sequence.latencyServerMachine,
+                            submissionCreated = sequence.group.submission != null,
+                            mapStartMeasurementsUploaded = outcome.mapStartReport.measurements.uploaded,
+                            mapStartSubmissionsUploaded = outcome.mapStartReport.submissions.uploaded,
+                            measurementCompleteUploadTimeSet = uploadTime >= 0L,
+                            persistedMeasurements = persistedMeasurements,
+                            persistedSubmissions = persistedSubmissions,
+                            capabilityPersistenceSummary = capabilityPersistenceSummary,
+                            capabilitySummary = capabilitySummary,
+                        ),
+                    ).let { "$runHeader\n$it" }
+                }
                 phase3RunInFlight = false
             }.onFailure {
                 phase3RunInFlight = false
@@ -916,11 +1249,51 @@ class MainActivity : AppCompatActivity() {
                     errorCode = null,
                     errorText = hintedMessage,
                 )
-                val runHeader = measurementRunUiPresenter
-                    .present(measurementRunViewController.currentState())
-                    .headerText
-                statusText.text = "$runHeader\n${smokeFormatter.format(envelope)}"
+                if (uiMode == UiMode.MEASUREMENT_RUN_FLOW) {
+                    renderMeasurementRunFlowState(
+                        detailText = "Measurement failed. $hintedMessage",
+                    )
+                } else {
+                    val runHeader = measurementRunUiPresenter
+                        .present(measurementRunViewController.currentState())
+                        .headerText
+                    statusText.text = "$runHeader\n${smokeFormatter.format(envelope)}"
+                }
             }
+        }
+    }
+
+    private fun renderMeasurementRunFlowState(detailText: String) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnUiThread { renderMeasurementRunFlowState(detailText) }
+            return
+        }
+        val state = measurementRunViewController.currentState()
+        val uiModel = measurementRunUiPresenter.present(state)
+        measurementRunHeader.text = uiModel.headerText
+        measurementRunDetail.text = detailText
+        measurementRunDetail.setTextColor(
+            if (state.progress == edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress.ERROR) {
+                Color.parseColor("#A82329")
+            } else {
+                Color.parseColor("#3B5D77")
+            },
+        )
+        measurementRunProgress.progress = measurementRunProgressValue(state.progress)
+    }
+
+    private fun measurementRunProgressValue(
+        progress: edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress,
+    ): Int {
+        return when (progress) {
+            edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress.PRE -> 0
+            edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress.START -> 10
+            edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress.LOCATE -> 25
+            edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress.LATENCY -> 45
+            edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress.DOWNLOAD -> 65
+            edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress.UPLOAD -> 85
+            edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress.END -> 100
+            edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress.ERROR -> 100
         }
     }
 

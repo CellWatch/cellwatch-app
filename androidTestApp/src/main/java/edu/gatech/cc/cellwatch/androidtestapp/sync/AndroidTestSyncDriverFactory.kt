@@ -8,6 +8,8 @@ import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import edu.gatech.cc.cellwatch.data.sync.SupabaseSyncRemoteDataSourceProvider
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerUseCase
+import edu.gatech.cc.cellwatch.domain.sync.GetPendingSyncCountsUseCase
+import edu.gatech.cc.cellwatch.domain.sync.RetryPendingSyncUseCase
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import kotlinx.datetime.Clock
 import kotlin.coroutines.CoroutineContext
@@ -23,7 +25,13 @@ class AndroidTestSyncDriverFactory(
 ) {
     fun create(target: SupabaseTarget = SupabaseTarget.LOCAL): AndroidTestSyncDriver {
         val uploadTriggerUseCase = createUploadTriggerUseCase(target)
-        return AndroidTestSyncDriver(uploadTriggerUseCase)
+        val pendingCountsUseCase = createPendingSyncCountsUseCase()
+        val retryPendingSyncUseCase = createRetryPendingSyncUseCase(target)
+        return AndroidTestSyncDriver(
+            uploadTriggerUseCase = uploadTriggerUseCase,
+            pendingCountsUseCase = pendingCountsUseCase,
+            retryPendingSyncUseCase = retryPendingSyncUseCase,
+        )
     }
 
     fun createUploadTriggerUseCase(target: SupabaseTarget = SupabaseTarget.LOCAL): UploadTriggerUseCase {
@@ -38,6 +46,44 @@ class AndroidTestSyncDriverFactory(
             remoteFactory = DefaultSyncRemoteDataSourceFactory(remoteProvider),
             tcpTupleProvider = tcpTupleProvider,
             clock = clock,
+        )
+    }
+
+    fun createPendingSyncCountsUseCase(): GetPendingSyncCountsUseCase {
+        val repositories = MeasurementSyncServiceFactory.createRepositoriesForSyncUseCases(
+            database = database,
+            io = io,
+        )
+        return GetPendingSyncCountsUseCase(
+            measurementRepository = repositories.measurementRepository,
+            submissionRepository = repositories.submissionRepository,
+        )
+    }
+
+    fun createRetryPendingSyncUseCase(target: SupabaseTarget = SupabaseTarget.LOCAL): RetryPendingSyncUseCase {
+        val repositories = MeasurementSyncServiceFactory.createRepositoriesForSyncUseCases(
+            database = database,
+            io = io,
+        )
+        val syncService = MeasurementSyncServiceFactory.createSyncService(
+            database = database,
+            io = io,
+            remoteProfile = SyncRemoteProfile.Supabase(
+                configResolver = environmentProvider,
+                target = target.toTransportTarget(),
+            ),
+            remoteFactory = DefaultSyncRemoteDataSourceFactory(
+                SupabaseSyncRemoteDataSourceProvider(deviceAuthStore),
+            ),
+            tcpTupleProvider = tcpTupleProvider,
+            clock = clock,
+        )
+        return RetryPendingSyncUseCase(
+            syncService = syncService,
+            pendingCountsUseCase = GetPendingSyncCountsUseCase(
+                measurementRepository = repositories.measurementRepository,
+                submissionRepository = repositories.submissionRepository,
+            ),
         )
     }
 }

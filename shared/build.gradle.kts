@@ -826,6 +826,86 @@ tasks.register("verifyIosTestAppUiMeasurementStartPreflightSmoke") {
     }
 }
 
+tasks.register("verifyIosTestAppUiPendingSyncSmoke") {
+    description = "Tier 2: iOS XCUITest pending-sync count/retry flow smoke for UI evidence screenshots."
+    group = "verification"
+    dependsOn("refreshIosSimulatorCurrentFramework")
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException("Missing iOS hosted test app project at ${projectPath.absolutePath}.")
+        }
+    }
+    doLast {
+        val localServiceKey = project.resolveLocalSupabaseServiceRoleKey()
+        val localSupabaseUrl = project.resolveLocalSupabaseUrlForIosHosted()
+        project.withIosLocalServiceKeyOverride(localServiceKey) {
+            exec {
+                commandLine(
+                    "xcodebuild",
+                    "-project",
+                    projectPath.absolutePath,
+                    "-scheme",
+                    "iosTestAppUiSmoke",
+                    "-destination",
+                    "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                    "-only-testing:iosTestAppUITests/OnboardingFlowUiTests/testPendingSyncRetry_flowShowsCountsAndRetryStatus",
+                    "test",
+                )
+                if (!localServiceKey.isNullOrBlank()) {
+                    args("SUPABASE_LOCAL_SERVICE_KEY=$localServiceKey")
+                }
+                args("SUPABASE_LOCAL_URL=$localSupabaseUrl")
+                if (!localServiceKey.isNullOrBlank()) {
+                    environment("SUPABASE_LOCAL_SERVICE_KEY", localServiceKey)
+                }
+                environment("SUPABASE_LOCAL_URL", localSupabaseUrl)
+                workingDir = rootProject.projectDir
+            }
+        }
+    }
+}
+
+tasks.register("verifyIosTestAppUiMeasurementRunFlowSmoke") {
+    description = "Tier 2: iOS XCUITest measurement-run flow smoke for product-like UI evidence screenshots."
+    group = "verification"
+    dependsOn("refreshIosSimulatorCurrentFramework")
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException("Missing iOS hosted test app project at ${projectPath.absolutePath}.")
+        }
+    }
+    doLast {
+        val localServiceKey = project.resolveLocalSupabaseServiceRoleKey()
+        val localSupabaseUrl = project.resolveLocalSupabaseUrlForIosHosted()
+        project.withIosLocalServiceKeyOverride(localServiceKey) {
+            exec {
+                commandLine(
+                    "xcodebuild",
+                    "-project",
+                    projectPath.absolutePath,
+                    "-scheme",
+                    "iosTestAppUiSmoke",
+                    "-destination",
+                    "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                    "-only-testing:iosTestAppUITests/OnboardingFlowUiTests/testMeasurementRunFlow_showsLiveProgressAndCompletionState",
+                    "test",
+                )
+                if (!localServiceKey.isNullOrBlank()) {
+                    args("SUPABASE_LOCAL_SERVICE_KEY=$localServiceKey")
+                }
+                args("SUPABASE_LOCAL_URL=$localSupabaseUrl")
+                if (!localServiceKey.isNullOrBlank()) {
+                    environment("SUPABASE_LOCAL_SERVICE_KEY", localServiceKey)
+                }
+                environment("SUPABASE_LOCAL_URL", localSupabaseUrl)
+                workingDir = rootProject.projectDir
+            }
+        }
+    }
+}
+
 // Hosted iOS simulator tasks share runtime state (simulator process, keychain scope, local services).
 // Keep them serialized to avoid flaky failures when Gradle runs tasks in parallel.
 tasks.named("verifyIosTestAppHosted") {
@@ -852,6 +932,12 @@ tasks.named("verifyIosTestAppUiOnboardingFlowSmoke") {
 tasks.named("verifyIosTestAppUiMeasurementStartPreflightSmoke") {
     mustRunAfter("verifyIosTestAppUiOnboardingFlowSmoke")
 }
+tasks.named("verifyIosTestAppUiPendingSyncSmoke") {
+    mustRunAfter("verifyIosTestAppUiMeasurementStartPreflightSmoke")
+}
+tasks.named("verifyIosTestAppUiMeasurementRunFlowSmoke") {
+    mustRunAfter("verifyIosTestAppUiPendingSyncSmoke")
+}
 
 tasks.register("verifyIosHostedTier2Sequential") {
     description = "Tier 2: run all hosted iOS checks sequentially to avoid simulator concurrency flake."
@@ -866,6 +952,8 @@ tasks.register("verifyIosHostedTier2Sequential") {
         "verifyIosTestAppHostedOnboardingRuntimeSmoke",
         "verifyIosTestAppUiOnboardingFlowSmoke",
         "verifyIosTestAppUiMeasurementStartPreflightSmoke",
+        "verifyIosTestAppUiPendingSyncSmoke",
+        "verifyIosTestAppUiMeasurementRunFlowSmoke",
     )
 }
 
@@ -885,6 +973,8 @@ tasks.register("verifyPhase3Tier2FailureMatrix") {
         "verifyIosTestAppHostedOnboardingRuntimeSmoke",
         "verifyIosTestAppUiOnboardingFlowSmoke",
         "verifyIosTestAppUiMeasurementStartPreflightSmoke",
+        "verifyIosTestAppUiPendingSyncSmoke",
+        "verifyIosTestAppUiMeasurementRunFlowSmoke",
     )
 }
 
@@ -897,6 +987,8 @@ tasks.register("verifySimulatorUiRegressionSequence") {
         "verifyIosTestAppHostedPhase3ButtonSmoke",
         "verifyIosTestAppUiOnboardingFlowSmoke",
         "verifyIosTestAppUiMeasurementStartPreflightSmoke",
+        "verifyIosTestAppUiPendingSyncSmoke",
+        "verifyIosTestAppUiMeasurementRunFlowSmoke",
     )
 }
 
