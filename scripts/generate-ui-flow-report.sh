@@ -178,7 +178,7 @@ copy_ios_flow "measurement-run-flow-xcuitest"
   echo
   echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   echo
-  echo "_Scope: product-like onboarding, measurement-start preflight, pending-sync count/retry, and measurement-run flow evidence. iOS hosted onboarding smoke is assertion-only (no screenshots); iOS visual evidence comes from XCUITest device screenshots._"
+  echo "_Scope: product-like onboarding, measurement-start preflight, pending-sync count/retry, and measurement-run flow evidence (including completion metrics + take-another action). iOS hosted onboarding smoke is assertion-only (no screenshots); iOS visual evidence comes from XCUITest device screenshots._"
   echo
   render_flow_section "android" "onboarding-profile-entry" "Android: Onboarding Profile Entry Smoke"
   render_flow_section "android" "measurement-start-preflight" "Android: Measurement Start Preflight Smoke"

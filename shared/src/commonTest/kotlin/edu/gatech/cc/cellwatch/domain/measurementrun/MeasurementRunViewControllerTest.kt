@@ -2,6 +2,7 @@ package edu.gatech.cc.cellwatch.domain.measurementrun
 
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
+import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.UploadDownloadData
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -122,6 +123,46 @@ class MeasurementRunViewControllerTest {
         assertTrue(failed.showCompletionActions)
     }
 
+    @Test
+    fun resultReadModel_formatsCompletedMetricsForUserView() {
+        val useCase = MeasurementResultReadModelUseCase()
+        val state = MeasurementRunState(
+            progress = MeasurementRunProgress.END,
+            results = MeasurementGroup(
+                latency = latencyMeasurement("g-1").copy(latencyData = LatencyData(rtt = 45_000)),
+                download = downloadMeasurement("g-1").copy(
+                    uploadDownloadData = UploadDownloadData(bytesPerSec = 12_500_000.0),
+                ),
+                upload = uploadMeasurement("g-1").copy(
+                    uploadDownloadData = UploadDownloadData(bytesPerSec = 3_750_000.0),
+                ),
+                submission = null,
+            ),
+        )
+
+        val model = useCase.present(state)
+        assertEquals("45 ms", model.latencyText)
+        assertEquals("100 Mbps", model.downloadText)
+        assertEquals("30 Mbps", model.uploadText)
+        assertEquals("Measurement complete. Results saved and sync attempted.", model.summaryText)
+    }
+
+    @Test
+    fun resultReadModel_usesErrorSummaryForFailedState() {
+        val useCase = MeasurementResultReadModelUseCase()
+        val model = useCase.present(
+            MeasurementRunState(
+                progress = MeasurementRunProgress.ERROR,
+                errorMessage = "Network timeout",
+            ),
+        )
+
+        assertEquals("--", model.latencyText)
+        assertEquals("--", model.downloadText)
+        assertEquals("--", model.uploadText)
+        assertEquals("Network timeout", model.summaryText)
+    }
+
     private fun latencyMeasurement(groupId: String): Measurement {
         return Measurement(
             groupId = groupId,
@@ -134,7 +175,7 @@ class MeasurementRunViewControllerTest {
         return Measurement(
             groupId = groupId,
             type = "download",
-            uploadDownloadData = UploadDownloadData(bytes = 1_000L),
+            uploadDownloadData = UploadDownloadData(bytes = 1_000L, duration = 1_000_000L),
         )
     }
 
@@ -142,7 +183,7 @@ class MeasurementRunViewControllerTest {
         return Measurement(
             groupId = groupId,
             type = "upload",
-            uploadDownloadData = UploadDownloadData(bytes = 800L),
+            uploadDownloadData = UploadDownloadData(bytes = 800L, duration = 1_000_000L),
         )
     }
 }
