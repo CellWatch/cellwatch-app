@@ -257,7 +257,6 @@ final class OnboardingFlowUiTests: XCTestCase {
         let detail = app.staticTexts["harness.measurementRun.detail"]
         let progress = app.progressIndicators["harness.measurementRun.progress"]
         let results = app.staticTexts["harness.measurementRun.results"]
-        let takeAnother = app.buttons["harness.measurementRun.takeAnother"]
 
         XCTAssertTrue(startButton.waitForExistence(timeout: 10))
         XCTAssertTrue(header.waitForExistence(timeout: 10))
@@ -309,13 +308,12 @@ final class OnboardingFlowUiTests: XCTestCase {
             "Expected END or ERROR state. state=\(progress.value as? String ?? "") header=\(header.label) detail=\(detail.label)"
         )
         XCTAssertTrue(results.waitForExistence(timeout: 20))
-        XCTAssertTrue(takeAnother.waitForExistence(timeout: 20))
         XCTAssertTrue(results.label.contains("Latency:"))
         XCTAssertTrue(results.label.contains("Download:"))
         XCTAssertTrue(results.label.contains("Upload:"))
         captureMeasurementRunScreenshot(named: "06-after-run")
 
-        takeAnother.tap()
+        startButton.tap()
         XCTAssertTrue(
             waitForAnyProgressState(
                 progress,

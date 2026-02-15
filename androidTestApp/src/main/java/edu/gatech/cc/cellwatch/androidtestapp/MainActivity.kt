@@ -123,7 +123,6 @@ class MainActivity : AppCompatActivity() {
         const val MEASUREMENT_RUN_DETAIL_ID = 1026
         const val MEASUREMENT_RUN_PROGRESS_ID = 1027
         const val MEASUREMENT_RUN_RESULTS_ID = 1028
-        const val MEASUREMENT_RUN_TAKE_ANOTHER_BUTTON_ID = 1029
         const val EXTRA_UI_MODE = "cellwatch.uiMode"
         const val UI_MODE_ONBOARDING_FLOW = "onboarding-flow"
         const val UI_MODE_MEASUREMENT_START_FLOW = "measurement-start-flow"
@@ -176,7 +175,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var measurementRunDetail: TextView
     private lateinit var measurementRunProgress: ProgressBar
     private lateinit var measurementRunResults: TextView
-    private lateinit var measurementRunTakeAnotherButton: Button
+    private lateinit var measurementRunPrimaryButton: Button
 
     private var syncDriver: AndroidTestSyncDriver? = null
     private var lastGroup: MeasurementGroup? = null
@@ -684,6 +683,7 @@ class MainActivity : AppCompatActivity() {
             stylePrimaryButton(this)
             setOnClickListener { runPhase3Sequence() }
         }
+        measurementRunPrimaryButton = startButton
         measurementRunHeader = TextView(this).apply {
             id = MEASUREMENT_RUN_HEADER_ID
             text = "Ready to start."
@@ -719,13 +719,6 @@ class MainActivity : AppCompatActivity() {
             )
             visibility = View.GONE
         }
-        measurementRunTakeAnotherButton = Button(this).apply {
-            id = MEASUREMENT_RUN_TAKE_ANOTHER_BUTTON_ID
-            text = "Take Another Measurement"
-            styleSecondaryButton(this)
-            visibility = View.GONE
-            setOnClickListener { runPhase3Sequence() }
-        }
         statusText = TextView(this).apply {
             id = STATUS_TEXT_VIEW_ID
             text = "Tap Start Measurement to begin."
@@ -747,7 +740,6 @@ class MainActivity : AppCompatActivity() {
                 measurementRunProgress,
                 measurementRunDetail,
                 measurementRunResults,
-                measurementRunTakeAnotherButton,
             ),
         )
         root.addView(content)
@@ -1319,7 +1311,11 @@ class MainActivity : AppCompatActivity() {
         measurementRunProgress.progress = measurementRunProgressValue(state.progress)
         val showTerminal = uiModel.showCompletionActions
         measurementRunResults.visibility = if (showTerminal) View.VISIBLE else View.GONE
-        measurementRunTakeAnotherButton.visibility = if (showTerminal) View.VISIBLE else View.GONE
+        measurementRunPrimaryButton.text = if (showTerminal) {
+            "Take Another Measurement"
+        } else {
+            "Start Measurement"
+        }
         measurementRunResults.text =
             "Latency: ${resultModel.latencyText}\n" +
                 "Download: ${resultModel.downloadText}\n" +
