@@ -60,6 +60,22 @@ iOS fullscreen + interaction guardrails:
 - Keep `UILaunchScreen` declared in `iosTestApp/App/Info.plist` to prevent legacy `320x480` compatibility launch mode.
 - In XCUITest, use explicit `waitForExistence` + targeted element taps/typing and dismiss keyboard before lower-screen actions.
 
+Mapbox Android emulator guardrail:
+- A black map panel with Mapbox attribution visible is often emulator DNS/host-network failure, not app-render logic.
+- Validate emulator hostname resolution (`adb shell ping api.mapbox.com`) before debugging map UI code.
+- Preferred runtime key is `MAPBOX_ACCESS_TOKEN` (`pk...`); current migration keeps a temporary fallback to `MAPBOX_DOWNLOADS_TOKEN` (`sk...`) when access token is unavailable.
+- References:
+  - https://developer.android.com/studio/run/emulator-networking
+  - https://developer.android.com/studio/run/emulator-commandline
+  - https://docs.mapbox.com/help/dive-deeper/access-tokens/
+
+iOS Mapbox token distribution guardrail:
+- Xcode prebuild writes bundle resource `cellwatch.runtime.properties` from local property sources.
+- Runtime reads token from bundled resource (not generated Swift source).
+- Hosted XCTest gate:
+  - `HarnessUiSmokeTests.testMapboxTokenDistribution_matchesCellwatchProperties`
+  - `HarnessUiSmokeTests.testMapHomeBuildPath_doesNotRenderTokenMissingState`
+
 Run Phase 3 simulator smoke evidence:
 
 ```bash
@@ -80,11 +96,16 @@ Expected flow keys:
 ## Next Recommended Work
 
 Phase 5 continuation:
-- Complete the current vertical slice in product-facing UI terms:
-  - profile setup -> start measurement -> run measurement -> measurement complete results UX.
-- Next immediate implementation target:
-  - Story 5 measurement complete results UX (key metrics + "take another measurement" action).
-- Then move from harness-only slices toward product app-layer integration for Story 7+ (history/status/retry UX).
+- Move from the temporary MVP menu shell to map-home app entry:
+  - default post-onboarding route should land on map-home (not debug/harness menu)
+  - map-home should route to measurement-start, settings, and history
+  - keep map-home headline/status/sync copy driven by shared `MapHomeViewController`
+  - preserve explicit `CELLWATCH_UI_MODE=*` flow targeting used by UI-flow automation
+- Keep expanding product-facing integration while retaining shared-first contracts:
+  - history/status/retry UX polish on top of the now-stable shared controllers
+  - keep map + export sequencing: Story 12 before Story 11
+  - keep Mapbox SDK calls behind thin platform adapters; keep zoom/overlay/selection policy in shared map controllers
+  - token hygiene follow-up: runtime map init should move to `MAPBOX_ACCESS_TOKEN` (public/scoped), with `MAPBOX_DOWNLOADS_TOKEN` retained for dependency download access only
 - Keep shared-first use-case ownership in `shared/`; keep platform modules as thin adapters + viewmodels.
 - Expand simulator UI evidence as new user-facing cards/screens are added (without reintroducing debug-panel UI into `ui-flow` captures).
 

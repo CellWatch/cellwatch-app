@@ -44,6 +44,7 @@ sqldelight = "2.0.2"
 robolectric = "4.11.1" # keep all versions in one place
 androidx-test-core = "1.5.0"
 benasherUuid = "0.8.4"
+msakClientKmp = "0.2.2"
 
 [libraries]
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
@@ -131,6 +132,7 @@ robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectr
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidx-test-core" }
 
 benasher-uuid = { module = "com.benasher44:uuid", version.ref = "benasherUuid" }
+msak-client-kmp = { module = "edu.gatech.cc.cellwatch:msak-client-kmp", version.ref = "msakClientKmp" }
 
 
 [plugins]

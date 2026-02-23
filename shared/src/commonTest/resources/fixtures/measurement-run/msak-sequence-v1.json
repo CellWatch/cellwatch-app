@@ -1,0 +1,60 @@
+{
+    "metadata": {
+        "fixtureSchemaVersion": 1,
+        "source": "measurement-run-controller-capture",
+        "capturedAtUtc": "2026-02-16T11:33:51.338380Z",
+        "msakClientKmpVersion": "0.2.2"
+    },
+    "steps": [
+        {
+            "event": "SET_IN_VEHICLE_FALSE",
+            "expectedProgress": "PRE",
+            "expectedHeaderKey": "MEASURING"
+        },
+        {
+            "event": "SEQUENCE_STARTED",
+            "expectedProgress": "START",
+            "expectedHeaderKey": "MEASURING"
+        },
+        {
+            "event": "LOCATE_STARTED",
+            "expectedProgress": "LOCATE",
+            "expectedHeaderKey": "FINDING_SERVER"
+        },
+        {
+            "event": "LATENCY_STARTED",
+            "expectedProgress": "LATENCY",
+            "expectedHeaderKey": "MEASURING_LATENCY"
+        },
+        {
+            "event": "LATENCY_MEASURED",
+            "expectedProgress": "LATENCY",
+            "expectedHeaderKey": "MEASURING_LATENCY"
+        },
+        {
+            "event": "DOWNLOAD_STARTED",
+            "expectedProgress": "DOWNLOAD",
+            "expectedHeaderKey": "MEASURING_DOWNLOAD"
+        },
+        {
+            "event": "DOWNLOAD_MEASURED",
+            "expectedProgress": "DOWNLOAD",
+            "expectedHeaderKey": "MEASURING_DOWNLOAD"
+        },
+        {
+            "event": "UPLOAD_STARTED",
+            "expectedProgress": "UPLOAD",
+            "expectedHeaderKey": "MEASURING_UPLOAD"
+        },
+        {
+            "event": "UPLOAD_MEASURED",
+            "expectedProgress": "UPLOAD",
+            "expectedHeaderKey": "MEASURING_UPLOAD"
+        },
+        {
+            "event": "COMPLETED_SUCCESS",
+            "expectedProgress": "END",
+            "expectedHeaderKey": "MEASUREMENT_COMPLETE"
+        }
+    ]
+}

@@ -36,6 +36,14 @@ run_step "Parity pipelines" ./gradlew :shared:verifyParityPipelines
 # Gate 2: Tier 1 lightweight platform verification
 run_step "Tier 1 lightweight platforms" ./gradlew :shared:verifyLightweightPlatforms
 
+# Gate 3: strict local Supabase parity (non-visual, platform-specific)
+run_step "Android local Supabase sync parity (strict)" \
+  ./gradlew :androidTestApp:testDebugUnitTest \
+  --tests "edu.gatech.cc.cellwatch.androidtestapp.LocalSupabaseSharedSyncSmokeTest"
+
+run_step "iOS hosted local Supabase sync parity (strict)" \
+  ./gradlew :shared:verifyIosTestAppHosted
+
 
 echo
  echo "Verification summary"

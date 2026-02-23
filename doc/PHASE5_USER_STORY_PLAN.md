@@ -5,32 +5,37 @@ This document tracks app-layer convergence work (Phase 5) by user story, startin
 Companion contract:
 - `doc/APP_LAYER_ARCHITECTURE_CONTRACT.md`
 
-## Current Snapshot (2026-02-15)
+## Current Snapshot (2026-02-22)
 
 Implemented now:
-- Shared onboarding contracts:
-  - `OnboardingProfile`
-  - `OnboardingValidationUseCase`
-  - validation tests in `shared` Tier 1
-- Shared runtime onboarding draft contract:
-  - `RuntimeOnboardingDraft` + mapping to `RuntimeProfileConfig`
-- Harness onboarding UI on both platforms:
-  - Android: profile-entry fields + submit
-  - iOS: profile-entry fields + submit
+- Story 1 implemented baseline:
+  - shared onboarding contracts + validation/persistence
+  - onboarding/profile UI on Android + iOS with save/load/edit round-trip
+- Story 2 implemented baseline:
+  - shared launch routing contract
+  - platform startup routing + user-facing home shell surfaces
+- Story 3 implemented baseline:
+  - shared measurement-start preflight use case/presenter + platform wiring
+- Story 4/5 implemented baseline:
+  - measurement run sequence/progress UI
+  - measurement complete metrics + completion summary + rerun path
+- Story 7/8/10 implemented baseline:
+  - history/status/retry UI
+  - settings profile/mode edits + persistence
+  - shared history controller and strict Android+iOS parity wrappers
 - Cross-platform simulator UI flow evidence:
   - stepwise onboarding screenshots (per input action)
   - measurement-start preflight screenshots
   - pending-sync retry screenshots
   - measurement-run progress screenshots
+  - measurement-history and settings-profile screenshots
   - unified markdown report with per-flow pass/fail + log excerpt
 
 Not implemented yet (Phase 5 core remaining):
-- Story 2 app-shell/home routing definition in product modules
-- Story 3+ product-facing flow integration beyond harness cards
-- Story 5 measurement complete user-facing results UX
-- Story 7/8/9 user-facing history/retry/sync-status product UX
-- Story 10 settings edit UX bound to persisted shared profile state
-- Story 11/12 export and GIS map surfaces
+- Finalize Story 2 product home: map-first home integration replacing temporary shell menu
+- Story 5/7/8/9 UX polish to production quality (copy, layout fidelity, advanced sync-state scenarios)
+- Story 12 GIS map surface (shared controller now in progress; platform map rendering still pending)
+- Story 11 export flow (deferred below map priority)
 
 Primary active execution surfaces:
 - `androidTestApp/`
@@ -70,7 +75,7 @@ Deliver this end-to-end first:
 
 Scope decisions:
 - Collection mode is a persisted profile/settings choice, not a required modal step before every run.
-- Home can be a temporary product-like shell card surface first; map-as-home can come later.
+- Home is now transitioning from temporary shell to map-first entry.
 - Export + GIS map remain planned lower-priority items after this slice is stable on Android and iOS.
 
 ## App-Layer Architecture (Phase 5)
@@ -210,6 +215,11 @@ Platform responsibilities:
 - Inputs: onboarding completion, profile completeness, runtime profile availability
 - Output: launch destination (`Onboarding`, `Home`, `BlockingError`)
 
+Status:
+- Implemented in `shared/src/commonMain/kotlin/edu/gatech/cc/cellwatch/domain/applaunch/` with Tier 1 tests in `shared/src/commonTest/kotlin/edu/gatech/cc/cellwatch/domain/applaunch/`.
+- Android default launch path now routes via shared decision mapping in `androidTestApp/src/main/java/edu/gatech/cc/cellwatch/androidtestapp/MainActivity.kt`.
+- iOS default launch path now routes via shared decision mapping in `iosTestApp/App/AppDelegate.swift`.
+
 2. `HomeEntryState`
 - Shared read model for top-level CTA availability (for example, start measurement readiness)
 
@@ -226,6 +236,10 @@ Tier 1:
 
 Tier 2:
 - Android + iOS UI-flow smoke showing post-onboarding home entry and transition into measurement start.
+
+Current status:
+- Shared startup route now resolves to `map-home` when onboarding/runtime are ready.
+- Android/iOS default post-onboarding path is being shifted from temporary MVP menu labels to map-home entry semantics while preserving explicit UI-flow mode overrides.
 
 ## Story 3 Analysis: Start A Measurement From Main Screen
 
@@ -502,6 +516,14 @@ Tier 1:
 Tier 2:
 - Android+iOS manual smoke for history refresh and export path.
 
+Status:
+- Shared `MeasurementHistoryStatusUseCase` implemented in `shared/src/commonMain/kotlin/edu/gatech/cc/cellwatch/domain/measurementhistory/` with Tier 1 tests in `shared/src/commonTest/kotlin/edu/gatech/cc/cellwatch/domain/measurementhistory/`.
+- User-facing `measurement-history-flow` screen wired in both platforms from MVP menu (`History & Sync Status`).
+- UI-flow screenshot evidence added for Android/iOS history snapshots and sync refresh.
+- Multi-run evidence now shows newest-first recent runs in history UI-flow captures.
+- History list parity hardening now implemented: recent runs render as scrollable grouped rows with tap-to-select detail on both Android and iOS, using a single selected-run detail panel (no duplicate latest-vs-selected blocks).
+- Export flow remains pending.
+
 ## Story 8 Analysis: Retry Unsynced Uploads/Submissions
 
 ### Legacy behavior
@@ -629,10 +651,16 @@ Tier 1:
 Tier 2:
 - Android+iOS simulator smoke: edit settings, rerun pre-measure flow, verify new settings are applied.
 
+Status:
+- Shared `SettingsProfileViewModel` implemented in `shared/src/commonMain/kotlin/edu/gatech/cc/cellwatch/domain/settings/` with Tier 1 tests in `shared/src/commonTest/kotlin/edu/gatech/cc/cellwatch/domain/settings/`.
+- User-facing `settings-profile-flow` screen added on Android and iOS and linked from MVP menu (`Settings`).
+- UI-flow screenshot evidence added for Android/iOS settings edit + mode persistence round-trip.
+- App/device identity values are now visible with copy actions in Android/iOS settings flow.
+
 ## Story 11 Analysis: Export Measurement History
 
 Status:
-- Planned, lower priority until core end-to-end vertical slice is stable.
+- Planned, explicitly lower priority than Story 12 map surface.
 
 Intent:
 - Allow user to export measurement history in a stable JSON schema using platform file pickers/destinations.
@@ -640,10 +668,50 @@ Intent:
 ## Story 12 Analysis: GIS Map Experience
 
 Status:
-- Planned, lower priority until core end-to-end vertical slice is stable.
+- Active implementation (phase 1 shared controller + platform shell wiring in progress), prioritized ahead of Story 11 export.
+- Current implementation is not feature-complete yet:
+  - Android map-home renders a Mapbox canvas panel.
+  - iOS map-home renders a Mapbox canvas panel.
+  - Legacy FCC/H3 hex overlays are not implemented yet.
+  - Legacy measurement marker/cluster rendering is not implemented yet.
+  - Map selection -> grouped bottom-sheet details is not implemented yet.
 
 Intent:
 - Restore/replace legacy map-oriented home UX after profile -> measure -> results flow is complete.
+
+Legacy behavior reference (`frozenApp/src/main/java/edu/gatech/cc/cellwatch/ui/main/MapActivity.kt`):
+- Home screen is a map-first surface, not a button menu.
+- Existing measurements are shown geographically (point clusters and H3 hex overlays).
+- User can switch overlay behavior:
+  - hex-grid overlays at higher zoom levels
+  - point/cluster rendering at lower zoom levels
+- Tap interactions open a bottom-sheet list/details surface for grouped measurements.
+- Search bar and center-on-user controls are available directly on the map.
+- Map entry attempts pending sync upload in background (`tryUploadMeasurements`, `tryUploadFccSubmissions`).
+- Measure CTA transitions from map home into measurement start flow.
+
+Story 12 phased delivery plan:
+1. Shared map-home state controller (copy/status/sync summary contract) consumed by Android and iOS.
+2. Shared map interaction reducer (`MapHomeMapInteractionController`) for zoom/overlay/selection parity.
+3. Platform map canvas integration (Mapbox SDK adapters) with measurement markers.
+4. Shared grouping contract for map selection -> measurement-group details sheet.
+5. Overlay parity (hex + cluster/point behavior) and search/location controls.
+6. Story-level UI-flow evidence for map home and map-selection detail interactions.
+
+Mapbox token follow-up (must address):
+- Current migration keeps a compatibility fallback that may use `MAPBOX_DOWNLOADS_TOKEN` for runtime map initialization when `MAPBOX_ACCESS_TOKEN` is unavailable.
+- This is a temporary bridge only; runtime should use a scoped public access token (`pk...`) and reserve downloads token (`sk...`) for package/artifact access.
+- Track as a cleanup/security task before productionization of Story 12.
+- iOS distribution path is now runtime-resource based (`cellwatch.runtime.properties` in bundle) with hosted XCTest checks for token propagation.
+
+Mapbox Android emulator warning (test reliability):
+- Black-map failures in emulator runs are frequently host-network or DNS issues (style/tile hostnames unreachable) rather than map controller/view logic regressions.
+- During triage, verify emulator hostname resolution first (`adb shell ping api.mapbox.com`) before filing app-level map rendering defects.
+- Keep this caveat explicit in Story 12 test evidence review to avoid false regression classification.
+- References:
+  - https://developer.android.com/studio/run/emulator-networking
+  - https://developer.android.com/studio/run/emulator-commandline
+  - https://docs.mapbox.com/android/maps/guides/install/
 
 ## PR-Sized Implementation Checklist (Suggested)
 

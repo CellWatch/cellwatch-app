@@ -4,6 +4,7 @@ import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.UploadDownloadData
+import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -144,6 +145,7 @@ class MeasurementRunViewControllerTest {
         assertEquals("45 ms", model.latencyText)
         assertEquals("100 Mbps", model.downloadText)
         assertEquals("30 Mbps", model.uploadText)
+        assertEquals("Pending sync", model.uploadedText)
         assertEquals("Measurement complete. Results saved and sync attempted.", model.summaryText)
     }
 
@@ -160,7 +162,22 @@ class MeasurementRunViewControllerTest {
         assertEquals("--", model.latencyText)
         assertEquals("--", model.downloadText)
         assertEquals("--", model.uploadText)
+        assertEquals("Not uploaded", model.uploadedText)
         assertEquals("Network timeout", model.summaryText)
+    }
+
+    @Test
+    fun resultReadModel_marksUploadedWhenUploadTimeExists() {
+        val useCase = MeasurementResultReadModelUseCase()
+        val model = useCase.present(
+            MeasurementRunState(
+                progress = MeasurementRunProgress.END,
+                uploadTime = Instant.parse("2026-02-15T12:00:00Z"),
+            ),
+        )
+
+        assertEquals("Uploaded", model.uploadedText)
+        assertEquals("Measurement complete. Results saved and synced.", model.summaryText)
     }
 
     private fun latencyMeasurement(groupId: String): Measurement {

@@ -18,6 +18,8 @@
     <string>1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>MAPBOX_ACCESS_TOKEN</key>
+    <string>$(MAPBOX_ACCESS_TOKEN)</string>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
@@ -27,6 +29,8 @@
     </dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>iosTestApp uses local network access for local MSAK and Supabase development testing.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>CellWatch uses location to run measurements and place results on the map.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIApplicationSceneManifest</key>

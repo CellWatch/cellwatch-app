@@ -54,6 +54,7 @@ data class MeasurementResultReadModel(
     val latencyText: String,
     val downloadText: String,
     val uploadText: String,
+    val uploadedText: String,
     val summaryText: String,
 )
 
@@ -62,6 +63,11 @@ class MeasurementResultReadModelUseCase {
         val latencyText = formatLatency(state.results?.latency)
         val downloadText = formatThroughput(state.results?.download)
         val uploadText = formatThroughput(state.results?.upload)
+        val uploadedText = when (state.progress) {
+            MeasurementRunProgress.END -> if (state.uploadTime != null) "Uploaded" else "Pending sync"
+            MeasurementRunProgress.ERROR -> "Not uploaded"
+            else -> "In progress"
+        }
         val summaryText = when (state.progress) {
             MeasurementRunProgress.END -> {
                 if (state.uploadTime != null) {
@@ -78,6 +84,7 @@ class MeasurementResultReadModelUseCase {
             latencyText = latencyText,
             downloadText = downloadText,
             uploadText = uploadText,
+            uploadedText = uploadedText,
             summaryText = summaryText,
         )
     }

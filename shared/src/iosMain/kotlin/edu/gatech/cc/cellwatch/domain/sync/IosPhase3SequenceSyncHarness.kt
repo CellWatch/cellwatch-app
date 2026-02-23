@@ -53,6 +53,8 @@ data class IosPhase3SequenceSyncResult(
     val downloadSummary: String,
     val uploadSummary: String,
     val completionSummary: String,
+    val centerLatitude: Double,
+    val centerLongitude: Double,
 )
 
 class IosPhase3SequenceSyncHarness {
@@ -204,6 +206,7 @@ class IosPhase3SequenceSyncHarness {
                     uploadTime = outcome.measurementCompleteUploadTime,
                 ),
             )
+            val center = outcome.sequenceOutcome.group.centerLatLon()
 
             return IosPhase3SequenceSyncResult(
                 groupId = groupId,
@@ -222,6 +225,8 @@ class IosPhase3SequenceSyncHarness {
                 downloadSummary = resultReadModel.downloadText,
                 uploadSummary = resultReadModel.uploadText,
                 completionSummary = resultReadModel.summaryText,
+                centerLatitude = center?.first ?: Double.NaN,
+                centerLongitude = center?.second ?: Double.NaN,
             )
         } finally {
             driver.close()

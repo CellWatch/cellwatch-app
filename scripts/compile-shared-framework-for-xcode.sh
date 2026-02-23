@@ -7,6 +7,10 @@ cd "$REPO_ROOT"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
+cleanup_lock() {
+  rm -rf "${LOCK_DIR:-}"
+}
+
 # Prefer project-pinned Gradle JVM for deterministic Xcode builds.
 JAVA_HOME_FROM_GRADLE="$(sed -n 's/^org\.gradle\.java\.home=//p' "$REPO_ROOT/gradle.properties" | tail -n1 || true)"
 if [[ -n "$JAVA_HOME_FROM_GRADLE" ]]; then
@@ -78,9 +82,6 @@ while ! mkdir "$LOCK_DIR" 2>/dev/null; do
   lock_waited=$((lock_waited + 1))
 done
 echo "$$" > "$LOCK_PID_FILE"
-cleanup_lock() {
-  rm -rf "$LOCK_DIR"
-}
 trap cleanup_lock EXIT
 
 if [[ -z "${CELLWATCH_GRADLE_USER_HOME:-}" ]]; then
@@ -192,5 +193,79 @@ if ! attempt_build "$FORCE_RERUN"; then
       ;;
   esac
 fi
+
+read_property_value() {
+  local key="$1"
+  local file="$2"
+  [[ -f "$file" ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -z "$line" || "${line:0:1}" == "#" ]] && continue
+    if [[ "$line" == "$key="* ]]; then
+      local value="${line#*=}"
+      value="${value%"${value##*[![:space:]]}"}"
+      value="${value#"${value%%[![:space:]]*}"}"
+      if [[ "${value:0:1}" == "\"" && "${value: -1}" == "\"" && ${#value} -ge 2 ]]; then
+        value="${value:1:${#value}-2}"
+      fi
+      printf "%s" "$value"
+      return 0
+    fi
+  done < "$file"
+  return 1
+}
+
+resolve_mapbox_token() {
+  local files=(
+    "$REPO_ROOT/cellwatch.local.properties"
+    "$REPO_ROOT/cellwatch.properties"
+    "$REPO_ROOT/iosTestApp/cellwatch.local.properties"
+    "$REPO_ROOT/iosTestApp/cellwatch.properties"
+  )
+  local file=""
+  local token=""
+  MAPBOX_TOKEN=""
+  MAPBOX_TOKEN_SOURCE_FILE=""
+  MAPBOX_TOKEN_SOURCE_KEY=""
+  for file in "${files[@]}"; do
+    token="$(read_property_value "MAPBOX_ACCESS_TOKEN" "$file" || true)"
+    if [[ -n "$token" ]]; then
+      MAPBOX_TOKEN="$token"
+      MAPBOX_TOKEN_SOURCE_FILE="$file"
+      MAPBOX_TOKEN_SOURCE_KEY="MAPBOX_ACCESS_TOKEN"
+      return 0
+    fi
+    token="$(read_property_value "MAPBOX_DOWNLOADS_TOKEN" "$file" || true)"
+    if [[ -n "$token" ]]; then
+      MAPBOX_TOKEN="$token"
+      MAPBOX_TOKEN_SOURCE_FILE="$file"
+      MAPBOX_TOKEN_SOURCE_KEY="MAPBOX_DOWNLOADS_TOKEN"
+      return 0
+    fi
+  done
+  return 1
+}
+
+generate_runtime_properties_resource() {
+  resolve_mapbox_token || true
+  if [[ -z "${BUILT_PRODUCTS_DIR:-}" || -z "${UNLOCALIZED_RESOURCES_FOLDER_PATH:-}" ]]; then
+    return 0
+  fi
+  local out_dir="$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
+  local out_file="$out_dir/cellwatch.runtime.properties"
+  mkdir -p "$out_dir"
+  if [[ -n "${MAPBOX_TOKEN:-}" ]]; then
+    {
+      printf "MAPBOX_ACCESS_TOKEN=%s\n" "$MAPBOX_TOKEN"
+      printf "MAPBOX_TOKEN_SOURCE_FILE=%s\n" "$MAPBOX_TOKEN_SOURCE_FILE"
+      printf "MAPBOX_TOKEN_SOURCE_KEY=%s\n" "$MAPBOX_TOKEN_SOURCE_KEY"
+    } > "$out_file"
+  else
+    rm -f "$out_file"
+  fi
+}
+
+generate_runtime_properties_resource
 
 echo "sharedKit framework ready at: $OUT_FRAMEWORK"
