@@ -226,21 +226,15 @@ resolve_mapbox_token() {
   local file=""
   local token=""
   MAPBOX_TOKEN=""
-  MAPBOX_TOKEN_SOURCE_FILE=""
-  MAPBOX_TOKEN_SOURCE_KEY=""
   for file in "${files[@]}"; do
     token="$(read_property_value "MAPBOX_ACCESS_TOKEN" "$file" || true)"
     if [[ -n "$token" ]]; then
       MAPBOX_TOKEN="$token"
-      MAPBOX_TOKEN_SOURCE_FILE="$file"
-      MAPBOX_TOKEN_SOURCE_KEY="MAPBOX_ACCESS_TOKEN"
       return 0
     fi
     token="$(read_property_value "MAPBOX_DOWNLOADS_TOKEN" "$file" || true)"
     if [[ -n "$token" ]]; then
       MAPBOX_TOKEN="$token"
-      MAPBOX_TOKEN_SOURCE_FILE="$file"
-      MAPBOX_TOKEN_SOURCE_KEY="MAPBOX_DOWNLOADS_TOKEN"
       return 0
     fi
   done
@@ -256,11 +250,7 @@ generate_runtime_properties_resource() {
   local out_file="$out_dir/cellwatch.runtime.properties"
   mkdir -p "$out_dir"
   if [[ -n "${MAPBOX_TOKEN:-}" ]]; then
-    {
-      printf "MAPBOX_ACCESS_TOKEN=%s\n" "$MAPBOX_TOKEN"
-      printf "MAPBOX_TOKEN_SOURCE_FILE=%s\n" "$MAPBOX_TOKEN_SOURCE_FILE"
-      printf "MAPBOX_TOKEN_SOURCE_KEY=%s\n" "$MAPBOX_TOKEN_SOURCE_KEY"
-    } > "$out_file"
+    printf "MAPBOX_ACCESS_TOKEN=%s\n" "$MAPBOX_TOKEN" > "$out_file"
   else
     rm -f "$out_file"
   fi

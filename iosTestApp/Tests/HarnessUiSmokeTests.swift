@@ -74,10 +74,6 @@ final class HarnessUiSmokeTests: XCTestCase {
         let bundled = try bundledRuntimeConfigValue("MAPBOX_ACCESS_TOKEN")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         XCTAssertFalse(bundled.isEmpty, "Bundled runtime token is empty")
-        let sourceFile = try bundledRuntimeConfigValue("MAPBOX_TOKEN_SOURCE_FILE")
-        XCTAssertTrue(sourceFile.hasSuffix("cellwatch.properties") || sourceFile.hasSuffix("cellwatch.local.properties"))
-        let sourceKey = try bundledRuntimeConfigValue("MAPBOX_TOKEN_SOURCE_KEY")
-        XCTAssertTrue(sourceKey == "MAPBOX_ACCESS_TOKEN" || sourceKey == "MAPBOX_DOWNLOADS_TOKEN")
 
         let resolved = RuntimeConfigSource.mapboxAccessToken()?
             .trimmingCharacters(in: .whitespacesAndNewlines)
