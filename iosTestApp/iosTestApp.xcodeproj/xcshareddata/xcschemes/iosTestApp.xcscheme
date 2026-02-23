@@ -87,7 +87,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "CELLWATCH_UI_MODE"
-            value = "onboarding-flow"
+            value = "map-home"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
@@ -98,6 +98,16 @@
          <EnvironmentVariable
             key = "CELLWATCH_XCODE_FORCE_RERUN"
             value = "0"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "CELLWATCH_MAP_SIM_LAT"
+            value = "33.778462"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "CELLWATCH_MAP_SIM_LON"
+            value = "-84.390123"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

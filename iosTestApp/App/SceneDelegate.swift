@@ -17,7 +17,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let mode = AppDelegate.resolveDisplayMode()
         let onboardingUiImpl: HarnessViewController.OnboardingUiImplementation =
             AppDelegate.shouldDefaultToMvpNavigation() ? .uikit : .swiftui
-        if mode == .mvpMenu {
+        if mode == .mvpMenu || mode == .mapHome {
             window.rootViewController = UINavigationController(
                 rootViewController: HarnessViewController(
                     displayMode: mode,

@@ -109,10 +109,14 @@ final class SyncHarnessParityTests: XCTestCase {
     }
 
     func testHostedLocalSupabaseSync_endToEnd() throws {
-        guard let localUrl = RuntimeConfigSource.localSupabaseUrlForIos(),
-              let localApiKey = RuntimeConfigSource.localSupabaseApiKeyPreferServiceRoleJwt() else {
-            throw XCTSkip("Local supabase runtime config is unavailable for hosted sync test")
-        }
+        let localUrl = try XCTUnwrap(
+            RuntimeConfigSource.localSupabaseUrlForIos(),
+            "Expected local Supabase URL for hosted sync parity test"
+        )
+        let localApiKey = try XCTUnwrap(
+            RuntimeConfigSource.localSupabaseApiKeyPreferServiceRoleJwt(),
+            "Expected local Supabase API key for hosted sync parity test"
+        )
         let expectation = expectation(description: "runHostedLocalSupabaseSync")
 
         IosLocalSupabaseSyncHarness().run(

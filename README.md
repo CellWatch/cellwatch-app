@@ -212,6 +212,24 @@ For product-like onboarding UI smoke plus screenshot-backed markdown evidence:
 ./scripts/generate-ui-flow-report.sh
 ```
 
+Focused map-render smokes (faster than full report):
+
+```bash
+./scripts/run-android-map-home-render-ui-flow.sh
+./scripts/run-ios-map-home-render-ui-flow.sh
+```
+
+Outputs:
+- Android: `build/reports/ui-flow/android/map-home-render/`
+- iOS: `build/reports/ui-flow/ios/map-home-render-xcuitest/`
+- Logs/status: `build/reports/ui-flow/logs/android-map-home-render.*`, `build/reports/ui-flow/logs/ios-map-home-render-xcuitest.*`
+
+GIS simulation defaults for map smokes:
+- Both scripts seed simulator location near `85 5th St NW, Atlanta, GA 30308` before running.
+- Override with:
+  - `CELLWATCH_MAP_SIM_LAT=<lat>`
+  - `CELLWATCH_MAP_SIM_LON=<lon>`
+
 Outputs:
 - Markdown report: `build/reports/ui-flow/UI_FLOW_REPORT.md`
 - Android per-flow screenshots:
@@ -258,6 +276,27 @@ Current flow coverage in the report:
   - finding server
   - running latency
   - running throughput
+
+### Run MVP Interactively (Map Home)
+
+Android:
+
+```bash
+./gradlew :androidTestApp:installDebug
+/Users/jeff/Library/Android/sdk/platform-tools/adb shell am start -n edu.gatech.cc.cellwatch.androidtestapp/.MainActivity
+```
+
+iOS:
+- Open `/Users/jeff/Projects/cellwatch-app/iosTestApp/iosTestApp.xcodeproj`
+- Run `iosTestApp` scheme on a simulator (for MVP-style launch, keep `CELLWATCH_UI_MODE=map-home` in scheme environment variables)
+
+Notes:
+- `Settings`, `Measure`, and `History & Sync Status` route from map-home.
+- First launch may prompt for permissions that block interaction until accepted/dismissed.
+
+Measurement history evidence policy (current):
+- UI-flow captures are checkpointed at synced state (`SYNCED` + "All records are synced.") before final history screenshot comparison.
+- Explicit transition coverage for "initially pending/unsynced, then later synced" is deferred and tracked as follow-up test expansion.
   - after run (end/error)
 
 Notes:
@@ -276,6 +315,46 @@ Notes:
   - shared resolver merges observed device state with optional test overrides
   - platform glue remains observation-only (network path, location permission, persisted profile/runtime state)
   - shared use case + presenter own policy and user-facing status mapping
+
+### Mapbox on Android Emulator (Black Map Troubleshooting)
+
+If the map canvas is black but the Mapbox logo/attribution is visible, treat emulator DNS/network first before changing app code.
+
+Common symptoms:
+- Map panel stays black after style-load wait.
+- `adb shell ping -c 1 8.8.8.8` succeeds but hostname pings fail (for example `api.mapbox.com`).
+- `logcat` shows resolver instability errors from Android networking stack.
+
+Quick checks:
+
+```bash
+/Users/jeff/Library/Android/sdk/platform-tools/adb shell ping -c 1 8.8.8.8
+/Users/jeff/Library/Android/sdk/platform-tools/adb shell ping -c 1 api.mapbox.com
+```
+
+If IP ping works but hostname ping fails, use a different host network or launch emulator with explicit DNS servers (for example `-dns-server 8.8.8.8,1.1.1.1`), then rerun map flow.
+
+Permission note:
+- First-run Android permission dialogs (location/phone state) can block map visibility during smoke capture. Grant or clear them before evaluating map render failures.
+
+Token note (important):
+- Preferred runtime key is `MAPBOX_ACCESS_TOKEN` (`pk...`).
+- The migration currently allows fallback to `MAPBOX_DOWNLOADS_TOKEN` (`sk...`) when `MAPBOX_ACCESS_TOKEN` is unavailable.
+- Keep this fallback only for local migration continuity; remove before productionization.
+
+iOS runtime token distribution (current implementation):
+- Xcode prebuild script writes a runtime resource file in the built app bundle: `cellwatch.runtime.properties`.
+- `iosTestApp` runtime reads Mapbox token from that bundled file via `RuntimeConfigSource`.
+- Token distribution is validated by hosted XCTest:
+  - `HarnessUiSmokeTests.testMapboxTokenDistribution_matchesCellwatchProperties`
+  - `HarnessUiSmokeTests.testMapHomeBuildPath_doesNotRenderTokenMissingState`
+- This avoids secret-bearing generated Swift source files.
+
+Primary references:
+- Android Emulator networking and DNS options: https://developer.android.com/studio/run/emulator-commandline
+- Android Emulator networking model: https://developer.android.com/studio/run/emulator-networking
+- Mapbox token management: https://docs.mapbox.com/help/dive-deeper/access-tokens/
+- Mapbox Android Maps SDK token setup: https://docs.mapbox.com/android/maps/guides/install/
 
 ### Simulator Smoke Report (Phase 3 Button Path)
 
@@ -575,6 +654,9 @@ If run separately:
 - iOS realistic (legacy host) only: `./gradlew :shared:verifyIosHostedKeychain`
 - Local Supabase JVM integration only: `./gradlew :shared:verifyLocalSupabaseJvmIntegration`
   - Includes remote adapter RPC/table checks and end-to-end `MeasurementSyncUseCase` store-and-forward validation against local Docker Supabase
+- Strict non-visual history parity (recommended before UI-flow runs):
+  - Android wrapper: `./gradlew :shared:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryViewParityAndroidTest"`
+  - iOS wrapper: `./gradlew :shared:iosSimulatorArm64Test --tests "edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryViewParityIosTest.*"`
 - Android isolated harness smoke test: `./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.LocalSupabaseSharedSyncSmokeTest"`
 - Android isolated harness driver + environment tests: `./gradlew :androidTestApp:testDebugUnitTest --tests "edu.gatech.cc.cellwatch.androidtestapp.AndroidTestSyncDriverTest" --tests "edu.gatech.cc.cellwatch.androidtestapp.SupabaseEnvironmentProviderTest"`
 
@@ -600,7 +682,7 @@ Recommended command flow:
 
 Recommended pre-check-in gate (single command):
 - `./scripts/verify-dev-gates.sh`
-  - Runs parity gates (`:shared:verifyParityPipelines`) and Tier 1 (`:shared:verifyLightweightPlatforms`)
+  - Runs parity gates (`:shared:verifyParityPipelines`), Tier 1 (`:shared:verifyLightweightPlatforms`), and strict non-visual local-Supabase parity checks on Android+iOS hosted paths
   - Exits nonzero if any gate fails, with a compact pass/fail summary
 
 Optional narrower commands:
@@ -613,7 +695,8 @@ Optional narrower commands:
 
 Expected skip/fail behavior:
 - Local-MSAK smoke tests are fail-by-default for runtime issues. Use `CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP=1` only when explicitly bypassing known local transients.
-- Local Supabase smoke tests are fail-by-default for local stack unavailability. Use `CELLWATCH_ALLOW_LOCAL_SUPABASE_UNAVAILABLE_SKIP=1` for explicit developer bypass.
+- `LocalSupabaseSharedSyncSmokeTest` is fail-by-default for local Supabase unavailability (no skip/bypass path).
+- `PublicMsakLocalSupabaseSmokeTest` still supports explicit local-Supabase bypass (`CELLWATCH_ALLOW_LOCAL_SUPABASE_UNAVAILABLE_SKIP=1`) for optional public-MSAK smoke runs.
 - For nested Gradle/Xcode smoke tasks (especially with long-lived Gradle daemons), you can pass bypass flags via project properties for reliable propagation:
   - `-Pcellwatch.allowLocalMsakTransientSkip=1`
   - `-Pcellwatch.allowLocalSupabaseUnavailableSkip=1`
@@ -963,3 +1046,22 @@ Not yet ported (still Android-only in `frozenApp/`):
   - Shared regression suite + Android unit/UI unit tests
 - Tier 2 tests:
   - Android instrumentation + iOS hosted integration checks in CI/release gates
+
+## Measurement Fixture Capture/Replay
+
+- Purpose: keep measurement-run view/controller tests deterministic while tracking expected stage/header progression from a captured fixture.
+- Fixture file:
+  - `shared/src/commonTest/resources/fixtures/measurement-run/msak-sequence-v1.json`
+- Capture + verify command:
+  - `./scripts/capture-measurement-run-fixture.sh`
+
+Contract:
+- Fixture metadata includes `msakClientKmpVersion`.
+- Replay test fails if fixture version does not match current `msak-client-kmp` dependency version.
+- Dependency version source of truth is `gradle/libs.versions.toml` (`msakClientKmp`).
+
+History fixture:
+- Fixture file:
+  - `shared/src/commonTest/resources/fixtures/measurement-history/msak-history-v1.json`
+- Capture + verify command:
+  - `./scripts/capture-measurement-history-fixture.sh`

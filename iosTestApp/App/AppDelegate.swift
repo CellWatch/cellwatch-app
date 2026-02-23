@@ -3,6 +3,9 @@ import SwiftUI
 import CoreLocation
 import Network
 import sharedKit
+#if canImport(MapboxMaps)
+import MapboxMaps
+#endif
 
 enum RuntimeConfigSource {
     private static let defaultLocalServiceRoleJwt =
@@ -61,15 +64,72 @@ enum RuntimeConfigSource {
         return configured
     }
 
+    static func mapboxAccessToken() -> String? {
+        if let explicit = value("MAPBOX_ACCESS_TOKEN"), !explicit.isEmpty {
+            return explicit
+        }
+        if let bundled = bundledRuntimeProperty("MAPBOX_ACCESS_TOKEN"), !bundled.isEmpty {
+            return bundled
+        }
+        if let plist = Bundle.main.object(forInfoDictionaryKey: "MAPBOX_ACCESS_TOKEN") as? String,
+           !plist.isEmpty,
+           !plist.contains("$(") {
+            return plist
+        }
+        if let legacy = value("mapbox_access_token"), !legacy.isEmpty {
+            return legacy
+        }
+        if let downloads = value("MAPBOX_DOWNLOADS_TOKEN"), !downloads.isEmpty {
+            return downloads
+        }
+        return nil
+    }
+
+    private static func bundledRuntimeProperty(_ key: String) -> String? {
+        guard let url = Bundle.main.url(forResource: "cellwatch.runtime", withExtension: "properties"),
+              let contents = try? String(contentsOf: url, encoding: .utf8) else {
+            return nil
+        }
+        for rawLine in contents.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if line.isEmpty || line.hasPrefix("#") {
+                continue
+            }
+            let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
+            if parts.count == 2 && parts[0].trimmingCharacters(in: .whitespacesAndNewlines) == key {
+                return parts[1]
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            }
+        }
+        return nil
+    }
+
     private static func property(_ key: String) -> String? {
-        let candidates = [
+        var candidates = [
             URL(fileURLWithPath: "iosTestApp/cellwatch.local.properties"),
             URL(fileURLWithPath: "cellwatch.local.properties"),
             URL(fileURLWithPath: "iosTestApp/cellwatch.properties"),
             URL(fileURLWithPath: "cellwatch.properties"),
             URL(fileURLWithPath: "../cellwatch.properties"),
-            URL(fileURLWithPath: "../../cellwatch.properties")
+            URL(fileURLWithPath: "../../cellwatch.properties"),
         ]
+        if let userName = ProcessInfo.processInfo.environment["USER"] {
+            candidates.append(URL(fileURLWithPath: "/Users/\(userName)/Projects/cellwatch-app/cellwatch.local.properties"))
+            candidates.append(URL(fileURLWithPath: "/Users/\(userName)/Projects/cellwatch-app/cellwatch.properties"))
+        }
+        // Interactive Xcode runs can have a working directory where relative paths above miss.
+        // Walk up from source path as a dev-harness fallback.
+        var sourceDir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        for _ in 0..<8 {
+            candidates.append(sourceDir.appendingPathComponent("cellwatch.local.properties"))
+            candidates.append(sourceDir.appendingPathComponent("cellwatch.properties"))
+            let parent = sourceDir.deletingLastPathComponent()
+            if parent.path == sourceDir.path {
+                break
+            }
+            sourceDir = parent
+        }
         for candidate in candidates {
             guard let contents = try? String(contentsOf: candidate, encoding: .utf8) else {
                 continue
@@ -146,11 +206,17 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         if mode == "full-harness" {
             return .fullHarness
         }
+        if mode == "map-home" || mode == "home" {
+            return .mapHome
+        }
         if mode == "mvp-menu" || mode == "mvp" {
             return .mvpMenu
         }
         if mode == "onboarding-flow" {
             return .onboardingFlow
+        }
+        if mode == "settings-profile-flow" {
+            return .settingsProfileFlow
         }
         if mode == "measurement-start-flow" {
             return .measurementStartFlow
@@ -161,13 +227,31 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         if mode == "measurement-run-flow" {
             return .measurementRunFlow
         }
+        if mode == "measurement-history-flow" {
+            return .measurementHistoryFlow
+        }
         let onboardingComplete = OnboardingUserDefaultsStore().loadProfile()?.onboardingComplete == true
-        return onboardingComplete ? .mvpMenu : .onboardingFlow
+        let decision = AppLaunchRoutingUseCase().resolve(
+            input: AppLaunchRoutingInput(
+                onboardingComplete: onboardingComplete,
+                runtimeProfileReady: true
+            )
+        )
+        switch decision.destinationToken {
+        case "map-home":
+            return .mapHome
+        case "mvp-home":
+            return .mvpMenu
+        case "blocking-error":
+            return .onboardingFlow
+        default:
+            return .onboardingFlow
+        }
     }
 
     static func shouldDefaultToMvpNavigation() -> Bool {
         let mode = RuntimeConfigSource.value("CELLWATCH_UI_MODE")?.lowercased()
-        return mode == nil || mode == "mvp-menu" || mode == "mvp"
+        return mode == nil || mode == "map-home" || mode == "home" || mode == "mvp-menu" || mode == "mvp"
     }
 
     func application(
@@ -263,11 +347,14 @@ final class InsetLabel: UILabel {
 final class HarnessViewController: UIViewController, UITextFieldDelegate {
     enum DisplayMode {
         case fullHarness
+        case mapHome
         case mvpMenu
         case onboardingFlow
+        case settingsProfileFlow
         case measurementStartFlow
         case pendingSyncFlow
         case measurementRunFlow
+        case measurementHistoryFlow
     }
 
     enum OnboardingUiImplementation {
@@ -289,6 +376,12 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     static let onboardingEmailFieldIdentifier = "harness.onboarding.email"
     static let onboardingAckSwitchIdentifier = "harness.onboarding.ack"
     static let onboardingSubmitButtonIdentifier = "harness.onboarding.submit"
+    static let settingsModeControlIdentifier = "harness.settings.mode"
+    static let settingsSubmitButtonIdentifier = "harness.settings.submit"
+    static let settingsDeviceIdValueIdentifier = "harness.settings.deviceId.value"
+    static let settingsAppVersionValueIdentifier = "harness.settings.appVersion.value"
+    static let settingsCopyDeviceIdButtonIdentifier = "harness.settings.copyDeviceId"
+    static let settingsCopyAppVersionButtonIdentifier = "harness.settings.copyAppVersion"
     static let onboardingFeedbackLabelIdentifier = "harness.onboarding.feedback"
     static let onboardingRootContainerIdentifier = "harness.onboarding.container"
     static let onboardingCardIdentifier = "harness.onboarding.card"
@@ -300,6 +393,14 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     static let measurementRunDetailIdentifier = "harness.measurementRun.detail"
     static let measurementRunProgressIdentifier = "harness.measurementRun.progress"
     static let measurementRunResultsIdentifier = "harness.measurementRun.results"
+    static let measurementHistoryTitleIdentifier = "harness.measurementHistory.title"
+    static let measurementHistoryMetricsIdentifier = "harness.measurementHistory.metrics"
+    static let measurementHistoryRunsIdentifier = "harness.measurementHistory.runs"
+    static let measurementHistorySelectedDetailIdentifier = "harness.measurementHistory.selectedDetail"
+    static let measurementHistorySyncIdentifier = "harness.measurementHistory.sync"
+    static let measurementHistoryRefreshIdentifier = "harness.measurementHistory.refresh"
+    static let mapHomeMapContainerIdentifier = "harness.mapHome.mapContainer"
+    static let mapHomeRenderStateIdentifier = "harness.mapHome.renderState"
 
     private let statusLabel = UILabel()
     private let outputTextView = UITextView()
@@ -320,7 +421,19 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let measurementRunViewController = MeasurementRunViewController()
     private let measurementRunUiPresenter = MeasurementRunUiPresenter()
     private let measurementResultReadModelUseCase = MeasurementResultReadModelUseCase()
+    private let mapHomeViewController = MapHomeViewController()
+    private let mapHomeMapInteractionController = MapHomeMapInteractionController(minHexGridZoom: 0.0)
+    private let mapHomeFeatureViewController = MapHomeFeatureViewController(
+        maxPoints: 100,
+        coarseGridDegrees: 0.08,
+        fineGridDegrees: 0.03,
+        fineGridZoomThreshold: 12.0
+    )
     private lazy var onboardingViewModel = OnboardingProfileViewModel(
+        validationUseCase: onboardingValidationUseCase,
+        persistenceUseCase: onboardingPersistenceUseCase
+    )
+    private lazy var settingsViewModel = SettingsProfileViewModel(
         validationUseCase: onboardingValidationUseCase,
         persistenceUseCase: onboardingPersistenceUseCase
     )
@@ -340,6 +453,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let onboardingAckSwitch = UISwitch()
     private let onboardingFeedbackLabel = UILabel()
     private let onboardingSubmitButton = UIButton(type: .system)
+    private let settingsModeControl = UISegmentedControl(items: ["Testing", "FCC Challenge"])
+    private let settingsSubmitButton = UIButton(type: .system)
     private let measurementPreflightInVehicleSwitch = UISwitch()
     private let measurementPreflightOutputLabel = UILabel()
     private let pendingSyncSummaryLabel = UILabel()
@@ -349,34 +464,83 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let measurementRunProgressView = UIProgressView(progressViewStyle: .default)
     private let measurementRunResultsLabel = InsetLabel()
     private let measurementRunPrimaryButton = UIButton(type: .system)
+    private let measurementHistoryTitleLabel = UILabel()
+    private let measurementHistoryMetricsLabel = InsetLabel()
+    private let measurementHistoryRunsScrollView = UIScrollView()
+    private let measurementHistoryRunsStack = UIStackView()
+    private let measurementHistorySelectedDetailLabel = InsetLabel()
+    private let measurementHistorySyncLabel = InsetLabel()
+    private let mapHomeRenderStateLabel = UILabel()
+#if canImport(MapboxMaps)
+    private var mapHomeMapboxEventCancelables: [AnyCancelable] = []
+#endif
+    private struct HistorySnapshotEntry {
+        let timestampMs: Double
+        let latency: String
+        let download: String
+        let upload: String
+        let uploaded: String
+        let detail: String
+        let latitude: Double?
+        let longitude: Double?
+    }
+    private var historyPendingMeasurements: Int? = nil
+    private var historyPendingSubmissions: Int? = nil
+    private var selectedHistoryTimestampMs: Double? = nil
     private var measurementRunCachedLatencySummary = "--"
     private var measurementRunCachedDownloadSummary = "--"
     private var measurementRunCachedUploadSummary = "--"
+    private var measurementRunCachedUploadedSummary = "In progress"
     private var measurementRunCachedCompletionSummary = "Measurement in progress."
+    private var measurementRunCachedCenterLatitude: Double? = nil
+    private var measurementRunCachedCenterLongitude: Double? = nil
     private let measurementRunFlowQueue = DispatchQueue(label: "cellwatch.measurementRunFlow.queue")
     private var measurementRunFlowScheduledSteps: Int = 0
     private var measurementRunFlowFinalizing: Bool = false
     private let measurementRunFlowStepDelay: TimeInterval = 1.2
     private let measurementNetworkPathProbe = IosMeasurementNetworkPathProbe()
+    private let locationPermissionManager = CLLocationManager()
     private let pendingSyncHarness = IosPendingSyncHarness()
     private var onboardingTopConstraint: NSLayoutConstraint?
     private var onboardingKeyboardObservers: [NSObjectProtocol] = []
     private var onboardingKeyboardHeight: CGFloat = 0
+#if canImport(MapboxMaps)
+    private var mapHomeMapView: MapView?
+    private var mapHomePointAnnotationManager: PointAnnotationManager?
+    private var mapHomeHexAnnotationManager: PointAnnotationManager?
+#endif
     private let displayMode: DisplayMode
     private let onboardingUiImplementation: OnboardingUiImplementation
+    private let postSubmitMode: DisplayMode?
+    private let postSubmitAutoStartMeasurement: Bool
+    private let autoStartMeasurementAfterPreflight: Bool
+    private let autoStartMeasurementRunOnAppear: Bool
+    private var didAutoStartMeasurementRun = false
 
     init(
         displayMode: DisplayMode = .fullHarness,
-        onboardingUiImplementation: OnboardingUiImplementation = .swiftui
+        onboardingUiImplementation: OnboardingUiImplementation = .swiftui,
+        postSubmitMode: DisplayMode? = nil,
+        postSubmitAutoStartMeasurement: Bool = false,
+        autoStartMeasurementAfterPreflight: Bool = false,
+        autoStartMeasurementRunOnAppear: Bool = false
     ) {
         self.displayMode = displayMode
         self.onboardingUiImplementation = onboardingUiImplementation
+        self.postSubmitMode = postSubmitMode
+        self.postSubmitAutoStartMeasurement = postSubmitAutoStartMeasurement
+        self.autoStartMeasurementAfterPreflight = autoStartMeasurementAfterPreflight
+        self.autoStartMeasurementRunOnAppear = autoStartMeasurementRunOnAppear
         super.init(nibName: nil, bundle: nil)
     }
 
     required init?(coder: NSCoder) {
         self.displayMode = .fullHarness
         self.onboardingUiImplementation = .swiftui
+        self.postSubmitMode = nil
+        self.postSubmitAutoStartMeasurement = false
+        self.autoStartMeasurementAfterPreflight = false
+        self.autoStartMeasurementRunOnAppear = false
         super.init(coder: coder)
     }
 
@@ -409,10 +573,31 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         configureSyncDiagnostics()
+        if onboardingPersistenceUseCase.loadProfile()?.onboardingComplete != true {
+            clearPersistedHistorySnapshots()
+        }
         view.backgroundColor = .systemGroupedBackground
         buildUi()
-        loadPersistedOnboardingProfile()
-        applyOnboardingUiPrefillFromEnvironment()
+        configureNavigationForDisplayMode()
+        if displayMode == .onboardingFlow {
+            loadPersistedOnboardingProfile()
+            applyOnboardingUiPrefillFromEnvironment()
+        } else if displayMode == .settingsProfileFlow {
+            loadPersistedSettingsProfile()
+        }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        requestLocationPermissionIfNeeded()
+        if displayMode == .measurementRunFlow &&
+            autoStartMeasurementRunOnAppear &&
+            !didAutoStartMeasurementRun {
+            didAutoStartMeasurementRun = true
+            DispatchQueue.main.async { [weak self] in
+                self?.runPhase3Sequence()
+            }
+        }
     }
 
     deinit {
@@ -429,6 +614,14 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             buildOnboardingFlowSwiftUi()
             return
         }
+        if displayMode == .settingsProfileFlow {
+            buildSettingsProfileFlowUi()
+            return
+        }
+        if displayMode == .mapHome {
+            buildMapHomeUi()
+            return
+        }
         if displayMode == .mvpMenu {
             buildMvpMenuUi()
             return
@@ -443,6 +636,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         }
         if displayMode == .measurementRunFlow {
             buildMeasurementRunFlowUi()
+            return
+        }
+        if displayMode == .measurementHistoryFlow {
+            buildMeasurementHistoryFlowUi()
             return
         }
 
@@ -588,10 +785,14 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             ackLabel.text = "I acknowledge FCC challenge sharing terms."
             ackLabel.numberOfLines = 0
             ackLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
+            ackLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            ackLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
         }
+        onboardingAckSwitch.setContentCompressionResistancePriority(.required, for: .horizontal)
+        onboardingAckSwitch.setContentHuggingPriority(.required, for: .horizontal)
         ackRow.axis = .horizontal
         ackRow.spacing = 12
-        ackRow.alignment = .center
+        ackRow.alignment = .top
         ackRow.translatesAutoresizingMaskIntoConstraints = false
 
         let onboardingSubmitButton = UIButton(type: .system)
@@ -658,6 +859,24 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         setStatus("Ready. Remote target is blocked unless explicitly enabled.")
     }
 
+    private func configureNavigationForDisplayMode() {
+        guard navigationController != nil else { return }
+        switch displayMode {
+        case .mapHome, .mvpMenu, .fullHarness:
+            navigationItem.leftBarButtonItem = nil
+        default:
+            // For direct mode launches (not pushed from map), provide a deterministic escape hatch.
+            if navigationController?.viewControllers.first === self {
+                navigationItem.leftBarButtonItem = UIBarButtonItem(
+                    title: "Map",
+                    style: .plain,
+                    target: self,
+                    action: #selector(returnToMapHome)
+                )
+            }
+        }
+    }
+
     private func buildOnboardingFlowUi() {
         overrideUserInterfaceStyle = .light
         view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
@@ -712,9 +931,13 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         ])
         let ackRow = UIStackView(arrangedSubviews: [ackLabel, onboardingAckSwitch])
         ackRow.axis = .horizontal
-        ackRow.alignment = .center
+        ackRow.alignment = .top
         ackRow.spacing = 12
         ackRow.translatesAutoresizingMaskIntoConstraints = false
+        ackLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        ackLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        onboardingAckSwitch.setContentCompressionResistancePriority(.required, for: .horizontal)
+        onboardingAckSwitch.setContentHuggingPriority(.required, for: .horizontal)
 
         onboardingSubmitButton.setTitle("Save Profile", for: .normal)
         onboardingSubmitButton.accessibilityIdentifier = Self.onboardingSubmitButtonIdentifier
@@ -788,49 +1011,145 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         setStatus("Ready. Enter onboarding profile details.")
     }
 
-    private func buildMvpMenuUi() {
+    private func buildSettingsProfileFlowUi() {
         overrideUserInterfaceStyle = .light
         view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
-        navigationItem.title = "CellWatch MVP"
+        navigationItem.title = "Profile Settings"
 
         let title = UILabel()
-        title.text = "CellWatch MVP"
+        title.text = "Profile Settings"
         title.font = UIFont.preferredFont(forTextStyle: .title2)
         title.textColor = .label
 
         let subtitle = UILabel()
-        subtitle.text = "Choose a screen to continue."
+        subtitle.text = "Update profile details and collection mode."
         subtitle.font = UIFont.preferredFont(forTextStyle: .body)
         subtitle.textColor = .secondaryLabel
         subtitle.numberOfLines = 0
 
-        let profileButton = UIButton(type: .system)
-        profileButton.setTitle("Profile", for: .normal)
-        applyButtonStyle(profileButton, role: .secondary)
-        profileButton.addTarget(self, action: #selector(openProfileFromMvpMenu), for: .touchUpInside)
+        settingsModeControl.selectedSegmentIndex = 0
+        settingsModeControl.accessibilityIdentifier = Self.settingsModeControlIdentifier
+        settingsModeControl.addTarget(self, action: #selector(settingsModeChanged), for: .valueChanged)
 
-        let measureButton = UIButton(type: .system)
-        measureButton.setTitle("Measure", for: .normal)
-        applyButtonStyle(measureButton, role: .primary)
-        measureButton.addTarget(self, action: #selector(openMeasureFromMvpMenu), for: .touchUpInside)
+        configureOnboardingField(
+            onboardingNameField,
+            placeholder: "Full name",
+            identifier: Self.onboardingNameFieldIdentifier
+        )
+        configureOnboardingField(
+            onboardingPhoneField,
+            placeholder: "Phone (###-###-####)",
+            identifier: Self.onboardingPhoneFieldIdentifier
+        )
+        onboardingPhoneField.keyboardType = .phonePad
+        configureOnboardingField(
+            onboardingEmailField,
+            placeholder: "Email",
+            identifier: Self.onboardingEmailFieldIdentifier
+        )
+        onboardingEmailField.keyboardType = .emailAddress
 
-        let mvpStatusLabel = InsetLabel()
-        mvpStatusLabel.text = onboardingPersistenceUseCase.loadProfile()?.onboardingComplete == true
-            ? "Profile saved. Start a measurement when ready."
-            : "Complete your profile before taking a measurement."
-        mvpStatusLabel.numberOfLines = 0
-        mvpStatusLabel.font = UIFont.preferredFont(forTextStyle: .body)
-        mvpStatusLabel.translatesAutoresizingMaskIntoConstraints = false
-        mvpStatusLabel.accessibilityIdentifier = Self.statusLabelIdentifier
-        mvpStatusLabel.textInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
-        mvpStatusLabel.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
-        mvpStatusLabel.backgroundColor = .white
-        mvpStatusLabel.layer.cornerRadius = 12
-        mvpStatusLabel.layer.masksToBounds = true
-        mvpStatusLabel.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
-        mvpStatusLabel.layer.borderWidth = 1
+        onboardingAckSwitch.accessibilityIdentifier = Self.onboardingAckSwitchIdentifier
+        onboardingAckSwitch.addTarget(self, action: #selector(settingsAckChanged), for: .valueChanged)
+        let ackLabel = UILabel()
+        ackLabel.text = "I acknowledge FCC challenge sharing terms."
+        ackLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        ackLabel.numberOfLines = 0
+        ackLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        ackLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        onboardingAckSwitch.setContentCompressionResistancePriority(.required, for: .horizontal)
+        onboardingAckSwitch.setContentHuggingPriority(.required, for: .horizontal)
+        onboardingAckSwitch.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            onboardingAckSwitch.widthAnchor.constraint(equalToConstant: 51),
+            onboardingAckSwitch.heightAnchor.constraint(equalToConstant: 31),
+        ])
+        let ackRow = UIStackView(arrangedSubviews: [ackLabel, onboardingAckSwitch])
+        ackRow.axis = .horizontal
+        ackRow.alignment = .top
+        ackRow.spacing = 12
 
-        let cardStack = UIStackView(arrangedSubviews: [title, subtitle, profileButton, measureButton, mvpStatusLabel])
+        settingsSubmitButton.setTitle("Save Settings", for: .normal)
+        settingsSubmitButton.accessibilityIdentifier = Self.settingsSubmitButtonIdentifier
+        applyButtonStyle(settingsSubmitButton, role: .primary)
+        applyOnboardingActionButtonStyle(settingsSubmitButton)
+        settingsSubmitButton.addTarget(self, action: #selector(submitSettings), for: .touchUpInside)
+
+        let identityHeader = UILabel()
+        identityHeader.text = "App Identity"
+        identityHeader.font = UIFont.preferredFont(forTextStyle: .headline)
+        identityHeader.textColor = .label
+
+        let deviceIdLabel = UILabel()
+        deviceIdLabel.text = "Device ID"
+        deviceIdLabel.font = UIFont.preferredFont(forTextStyle: .caption1)
+        deviceIdLabel.textColor = .secondaryLabel
+
+        let deviceIdValue = InsetLabel()
+        deviceIdValue.text = resolveSettingsDeviceId()
+        deviceIdValue.numberOfLines = 0
+        deviceIdValue.font = UIFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        deviceIdValue.textColor = UIColor(red: 0.18, green: 0.29, blue: 0.38, alpha: 1.0)
+        deviceIdValue.backgroundColor = .white
+        deviceIdValue.layer.cornerRadius = 10
+        deviceIdValue.layer.masksToBounds = true
+        deviceIdValue.layer.borderColor = UIColor(red: 0.78, green: 0.86, blue: 0.93, alpha: 1.0).cgColor
+        deviceIdValue.layer.borderWidth = 1
+        deviceIdValue.textInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        deviceIdValue.accessibilityIdentifier = Self.settingsDeviceIdValueIdentifier
+
+        let copyDeviceButton = UIButton(type: .system)
+        copyDeviceButton.setTitle("Copy Device ID", for: .normal)
+        copyDeviceButton.accessibilityIdentifier = Self.settingsCopyDeviceIdButtonIdentifier
+        applyButtonStyle(copyDeviceButton, role: .secondary)
+        copyDeviceButton.addTarget(self, action: #selector(copySettingsDeviceId), for: .touchUpInside)
+
+        let appVersionLabel = UILabel()
+        appVersionLabel.text = "App Version"
+        appVersionLabel.font = UIFont.preferredFont(forTextStyle: .caption1)
+        appVersionLabel.textColor = .secondaryLabel
+
+        let appVersionValue = InsetLabel()
+        appVersionValue.text = resolveSettingsAppVersion()
+        appVersionValue.numberOfLines = 0
+        appVersionValue.font = UIFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        appVersionValue.textColor = UIColor(red: 0.18, green: 0.29, blue: 0.38, alpha: 1.0)
+        appVersionValue.backgroundColor = .white
+        appVersionValue.layer.cornerRadius = 10
+        appVersionValue.layer.masksToBounds = true
+        appVersionValue.layer.borderColor = UIColor(red: 0.78, green: 0.86, blue: 0.93, alpha: 1.0).cgColor
+        appVersionValue.layer.borderWidth = 1
+        appVersionValue.textInsets = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        appVersionValue.accessibilityIdentifier = Self.settingsAppVersionValueIdentifier
+
+        let copyVersionButton = UIButton(type: .system)
+        copyVersionButton.setTitle("Copy App Version", for: .normal)
+        copyVersionButton.accessibilityIdentifier = Self.settingsCopyAppVersionButtonIdentifier
+        applyButtonStyle(copyVersionButton, role: .secondary)
+        copyVersionButton.addTarget(self, action: #selector(copySettingsAppVersion), for: .touchUpInside)
+
+        onboardingFeedbackLabel.numberOfLines = 0
+        onboardingFeedbackLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        onboardingFeedbackLabel.accessibilityIdentifier = Self.onboardingFeedbackLabelIdentifier
+
+        let cardStack = UIStackView(arrangedSubviews: [
+            title,
+            subtitle,
+            settingsModeControl,
+            onboardingNameField,
+            onboardingPhoneField,
+            onboardingEmailField,
+            ackRow,
+            settingsSubmitButton,
+            identityHeader,
+            deviceIdLabel,
+            deviceIdValue,
+            copyDeviceButton,
+            appVersionLabel,
+            appVersionValue,
+            copyVersionButton,
+            onboardingFeedbackLabel
+        ])
         cardStack.axis = .vertical
         cardStack.spacing = 12
         cardStack.translatesAutoresizingMaskIntoConstraints = false
@@ -852,6 +1171,554 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             cardStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
             cardStack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14)
         ])
+
+        onboardingNameField.addTarget(self, action: #selector(settingsFieldChanged), for: .editingChanged)
+        onboardingPhoneField.addTarget(self, action: #selector(settingsFieldChanged), for: .editingChanged)
+        onboardingEmailField.addTarget(self, action: #selector(settingsFieldChanged), for: .editingChanged)
+        onboardingEmailField.addTarget(self, action: #selector(submitSettingsFromReturnKey), for: .editingDidEndOnExit)
+    }
+
+    private func buildMapHomeUi() {
+        let historyEntries = loadHistoryEntries()
+        let onboardingComplete = onboardingPersistenceUseCase.loadProfile()?.onboardingComplete == true
+        let pendingKnown = historyPendingMeasurements != nil && historyPendingSubmissions != nil
+        let mapHomeState = mapHomeViewController.present(
+            input: MapHomeInput(
+                onboardingComplete: onboardingComplete,
+                recentRunCount: Int32(historyEntries.count),
+                pendingCountsKnown: pendingKnown,
+                pendingMeasurements: Int32(historyPendingMeasurements ?? 0),
+                pendingSubmissions: Int32(historyPendingSubmissions ?? 0)
+            )
+        )
+
+        overrideUserInterfaceStyle = .light
+        view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
+        navigationItem.title = mapHomeState.title
+
+        let mapSurfaceContainer = UIView()
+        mapSurfaceContainer.translatesAutoresizingMaskIntoConstraints = false
+        mapSurfaceContainer.backgroundColor = UIColor(red: 0.91, green: 0.94, blue: 0.98, alpha: 1.0)
+        mapSurfaceContainer.accessibilityIdentifier = Self.mapHomeMapContainerIdentifier
+
+        mapHomeRenderStateLabel.text = "INIT"
+        mapHomeRenderStateLabel.accessibilityIdentifier = Self.mapHomeRenderStateIdentifier
+        mapHomeRenderStateLabel.font = .systemFont(ofSize: 1)
+        mapHomeRenderStateLabel.textColor = .clear
+        mapHomeRenderStateLabel.backgroundColor = .clear
+        mapHomeRenderStateLabel.isAccessibilityElement = true
+        mapHomeRenderStateLabel.translatesAutoresizingMaskIntoConstraints = false
+        mapSurfaceContainer.addSubview(mapHomeRenderStateLabel)
+        NSLayoutConstraint.activate([
+            mapHomeRenderStateLabel.topAnchor.constraint(equalTo: mapSurfaceContainer.topAnchor),
+            mapHomeRenderStateLabel.leadingAnchor.constraint(equalTo: mapSurfaceContainer.leadingAnchor),
+            mapHomeRenderStateLabel.widthAnchor.constraint(equalToConstant: 1),
+            mapHomeRenderStateLabel.heightAnchor.constraint(equalToConstant: 1)
+        ])
+
+#if canImport(MapboxMaps)
+        mapHomeMapView?.removeFromSuperview()
+        mapHomeMapView = nil
+        mapHomePointAnnotationManager = nil
+        mapHomeHexAnnotationManager = nil
+        mapHomeMapboxEventCancelables.removeAll()
+        let token = RuntimeConfigSource.mapboxAccessToken()?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let token, !token.isEmpty {
+            MapboxOptions.accessToken = token
+            let mapView = MapView(frame: .zero, mapInitOptions: MapInitOptions())
+            mapView.translatesAutoresizingMaskIntoConstraints = false
+            mapSurfaceContainer.addSubview(mapView)
+            NSLayoutConstraint.activate([
+                mapView.topAnchor.constraint(equalTo: mapSurfaceContainer.topAnchor),
+                mapView.leadingAnchor.constraint(equalTo: mapSurfaceContainer.leadingAnchor),
+                mapView.trailingAnchor.constraint(equalTo: mapSurfaceContainer.trailingAnchor),
+                mapView.bottomAnchor.constraint(equalTo: mapSurfaceContainer.bottomAnchor)
+            ])
+            mapHomeMapView = mapView
+            mapHomeRenderStateLabel.text = "MAP_VIEW_CREATED"
+            mapHomeMapboxEventCancelables.append(
+                mapView.mapboxMap.onStyleLoaded.observeNext { [weak self] _ in
+                    self?.mapHomeRenderStateLabel.text = "STYLE_LOADED"
+                    guard let self else { return }
+                    let state = self.mapHomeMapInteractionController.currentState()
+                    self.applyInitialMapHomeCamera(historyEntries: historyEntries, interactionState: state)
+                }
+            )
+            mapHomeMapboxEventCancelables.append(
+                mapView.mapboxMap.onMapIdle.observeNext { [weak self] _ in
+                    self?.mapHomeRenderStateLabel.text = "MAP_IDLE"
+                }
+            )
+            mapHomeMapboxEventCancelables.append(
+                mapView.mapboxMap.onMapLoadingError.observeNext { [weak self] _ in
+                    self?.mapHomeRenderStateLabel.text = "MAP_ERROR"
+                }
+            )
+        } else {
+            let missingTokenLabel = UILabel()
+            missingTokenLabel.text = "Mapbox token missing. Set MAPBOX_ACCESS_TOKEN in cellwatch.properties."
+            mapHomeRenderStateLabel.text = "TOKEN_MISSING"
+            missingTokenLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
+            missingTokenLabel.textColor = UIColor(red: 0.36, green: 0.15, blue: 0.15, alpha: 1.0)
+            missingTokenLabel.numberOfLines = 0
+            missingTokenLabel.textAlignment = .center
+            missingTokenLabel.backgroundColor = UIColor(red: 1.0, green: 0.95, blue: 0.85, alpha: 0.96)
+            missingTokenLabel.layer.cornerRadius = 10
+            missingTokenLabel.layer.masksToBounds = true
+            missingTokenLabel.translatesAutoresizingMaskIntoConstraints = false
+            mapSurfaceContainer.addSubview(missingTokenLabel)
+            NSLayoutConstraint.activate([
+                missingTokenLabel.centerXAnchor.constraint(equalTo: mapSurfaceContainer.centerXAnchor),
+                missingTokenLabel.centerYAnchor.constraint(equalTo: mapSurfaceContainer.centerYAnchor),
+                missingTokenLabel.leadingAnchor.constraint(equalTo: mapSurfaceContainer.leadingAnchor, constant: 20),
+                missingTokenLabel.trailingAnchor.constraint(equalTo: mapSurfaceContainer.trailingAnchor, constant: -20)
+            ])
+        }
+#else
+        let unavailableLabel = UILabel()
+        unavailableLabel.text = "MapboxMaps package not linked yet."
+        unavailableLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
+        unavailableLabel.textColor = UIColor.white
+        unavailableLabel.numberOfLines = 0
+        unavailableLabel.textAlignment = .center
+        unavailableLabel.translatesAutoresizingMaskIntoConstraints = false
+        mapSurfaceContainer.addSubview(unavailableLabel)
+        NSLayoutConstraint.activate([
+            unavailableLabel.centerXAnchor.constraint(equalTo: mapSurfaceContainer.centerXAnchor),
+            unavailableLabel.centerYAnchor.constraint(equalTo: mapSurfaceContainer.centerYAnchor),
+            unavailableLabel.leadingAnchor.constraint(greaterThanOrEqualTo: mapSurfaceContainer.leadingAnchor, constant: 20),
+            unavailableLabel.trailingAnchor.constraint(lessThanOrEqualTo: mapSurfaceContainer.trailingAnchor, constant: -20)
+        ])
+        mapHomeRenderStateLabel.text = "MAPBOX_PACKAGE_MISSING"
+#endif
+
+        _ = mapHomeMapInteractionController.reset()
+        let initialInteractionState = mapHomeMapInteractionController.currentState()
+        let initialFeatureState = mapHomeFeatureViewController
+            .loadMeasurements(values: mapHomeLocationSnapshots(from: historyEntries))
+        _ = mapHomeFeatureViewController.onZoomChanged(zoomLevel: initialInteractionState.zoomLevel)
+
+        let topTitle = UILabel()
+        topTitle.text = mapHomeState.title
+        topTitle.font = UIFont.preferredFont(forTextStyle: .title2)
+        topTitle.textColor = .label
+        let topSubtitle = UILabel()
+        topSubtitle.text = mapHomeState.subtitle
+        topSubtitle.font = UIFont.preferredFont(forTextStyle: .body)
+        topSubtitle.textColor = .secondaryLabel
+        topSubtitle.numberOfLines = 0
+        let topCard = UIStackView(arrangedSubviews: [topTitle, topSubtitle])
+        topCard.axis = .vertical
+        topCard.spacing = 8
+        topCard.translatesAutoresizingMaskIntoConstraints = false
+
+        let topCardContainer = UIView()
+        topCardContainer.backgroundColor = UIColor(white: 0.98, alpha: 0.96)
+        topCardContainer.layer.cornerRadius = 14
+        topCardContainer.translatesAutoresizingMaskIntoConstraints = false
+        topCardContainer.addSubview(topCard)
+
+        let overlaySummaryLabel = InsetLabel()
+        overlaySummaryLabel.textInsets = UIEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
+        overlaySummaryLabel.numberOfLines = 0
+        overlaySummaryLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
+        overlaySummaryLabel.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
+        overlaySummaryLabel.backgroundColor = UIColor(red: 0.95, green: 0.98, blue: 0.96, alpha: 0.97)
+        overlaySummaryLabel.layer.cornerRadius = 12
+        overlaySummaryLabel.layer.masksToBounds = true
+        overlaySummaryLabel.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        overlaySummaryLabel.layer.borderWidth = 1
+        if initialFeatureState.hasAnyLocationData {
+            overlaySummaryLabel.text =
+                "Map overlay: \(initialInteractionState.overlayMode == .hexGrid ? "Hex grid" : "Points")\n\(initialFeatureState.summary)"
+        } else {
+            overlaySummaryLabel.text = "Map overlay: \(initialInteractionState.overlayMode == .hexGrid ? "Hex grid" : "Points")"
+        }
+
+        let overlayToggleButton = UIButton(type: .system)
+        overlayToggleButton.setTitle(
+            initialInteractionState.overlayMode == .hexGrid ? "Switch to Points" : "Switch to Hex Grid",
+            for: .normal
+        )
+        applyButtonStyle(overlayToggleButton, role: .secondary)
+        overlayToggleButton.addAction(UIAction { [weak self, weak overlaySummaryLabel, weak overlayToggleButton] _ in
+            guard let self else { return }
+            let current = self.mapHomeMapInteractionController.currentState()
+            let nextMode: MapHomeOverlayMode = current.overlayMode == .hexGrid ? .points : .hexGrid
+            let next = self.mapHomeMapInteractionController.setPreferredOverlayMode(mode: nextMode)
+            let featureState = self.renderMapHomeFeatures(
+                historyEntries: historyEntries,
+                interactionState: next
+            )
+            if featureState.hasAnyLocationData {
+                overlaySummaryLabel?.text =
+                    "Map overlay: \(next.overlayMode == .hexGrid ? "Hex grid" : "Points")\n\(featureState.summary)"
+            } else {
+                overlaySummaryLabel?.text = "Map overlay: \(next.overlayMode == .hexGrid ? "Hex grid" : "Points")"
+            }
+            overlayToggleButton?.setTitle(
+                next.overlayMode == .hexGrid ? "Switch to Points" : "Switch to Hex Grid",
+                for: .normal
+            )
+        }, for: .touchUpInside)
+
+        let profileButton = UIButton(type: .system)
+        profileButton.setTitle("Settings", for: .normal)
+        applyButtonStyle(profileButton, role: .secondary)
+        profileButton.addTarget(self, action: #selector(openSettingsFromMvpMenu), for: .touchUpInside)
+
+        let measureButton = UIButton(type: .system)
+        measureButton.setTitle("Measure", for: .normal)
+        applyButtonStyle(measureButton, role: .primary)
+        measureButton.addTarget(self, action: #selector(openMeasureFromMvpMenu), for: .touchUpInside)
+
+        let historyButton = UIButton(type: .system)
+        historyButton.setTitle("History & Sync Status", for: .normal)
+        applyButtonStyle(historyButton, role: .secondary)
+        historyButton.addTarget(self, action: #selector(openHistoryFromMvpMenu), for: .touchUpInside)
+
+        let syncSummaryLabel = InsetLabel()
+        syncSummaryLabel.text = mapHomeState.syncSummary
+        syncSummaryLabel.numberOfLines = 0
+        syncSummaryLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
+        syncSummaryLabel.translatesAutoresizingMaskIntoConstraints = false
+        syncSummaryLabel.textInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+        syncSummaryLabel.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
+        syncSummaryLabel.backgroundColor = UIColor(red: 0.95, green: 0.98, blue: 0.96, alpha: 0.97)
+        syncSummaryLabel.layer.cornerRadius = 12
+        syncSummaryLabel.layer.masksToBounds = true
+        syncSummaryLabel.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        syncSummaryLabel.layer.borderWidth = 1
+
+        let mvpStatusLabel = InsetLabel()
+        mvpStatusLabel.text = mapHomeState.statusText
+        mvpStatusLabel.numberOfLines = 0
+        mvpStatusLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        mvpStatusLabel.translatesAutoresizingMaskIntoConstraints = false
+        mvpStatusLabel.accessibilityIdentifier = Self.statusLabelIdentifier
+        mvpStatusLabel.textInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+        mvpStatusLabel.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
+        mvpStatusLabel.backgroundColor = UIColor(white: 1.0, alpha: 0.96)
+        mvpStatusLabel.layer.cornerRadius = 12
+        mvpStatusLabel.layer.masksToBounds = true
+        mvpStatusLabel.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        mvpStatusLabel.layer.borderWidth = 1
+
+        let bottomStack = UIStackView(
+            arrangedSubviews: [
+                overlaySummaryLabel,
+                overlayToggleButton,
+                profileButton,
+                measureButton,
+                historyButton,
+                syncSummaryLabel,
+                mvpStatusLabel
+            ]
+        )
+        bottomStack.axis = .vertical
+        bottomStack.spacing = 10
+        bottomStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let bottomCardContainer = UIView()
+        bottomCardContainer.backgroundColor = UIColor(white: 0.98, alpha: 0.96)
+        bottomCardContainer.layer.cornerRadius = 14
+        bottomCardContainer.translatesAutoresizingMaskIntoConstraints = false
+        bottomCardContainer.addSubview(bottomStack)
+
+        view.addSubview(mapSurfaceContainer)
+        view.addSubview(topCardContainer)
+        view.addSubview(bottomCardContainer)
+        NSLayoutConstraint.activate([
+            mapSurfaceContainer.topAnchor.constraint(equalTo: view.topAnchor),
+            mapSurfaceContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            mapSurfaceContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            mapSurfaceContainer.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            topCardContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            topCardContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            topCardContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            topCard.topAnchor.constraint(equalTo: topCardContainer.topAnchor, constant: 12),
+            topCard.leadingAnchor.constraint(equalTo: topCardContainer.leadingAnchor, constant: 12),
+            topCard.trailingAnchor.constraint(equalTo: topCardContainer.trailingAnchor, constant: -12),
+            topCard.bottomAnchor.constraint(equalTo: topCardContainer.bottomAnchor, constant: -12),
+
+            bottomCardContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            bottomCardContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            bottomCardContainer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -10),
+            bottomStack.topAnchor.constraint(equalTo: bottomCardContainer.topAnchor, constant: 12),
+            bottomStack.leadingAnchor.constraint(equalTo: bottomCardContainer.leadingAnchor, constant: 12),
+            bottomStack.trailingAnchor.constraint(equalTo: bottomCardContainer.trailingAnchor, constant: -12),
+            bottomStack.bottomAnchor.constraint(equalTo: bottomCardContainer.bottomAnchor, constant: -12)
+        ])
+        _ = renderMapHomeFeatures(historyEntries: historyEntries, interactionState: initialInteractionState)
+        applyInitialMapHomeCamera(historyEntries: historyEntries, interactionState: initialInteractionState)
+    }
+
+    private func buildMvpMenuUi() {
+        let historyEntries = loadHistoryEntries()
+        let onboardingComplete = onboardingPersistenceUseCase.loadProfile()?.onboardingComplete == true
+        let pendingKnown = historyPendingMeasurements != nil && historyPendingSubmissions != nil
+        let mapHomeState = mapHomeViewController.present(
+            input: MapHomeInput(
+                onboardingComplete: onboardingComplete,
+                recentRunCount: Int32(historyEntries.count),
+                pendingCountsKnown: pendingKnown,
+                pendingMeasurements: Int32(historyPendingMeasurements ?? 0),
+                pendingSubmissions: Int32(historyPendingSubmissions ?? 0)
+            )
+        )
+
+        overrideUserInterfaceStyle = .light
+        view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
+        navigationItem.title = mapHomeState.title
+
+        let title = UILabel()
+        title.text = mapHomeState.title
+        title.font = UIFont.preferredFont(forTextStyle: .title2)
+        title.textColor = .label
+
+        let subtitle = UILabel()
+        subtitle.text = mapHomeState.subtitle
+        subtitle.font = UIFont.preferredFont(forTextStyle: .body)
+        subtitle.textColor = .secondaryLabel
+        subtitle.numberOfLines = 0
+
+        let mapPlaceholder = UILabel()
+        mapPlaceholder.text = mapHomeState.mapPanelTitle
+        mapPlaceholder.font = UIFont.preferredFont(forTextStyle: .footnote)
+        mapPlaceholder.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
+        mapPlaceholder.numberOfLines = 0
+        mapPlaceholder.textAlignment = .center
+        mapPlaceholder.backgroundColor = .clear
+
+        let mapSurfaceContainer = UIView()
+        mapSurfaceContainer.translatesAutoresizingMaskIntoConstraints = false
+        mapSurfaceContainer.backgroundColor = UIColor(red: 0.91, green: 0.94, blue: 0.98, alpha: 1.0)
+        mapSurfaceContainer.layer.cornerRadius = 12
+        mapSurfaceContainer.layer.masksToBounds = true
+        mapSurfaceContainer.accessibilityIdentifier = Self.mapHomeMapContainerIdentifier
+        mapSurfaceContainer.heightAnchor.constraint(equalToConstant: 220).isActive = true
+
+        mapHomeRenderStateLabel.text = "INIT"
+        mapHomeRenderStateLabel.accessibilityIdentifier = Self.mapHomeRenderStateIdentifier
+        mapHomeRenderStateLabel.font = .systemFont(ofSize: 1)
+        mapHomeRenderStateLabel.textColor = .clear
+        mapHomeRenderStateLabel.backgroundColor = .clear
+        mapHomeRenderStateLabel.isAccessibilityElement = true
+        mapHomeRenderStateLabel.translatesAutoresizingMaskIntoConstraints = false
+        mapSurfaceContainer.addSubview(mapHomeRenderStateLabel)
+        NSLayoutConstraint.activate([
+            mapHomeRenderStateLabel.topAnchor.constraint(equalTo: mapSurfaceContainer.topAnchor),
+            mapHomeRenderStateLabel.leadingAnchor.constraint(equalTo: mapSurfaceContainer.leadingAnchor),
+            mapHomeRenderStateLabel.widthAnchor.constraint(equalToConstant: 1),
+            mapHomeRenderStateLabel.heightAnchor.constraint(equalToConstant: 1)
+        ])
+
+#if canImport(MapboxMaps)
+        mapHomeMapView?.removeFromSuperview()
+        mapHomeMapView = nil
+        mapHomePointAnnotationManager = nil
+        mapHomeHexAnnotationManager = nil
+        mapHomeMapboxEventCancelables.removeAll()
+        let token = RuntimeConfigSource.mapboxAccessToken()?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let token, !token.isEmpty {
+            MapboxOptions.accessToken = token
+            let mapView = MapView(frame: .zero, mapInitOptions: MapInitOptions())
+            mapView.translatesAutoresizingMaskIntoConstraints = false
+            mapSurfaceContainer.addSubview(mapView)
+            NSLayoutConstraint.activate([
+                mapView.topAnchor.constraint(equalTo: mapSurfaceContainer.topAnchor),
+                mapView.leadingAnchor.constraint(equalTo: mapSurfaceContainer.leadingAnchor),
+                mapView.trailingAnchor.constraint(equalTo: mapSurfaceContainer.trailingAnchor),
+                mapView.bottomAnchor.constraint(equalTo: mapSurfaceContainer.bottomAnchor)
+            ])
+            mapHomeMapView = mapView
+            mapHomeRenderStateLabel.text = "MAP_VIEW_CREATED"
+            mapHomeMapboxEventCancelables.append(
+                mapView.mapboxMap.onStyleLoaded.observeNext { [weak self] _ in
+                    self?.mapHomeRenderStateLabel.text = "STYLE_LOADED"
+                    guard let self else { return }
+                    let state = self.mapHomeMapInteractionController.currentState()
+                    self.applyInitialMapHomeCamera(historyEntries: historyEntries, interactionState: state)
+                }
+            )
+            mapHomeMapboxEventCancelables.append(
+                mapView.mapboxMap.onMapIdle.observeNext { [weak self] _ in
+                    self?.mapHomeRenderStateLabel.text = "MAP_IDLE"
+                }
+            )
+            mapHomeMapboxEventCancelables.append(
+                mapView.mapboxMap.onMapLoadingError.observeNext { [weak self] _ in
+                    self?.mapHomeRenderStateLabel.text = "MAP_ERROR"
+                }
+            )
+        } else {
+            let missingTokenLabel = UILabel()
+            missingTokenLabel.text = "Mapbox token missing. Set MAPBOX_ACCESS_TOKEN in cellwatch.properties."
+            mapHomeRenderStateLabel.text = "TOKEN_MISSING"
+            missingTokenLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
+            missingTokenLabel.textColor = UIColor(red: 0.36, green: 0.15, blue: 0.15, alpha: 1.0)
+            missingTokenLabel.numberOfLines = 0
+            missingTokenLabel.textAlignment = .center
+            missingTokenLabel.backgroundColor = UIColor(red: 1.0, green: 0.95, blue: 0.85, alpha: 0.96)
+            missingTokenLabel.layer.cornerRadius = 10
+            missingTokenLabel.layer.masksToBounds = true
+            missingTokenLabel.translatesAutoresizingMaskIntoConstraints = false
+            mapSurfaceContainer.addSubview(missingTokenLabel)
+            NSLayoutConstraint.activate([
+                missingTokenLabel.topAnchor.constraint(equalTo: mapSurfaceContainer.topAnchor, constant: 12),
+                missingTokenLabel.leadingAnchor.constraint(equalTo: mapSurfaceContainer.leadingAnchor, constant: 12),
+                missingTokenLabel.trailingAnchor.constraint(equalTo: mapSurfaceContainer.trailingAnchor, constant: -12),
+                missingTokenLabel.bottomAnchor.constraint(equalTo: mapSurfaceContainer.bottomAnchor, constant: -12)
+            ])
+        }
+#else
+        let unavailableLabel = UILabel()
+        unavailableLabel.text = "MapboxMaps package not linked yet."
+        unavailableLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
+        unavailableLabel.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
+        unavailableLabel.numberOfLines = 0
+        unavailableLabel.textAlignment = .center
+        unavailableLabel.translatesAutoresizingMaskIntoConstraints = false
+        mapSurfaceContainer.addSubview(unavailableLabel)
+        NSLayoutConstraint.activate([
+            unavailableLabel.topAnchor.constraint(equalTo: mapSurfaceContainer.topAnchor, constant: 12),
+            unavailableLabel.leadingAnchor.constraint(equalTo: mapSurfaceContainer.leadingAnchor, constant: 12),
+            unavailableLabel.trailingAnchor.constraint(equalTo: mapSurfaceContainer.trailingAnchor, constant: -12),
+            unavailableLabel.bottomAnchor.constraint(equalTo: mapSurfaceContainer.bottomAnchor, constant: -12)
+        ])
+        mapHomeRenderStateLabel.text = "MAPBOX_PACKAGE_MISSING"
+#endif
+
+        _ = mapHomeMapInteractionController.reset()
+        let initialInteractionState = mapHomeMapInteractionController.currentState()
+        let initialFeatureState = mapHomeFeatureViewController
+            .loadMeasurements(values: mapHomeLocationSnapshots(from: historyEntries))
+        _ = mapHomeFeatureViewController.onZoomChanged(zoomLevel: initialInteractionState.zoomLevel)
+        let overlaySummaryLabel = InsetLabel()
+        overlaySummaryLabel.textInsets = UIEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
+        overlaySummaryLabel.numberOfLines = 0
+        overlaySummaryLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
+        overlaySummaryLabel.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
+        overlaySummaryLabel.backgroundColor = UIColor(red: 0.95, green: 0.98, blue: 0.96, alpha: 1.0)
+        overlaySummaryLabel.layer.cornerRadius = 12
+        overlaySummaryLabel.layer.masksToBounds = true
+        overlaySummaryLabel.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        overlaySummaryLabel.layer.borderWidth = 1
+        if initialFeatureState.hasAnyLocationData {
+            overlaySummaryLabel.text =
+                "Map overlay: \(initialInteractionState.overlayMode == .hexGrid ? "Hex grid" : "Points")\n\(initialFeatureState.summary)"
+        } else {
+            overlaySummaryLabel.text = "Map overlay: \(initialInteractionState.overlayMode == .hexGrid ? "Hex grid" : "Points")"
+        }
+
+        let overlayToggleButton = UIButton(type: .system)
+        overlayToggleButton.setTitle(
+            initialInteractionState.overlayMode == .hexGrid ? "Switch to Points" : "Switch to Hex Grid",
+            for: .normal
+        )
+        applyButtonStyle(overlayToggleButton, role: .secondary)
+        overlayToggleButton.addAction(UIAction { [weak self, weak overlaySummaryLabel, weak overlayToggleButton] _ in
+            guard let self else { return }
+            let current = self.mapHomeMapInteractionController.currentState()
+            let nextMode: MapHomeOverlayMode = current.overlayMode == .hexGrid ? .points : .hexGrid
+            let next = self.mapHomeMapInteractionController.setPreferredOverlayMode(mode: nextMode)
+            let featureState = self.renderMapHomeFeatures(
+                historyEntries: historyEntries,
+                interactionState: next
+            )
+            if featureState.hasAnyLocationData {
+                overlaySummaryLabel?.text =
+                    "Map overlay: \(next.overlayMode == .hexGrid ? "Hex grid" : "Points")\n\(featureState.summary)"
+            } else {
+                overlaySummaryLabel?.text = "Map overlay: \(next.overlayMode == .hexGrid ? "Hex grid" : "Points")"
+            }
+            overlayToggleButton?.setTitle(
+                next.overlayMode == .hexGrid ? "Switch to Points" : "Switch to Hex Grid",
+                for: .normal
+            )
+        }, for: .touchUpInside)
+
+        let profileButton = UIButton(type: .system)
+        profileButton.setTitle("Settings", for: .normal)
+        applyButtonStyle(profileButton, role: .secondary)
+        profileButton.addTarget(self, action: #selector(openSettingsFromMvpMenu), for: .touchUpInside)
+
+        let measureButton = UIButton(type: .system)
+        measureButton.setTitle("Measure", for: .normal)
+        applyButtonStyle(measureButton, role: .primary)
+        measureButton.addTarget(self, action: #selector(openMeasureFromMvpMenu), for: .touchUpInside)
+
+        let historyButton = UIButton(type: .system)
+        historyButton.setTitle("History & Sync Status", for: .normal)
+        applyButtonStyle(historyButton, role: .secondary)
+        historyButton.addTarget(self, action: #selector(openHistoryFromMvpMenu), for: .touchUpInside)
+
+        let syncSummaryLabel = InsetLabel()
+        syncSummaryLabel.text = mapHomeState.syncSummary
+        syncSummaryLabel.numberOfLines = 0
+        syncSummaryLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
+        syncSummaryLabel.translatesAutoresizingMaskIntoConstraints = false
+        syncSummaryLabel.textInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+        syncSummaryLabel.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
+        syncSummaryLabel.backgroundColor = UIColor(red: 0.95, green: 0.98, blue: 0.96, alpha: 1.0)
+        syncSummaryLabel.layer.cornerRadius = 12
+        syncSummaryLabel.layer.masksToBounds = true
+        syncSummaryLabel.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        syncSummaryLabel.layer.borderWidth = 1
+
+        let mvpStatusLabel = InsetLabel()
+        mvpStatusLabel.text = mapHomeState.statusText
+        mvpStatusLabel.numberOfLines = 0
+        mvpStatusLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        mvpStatusLabel.translatesAutoresizingMaskIntoConstraints = false
+        mvpStatusLabel.accessibilityIdentifier = Self.statusLabelIdentifier
+        mvpStatusLabel.textInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+        mvpStatusLabel.textColor = UIColor(red: 0.20, green: 0.31, blue: 0.39, alpha: 1.0)
+        mvpStatusLabel.backgroundColor = .white
+        mvpStatusLabel.layer.cornerRadius = 12
+        mvpStatusLabel.layer.masksToBounds = true
+        mvpStatusLabel.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        mvpStatusLabel.layer.borderWidth = 1
+
+        let cardStack = UIStackView(
+            arrangedSubviews: [
+                title,
+                subtitle,
+                mapPlaceholder,
+                mapSurfaceContainer,
+                overlaySummaryLabel,
+                overlayToggleButton,
+                profileButton,
+                measureButton,
+                historyButton,
+                syncSummaryLabel,
+                mvpStatusLabel
+            ]
+        )
+        cardStack.axis = .vertical
+        cardStack.spacing = 12
+        cardStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let card = UIView()
+        card.backgroundColor = UIColor(white: 0.98, alpha: 1.0)
+        card.layer.cornerRadius = 16
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(cardStack)
+
+        view.addSubview(card)
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            card.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            card.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            card.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            cardStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            cardStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+            cardStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            cardStack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14)
+        ])
+        _ = renderMapHomeFeatures(historyEntries: historyEntries, interactionState: initialInteractionState)
+        applyInitialMapHomeCamera(historyEntries: historyEntries, interactionState: initialInteractionState)
     }
 
     private func buildMeasurementStartFlowUi() {
@@ -881,17 +1748,18 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         inVehicleRow.alignment = .center
 
         let evaluateButton = UIButton(type: .system)
-        evaluateButton.setTitle("Go", for: .normal)
+        evaluateButton.setTitle("Start Measurement", for: .normal)
         evaluateButton.accessibilityIdentifier = Self.measurementPreflightEvaluateIdentifier
         applyButtonStyle(evaluateButton, role: .primary)
         evaluateButton.addTarget(self, action: #selector(evaluateMeasurementStartPreflightFromUi), for: .touchUpInside)
 
-        measurementPreflightOutputLabel.text = "Tap Go to check readiness."
+        measurementPreflightOutputLabel.text = ""
         measurementPreflightOutputLabel.font = UIFont.preferredFont(forTextStyle: .body)
         measurementPreflightOutputLabel.numberOfLines = 0
         measurementPreflightOutputLabel.accessibilityIdentifier = Self.measurementPreflightOutputIdentifier
         measurementPreflightOutputLabel.textColor = UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
         measurementPreflightOutputLabel.translatesAutoresizingMaskIntoConstraints = false
+        measurementPreflightOutputLabel.isHidden = true
 
         let outputCard = UIView()
         outputCard.backgroundColor = .white
@@ -1078,7 +1946,12 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         measurementRunDetailLabel.numberOfLines = 0
         measurementRunDetailLabel.accessibilityIdentifier = Self.measurementRunDetailIdentifier
 
-        measurementRunResultsLabel.text = "Latency: --\nDownload: --\nUpload: --\nStatus: Measurement in progress."
+        measurementRunResultsLabel.text =
+            "Latency: --\n" +
+            "Download: --\n" +
+            "Upload: --\n" +
+            "Uploaded: In progress\n\n" +
+            "Measurement in progress."
         measurementRunResultsLabel.font = UIFont.preferredFont(forTextStyle: .body)
         measurementRunResultsLabel.textColor = UIColor(red: 0.18, green: 0.29, blue: 0.38, alpha: 1.0)
         measurementRunResultsLabel.numberOfLines = 0
@@ -1124,6 +1997,114 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         ])
 
         applyRuntimeModeChange()
+    }
+
+    private func buildMeasurementHistoryFlowUi() {
+        overrideUserInterfaceStyle = .light
+        view.backgroundColor = UIColor(red: 0.94, green: 0.94, blue: 0.97, alpha: 1.0)
+
+        let title = UILabel()
+        title.text = "Measurement History"
+        title.font = UIFont.preferredFont(forTextStyle: .title2)
+        title.textColor = .label
+
+        let subtitle = UILabel()
+        subtitle.text = "Review your latest results and sync status."
+        subtitle.font = UIFont.preferredFont(forTextStyle: .body)
+        subtitle.textColor = .secondaryLabel
+        subtitle.numberOfLines = 0
+
+        measurementHistoryTitleLabel.text = "Measurement details"
+        measurementHistoryTitleLabel.font = UIFont.preferredFont(forTextStyle: .title3)
+        measurementHistoryTitleLabel.textColor = .label
+        measurementHistoryTitleLabel.numberOfLines = 0
+        measurementHistoryTitleLabel.accessibilityIdentifier = Self.measurementHistoryTitleIdentifier
+
+        let recentRunsTitle = UILabel()
+        recentRunsTitle.text = "Recent runs (newest first)"
+        recentRunsTitle.font = UIFont.preferredFont(forTextStyle: .headline)
+        recentRunsTitle.textColor = .label
+
+        measurementHistoryRunsStack.axis = .vertical
+        measurementHistoryRunsStack.spacing = 8
+        measurementHistoryRunsStack.accessibilityIdentifier = Self.measurementHistoryRunsIdentifier
+        measurementHistoryRunsStack.translatesAutoresizingMaskIntoConstraints = false
+        measurementHistoryRunsScrollView.translatesAutoresizingMaskIntoConstraints = false
+        measurementHistoryRunsScrollView.showsVerticalScrollIndicator = true
+        measurementHistoryRunsScrollView.alwaysBounceVertical = true
+        measurementHistoryRunsScrollView.addSubview(measurementHistoryRunsStack)
+        NSLayoutConstraint.activate([
+            measurementHistoryRunsStack.topAnchor.constraint(equalTo: measurementHistoryRunsScrollView.topAnchor),
+            measurementHistoryRunsStack.leadingAnchor.constraint(equalTo: measurementHistoryRunsScrollView.leadingAnchor),
+            measurementHistoryRunsStack.trailingAnchor.constraint(equalTo: measurementHistoryRunsScrollView.trailingAnchor),
+            measurementHistoryRunsStack.bottomAnchor.constraint(equalTo: measurementHistoryRunsScrollView.bottomAnchor),
+            measurementHistoryRunsStack.widthAnchor.constraint(equalTo: measurementHistoryRunsScrollView.widthAnchor)
+        ])
+
+        measurementHistorySelectedDetailLabel.text = "Tap a run to view details."
+        measurementHistorySelectedDetailLabel.font = UIFont.preferredFont(forTextStyle: .body)
+        measurementHistorySelectedDetailLabel.textColor = UIColor(red: 0.18, green: 0.29, blue: 0.38, alpha: 1.0)
+        measurementHistorySelectedDetailLabel.numberOfLines = 0
+        measurementHistorySelectedDetailLabel.backgroundColor = .white
+        measurementHistorySelectedDetailLabel.layer.cornerRadius = 12
+        measurementHistorySelectedDetailLabel.layer.masksToBounds = true
+        measurementHistorySelectedDetailLabel.layer.borderColor = UIColor(red: 0.78, green: 0.86, blue: 0.93, alpha: 1.0).cgColor
+        measurementHistorySelectedDetailLabel.layer.borderWidth = 1
+        measurementHistorySelectedDetailLabel.textInsets = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        measurementHistorySelectedDetailLabel.accessibilityIdentifier = Self.measurementHistorySelectedDetailIdentifier
+
+        measurementHistorySyncLabel.text = "Sync status unknown. Tap refresh."
+        measurementHistorySyncLabel.font = UIFont.preferredFont(forTextStyle: .subheadline)
+        measurementHistorySyncLabel.textColor = UIColor(red: 0.23, green: 0.37, blue: 0.47, alpha: 1.0)
+        measurementHistorySyncLabel.numberOfLines = 0
+        measurementHistorySyncLabel.backgroundColor = UIColor(red: 0.95, green: 0.98, blue: 0.96, alpha: 1)
+        measurementHistorySyncLabel.layer.cornerRadius = 10
+        measurementHistorySyncLabel.layer.masksToBounds = true
+        measurementHistorySyncLabel.layer.borderColor = UIColor(red: 0.78, green: 0.89, blue: 0.80, alpha: 1.0).cgColor
+        measurementHistorySyncLabel.layer.borderWidth = 1
+        measurementHistorySyncLabel.textInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+        measurementHistorySyncLabel.accessibilityIdentifier = Self.measurementHistorySyncIdentifier
+
+        let refreshButton = UIButton(type: .system)
+        refreshButton.setTitle("Refresh Sync Status", for: .normal)
+        applyButtonStyle(refreshButton, role: .primary)
+        refreshButton.accessibilityIdentifier = Self.measurementHistoryRefreshIdentifier
+        refreshButton.addTarget(self, action: #selector(refreshMeasurementHistorySync), for: .touchUpInside)
+
+        let cardStack = UIStackView(arrangedSubviews: [
+            title,
+            subtitle,
+            measurementHistoryTitleLabel,
+            recentRunsTitle,
+            measurementHistoryRunsScrollView,
+            measurementHistorySelectedDetailLabel,
+            measurementHistorySyncLabel,
+            refreshButton
+        ])
+        cardStack.axis = .vertical
+        cardStack.spacing = 12
+        cardStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let card = UIView()
+        card.backgroundColor = UIColor(white: 0.98, alpha: 1.0)
+        card.layer.cornerRadius = 16
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(cardStack)
+
+        view.addSubview(card)
+        NSLayoutConstraint.activate([
+            card.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            card.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            card.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            card.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            cardStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            cardStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 14),
+            cardStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            cardStack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14),
+            measurementHistoryRunsScrollView.heightAnchor.constraint(equalToConstant: 220)
+        ])
+        renderMeasurementHistoryUi()
+        refreshMeasurementHistorySync()
     }
 
     private func buildOnboardingFlowSwiftUi() {
@@ -1271,6 +2252,42 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         setStatus("Output copied to clipboard.")
     }
 
+    @objc private func copySettingsDeviceId() {
+        UIPasteboard.general.string = resolveSettingsDeviceId()
+        onboardingFeedbackLabel.text = "Device ID copied."
+        onboardingFeedbackLabel.textColor = UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
+        setStatus("Device ID copied.")
+    }
+
+    @objc private func copySettingsAppVersion() {
+        UIPasteboard.general.string = resolveSettingsAppVersion()
+        onboardingFeedbackLabel.text = "App version copied."
+        onboardingFeedbackLabel.textColor = UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
+        setStatus("App version copied.")
+    }
+
+    private func resolveSettingsDeviceId() -> String {
+        let raw = UIDevice.current.identifierForVendor?.uuidString.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return raw.isEmpty ? "unavailable" : raw
+    }
+
+    private func resolveSettingsAppVersion() -> String {
+        let short = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let build = (Bundle.main.object(forInfoDictionaryKey: kCFBundleVersionKey as String) as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let short, !short.isEmpty, let build, !build.isEmpty {
+            return "\(short) (\(build))"
+        }
+        if let short, !short.isEmpty {
+            return short
+        }
+        if let build, !build.isEmpty {
+            return build
+        }
+        return "unknown"
+    }
+
     @objc private func runMapStart() {
         let groupId = UUID().uuidString
         lastGroupId = groupId
@@ -1397,6 +2414,322 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                 }
                 self.setStatus(rendered)
             }
+        }
+    }
+
+    @objc private func refreshMeasurementHistorySync() {
+        setStatus("Refreshing sync status...")
+        pendingSyncHarness.runPendingCountsAsync { text, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self.historyPendingMeasurements = nil
+                    self.historyPendingSubmissions = nil
+                    self.renderMeasurementHistoryUi()
+                    self.setStatus("Unable to refresh sync status: \(error)")
+                    return
+                }
+                let rendered = text ?? ""
+                self.historyPendingMeasurements = self.extractInt(rendered, key: "measurements=")
+                self.historyPendingSubmissions = self.extractInt(rendered, key: "submissions=")
+                self.renderMeasurementHistoryUi()
+                self.setStatus("Sync status refreshed.")
+            }
+        }
+    }
+
+    private func renderMeasurementHistoryUi() {
+        let defaults = UserDefaults.standard
+        let detail = defaults.string(forKey: "cellwatch.history.detail")
+            ?? "Run your first measurement to populate history."
+        let hasFallbackMeasurement =
+            !(defaults.string(forKey: "cellwatch.history.latency") ?? "").isEmpty ||
+            !(defaults.string(forKey: "cellwatch.history.download") ?? "").isEmpty ||
+            !(defaults.string(forKey: "cellwatch.history.upload") ?? "").isEmpty
+        let entries = loadHistoryEntries()
+        measurementHistoryTitleLabel.accessibilityValue = (entries.isEmpty && !hasFallbackMeasurement) ? "EMPTY" : "HAS_MEASUREMENT"
+        renderHistoryEntriesRows(entries, fallbackDetail: detail)
+        let syncSummary: String
+        let syncStateKey: String
+        if let measurements = historyPendingMeasurements, let submissions = historyPendingSubmissions {
+            let total = measurements + submissions
+            if total <= 0 {
+                syncSummary = "All records are synced."
+                syncStateKey = "SYNCED"
+            } else {
+                syncSummary = "Pending sync queue: \(measurements) measurement record(s), \(submissions) submission record(s)."
+                syncStateKey = "PENDING"
+            }
+        } else {
+            syncSummary = "Sync status unknown. Tap refresh."
+            syncStateKey = "UNKNOWN"
+        }
+        measurementHistorySyncLabel.text = syncSummary
+        measurementHistorySyncLabel.accessibilityValue = syncStateKey
+    }
+
+    private func clearPersistedHistorySnapshots() {
+        let defaults = UserDefaults.standard
+        [
+            "cellwatch.history.latency",
+            "cellwatch.history.download",
+            "cellwatch.history.upload",
+            "cellwatch.history.uploaded",
+            "cellwatch.history.detail",
+            "cellwatch.history.entries",
+        ].forEach { defaults.removeObject(forKey: $0) }
+        selectedHistoryTimestampMs = nil
+    }
+
+    private func persistLatestHistorySnapshot(
+        latency: String,
+        download: String,
+        upload: String,
+        uploaded: String,
+        detail: String,
+        latitude: Double? = nil,
+        longitude: Double? = nil
+    ) {
+        let defaultLat = Double(RuntimeConfigSource.value("CELLWATCH_MAP_SIM_LAT") ?? "") ?? 33.778462
+        let defaultLon = Double(RuntimeConfigSource.value("CELLWATCH_MAP_SIM_LON") ?? "") ?? -84.390123
+        let currentCoordinate = locationPermissionManager.location?.coordinate
+        let resolvedLatitude = latitude ?? currentCoordinate?.latitude ?? defaultLat
+        let resolvedLongitude = longitude ?? currentCoordinate?.longitude ?? defaultLon
+        let defaults = UserDefaults.standard
+        var entries = loadHistoryEntries()
+        entries.insert(
+            HistorySnapshotEntry(
+                timestampMs: Date().timeIntervalSince1970 * 1000.0,
+                latency: latency,
+                download: download,
+                upload: upload,
+                uploaded: uploaded,
+                detail: detail,
+                latitude: resolvedLatitude,
+                longitude: resolvedLongitude
+            ),
+            at: 0
+        )
+        if entries.count > 20 {
+            entries = Array(entries.prefix(20))
+        }
+        defaults.set(latency, forKey: "cellwatch.history.latency")
+        defaults.set(download, forKey: "cellwatch.history.download")
+        defaults.set(upload, forKey: "cellwatch.history.upload")
+        defaults.set(uploaded, forKey: "cellwatch.history.uploaded")
+        defaults.set(detail, forKey: "cellwatch.history.detail")
+        defaults.set(
+            entries.map { entry in
+                var row: [String: Any] = [
+                    "timestampMs": entry.timestampMs,
+                    "latency": entry.latency,
+                    "download": entry.download,
+                    "upload": entry.upload,
+                    "uploaded": entry.uploaded,
+                    "detail": entry.detail
+                ]
+                if let latitude = entry.latitude {
+                    row["latitude"] = latitude
+                }
+                if let longitude = entry.longitude {
+                    row["longitude"] = longitude
+                }
+                return row
+            },
+            forKey: "cellwatch.history.entries"
+        )
+    }
+
+    private func loadHistoryEntries() -> [HistorySnapshotEntry] {
+        let raw = UserDefaults.standard.array(forKey: "cellwatch.history.entries") as? [[String: Any]] ?? []
+        return raw.compactMap { row in
+            guard let timestampMs = row["timestampMs"] as? Double else { return nil }
+            let latency = row["latency"] as? String ?? "--"
+            let download = row["download"] as? String ?? "--"
+            let upload = row["upload"] as? String ?? "--"
+            let uploaded = row["uploaded"] as? String ?? "Pending sync"
+            let detail = row["detail"] as? String ?? "Latest measurement captured."
+            let latitude = row["latitude"] as? Double
+            let longitude = row["longitude"] as? Double
+            return HistorySnapshotEntry(
+                timestampMs: timestampMs,
+                latency: latency,
+                download: download,
+                upload: upload,
+                uploaded: uploaded,
+                detail: detail,
+                latitude: latitude,
+                longitude: longitude
+            )
+        }
+    }
+
+    private func mapHomeLocationSnapshots(from entries: [HistorySnapshotEntry]) -> [MapHomeMeasurementLocationSnapshot] {
+        let snapshots = entries.enumerated().map { index, entry in
+            MapHomeMeasurementLocationSnapshot(
+                id: "history-\(Int64(entry.timestampMs))-\(index)",
+                title: "Run \(index + 1)",
+                timestampMs: Int64(entry.timestampMs),
+                latitude: entry.latitude ?? Double.nan,
+                longitude: entry.longitude ?? Double.nan
+            )
+        }
+        if !snapshots.isEmpty {
+            return snapshots
+        }
+        let defaultLat = Double(RuntimeConfigSource.value("CELLWATCH_MAP_SIM_LAT") ?? "") ?? 33.778462
+        let defaultLon = Double(RuntimeConfigSource.value("CELLWATCH_MAP_SIM_LON") ?? "") ?? -84.390123
+        return [
+            MapHomeMeasurementLocationSnapshot(
+                id: "current-location",
+                title: "Current location",
+                timestampMs: Int64(Date().timeIntervalSince1970 * 1000),
+                latitude: defaultLat,
+                longitude: defaultLon
+            )
+        ]
+    }
+
+    private func applyInitialMapHomeCamera(
+        historyEntries: [HistorySnapshotEntry],
+        interactionState: MapHomeMapInteractionState
+    ) {
+#if canImport(MapboxMaps)
+        guard let mapView = mapHomeMapView else { return }
+        _ = mapHomeFeatureViewController.loadMeasurements(values: mapHomeLocationSnapshots(from: historyEntries))
+        _ = mapHomeFeatureViewController.onZoomChanged(zoomLevel: interactionState.zoomLevel)
+        let featureState = mapHomeFeatureViewController.currentState()
+        let defaultLat = Double(RuntimeConfigSource.value("CELLWATCH_MAP_SIM_LAT") ?? "") ?? 33.778462
+        let defaultLon = Double(RuntimeConfigSource.value("CELLWATCH_MAP_SIM_LON") ?? "") ?? -84.390123
+        let targetLat = featureState.centerLatitude?.doubleValue ?? defaultLat
+        let targetLon = featureState.centerLongitude?.doubleValue ?? defaultLon
+        let targetZoom: Double = if featureState.hasAnyLocationData {
+            interactionState.overlayMode == .hexGrid ? 10.5 : 12.5
+        } else {
+            12.5
+        }
+        mapView.mapboxMap.setCamera(
+            to: CameraOptions(
+                center: CLLocationCoordinate2D(latitude: targetLat, longitude: targetLon),
+                zoom: targetZoom
+            )
+        )
+#endif
+    }
+
+    @discardableResult
+    private func renderMapHomeFeatures(
+        historyEntries: [HistorySnapshotEntry],
+        interactionState: MapHomeMapInteractionState
+    ) -> MapHomeFeatureState {
+        _ = mapHomeFeatureViewController.loadMeasurements(
+            values: mapHomeLocationSnapshots(from: historyEntries)
+        )
+        _ = mapHomeFeatureViewController.onZoomChanged(zoomLevel: interactionState.zoomLevel)
+        let latestState = mapHomeFeatureViewController.currentState()
+
+#if canImport(MapboxMaps)
+        guard let mapView = mapHomeMapView else {
+            return latestState
+        }
+
+        if mapHomePointAnnotationManager == nil {
+            mapHomePointAnnotationManager = mapView.annotations.makePointAnnotationManager(id: "mapHomePoints")
+        }
+        if mapHomeHexAnnotationManager == nil {
+            mapHomeHexAnnotationManager = mapView.annotations.makePointAnnotationManager(id: "mapHomeHex")
+        }
+        guard let pointManager = mapHomePointAnnotationManager,
+              let hexManager = mapHomeHexAnnotationManager else {
+            return latestState
+        }
+
+        if interactionState.overlayMode == .points {
+            hexManager.annotations = []
+            pointManager.annotations = latestState.points.map { point in
+                var annotation = PointAnnotation(
+                    coordinate: CLLocationCoordinate2D(latitude: point.latitude, longitude: point.longitude)
+                )
+                annotation.iconImage = "marker-15"
+                annotation.iconSize = 1.6
+                annotation.textField = point.title
+                return annotation
+            }
+        } else {
+            pointManager.annotations = []
+            hexManager.annotations = latestState.hexCells.map { cell in
+                var annotation = PointAnnotation(
+                    coordinate: CLLocationCoordinate2D(latitude: cell.centerLatitude, longitude: cell.centerLongitude)
+                )
+                annotation.iconImage = "circle-15"
+                annotation.iconSize = 1.2
+                annotation.textField = "\(cell.measurementCount)"
+                return annotation
+            }
+        }
+#endif
+
+        return latestState
+    }
+
+    private func renderHistoryEntriesRows(_ entries: [HistorySnapshotEntry], fallbackDetail: String) {
+        measurementHistoryRunsStack.arrangedSubviews.forEach { view in
+            measurementHistoryRunsStack.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        let sorted = Array(entries.sorted { lhs, rhs in lhs.timestampMs > rhs.timestampMs }.prefix(5))
+        guard !sorted.isEmpty else {
+            let empty = UILabel()
+            empty.text = "No recent runs yet."
+            empty.textColor = .secondaryLabel
+            empty.font = UIFont.preferredFont(forTextStyle: .subheadline)
+            measurementHistoryRunsStack.addArrangedSubview(empty)
+            measurementHistoryTitleLabel.text = "Measurement details"
+            measurementHistorySelectedDetailLabel.text = fallbackDetail
+            selectedHistoryTimestampMs = nil
+            return
+        }
+
+        if selectedHistoryTimestampMs == nil || !sorted.contains(where: { $0.timestampMs == selectedHistoryTimestampMs }) {
+            selectedHistoryTimestampMs = sorted.first?.timestampMs
+        }
+
+        for (index, entry) in sorted.enumerated() {
+            let button = UIButton(type: .system)
+            button.setTitle(
+                "Run \(index + 1): \(entry.latency) latency, \(entry.download) download, \(entry.upload) upload",
+                for: .normal
+            )
+            button.titleLabel?.numberOfLines = 0
+            button.contentHorizontalAlignment = .left
+            button.titleLabel?.lineBreakMode = .byWordWrapping
+            button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+            button.accessibilityIdentifier = "harness.measurementHistory.row.\(index + 1)"
+            applyButtonStyle(
+                button,
+                role: entry.timestampMs == selectedHistoryTimestampMs ? .primary : .secondary
+            )
+            button.addAction(
+                UIAction { [weak self] _ in
+                    self?.selectedHistoryTimestampMs = entry.timestampMs
+                    self?.renderHistoryEntriesRows(entries, fallbackDetail: fallbackDetail)
+                },
+                for: .touchUpInside
+            )
+            measurementHistoryRunsStack.addArrangedSubview(button)
+        }
+
+        if let selected = sorted.first(where: { $0.timestampMs == selectedHistoryTimestampMs }) ?? sorted.first {
+            let selectedIndex = (sorted.firstIndex { $0.timestampMs == selected.timestampMs } ?? 0) + 1
+            let captured = Date(timeIntervalSince1970: selected.timestampMs / 1000.0)
+            let capturedText = DateFormatter.localizedString(from: captured, dateStyle: .short, timeStyle: .short)
+            measurementHistoryTitleLabel.text = "Selected run"
+            measurementHistorySelectedDetailLabel.text =
+                "Captured: \(capturedText)\n" +
+                "Latency: \(selected.latency)\n" +
+                "Download: \(selected.download)\n" +
+                "Upload: \(selected.upload)\n" +
+                "Status: \(selected.uploaded)\n\n" +
+                selected.detail
         }
     }
 
@@ -1560,7 +2893,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         measurementRunCachedLatencySummary = "--"
         measurementRunCachedDownloadSummary = "--"
         measurementRunCachedUploadSummary = "--"
+        measurementRunCachedUploadedSummary = "In progress"
         measurementRunCachedCompletionSummary = "Measurement in progress."
+        measurementRunCachedCenterLatitude = nil
+        measurementRunCachedCenterLongitude = nil
         resetMeasurementRunFlowScheduling()
         if displayMode == .measurementRunFlow {
             renderMeasurementRunFlowState(detailText: "Measurement started. Preparing test run...")
@@ -1605,7 +2941,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                         self.measurementRunCachedLatencySummary = "--"
                         self.measurementRunCachedDownloadSummary = "--"
                         self.measurementRunCachedUploadSummary = "--"
+                        self.measurementRunCachedUploadedSummary = "Not uploaded"
                         self.measurementRunCachedCompletionSummary = hinted
+                        self.measurementRunCachedCenterLatitude = nil
+                        self.measurementRunCachedCenterLongitude = nil
                         self.scheduleMeasurementRunFlowCompletion {
                             _ = self.measurementRunViewController.onCompleted(
                                 group: nil,
@@ -1636,7 +2975,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                         self.measurementRunCachedLatencySummary = "--"
                         self.measurementRunCachedDownloadSummary = "--"
                         self.measurementRunCachedUploadSummary = "--"
+                        self.measurementRunCachedUploadedSummary = "Not uploaded"
                         self.measurementRunCachedCompletionSummary = "Measurement failed. No result."
+                        self.measurementRunCachedCenterLatitude = nil
+                        self.measurementRunCachedCenterLongitude = nil
                         self.scheduleMeasurementRunFlowCompletion {
                             _ = self.measurementRunViewController.onCompleted(
                                 group: nil,
@@ -1670,7 +3012,12 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                     self.measurementRunCachedLatencySummary = value.latencySummary
                     self.measurementRunCachedDownloadSummary = value.downloadSummary
                     self.measurementRunCachedUploadSummary = value.uploadSummary
-                    self.measurementRunCachedCompletionSummary = value.completionSummary
+                    self.measurementRunCachedUploadedSummary = value.measurementCompleteUploadTimeSet ? "Uploaded" : "Pending sync"
+                    self.measurementRunCachedCompletionSummary = value.measurementCompleteUploadTimeSet
+                        ? "Measurement complete. Results saved and synced."
+                        : "Measurement complete. Results saved and sync attempted."
+                    self.measurementRunCachedCenterLatitude = value.centerLatitude.isNaN ? nil : value.centerLatitude
+                    self.measurementRunCachedCenterLongitude = value.centerLongitude.isNaN ? nil : value.centerLongitude
                     self.scheduleMeasurementRunFlowCompletion {
                         _ = self.measurementRunViewController.onCompleted(
                             group: MeasurementGroup(
@@ -1772,9 +3119,12 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         let latency = readModel.latencyText == "--" ? measurementRunCachedLatencySummary : readModel.latencyText
         let download = readModel.downloadText == "--" ? measurementRunCachedDownloadSummary : readModel.downloadText
         let upload = readModel.uploadText == "--" ? measurementRunCachedUploadSummary : readModel.uploadText
+        let uploaded = isTerminal ? measurementRunCachedUploadedSummary : readModel.uploadedText
         let summary: String
         if state.progress == .error {
             summary = readModel.summaryText
+        } else if isTerminal {
+            summary = measurementRunCachedCompletionSummary
         } else if readModel.summaryText == "Measurement in progress." {
             summary = measurementRunCachedCompletionSummary
         } else {
@@ -1784,10 +3134,22 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             "Latency: \(latency)\n" +
             "Download: \(download)\n" +
             "Upload: \(upload)\n" +
-            "Status: \(summary)"
+            "Uploaded: \(uploaded)\n\n" +
+            summary
         measurementRunResultsLabel.textColor = state.progress == .error
             ? .systemRed
             : UIColor(red: 0.18, green: 0.29, blue: 0.38, alpha: 1.0)
+        if isTerminal {
+            persistLatestHistorySnapshot(
+                latency: latency,
+                download: download,
+                upload: upload,
+                uploaded: uploaded,
+                detail: summary,
+                latitude: measurementRunCachedCenterLatitude,
+                longitude: measurementRunCachedCenterLongitude
+            )
+        }
     }
 
     private func canonicalMeasurementRunStateName(_ progress: MeasurementRunProgress) -> String {
@@ -2034,6 +3396,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         flowState: MeasurementStartPreflightFlowUiState,
         networkPath: MeasurementNetworkPath
     ) {
+        measurementPreflightOutputLabel.isHidden = false
         measurementPreflightOutputLabel.text = flowState.statusMessage
         measurementPreflightOutputLabel.accessibilityValue = flowState.debugSummary.isEmpty
             ? fallbackDebugSummary(result: flowState.latestResult, networkPath: networkPath)
@@ -2065,6 +3428,13 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                     flowState: confirmed.state,
                     networkPath: confirmed.environment.networkPath
                 )
+                if self.autoStartMeasurementAfterPreflight,
+                   confirmed.state.latestResult?.allowed == true {
+                    self.pushMvpScreen(
+                        mode: .measurementRunFlow,
+                        autoStartMeasurementRunOnAppear: true
+                    )
+                }
             })
             dialog.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
                 guard let self else { return }
@@ -2075,6 +3445,13 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                 )
             })
             present(dialog, animated: true)
+        } else if autoStartMeasurementAfterPreflight, go.state.latestResult?.allowed == true {
+            pushMvpScreen(
+                mode: .measurementRunFlow,
+                autoStartMeasurementRunOnAppear: true
+            )
+        } else if go.state.latestResult?.reasonCode == .missingLocationPermission {
+            requestLocationPermissionIfNeeded(forceRequest: true)
         }
     }
 
@@ -2093,16 +3470,43 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         let submission = onboardingViewModel.submit()
         applyOnboardingUiState(submission.state)
         setStatus(submission.statusText)
-        if submission.success &&
-            displayMode == .onboardingFlow &&
-            navigationController == nil &&
-            AppDelegate.shouldDefaultToMvpNavigation() {
-            replaceRootWithMvpMenu()
+        if submission.success && displayMode == .onboardingFlow {
+            if let postSubmitMode {
+                if postSubmitMode == .measurementStartFlow {
+                    pushMvpScreen(
+                        mode: .measurementStartFlow,
+                        autoStartAfterPreflight: postSubmitAutoStartMeasurement
+                    )
+                } else if postSubmitMode == .measurementRunFlow {
+                    pushMvpScreen(
+                        mode: .measurementRunFlow,
+                        autoStartMeasurementRunOnAppear: postSubmitAutoStartMeasurement
+                    )
+                } else {
+                    pushMvpScreen(mode: postSubmitMode)
+                }
+            } else if navigationController == nil && AppDelegate.shouldDefaultToMvpNavigation() {
+                replaceRootWithMvpMenu()
+            }
+        }
+    }
+
+    @objc private func submitSettings() {
+        _ = syncSettingsViewModelWithInputs()
+        let submission = settingsViewModel.submit()
+        applySettingsUiState(submission.state)
+        setStatus(submission.statusText)
+        if submission.success, displayMode == .settingsProfileFlow, let postSubmitMode {
+            pushMvpScreen(mode: postSubmitMode)
         }
     }
 
     @objc private func submitOnboardingFromReturnKey() {
         submitOnboarding()
+    }
+
+    @objc private func submitSettingsFromReturnKey() {
+        submitSettings()
     }
 
     @objc private func onboardingFieldChanged(_ sender: UITextField) {
@@ -2115,8 +3519,27 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         applyOnboardingUiState(onboardingViewModel.currentState())
     }
 
+    @objc private func settingsFieldChanged(_ sender: UITextField) {
+        _ = syncSettingsViewModelWithInputs()
+        applySettingsUiState(settingsViewModel.currentState())
+    }
+
+    @objc private func settingsAckChanged() {
+        _ = syncSettingsViewModelWithInputs()
+        applySettingsUiState(settingsViewModel.currentState())
+    }
+
+    @objc private func settingsModeChanged() {
+        _ = syncSettingsViewModelWithInputs()
+        applySettingsUiState(settingsViewModel.currentState())
+    }
+
     private func loadPersistedOnboardingProfile() {
         applyOnboardingUiState(onboardingViewModel.loadPersistedProfile())
+    }
+
+    private func loadPersistedSettingsProfile() {
+        applySettingsUiState(settingsViewModel.loadPersistedProfile())
     }
 
     private func applyOnboardingUiPrefillFromEnvironment() {
@@ -2154,26 +3577,79 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         return label
     }
 
-    @objc private func openProfileFromMvpMenu() {
-        pushMvpScreen(mode: .onboardingFlow)
+    @objc private func openSettingsFromMvpMenu() {
+        pushMvpScreen(mode: .settingsProfileFlow, postSubmitMode: .mapHome)
     }
 
     @objc private func openMeasureFromMvpMenu() {
         if onboardingPersistenceUseCase.loadProfile()?.onboardingComplete == true {
-            pushMvpScreen(mode: .measurementRunFlow)
+            pushMvpScreen(
+                mode: .measurementRunFlow,
+                autoStartMeasurementRunOnAppear: true
+            )
         } else {
-            pushMvpScreen(mode: .onboardingFlow)
+            pushMvpScreen(
+                mode: .onboardingFlow,
+                postSubmitMode: .measurementRunFlow,
+                postSubmitAutoStartMeasurement: true
+            )
         }
     }
 
-    private func pushMvpScreen(mode: DisplayMode) {
-        let target = HarnessViewController(displayMode: mode, onboardingUiImplementation: .uikit)
+    @objc private func openHistoryFromMvpMenu() {
+        pushMvpScreen(mode: .measurementHistoryFlow)
+    }
+
+    @objc private func returnToMapHome() {
+        if navigationController?.viewControllers.first === self {
+            replaceRootWithMvpMenu()
+        } else {
+            navigationController?.popViewController(animated: true)
+        }
+    }
+
+    private func pushMvpScreen(
+        mode: DisplayMode,
+        postSubmitMode: DisplayMode? = nil,
+        postSubmitAutoStartMeasurement: Bool = false,
+        autoStartAfterPreflight: Bool = false,
+        autoStartMeasurementRunOnAppear: Bool = false
+    ) {
+        if navigationController == nil {
+            if mode == .mapHome {
+                replaceRootWithMvpMenu()
+            }
+            return
+        }
+        if mode == .mapHome {
+            navigationController?.popToRootViewController(animated: true)
+            return
+        }
+        let target = HarnessViewController(
+            displayMode: mode,
+            onboardingUiImplementation: .uikit,
+            postSubmitMode: postSubmitMode,
+            postSubmitAutoStartMeasurement: postSubmitAutoStartMeasurement,
+            autoStartMeasurementAfterPreflight: autoStartAfterPreflight,
+            autoStartMeasurementRunOnAppear: autoStartMeasurementRunOnAppear
+        )
         navigationController?.pushViewController(target, animated: true)
+    }
+
+    private func requestLocationPermissionIfNeeded(forceRequest: Bool = false) {
+        let status = CLLocationManager.authorizationStatus()
+        if forceRequest && status != .authorizedWhenInUse && status != .authorizedAlways {
+            locationPermissionManager.requestWhenInUseAuthorization()
+            return
+        }
+        if status == .notDetermined {
+            locationPermissionManager.requestWhenInUseAuthorization()
+        }
     }
 
     private func replaceRootWithMvpMenu() {
         guard let window = view.window else { return }
-        let menu = HarnessViewController(displayMode: .mvpMenu, onboardingUiImplementation: .uikit)
+        let menu = HarnessViewController(displayMode: .mapHome, onboardingUiImplementation: .uikit)
         window.rootViewController = UINavigationController(rootViewController: menu)
     }
 
@@ -2251,7 +3727,11 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         }
         if textField === onboardingEmailField {
             dismissOnboardingKeyboard()
-            submitOnboarding()
+            if displayMode == .settingsProfileFlow {
+                submitSettings()
+            } else {
+                submitOnboarding()
+            }
             return false
         }
         dismissOnboardingKeyboard()
@@ -2259,7 +3739,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     }
 
     func textFieldDidBeginEditing(_ textField: UITextField) {
-        guard displayMode == .onboardingFlow else { return }
+        guard displayMode == .onboardingFlow || displayMode == .settingsProfileFlow else { return }
         guard let text = textField.text, !text.isEmpty else { return }
         DispatchQueue.main.async {
             textField.selectedTextRange = textField.textRange(
@@ -2278,7 +3758,41 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         return state
     }
 
+    @discardableResult
+    private func syncSettingsViewModelWithInputs() -> SettingsProfileUiState {
+        let mode: CollectionMode = settingsModeControl.selectedSegmentIndex == 1 ? .fccChallenge : .testing
+        _ = settingsViewModel.onCollectionModeChanged(collectionMode: mode)
+        _ = settingsViewModel.onNameChanged(name: onboardingNameField.text ?? "")
+        _ = settingsViewModel.onPhoneChanged(phone: onboardingPhoneField.text ?? "")
+        _ = settingsViewModel.onEmailChanged(email: onboardingEmailField.text ?? "")
+        let state = settingsViewModel.onAcknowledgementChanged(acknowledged: onboardingAckSwitch.isOn)
+        return state
+    }
+
     private func applyOnboardingUiState(_ state: OnboardingProfileUiState) {
+        if onboardingNameField.text != state.name {
+            onboardingNameField.text = state.name
+        }
+        if onboardingPhoneField.text != state.phone {
+            onboardingPhoneField.text = state.phone
+        }
+        if onboardingEmailField.text != state.email {
+            onboardingEmailField.text = state.email
+        }
+        if onboardingAckSwitch.isOn != state.fccAcknowledged {
+            onboardingAckSwitch.isOn = state.fccAcknowledged
+        }
+        onboardingFeedbackLabel.text = state.feedbackMessage
+        onboardingFeedbackLabel.textColor = state.feedbackIsError
+            ? UIColor(red: 0.66, green: 0.14, blue: 0.16, alpha: 1.0)
+            : UIColor(red: 0.18, green: 0.45, blue: 0.22, alpha: 1.0)
+    }
+
+    private func applySettingsUiState(_ state: SettingsProfileUiState) {
+        let selectedIndex = state.collectionMode == .fccChallenge ? 1 : 0
+        if settingsModeControl.selectedSegmentIndex != selectedIndex {
+            settingsModeControl.selectedSegmentIndex = selectedIndex
+        }
         if onboardingNameField.text != state.name {
             onboardingNameField.text = state.name
         }

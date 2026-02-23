@@ -69,7 +69,7 @@ kotlin {
                 implementation(libs.sqldelight.coroutines)
                 implementation(libs.benasher.uuid)
                 implementation(libs.cryptography.core)
-                implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.2.2")
+                implementation(libs.msak.client.kmp)
             }
         }
 
@@ -235,6 +235,11 @@ tasks.named<Test>("jvmTest") {
     exclude("**/*LocalSupabaseIntegrationTest*")
 }
 
+val msakClientKmpVersionForTests = libs.versions.msakClientKmp.get()
+tasks.withType<Test>().configureEach {
+    systemProperty("cellwatch.msakClientKmpVersion", msakClientKmpVersionForTests)
+}
+
 tasks.register<Test>("jvmLocalSupabaseIntegrationTest") {
     description = "Runs JVM tests that exercise local Docker Supabase integration."
     group = "verification"
@@ -333,6 +338,18 @@ fun Project.resolveLocalSupabaseUrlForIosHosted(): String {
     return System.getenv("SUPABASE_LOCAL_URL").normalizedOrNull()
         ?: readCellwatchProperty("SUPABASE_LOCAL_URL").normalizedOrNull()
         ?: "http://127.0.0.1:54321"
+}
+
+fun Project.resolveMapboxAccessTokenForIosHosted(): String? {
+    fun String?.normalizedOrNull(): String? = this
+        ?.trim()
+        ?.trim('"')
+        ?.takeIf { it.isNotEmpty() }
+
+    return System.getenv("MAPBOX_ACCESS_TOKEN").normalizedOrNull()
+        ?: readCellwatchProperty("MAPBOX_ACCESS_TOKEN").normalizedOrNull()
+        ?: System.getenv("MAPBOX_DOWNLOADS_TOKEN").normalizedOrNull()
+        ?: readCellwatchProperty("MAPBOX_DOWNLOADS_TOKEN").normalizedOrNull()
 }
 
 fun Project.withIosLocalServiceKeyOverride(
@@ -906,6 +923,119 @@ tasks.register("verifyIosTestAppUiMeasurementRunFlowSmoke") {
     }
 }
 
+tasks.register("verifyIosTestAppUiMeasurementHistoryFlowSmoke") {
+    description = "Tier 2: iOS XCUITest measurement-history flow smoke for product-like UI evidence screenshots."
+    group = "verification"
+    dependsOn("refreshIosSimulatorCurrentFramework")
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException("Missing iOS hosted test app project at ${projectPath.absolutePath}.")
+        }
+    }
+    doLast {
+        val localServiceKey = project.resolveLocalSupabaseServiceRoleKey()
+        val localSupabaseUrl = project.resolveLocalSupabaseUrlForIosHosted()
+        project.withIosLocalServiceKeyOverride(localServiceKey) {
+            exec {
+                commandLine(
+                    "xcodebuild",
+                    "-project",
+                    projectPath.absolutePath,
+                    "-scheme",
+                    "iosTestAppUiSmoke",
+                    "-destination",
+                    "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                    "-only-testing:iosTestAppUITests/OnboardingFlowUiTests/testMeasurementHistoryFlow_showsLatestSnapshotAndSyncStatus",
+                    "test",
+                )
+                if (!localServiceKey.isNullOrBlank()) {
+                    args("SUPABASE_LOCAL_SERVICE_KEY=$localServiceKey")
+                }
+                args("SUPABASE_LOCAL_URL=$localSupabaseUrl")
+                if (!localServiceKey.isNullOrBlank()) {
+                    environment("SUPABASE_LOCAL_SERVICE_KEY", localServiceKey)
+                }
+                environment("SUPABASE_LOCAL_URL", localSupabaseUrl)
+                workingDir = rootProject.projectDir
+            }
+        }
+    }
+}
+
+tasks.register("verifyIosTestAppUiSettingsProfileFlowSmoke") {
+    description = "Tier 2: iOS XCUITest settings-profile flow smoke for product-like UI evidence screenshots."
+    group = "verification"
+    dependsOn("refreshIosSimulatorCurrentFramework")
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException("Missing iOS hosted test app project at ${projectPath.absolutePath}.")
+        }
+    }
+    doLast {
+        val localServiceKey = project.resolveLocalSupabaseServiceRoleKey()
+        val localSupabaseUrl = project.resolveLocalSupabaseUrlForIosHosted()
+        project.withIosLocalServiceKeyOverride(localServiceKey) {
+            exec {
+                commandLine(
+                    "xcodebuild",
+                    "-project",
+                    projectPath.absolutePath,
+                    "-scheme",
+                    "iosTestAppUiSmoke",
+                    "-destination",
+                    "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                    "-only-testing:iosTestAppUITests/OnboardingFlowUiTests/testSettingsProfileFlow_roundTripModeAndProfilePersistence",
+                    "test",
+                )
+                if (!localServiceKey.isNullOrBlank()) {
+                    args("SUPABASE_LOCAL_SERVICE_KEY=$localServiceKey")
+                }
+                args("SUPABASE_LOCAL_URL=$localSupabaseUrl")
+                if (!localServiceKey.isNullOrBlank()) {
+                    environment("SUPABASE_LOCAL_SERVICE_KEY", localServiceKey)
+                }
+                environment("SUPABASE_LOCAL_URL", localSupabaseUrl)
+                workingDir = rootProject.projectDir
+            }
+        }
+    }
+}
+
+tasks.register("verifyIosTestAppUiMapHomeRenderFlowSmoke") {
+    description = "Tier 2: iOS XCUITest map-home render smoke for Mapbox style-load evidence screenshots."
+    group = "verification"
+    dependsOn("refreshIosSimulatorCurrentFramework")
+    val projectPath = rootProject.file("iosTestApp/iosTestApp.xcodeproj")
+    doFirst {
+        if (!projectPath.exists()) {
+            throw GradleException("Missing iOS hosted test app project at ${projectPath.absolutePath}.")
+        }
+    }
+    doLast {
+        val mapboxAccessToken = project.resolveMapboxAccessTokenForIosHosted()
+        exec {
+            commandLine(
+                "xcodebuild",
+                "-project",
+                projectPath.absolutePath,
+                "-scheme",
+                "iosTestAppUiSmoke",
+                "-destination",
+                "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2",
+                "-only-testing:iosTestAppUITests/OnboardingFlowUiTests/testMapHomeRenderFlow_loadsMapboxStyle",
+                "test",
+            )
+            if (!mapboxAccessToken.isNullOrBlank()) {
+                args("MAPBOX_ACCESS_TOKEN=$mapboxAccessToken")
+                environment("MAPBOX_ACCESS_TOKEN", mapboxAccessToken)
+            }
+            workingDir = rootProject.projectDir
+        }
+    }
+}
+
 // Hosted iOS simulator tasks share runtime state (simulator process, keychain scope, local services).
 // Keep them serialized to avoid flaky failures when Gradle runs tasks in parallel.
 tasks.named("verifyIosTestAppHosted") {
@@ -938,6 +1068,15 @@ tasks.named("verifyIosTestAppUiPendingSyncSmoke") {
 tasks.named("verifyIosTestAppUiMeasurementRunFlowSmoke") {
     mustRunAfter("verifyIosTestAppUiPendingSyncSmoke")
 }
+tasks.named("verifyIosTestAppUiMeasurementHistoryFlowSmoke") {
+    mustRunAfter("verifyIosTestAppUiMeasurementRunFlowSmoke")
+}
+tasks.named("verifyIosTestAppUiSettingsProfileFlowSmoke") {
+    mustRunAfter("verifyIosTestAppUiMeasurementHistoryFlowSmoke")
+}
+tasks.named("verifyIosTestAppUiMapHomeRenderFlowSmoke") {
+    mustRunAfter("verifyIosTestAppUiSettingsProfileFlowSmoke")
+}
 
 tasks.register("verifyIosHostedTier2Sequential") {
     description = "Tier 2: run all hosted iOS checks sequentially to avoid simulator concurrency flake."
@@ -954,6 +1093,9 @@ tasks.register("verifyIosHostedTier2Sequential") {
         "verifyIosTestAppUiMeasurementStartPreflightSmoke",
         "verifyIosTestAppUiPendingSyncSmoke",
         "verifyIosTestAppUiMeasurementRunFlowSmoke",
+        "verifyIosTestAppUiMeasurementHistoryFlowSmoke",
+        "verifyIosTestAppUiSettingsProfileFlowSmoke",
+        "verifyIosTestAppUiMapHomeRenderFlowSmoke",
     )
 }
 
@@ -975,6 +1117,8 @@ tasks.register("verifyPhase3Tier2FailureMatrix") {
         "verifyIosTestAppUiMeasurementStartPreflightSmoke",
         "verifyIosTestAppUiPendingSyncSmoke",
         "verifyIosTestAppUiMeasurementRunFlowSmoke",
+        "verifyIosTestAppUiMeasurementHistoryFlowSmoke",
+        "verifyIosTestAppUiSettingsProfileFlowSmoke",
     )
 }
 
@@ -989,6 +1133,8 @@ tasks.register("verifySimulatorUiRegressionSequence") {
         "verifyIosTestAppUiMeasurementStartPreflightSmoke",
         "verifyIosTestAppUiPendingSyncSmoke",
         "verifyIosTestAppUiMeasurementRunFlowSmoke",
+        "verifyIosTestAppUiMeasurementHistoryFlowSmoke",
+        "verifyIosTestAppUiSettingsProfileFlowSmoke",
     )
 }
 

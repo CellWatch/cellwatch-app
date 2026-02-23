@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriverFactory
 import edu.gatech.cc.cellwatch.androidtestapp.sync.CellwatchPropertiesSupabaseEnvironmentProvider
+import edu.gatech.cc.cellwatch.androidtestapp.sync.FixedSupabaseEnvironmentProvider
 import edu.gatech.cc.cellwatch.androidtestapp.sync.SupabaseTarget
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
 import edu.gatech.cc.cellwatch.data.remote.SupabaseConnectionConfig
@@ -21,6 +22,7 @@ import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.TcpTuple
 import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeInvariantValidator
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
+import edu.gatech.cc.cellwatch.data.sync.SyncRuntimeConfig
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -29,7 +31,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -68,11 +69,18 @@ class LocalSupabaseSharedSyncSmokeTest {
     fun syncAll_runsAgainstLocalSupabase_only() = runBlocking {
         val environmentProvider = CellwatchPropertiesSupabaseEnvironmentProvider()
         val localEnv = environmentProvider.resolve(SupabaseTarget.LOCAL)
-        val localSupabaseReachable = isSupabaseReachable(localEnv.url)
-        if (!localSupabaseReachable && System.getenv("CELLWATCH_ALLOW_LOCAL_SUPABASE_UNAVAILABLE_SKIP") == "1") {
-            assumeTrue("Skipping local Supabase unavailable due to CELLWATCH_ALLOW_LOCAL_SUPABASE_UNAVAILABLE_SKIP=1", false)
-        }
-        assertTrue("Local Supabase unreachable at ${localEnv.url}", localSupabaseReachable)
+        val hostLocalUrl = normalizeForHost(localEnv.url)
+        val hostEnvironmentProvider = FixedSupabaseEnvironmentProvider(
+            runtimeConfig = SyncRuntimeConfig(
+                allowRemote = false,
+                localUrl = hostLocalUrl,
+                localApiKey = localEnv.apiKey,
+                remoteUrl = "https://blocked.invalid",
+                remoteApiKey = "blocked",
+            ),
+        )
+        val localSupabaseReachable = isSupabaseReachable(hostLocalUrl)
+        assertTrue("Local Supabase unreachable at $hostLocalUrl", localSupabaseReachable)
 
         val authStore = InMemoryDeviceAuthStore()
         val deviceId = authStore.getDeviceId()
@@ -131,7 +139,7 @@ class LocalSupabaseSharedSyncSmokeTest {
             database = db,
             deviceAuthStore = authStore,
             tcpTupleProvider = tcpProvider,
-            environmentProvider = environmentProvider,
+            environmentProvider = hostEnvironmentProvider,
             io = EmptyCoroutineContext,
             clock = object : Clock {
                 override fun now(): Instant = now
@@ -160,7 +168,7 @@ class LocalSupabaseSharedSyncSmokeTest {
 
         val remoteVerifier = SupabaseMeasurementSyncRemoteDataSource(
             config = SupabaseConnectionConfig(
-                url = localEnv.url.replace("10.0.2.2", "127.0.0.1"),
+                url = hostLocalUrl,
                 apiKey = localEnv.apiKey,
             ),
             deviceAuthStore = authStore,
@@ -188,6 +196,12 @@ class LocalSupabaseSharedSyncSmokeTest {
                 connection.disconnect()
             }
         }.getOrDefault(false)
+    }
+
+    private fun normalizeForHost(url: String): String {
+        return url
+            .replace("10.0.2.2", "127.0.0.1")
+            .replace("10.0.3.2", "127.0.0.1")
     }
 }
 

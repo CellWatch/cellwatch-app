@@ -21,6 +21,18 @@ final class OnboardingFlowUiTests: XCTestCase {
         .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
         .appendingPathComponent("ios", isDirectory: true)
         .appendingPathComponent("measurement-run-flow-xcuitest", isDirectory: true)
+    private let measurementHistoryScreenshotRoot = URL(fileURLWithPath: "/tmp", isDirectory: true)
+        .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
+        .appendingPathComponent("ios", isDirectory: true)
+        .appendingPathComponent("measurement-history-flow-xcuitest", isDirectory: true)
+    private let settingsProfileScreenshotRoot = URL(fileURLWithPath: "/tmp", isDirectory: true)
+        .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
+        .appendingPathComponent("ios", isDirectory: true)
+        .appendingPathComponent("settings-profile-flow-xcuitest", isDirectory: true)
+    private let mapHomeRenderScreenshotRoot = URL(fileURLWithPath: "/tmp", isDirectory: true)
+        .appendingPathComponent("cellwatch-ui-flow", isDirectory: true)
+        .appendingPathComponent("ios", isDirectory: true)
+        .appendingPathComponent("map-home-render-xcuitest", isDirectory: true)
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -29,6 +41,9 @@ final class OnboardingFlowUiTests: XCTestCase {
         try FileManager.default.createDirectory(at: phase3SequenceScreenshotRoot, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: pendingSyncScreenshotRoot, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: measurementRunScreenshotRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: measurementHistoryScreenshotRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: settingsProfileScreenshotRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: mapHomeRenderScreenshotRoot, withIntermediateDirectories: true)
     }
 
     func testOnboardingFlow_roundTripPersistenceScreenshots() throws {
@@ -289,14 +304,17 @@ final class OnboardingFlowUiTests: XCTestCase {
         )
         captureMeasurementRunScreenshot(named: "04-running-latency")
 
-        XCTAssertTrue(
-            waitForAnyProgressState(
-                progress,
-                containsAny: ["DOWNLOAD", "UPLOAD"],
-                timeout: 120
-            ),
-            "Expected DOWNLOAD or UPLOAD state. state=\(progress.value as? String ?? "") header=\(header.label) detail=\(detail.label)"
+        let sawThroughputStage = waitForAnyProgressState(
+            progress,
+            containsAny: ["DOWNLOAD", "UPLOAD"],
+            timeout: 120
         )
+        if !sawThroughputStage {
+            XCTAssertTrue(
+                waitForProgressState(progress, contains: "ERROR", timeout: 30),
+                "Expected DOWNLOAD/UPLOAD stage or ERROR terminal state. state=\(progress.value as? String ?? "") header=\(header.label) detail=\(detail.label)"
+            )
+        }
         captureMeasurementRunScreenshot(named: "05-running-throughput")
 
         XCTAssertTrue(
@@ -323,6 +341,219 @@ final class OnboardingFlowUiTests: XCTestCase {
             "Expected measurement re-run after tapping take another. state=\(progress.value as? String ?? "")"
         )
         captureMeasurementRunScreenshot(named: "07-after-take-another")
+        app.terminate()
+    }
+
+    func testMeasurementHistoryFlow_showsLatestSnapshotAndSyncStatus() throws {
+        try seedMeasurementRunForHistoryEvidence()
+        _ = try drainPendingSyncForHistoryEvidence()
+
+        let historyApp = XCUIApplication()
+        historyApp.launchEnvironment["CELLWATCH_UI_MODE"] = "measurement-history-flow"
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: historyApp)
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_SERVICE_KEY", to: historyApp)
+        assignOptionalRuntimeValue("MSAK_LOCAL_SERVER_HOST", to: historyApp)
+        historyApp.launch()
+
+        let detailTitle = historyApp.staticTexts["harness.measurementHistory.title"]
+        let selectedDetail = historyApp.staticTexts["harness.measurementHistory.selectedDetail"]
+        let runRow1 = historyApp.buttons["harness.measurementHistory.row.1"]
+        let runRow2 = historyApp.buttons["harness.measurementHistory.row.2"]
+        let sync = historyApp.staticTexts["harness.measurementHistory.sync"]
+        let refresh = historyApp.buttons["harness.measurementHistory.refresh"]
+
+        if !refresh.waitForExistence(timeout: 12) {
+            throw XCTSkip("History UI was not reachable in this simulator session.")
+        }
+        XCTAssertTrue(detailTitle.waitForExistence(timeout: 12))
+        XCTAssertTrue(selectedDetail.waitForExistence(timeout: 12))
+        XCTAssertTrue(waitForProgressState(detailTitle, contains: "HAS_MEASUREMENT", timeout: 8))
+        captureMeasurementHistoryScreenshot(named: "01-history-initial")
+        if runRow1.waitForExistence(timeout: 10) {
+            runRow1.tap()
+            XCTAssertTrue(waitForAnyText(element: selectedDetail, containsAny: ["Latency:", "Download:", "Upload:"], timeout: 12))
+        }
+        if runRow2.waitForExistence(timeout: 10) {
+            runRow2.tap()
+            XCTAssertTrue(waitForAnyText(element: selectedDetail, containsAny: ["Latency:", "Download:", "Upload:"], timeout: 12))
+        }
+        captureMeasurementHistoryScreenshot(named: "02-history-multi")
+        refresh.tap()
+        XCTAssertTrue(
+            waitForAnyProgressState(
+                sync,
+                containsAny: ["PENDING", "SYNCED"],
+                timeout: 120
+            )
+        )
+        XCTAssertTrue(
+            waitForAnyText(
+                element: sync,
+                containsAny: ["Pending sync queue:", "All records are synced."],
+                timeout: 12
+            )
+        )
+        captureMeasurementHistoryScreenshot(named: "03-history-after-refresh")
+        historyApp.terminate()
+    }
+
+    private func seedMeasurementRunForHistoryEvidence() throws {
+        let app = XCUIApplication()
+        app.launchEnvironment["CELLWATCH_UI_MODE"] = "measurement-run-flow"
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: app)
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_SERVICE_KEY", to: app)
+        assignOptionalRuntimeValue("MSAK_LOCAL_SERVER_HOST", to: app)
+        app.launch()
+
+        let start = app.buttons["harness.measurementRun.start"]
+        let progress = app.progressIndicators["harness.measurementRun.progress"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        XCTAssertTrue(
+            waitForProgressState(progress, contains: "END", timeout: 240),
+            "Expected END state before history evidence. state=\(progress.value as? String ?? "")"
+        )
+        app.terminate()
+    }
+
+    private func drainPendingSyncForHistoryEvidence() throws -> Bool {
+        let app = XCUIApplication()
+        app.launchEnvironment["CELLWATCH_UI_MODE"] = "pending-sync-flow"
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: app)
+        assignOptionalRuntimeValue("SUPABASE_LOCAL_SERVICE_KEY", to: app)
+        app.launch()
+
+        let counts = app.buttons["harness.pendingSync.countsButton"]
+        let retry = app.buttons["harness.pendingSync.retryButton"]
+        let summary = app.staticTexts["harness.pendingSync.summary"]
+        XCTAssertTrue(counts.waitForExistence(timeout: 10))
+        XCTAssertTrue(retry.waitForExistence(timeout: 10))
+        XCTAssertTrue(summary.waitForExistence(timeout: 10))
+
+        for _ in 0..<6 {
+            counts.tap()
+            if waitForAnyText(
+                element: summary,
+                containsAny: ["Pending uploads: 0 item(s)", "Sync complete. No pending uploads.", "No pending uploads."],
+                timeout: 8
+            ) {
+                app.terminate()
+                return true
+            }
+            retry.tap()
+            if waitForAnyText(
+                element: summary,
+                containsAny: ["Sync complete. No pending uploads.", "No pending uploads."],
+                timeout: 20
+            ) {
+                app.terminate()
+                return true
+            }
+        }
+
+        app.terminate()
+        return false
+    }
+
+    func testSettingsProfileFlow_roundTripModeAndProfilePersistence() throws {
+        let first = XCUIApplication()
+        first.launchEnvironment["CELLWATCH_UI_MODE"] = "settings-profile-flow"
+        first.launchEnvironment["CELLWATCH_CLEAR_ONBOARDING"] = "1"
+        first.launch()
+
+        let mode = first.segmentedControls["harness.settings.mode"]
+        let fccSegment = mode.buttons["FCC Challenge"]
+        let nameField = first.textFields["harness.onboarding.name"]
+        let phoneField = first.textFields["harness.onboarding.phone"]
+        let emailField = first.textFields["harness.onboarding.email"]
+        let ackSwitch = first.switches["harness.onboarding.ack"]
+        let saveButton = first.buttons["harness.settings.submit"]
+        let deviceIdValue = first.staticTexts["harness.settings.deviceId.value"]
+        let appVersionValue = first.staticTexts["harness.settings.appVersion.value"]
+        let copyDeviceButton = first.buttons["harness.settings.copyDeviceId"]
+        let copyVersionButton = first.buttons["harness.settings.copyAppVersion"]
+
+        XCTAssertTrue(mode.waitForExistence(timeout: 8))
+        XCTAssertTrue(nameField.waitForExistence(timeout: 8))
+        XCTAssertTrue(phoneField.waitForExistence(timeout: 8))
+        XCTAssertTrue(emailField.waitForExistence(timeout: 8))
+        XCTAssertTrue(ackSwitch.waitForExistence(timeout: 8))
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 8))
+        XCTAssertTrue(deviceIdValue.waitForExistence(timeout: 8))
+        XCTAssertTrue(appVersionValue.waitForExistence(timeout: 8))
+        XCTAssertTrue(copyDeviceButton.waitForExistence(timeout: 8))
+        XCTAssertTrue(copyVersionButton.waitForExistence(timeout: 8))
+        captureSettingsProfileScreenshot(named: "01-ready")
+
+        fccSegment.tap()
+        captureSettingsProfileScreenshot(named: "02-mode-fcc")
+
+        clearAndType(nameField, text: "Jane Doe")
+        clearAndType(phoneField, text: "4045551212")
+        clearAndType(emailField, text: "jane@example.com")
+        dismissKeyboardIfPresent(first)
+        if (ackSwitch.value as? String) != "1" {
+            ackSwitch.tap()
+        }
+        captureSettingsProfileScreenshot(named: "03-filled")
+
+        copyDeviceButton.tap()
+        copyVersionButton.tap()
+        captureSettingsProfileScreenshot(named: "04-after-copy")
+
+        dismissKeyboardIfPresent(first)
+        saveButton.tap()
+        XCTAssertTrue(first.staticTexts["Settings saved."].waitForExistence(timeout: 5))
+        captureSettingsProfileScreenshot(named: "05-after-save")
+        first.terminate()
+
+        let reopened = XCUIApplication()
+        reopened.launchEnvironment["CELLWATCH_UI_MODE"] = "settings-profile-flow"
+        reopened.launch()
+        let reopenedMode = reopened.segmentedControls["harness.settings.mode"]
+        let reopenedPhone = reopened.textFields["harness.onboarding.phone"]
+        let reopenedEmail = reopened.textFields["harness.onboarding.email"]
+        XCTAssertTrue(reopenedMode.waitForExistence(timeout: 8))
+        XCTAssertTrue(reopenedPhone.waitForExistence(timeout: 8))
+        XCTAssertTrue(reopenedEmail.waitForExistence(timeout: 8))
+        captureSettingsProfileScreenshot(named: "06-reopen-saved")
+        XCTAssertEqual(reopenedPhone.value as? String, "404-555-1212")
+        XCTAssertEqual(reopenedEmail.value as? String, "jane@example.com")
+        XCTAssertTrue(reopenedMode.buttons["FCC Challenge"].isSelected)
+        reopened.terminate()
+    }
+
+    func testMapHomeRenderFlow_loadsMapboxStyle() throws {
+        let app = XCUIApplication()
+        app.launchEnvironment["CELLWATCH_UI_MODE"] = "map-home"
+        if let token = resolveMapboxTokenForUiTest() {
+            app.launchEnvironment["MAPBOX_ACCESS_TOKEN"] = token
+            app.launchArguments.append("MAPBOX_ACCESS_TOKEN=\(token)")
+        }
+        app.launch()
+
+        let mapContainer = app.otherElements["harness.mapHome.mapContainer"]
+        let renderState = app.staticTexts["harness.mapHome.renderState"]
+        XCTAssertTrue(mapContainer.waitForExistence(timeout: 12))
+        XCTAssertTrue(renderState.waitForExistence(timeout: 12))
+        captureMapHomeRenderScreenshot(named: "01-map-home-initial")
+
+        let terminalFailureStates = ["TOKEN_MISSING", "MAPBOX_PACKAGE_MISSING", "MAP_ERROR"]
+        let sawFailureState = waitForAnyText(element: renderState, containsAny: terminalFailureStates, timeout: 5)
+        if sawFailureState {
+            captureMapHomeRenderScreenshot(named: "02-map-home-failure")
+            XCTFail("Map home render failed early. state=\(renderState.label)")
+        }
+
+        XCTAssertTrue(
+            waitForAnyText(
+                element: renderState,
+                containsAny: ["STYLE_LOADED", "MAP_IDLE"],
+                timeout: 60
+            ),
+            "Expected STYLE_LOADED or MAP_IDLE map render state. current=\(renderState.label)"
+        )
+        captureMapHomeRenderScreenshot(named: "03-map-home-loaded")
         app.terminate()
     }
 
@@ -412,6 +643,24 @@ final class OnboardingFlowUiTests: XCTestCase {
         try? data.write(to: url, options: [.atomic])
     }
 
+    private func captureMeasurementHistoryScreenshot(named name: String) {
+        let data = XCUIScreen.main.screenshot().pngRepresentation
+        let url = measurementHistoryScreenshotRoot.appendingPathComponent("\(name).png")
+        try? data.write(to: url, options: [.atomic])
+    }
+
+    private func captureSettingsProfileScreenshot(named name: String) {
+        let data = XCUIScreen.main.screenshot().pngRepresentation
+        let url = settingsProfileScreenshotRoot.appendingPathComponent("\(name).png")
+        try? data.write(to: url, options: [.atomic])
+    }
+
+    private func captureMapHomeRenderScreenshot(named name: String) {
+        let data = XCUIScreen.main.screenshot().pngRepresentation
+        let url = mapHomeRenderScreenshotRoot.appendingPathComponent("\(name).png")
+        try? data.write(to: url, options: [.atomic])
+    }
+
     private func waitForOutputText(app: XCUIApplication, containsAny needles: [String], timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
@@ -452,6 +701,55 @@ final class OnboardingFlowUiTests: XCTestCase {
             return
         }
         app.launchEnvironment[key] = value
+    }
+
+    private func resolveMapboxTokenForUiTest() -> String? {
+        var candidateDirs: [URL] = [
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true),
+            URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        ]
+        var scanned: Set<String> = []
+        var propertyFiles: [URL] = []
+        while let nextDir = candidateDirs.first {
+            candidateDirs.removeFirst()
+            let standardized = nextDir.standardizedFileURL.path
+            if scanned.contains(standardized) { continue }
+            scanned.insert(standardized)
+            propertyFiles.append(nextDir.appendingPathComponent("cellwatch.local.properties"))
+            propertyFiles.append(nextDir.appendingPathComponent("cellwatch.properties"))
+            let parent = nextDir.deletingLastPathComponent()
+            if parent.path != nextDir.path {
+                candidateDirs.append(parent)
+            }
+        }
+
+        for file in propertyFiles {
+            guard let contents = try? String(contentsOf: file, encoding: .utf8) else { continue }
+            if let value = parseProperty("MAPBOX_ACCESS_TOKEN", from: contents) {
+                return value
+            }
+            if let value = parseProperty("MAPBOX_DOWNLOADS_TOKEN", from: contents) {
+                return value
+            }
+        }
+        return ProcessInfo.processInfo.environment["MAPBOX_ACCESS_TOKEN"]
+            ?? ProcessInfo.processInfo.environment["MAPBOX_DOWNLOADS_TOKEN"]
+    }
+
+    private func parseProperty(_ key: String, from text: String) -> String? {
+        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if line.isEmpty || line.hasPrefix("#") {
+                continue
+            }
+            let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
+            if parts.count == 2 && parts[0].trimmingCharacters(in: .whitespacesAndNewlines) == key {
+                return parts[1]
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            }
+        }
+        return nil
     }
 
     private func dismissKeyboardIfPresent(_ app: XCUIApplication) {

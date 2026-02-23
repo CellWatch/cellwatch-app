@@ -70,6 +70,78 @@ final class HarnessUiSmokeTests: XCTestCase {
         XCTAssertEqual(unknown.errorCategory, .unknown)
     }
 
+    func testMapboxTokenDistribution_matchesCellwatchProperties() throws {
+        let bundled = try bundledRuntimeConfigValue("MAPBOX_ACCESS_TOKEN")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertFalse(bundled.isEmpty, "Bundled runtime token is empty")
+        let sourceFile = try bundledRuntimeConfigValue("MAPBOX_TOKEN_SOURCE_FILE")
+        XCTAssertTrue(sourceFile.hasSuffix("cellwatch.properties") || sourceFile.hasSuffix("cellwatch.local.properties"))
+        let sourceKey = try bundledRuntimeConfigValue("MAPBOX_TOKEN_SOURCE_KEY")
+        XCTAssertTrue(sourceKey == "MAPBOX_ACCESS_TOKEN" || sourceKey == "MAPBOX_DOWNLOADS_TOKEN")
+
+        let resolved = RuntimeConfigSource.mapboxAccessToken()?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertNotNil(resolved, "RuntimeConfigSource.mapboxAccessToken() returned nil")
+        XCTAssertEqual(
+            resolved,
+            bundled,
+            "Resolved runtime Mapbox token does not match bundled runtime properties; token propagation is broken"
+        )
+    }
+
+    func testMapHomeBuildPath_doesNotRenderTokenMissingState() {
+        XCTAssertNoThrow(
+            try bundledRuntimeConfigValue("MAPBOX_ACCESS_TOKEN"),
+            "Missing bundled runtime token file"
+        )
+        let controller = HarnessViewController(displayMode: .mapHome, onboardingUiImplementation: .uikit)
+        controller.loadViewIfNeeded()
+
+        guard let renderStateLabel = findView(
+            in: controller.view,
+            identifier: HarnessViewController.mapHomeRenderStateIdentifier
+        ) as? UILabel else {
+            XCTFail("Missing map-home render state label")
+            return
+        }
+
+        RunLoop.main.run(until: Date().addingTimeInterval(0.8))
+        let state = renderStateLabel.text ?? ""
+        XCTAssertNotEqual(
+            state,
+            "TOKEN_MISSING",
+            "Map home rendered TOKEN_MISSING even though token exists in cellwatch.properties"
+        )
+    }
+
+    private func bundledRuntimeConfigValue(_ key: String) throws -> String {
+        guard let url = Bundle.main.url(forResource: "cellwatch.runtime", withExtension: "properties") else {
+            XCTFail("Missing bundled resource: cellwatch.runtime.properties")
+            return ""
+        }
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        if let value = parseProperty(key, from: contents), !value.isEmpty {
+            return value
+        }
+        XCTFail("\(key) missing in bundled runtime properties")
+        return ""
+    }
+
+    private func parseProperty(_ key: String, from contents: String) -> String? {
+        for rawLine in contents.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if line.isEmpty || line.hasPrefix("#") { continue }
+            let parts = line.split(separator: "=", maxSplits: 1).map(String.init)
+            if parts.count != 2 { continue }
+            let parsedKey = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            if parsedKey != key { continue }
+            return parts[1]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        }
+        return nil
+    }
+
     private func attachScreenshot(of view: UIView, named name: String) {
         let format = UIGraphicsImageRendererFormat()
         format.scale = UIScreen.main.scale

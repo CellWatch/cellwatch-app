@@ -149,6 +149,18 @@ run_step \
   "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.MeasurementRunFlowUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunMeasurementRunUiSmoke=1"
 pull_android_flow "measurement-run-flow"
 
+reset_android_flow "measurement-history-flow"
+run_step \
+  "android-measurement-history-flow" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.MeasurementHistoryFlowUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunMeasurementHistoryUiSmoke=1"
+pull_android_flow "measurement-history-flow"
+
+reset_android_flow "settings-profile-flow"
+run_step \
+  "android-settings-profile-flow" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :androidTestApp:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=edu.gatech.cc.cellwatch.androidtestapp.SettingsProfileFlowUiSmokeTest -Pandroid.testInstrumentationRunnerArguments.cellwatchRunSettingsProfileUiSmoke=1"
+pull_android_flow "settings-profile-flow"
+
 run_step \
   "ios-onboarding-profile-entry-hosted" \
   "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppHostedOnboardingRuntimeSmoke"
@@ -173,21 +185,35 @@ run_step \
   "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppUiMeasurementRunFlowSmoke"
 copy_ios_flow "measurement-run-flow-xcuitest"
 
+run_step \
+  "ios-measurement-history-flow-xcuitest" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppUiMeasurementHistoryFlowSmoke"
+copy_ios_flow "measurement-history-flow-xcuitest"
+
+run_step \
+  "ios-settings-profile-flow-xcuitest" \
+  "./gradlew --gradle-user-home \"$GRADLE_USER_HOME\" :shared:verifyIosTestAppUiSettingsProfileFlowSmoke"
+copy_ios_flow "settings-profile-flow-xcuitest"
+
 {
   echo "# UI Flow Report"
   echo
   echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   echo
-  echo "_Scope: product-like onboarding, measurement-start preflight, pending-sync count/retry, and measurement-run flow evidence (including completion metrics + take-another action). iOS hosted onboarding smoke is assertion-only (no screenshots); iOS visual evidence comes from XCUITest device screenshots._"
+  echo "_Scope: product-like onboarding, measurement-start preflight, pending-sync count/retry, measurement-run flow evidence (including completion metrics + take-another action), and measurement-history/sync-status snapshots. iOS hosted onboarding smoke is assertion-only (no screenshots); iOS visual evidence comes from XCUITest device screenshots._"
   echo
   render_flow_section "android" "onboarding-profile-entry" "Android: Onboarding Profile Entry Smoke"
   render_flow_section "android" "measurement-start-preflight" "Android: Measurement Start Preflight Smoke"
   render_flow_section "android" "pending-sync-retry" "Android: Pending Sync Count/Retry Smoke"
   render_flow_section "android" "measurement-run-flow" "Android: Measurement Run Flow Smoke"
+  render_flow_section "android" "measurement-history-flow" "Android: Measurement History + Sync Status Smoke"
+  render_flow_section "android" "settings-profile-flow" "Android: Settings Profile Flow Smoke"
   render_flow_section "ios" "onboarding-profile-entry-xcuitest" "iOS: Onboarding Profile Entry Smoke (XCUITest)"
   render_flow_section "ios" "measurement-start-preflight-xcuitest" "iOS: Measurement Start Preflight Smoke (XCUITest)"
   render_flow_section "ios" "pending-sync-retry-xcuitest" "iOS: Pending Sync Count/Retry Smoke (XCUITest)"
   render_flow_section "ios" "measurement-run-flow-xcuitest" "iOS: Measurement Run Flow Smoke (XCUITest)"
+  render_flow_section "ios" "measurement-history-flow-xcuitest" "iOS: Measurement History + Sync Status Smoke (XCUITest)"
+  render_flow_section "ios" "settings-profile-flow-xcuitest" "iOS: Settings Profile Flow Smoke (XCUITest)"
 } > "$MARKDOWN_FILE"
 
 echo
