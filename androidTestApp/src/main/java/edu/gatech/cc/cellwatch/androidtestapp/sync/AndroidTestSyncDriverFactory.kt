@@ -19,6 +19,7 @@ class AndroidTestSyncDriverFactory(
     private val database: CellwatchDatabase,
     private val deviceAuthStore: DeviceAuthStore,
     private val tcpTupleProvider: TcpTupleProvider,
+    private val syncEnabled: Boolean = true,
     private val environmentProvider: SupabaseEnvironmentProvider = CellwatchPropertiesSupabaseEnvironmentProvider(),
     private val io: CoroutineContext = EmptyCoroutineContext,
     private val clock: Clock = Clock.System,
@@ -35,6 +36,12 @@ class AndroidTestSyncDriverFactory(
     }
 
     fun createUploadTriggerUseCase(target: SupabaseTarget = SupabaseTarget.LOCAL): UploadTriggerUseCase {
+        if (!syncEnabled) {
+            return MeasurementSyncServiceFactory.createLocalOnlyUploadTriggerUseCase(
+                database = database,
+                io = io,
+            )
+        }
         val remoteProvider = SupabaseSyncRemoteDataSourceProvider(deviceAuthStore)
         return MeasurementSyncServiceFactory.createUploadTriggerUseCase(
             database = database,
@@ -61,6 +68,12 @@ class AndroidTestSyncDriverFactory(
     }
 
     fun createRetryPendingSyncUseCase(target: SupabaseTarget = SupabaseTarget.LOCAL): RetryPendingSyncUseCase {
+        if (!syncEnabled) {
+            return MeasurementSyncServiceFactory.createLocalOnlyRetryPendingSyncUseCase(
+                database = database,
+                io = io,
+            )
+        }
         val repositories = MeasurementSyncServiceFactory.createRepositoriesForSyncUseCases(
             database = database,
             io = io,

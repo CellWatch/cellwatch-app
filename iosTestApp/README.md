@@ -28,6 +28,25 @@ xcodebuild \
   build
 ```
 
+Current build defaults:
+- `Debug`:
+  - `CELLWATCH_DEFAULT_MSAK_MODE=LOCAL`
+  - `CELLWATCH_DEFAULT_SUPABASE_MODE=LOCAL`
+  - `CELLWATCH_ALLOW_REMOTE_SUPABASE=NO`
+- `Release`:
+  - `CELLWATCH_DEFAULT_MSAK_MODE=PUBLIC`
+  - `CELLWATCH_DEFAULT_SUPABASE_MODE=TESTING`
+  - `CELLWATCH_ALLOW_REMOTE_SUPABASE=YES`
+
+For TestFlight/staged hosted testing, provide local property values for:
+
+```properties
+SUPABASE_TESTING_URL=...
+SUPABASE_TESTING_API_KEY=...
+```
+
+Current staged deployment intent is to use hosted testing Supabase, not `SUPABASE_URL` / `SUPABASE_API_KEY`.
+
 Xcode prebuild now uses `/Users/jeff/Projects/cellwatch-app/scripts/compile-shared-framework-for-xcode.sh`,
 which keeps `sharedKit.framework` current at:
 - `/Users/jeff/Projects/cellwatch-app/shared/build/bin/Current/sharedKit.framework`

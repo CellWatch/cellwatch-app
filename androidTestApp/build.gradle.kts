@@ -41,6 +41,10 @@ val buildConfigSyncDiagnosticsIncludeCauseChain = readCellwatchProperty(
     name = "CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN",
     defaultValue = "false",
 ).equals("true", ignoreCase = true)
+val buildConfigDisableSupabaseSync = readCellwatchProperty(
+    name = "CELLWATCH_DISABLE_SUPABASE_SYNC",
+    defaultValue = "false",
+).equals("true", ignoreCase = true)
 val buildConfigMapboxAccessToken = readCellwatchProperty(
     name = "MAPBOX_ACCESS_TOKEN",
     defaultValue = readCellwatchProperty(
@@ -65,6 +69,7 @@ android {
         buildConfigField("String", "CELLWATCH_SYNC_DIAGNOSTICS_LEVEL", toBuildConfigString(buildConfigSyncDiagnosticsLevel))
         buildConfigField("int", "CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES", buildConfigSyncDiagnosticsMaxSamples.toString())
         buildConfigField("boolean", "CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN", buildConfigSyncDiagnosticsIncludeCauseChain.toString())
+        buildConfigField("boolean", "CELLWATCH_DISABLE_SUPABASE_SYNC", buildConfigDisableSupabaseSync.toString())
         resValue("string", "mapbox_access_token", buildConfigMapboxAccessToken)
     }
 

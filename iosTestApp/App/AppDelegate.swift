@@ -21,7 +21,16 @@ enum RuntimeConfigSource {
         if let launchValue = launchArgumentValue(key) {
             return launchValue
         }
-        return property(key)
+        if let propertyValue = property(key) {
+            return propertyValue
+        }
+        if let plistValue = infoDictionaryStringValue(key) {
+            return plistValue
+        }
+        if let plistBool = Bundle.main.object(forInfoDictionaryKey: key) as? Bool {
+            return plistBool ? "true" : "false"
+        }
+        return nil
     }
 
     static func bool(_ key: String, default defaultValue: Bool = false) -> Bool {
@@ -31,6 +40,36 @@ enum RuntimeConfigSource {
             return defaultValue
         }
         return raw == "true" || raw == "1" || raw == "yes" || raw == "y"
+    }
+
+    static func defaultMsakMode() -> RuntimeMsakMode {
+        switch value("CELLWATCH_DEFAULT_MSAK_MODE")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased() {
+        case "PUBLIC":
+            return .public_
+        case "STAGING":
+            return .staging
+        case "LOCAL":
+            fallthrough
+        default:
+            return .local
+        }
+    }
+
+    static func defaultSupabaseMode() -> RuntimeSupabaseMode {
+        switch value("CELLWATCH_DEFAULT_SUPABASE_MODE")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased() {
+        case "TESTING":
+            return .testing
+        case "LIVE":
+            return .live
+        case "LOCAL":
+            fallthrough
+        default:
+            return .local
+        }
     }
 
     static func localSupabaseUrlForIos() -> String? {
@@ -62,6 +101,21 @@ enum RuntimeConfigSource {
             return (configured?.isEmpty == false) ? configured : "127.0.0.1:8080"
         }
         return configured
+    }
+
+    static func shouldDisableSupabaseSync() -> Bool {
+        if let explicit = value("CELLWATCH_DISABLE_SUPABASE_SYNC") {
+            let raw = explicit.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return raw == "true" || raw == "1" || raw == "yes" || raw == "y"
+        }
+        if let plist = Bundle.main.object(forInfoDictionaryKey: "CELLWATCH_DISABLE_SUPABASE_SYNC") as? String {
+            let raw = plist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return raw == "true" || raw == "1" || raw == "yes" || raw == "y"
+        }
+        if let plist = Bundle.main.object(forInfoDictionaryKey: "CELLWATCH_DISABLE_SUPABASE_SYNC") as? Bool {
+            return plist
+        }
+        return false
     }
 
     static func mapboxAccessToken() -> String? {
@@ -103,6 +157,17 @@ enum RuntimeConfigSource {
             }
         }
         return nil
+    }
+
+    private static func infoDictionaryStringValue(_ key: String) -> String? {
+        guard let raw = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
+            return nil
+        }
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, !value.contains("$(") else {
+            return nil
+        }
+        return value
     }
 
     private static func property(_ key: String) -> String? {
@@ -440,8 +505,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private var lastGroupId: String?
     private let msakModeButton = UIButton(type: .system)
     private let supabaseModeButton = UIButton(type: .system)
-    private var selectedMsakMode: RuntimeMsakMode = .local
-    private var selectedSupabaseMode: RuntimeSupabaseMode = .local
+    private var selectedMsakMode: RuntimeMsakMode = RuntimeConfigSource.defaultMsakMode()
+    private var selectedSupabaseMode: RuntimeSupabaseMode = RuntimeConfigSource.defaultSupabaseMode()
     private var runtimeSnapshot: RuntimeSyncMsakProfileSnapshot?
     private var diagnosticsSummary: String = "unconfigured"
     private var outputHistory: String = ""
@@ -500,6 +565,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     private let measurementRunFlowStepDelay: TimeInterval = 1.2
     private let measurementNetworkPathProbe = IosMeasurementNetworkPathProbe()
     private let locationPermissionManager = CLLocationManager()
+    private let supabaseSyncDisabled = RuntimeConfigSource.shouldDisableSupabaseSync()
     private let pendingSyncHarness = IosPendingSyncHarness()
     private var onboardingTopConstraint: NSLayoutConstraint?
     private var onboardingKeyboardObservers: [NSObjectProtocol] = []
@@ -2339,6 +2405,17 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     }
 
     @objc private func runPendingSyncCounts() {
+        if supabaseSyncDisabled {
+            let disabledText = "Sync disabled for this build."
+            pendingSyncSummaryLabel.text = disabledText
+            pendingSyncSummaryLabel.textColor = UIColor(red: 0.23, green: 0.37, blue: 0.47, alpha: 1)
+            if displayMode == .pendingSyncFlow {
+                pendingSyncDetailLabel.text = disabledText
+                pendingSyncDetailLabel.textColor = UIColor(red: 0.23, green: 0.37, blue: 0.47, alpha: 1)
+            }
+            setStatus(disabledText)
+            return
+        }
         if displayMode == .pendingSyncFlow {
             pendingSyncDetailLabel.text = "Checking pending uploads..."
             pendingSyncDetailLabel.textColor = UIColor(red: 0.23, green: 0.37, blue: 0.47, alpha: 1)
@@ -2373,6 +2450,17 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     }
 
     @objc private func runRetryPendingSync() {
+        if supabaseSyncDisabled {
+            let disabledText = "Sync disabled for this build."
+            pendingSyncSummaryLabel.text = disabledText
+            pendingSyncSummaryLabel.textColor = UIColor(red: 0.23, green: 0.37, blue: 0.47, alpha: 1)
+            if displayMode == .pendingSyncFlow {
+                pendingSyncDetailLabel.text = disabledText
+                pendingSyncDetailLabel.textColor = UIColor(red: 0.23, green: 0.37, blue: 0.47, alpha: 1)
+            }
+            setStatus(disabledText)
+            return
+        }
         guard let snapshot = runtimeSnapshot else {
             if displayMode == .pendingSyncFlow {
                 pendingSyncDetailLabel.text = "Runtime profile unavailable."
@@ -2388,7 +2476,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         setStatus("Retrying pending sync...")
         pendingSyncHarness.runRetryPendingSyncAsync(
             supabaseUrl: snapshot.supabaseUrl,
-            supabaseApiKey: snapshot.supabaseApiKey
+            supabaseApiKey: snapshot.supabaseApiKey,
+            syncEnabled: !supabaseSyncDisabled
         ) { text, error in
             DispatchQueue.main.async {
                 if let error = error {
@@ -2418,6 +2507,13 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     }
 
     @objc private func refreshMeasurementHistorySync() {
+        if supabaseSyncDisabled {
+            historyPendingMeasurements = nil
+            historyPendingSubmissions = nil
+            renderMeasurementHistoryUi()
+            setStatus("Sync disabled for this build.")
+            return
+        }
         setStatus("Refreshing sync status...")
         pendingSyncHarness.runPendingCountsAsync { text, error in
             DispatchQueue.main.async {
@@ -2913,6 +3009,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             msakConfig: config,
             supabaseUrl: runtimeSnapshot.supabaseUrl,
             supabaseApiKey: runtimeSnapshot.supabaseApiKey,
+            syncEnabled: !self.supabaseSyncDisabled,
             onProgressHeader: { headerText in
                 if self.displayMode == .measurementRunFlow {
                     self.scheduleMeasurementRunFlowUpdate {
@@ -3004,18 +3101,22 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
                     measurementCompleteUploadTimeSet: value.measurementCompleteUploadTimeSet,
                     persistedMeasurements: Int32(value.persistedMeasurements),
                     persistedSubmissions: Int32(value.persistedSubmissions),
-                    errorMessage: value.measurementCompleteUploadTimeSet
+                    errorMessage: self.supabaseSyncDisabled ? nil : (value.measurementCompleteUploadTimeSet
                         ? nil
-                        : "measurement-complete upload time missing; \(value.measurementCompleteReportSummary)"
+                        : "measurement-complete upload time missing; \(value.measurementCompleteReportSummary)")
                 )
                 if self.displayMode == .measurementRunFlow {
                     self.measurementRunCachedLatencySummary = value.latencySummary
                     self.measurementRunCachedDownloadSummary = value.downloadSummary
                     self.measurementRunCachedUploadSummary = value.uploadSummary
-                    self.measurementRunCachedUploadedSummary = value.measurementCompleteUploadTimeSet ? "Uploaded" : "Pending sync"
-                    self.measurementRunCachedCompletionSummary = value.measurementCompleteUploadTimeSet
+                    self.measurementRunCachedUploadedSummary = self.supabaseSyncDisabled
+                        ? "Sync disabled"
+                        : (value.measurementCompleteUploadTimeSet ? "Uploaded" : "Pending sync")
+                    self.measurementRunCachedCompletionSummary = self.supabaseSyncDisabled
+                        ? "Measurement complete. Results saved on this device. Sync is disabled."
+                        : (value.measurementCompleteUploadTimeSet
                         ? "Measurement complete. Results saved and synced."
-                        : "Measurement complete. Results saved and sync attempted."
+                        : "Measurement complete. Results saved and sync attempted.")
                     self.measurementRunCachedCenterLatitude = value.centerLatitude.isNaN ? nil : value.centerLatitude
                     self.measurementRunCachedCenterLongitude = value.centerLongitude.isNaN ? nil : value.centerLongitude
                     self.scheduleMeasurementRunFlowCompletion {

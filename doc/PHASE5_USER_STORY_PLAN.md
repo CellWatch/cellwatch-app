@@ -7,6 +7,16 @@ Companion contract:
 
 ## Current Snapshot (2026-02-22)
 
+Runtime deployment note (2026-03-19):
+- Shared runtime contract supports `LOCAL`, `TESTING`, and `LIVE` Supabase modes.
+- Current intended staged deployment path is:
+  - simulator/dev -> `LOCAL`
+  - iOS Release/TestFlight MVP -> `TESTING`
+  - not `LIVE`
+- Hosted testing credentials should be supplied through local property files using:
+  - `SUPABASE_TESTING_URL`
+  - `SUPABASE_TESTING_API_KEY`
+
 Implemented now:
 - Story 1 implemented baseline:
   - shared onboarding contracts + validation/persistence

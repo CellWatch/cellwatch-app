@@ -74,6 +74,10 @@ Local development and test harness work is now guarded to use local Supabase by 
   - `SUPABASE_LOCAL_URL="http://10.0.2.2:54321"`
   - local Supabase anon key (CLI default)
   - optional local-only override: `SUPABASE_LOCAL_SERVICE_KEY` (use for local RLS-constrained write testing; keep untracked/local)
+- Hosted testing values should live in an untracked local properties file:
+  - `SUPABASE_TESTING_URL="https://<testing-project>.supabase.co"`
+  - `SUPABASE_TESTING_API_KEY="<public anon/publishable key>"`
+  - preferred placement: `cellwatch.local.properties` (falls back to `cellwatch.properties`)
 
 ### Runtime Mode Model (MSAK + Supabase)
 
@@ -104,6 +108,11 @@ Supabase mode mapping:
 - `LOCAL` -> shared sync target `LOCAL` (uses `SUPABASE_LOCAL_URL` + `SUPABASE_LOCAL_API_KEY`)
 - `TESTING` -> shared sync target `REMOTE` (uses `SUPABASE_TESTING_URL` + `SUPABASE_TESTING_API_KEY`)
 - `LIVE` -> shared sync target `REMOTE` (uses `SUPABASE_URL` + `SUPABASE_API_KEY`)
+
+iOS build defaults:
+- `Debug` -> `MSAK=LOCAL`, `Supabase=LOCAL`, `CELLWATCH_ALLOW_REMOTE_SUPABASE=NO`
+- `Release` -> `MSAK=PUBLIC`, `Supabase=TESTING`, `CELLWATCH_ALLOW_REMOTE_SUPABASE=YES`
+- Current TestFlight intent is to use hosted testing Supabase via `SUPABASE_TESTING_*`, not `SUPABASE_URL` / `SUPABASE_API_KEY`
 
 Strict runtime config hardening (current):
 - Shared runtime config now supports strict resolution mode (no silent local fallback defaults).
@@ -152,8 +161,9 @@ Notes:
 - If local server is up but Phase3 fails with `authorize`/`result` decode errors, first verify protocol compatibility between current `msak-client-kmp` artifact and your local `msak-server`.
 
 Current project policy:
-- We only operate in `Supabase LOCAL` mode for active development and test workflows.
-- `TESTING`/`LIVE` paths exist for future staged rollout, but remain guard-railed by `allowRemoteSupabase` and are not part of normal day-to-day usage.
+- Local simulator/dev workflows should continue using `Supabase LOCAL` by default.
+- Hosted staged iOS MVP/TestFlight builds should use `Supabase TESTING`.
+- `LIVE` (`SUPABASE_URL` / `SUPABASE_API_KEY`) remains present in the shared runtime contract but is not intended for current KMP MVP/TestFlight deployment.
 
 ### Harness App Permissions (Current)
 

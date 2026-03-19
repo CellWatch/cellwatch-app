@@ -28,6 +28,18 @@ interface MeasurementSyncService {
     suspend fun syncAll(): SyncAllReport
 }
 
+object NoOpMeasurementSyncService : MeasurementSyncService {
+    override suspend fun syncMeasurements(): SyncReport = SyncReport()
+
+    override suspend fun syncFccSubmissions(): SyncReport = SyncReport()
+
+    override suspend fun syncAll(): SyncAllReport =
+        SyncAllReport(
+            measurements = SyncReport(),
+            submissions = SyncReport(),
+        )
+}
+
 class DefaultMeasurementSyncService(
     private val useCase: MeasurementSyncUseCase,
 ) : MeasurementSyncService {
