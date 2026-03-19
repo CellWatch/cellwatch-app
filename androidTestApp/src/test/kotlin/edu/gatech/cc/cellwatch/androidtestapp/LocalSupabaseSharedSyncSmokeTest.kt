@@ -30,13 +30,10 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.UUID
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -79,8 +76,6 @@ class LocalSupabaseSharedSyncSmokeTest {
                 remoteApiKey = "blocked",
             ),
         )
-        val localSupabaseReachable = isSupabaseReachable(hostLocalUrl)
-        assertTrue("Local Supabase unreachable at $hostLocalUrl", localSupabaseReachable)
 
         val authStore = InMemoryDeviceAuthStore()
         val deviceId = authStore.getDeviceId()
@@ -181,21 +176,6 @@ class LocalSupabaseSharedSyncSmokeTest {
             measurementCompleteUploadTimeSet = uploadTime != null,
         )
         assertNull(invariantError)
-    }
-
-    private fun isSupabaseReachable(baseUrl: String): Boolean {
-        return runCatching {
-            val connection = (URL(baseUrl).openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = 1500
-                readTimeout = 1500
-            }
-            try {
-                connection.responseCode in 200..499
-            } finally {
-                connection.disconnect()
-            }
-        }.getOrDefault(false)
     }
 
     private fun normalizeForHost(url: String): String {

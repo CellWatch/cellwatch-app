@@ -27,7 +27,10 @@ val buildConfigLocalSupabaseUrl = readCellwatchProperty("SUPABASE_LOCAL_URL", "h
     .replace("localhost", "10.0.2.2")
 val buildConfigLocalSupabaseApiKey = readCellwatchProperty(
     name = "SUPABASE_LOCAL_SERVICE_KEY",
-    defaultValue = readCellwatchProperty("SUPABASE_LOCAL_API_KEY"),
+    defaultValue = readCellwatchProperty(
+        name = "SUPABASE_LOCAL_API_KEY",
+        defaultValue = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0",
+    ),
 )
 val buildConfigSyncDiagnosticsLevel = readCellwatchProperty(
     name = "CELLWATCH_SYNC_DIAGNOSTICS_LEVEL",

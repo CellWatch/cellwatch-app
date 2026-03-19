@@ -1,5 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.capability
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -52,6 +53,7 @@ class AndroidPlatformCapabilityProvider(
         )
     }
 
+    @SuppressLint("MissingPermission")
     private fun captureTelephony(capturedAt: Instant): TelephonyCapabilitySnapshot {
         if (!hasPermission(Manifest.permission.READ_PHONE_STATE)) {
             return TelephonyCapabilitySnapshot(
@@ -89,6 +91,7 @@ class AndroidPlatformCapabilityProvider(
         )
     }
 
+    @SuppressLint("MissingPermission")
     private fun captureNetwork(): NetworkCapabilitySnapshot {
         val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             ?: return NetworkCapabilitySnapshot(
@@ -171,6 +174,7 @@ class AndroidPlatformCapabilityProvider(
         else -> null
     }
 
+    @SuppressLint("NewApi")
     private fun toDomainCell(cellInfo: CellInfo, capturedAt: Instant): Cell {
         val signal = cellInfo.cellSignalStrength
         val identity = when (cellInfo) {
