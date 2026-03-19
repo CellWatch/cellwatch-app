@@ -76,6 +76,15 @@ iOS Mapbox token distribution guardrail:
   - `HarnessUiSmokeTests.testMapboxTokenDistribution_matchesCellwatchProperties`
   - `HarnessUiSmokeTests.testMapHomeBuildPath_doesNotRenderTokenMissingState`
 
+iOS hosted-testing Release defaults:
+- `iosTestApp` `Debug` defaults to `MSAK=LOCAL` and `Supabase=LOCAL`.
+- `iosTestApp` `Release` defaults to `MSAK=PUBLIC` and `Supabase=TESTING`.
+- `Release` also enables `CELLWATCH_ALLOW_REMOTE_SUPABASE=YES`.
+- Provide hosted testing credentials in local property files:
+  - `SUPABASE_TESTING_URL`
+  - `SUPABASE_TESTING_API_KEY`
+- Current TestFlight intent is hosted testing Supabase, not `SUPABASE_URL` / `SUPABASE_API_KEY`.
+
 Run Phase 3 simulator smoke evidence:
 
 ```bash

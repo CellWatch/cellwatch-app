@@ -41,13 +41,20 @@ class IosPendingSyncHarness {
     fun runRetryPendingSyncAsync(
         supabaseUrl: String,
         supabaseApiKey: String,
+        syncEnabled: Boolean = true,
         onComplete: (String?, Throwable?) -> Unit,
     ) {
         val handler = CoroutineExceptionHandler { _, throwable ->
             onComplete(null, throwable)
         }
         CoroutineScope(SupervisorJob() + Dispatchers.Default + handler).launch {
-            runCatching { runRetryPendingSync(supabaseUrl = supabaseUrl, supabaseApiKey = supabaseApiKey) }
+            runCatching {
+                runRetryPendingSync(
+                    supabaseUrl = supabaseUrl,
+                    supabaseApiKey = supabaseApiKey,
+                    syncEnabled = syncEnabled,
+                )
+            }
                 .onSuccess { onComplete(it, null) }
                 .onFailure { onComplete(null, it) }
         }
@@ -78,6 +85,7 @@ class IosPendingSyncHarness {
     private suspend fun runRetryPendingSync(
         supabaseUrl: String,
         supabaseApiKey: String,
+        syncEnabled: Boolean,
     ): String {
         val now = Clock.System.now()
         val driver = NativeSqliteDriver(
@@ -88,33 +96,40 @@ class IosPendingSyncHarness {
         val deviceAuthStore = PendingSyncDeviceAuthStore()
         try {
             seedPendingRecords(db = db, now = now)
-            val useCase = MeasurementSyncServiceFactory.createRetryPendingSyncUseCase(
-                database = db,
-                io = EmptyCoroutineContext,
-                remoteProfile = SyncRemoteProfile.Supabase(
-                    configResolver = SyncRuntimeConfigFactory.fromRaw(
-                        allowRemote = false,
-                        localUrl = supabaseUrl,
-                        localApiKey = supabaseApiKey,
+            val useCase = if (syncEnabled) {
+                MeasurementSyncServiceFactory.createRetryPendingSyncUseCase(
+                    database = db,
+                    io = EmptyCoroutineContext,
+                    remoteProfile = SyncRemoteProfile.Supabase(
+                        configResolver = SyncRuntimeConfigFactory.fromRaw(
+                            allowRemote = false,
+                            localUrl = supabaseUrl,
+                            localApiKey = supabaseApiKey,
+                        ),
+                        target = SyncTransportTarget.LOCAL,
                     ),
-                    target = SyncTransportTarget.LOCAL,
-                ),
-                remoteFactory = DefaultSyncRemoteDataSourceFactory(
-                    SupabaseSyncRemoteDataSourceProvider(deviceAuthStore = deviceAuthStore),
-                ),
-                tcpTupleProvider = object : TcpTupleProvider {
-                    override suspend fun getPublicTcpTuple(): TcpTuple {
-                        return TcpTuple(
-                            remoteAddress = "203.0.113.12",
-                            remotePort = 4242,
-                            timestamp = now.toEpochMilliseconds(),
-                        )
-                    }
-                },
-                clock = object : Clock {
-                    override fun now(): Instant = now
-                },
-            )
+                    remoteFactory = DefaultSyncRemoteDataSourceFactory(
+                        SupabaseSyncRemoteDataSourceProvider(deviceAuthStore = deviceAuthStore),
+                    ),
+                    tcpTupleProvider = object : TcpTupleProvider {
+                        override suspend fun getPublicTcpTuple(): TcpTuple {
+                            return TcpTuple(
+                                remoteAddress = "203.0.113.12",
+                                remotePort = 4242,
+                                timestamp = now.toEpochMilliseconds(),
+                            )
+                        }
+                    },
+                    clock = object : Clock {
+                        override fun now(): Instant = now
+                    },
+                )
+            } else {
+                MeasurementSyncServiceFactory.createLocalOnlyRetryPendingSyncUseCase(
+                    database = db,
+                    io = EmptyCoroutineContext,
+                )
+            }
             val summary = useCase.execute()
             return buildString {
                 appendLine("Retry pending sync:")

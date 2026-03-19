@@ -14,8 +14,19 @@ targets:
       - App
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatch.iosTestApp
+        PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatch
         INFOPLIST_FILE: App/Info.plist
+      configs:
+        Debug:
+          CELLWATCH_DISABLE_SUPABASE_SYNC: NO
+          CELLWATCH_ALLOW_REMOTE_SUPABASE: NO
+          CELLWATCH_DEFAULT_MSAK_MODE: LOCAL
+          CELLWATCH_DEFAULT_SUPABASE_MODE: LOCAL
+        Release:
+          CELLWATCH_DISABLE_SUPABASE_SYNC: NO
+          CELLWATCH_ALLOW_REMOTE_SUPABASE: YES
+          CELLWATCH_DEFAULT_MSAK_MODE: PUBLIC
+          CELLWATCH_DEFAULT_SUPABASE_MODE: TESTING
     dependencies:
       - framework: ../shared/build/bin/Current/sharedKit.framework
     preBuildScripts:
@@ -32,7 +43,7 @@ targets:
       - TestSupport
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatch.iosTestAppTests
+        PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatchTests
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/iosTestApp.app/iosTestApp"
         BUNDLE_LOADER: "$(TEST_HOST)"
@@ -47,7 +58,7 @@ targets:
       - TestSupport
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatch.iosTestAppUITests
+        PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatchUITests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: iosTestApp
     dependencies:

@@ -62,6 +62,7 @@ class IosPhase3SequenceSyncHarness {
         msakConfig: MsakLocateConfig,
         supabaseUrl: String,
         supabaseApiKey: String,
+        syncEnabled: Boolean = true,
         onProgressHeader: ((String) -> Unit)? = null,
         onComplete: (IosPhase3SequenceSyncResult?, Throwable?) -> Unit,
     ) {
@@ -74,6 +75,7 @@ class IosPhase3SequenceSyncHarness {
                     msakConfig = msakConfig,
                     supabaseUrl = supabaseUrl,
                     supabaseApiKey = supabaseApiKey,
+                    syncEnabled = syncEnabled,
                     onProgressHeader = onProgressHeader,
                 )
             }.onSuccess { result ->
@@ -89,6 +91,7 @@ class IosPhase3SequenceSyncHarness {
         msakConfig: MsakLocateConfig,
         supabaseUrl: String,
         supabaseApiKey: String,
+        syncEnabled: Boolean = true,
         onProgressHeader: ((String) -> Unit)? = null,
     ): IosPhase3SequenceSyncResult {
         val now = Clock.System.now()
@@ -123,34 +126,41 @@ class IosPhase3SequenceSyncHarness {
                     override fun now(): Instant = now
                 },
             )
-            val remoteProfile = SyncRemoteProfile.Supabase(
-                configResolver = SyncRuntimeConfigFactory.fromRaw(
-                    allowRemote = false,
-                    localUrl = supabaseUrl,
-                    localApiKey = supabaseApiKey,
-                ),
-                target = SyncTransportTarget.LOCAL,
-            )
-            val uploadTriggerUseCase = MeasurementSyncServiceFactory.createUploadTriggerUseCase(
-                database = db,
-                io = EmptyCoroutineContext,
-                remoteProfile = remoteProfile,
-                remoteFactory = DefaultSyncRemoteDataSourceFactory(
-                    SupabaseSyncRemoteDataSourceProvider(deviceAuthStore = deviceAuthStore),
-                ),
-                tcpTupleProvider = object : TcpTupleProvider {
-                    override suspend fun getPublicTcpTuple(): TcpTuple {
-                        return TcpTuple(
-                            remoteAddress = "203.0.113.11",
-                            remotePort = 4242,
-                            timestamp = now.toEpochMilliseconds(),
-                        )
-                    }
-                },
-                clock = object : Clock {
-                    override fun now(): Instant = now
-                },
-            )
+            val uploadTriggerUseCase = if (syncEnabled) {
+                val remoteProfile = SyncRemoteProfile.Supabase(
+                    configResolver = SyncRuntimeConfigFactory.fromRaw(
+                        allowRemote = false,
+                        localUrl = supabaseUrl,
+                        localApiKey = supabaseApiKey,
+                    ),
+                    target = SyncTransportTarget.LOCAL,
+                )
+                MeasurementSyncServiceFactory.createUploadTriggerUseCase(
+                    database = db,
+                    io = EmptyCoroutineContext,
+                    remoteProfile = remoteProfile,
+                    remoteFactory = DefaultSyncRemoteDataSourceFactory(
+                        SupabaseSyncRemoteDataSourceProvider(deviceAuthStore = deviceAuthStore),
+                    ),
+                    tcpTupleProvider = object : TcpTupleProvider {
+                        override suspend fun getPublicTcpTuple(): TcpTuple {
+                            return TcpTuple(
+                                remoteAddress = "203.0.113.11",
+                                remotePort = 4242,
+                                timestamp = now.toEpochMilliseconds(),
+                            )
+                        }
+                    },
+                    clock = object : Clock {
+                        override fun now(): Instant = now
+                    },
+                )
+            } else {
+                MeasurementSyncServiceFactory.createLocalOnlyUploadTriggerUseCase(
+                    database = db,
+                    io = EmptyCoroutineContext,
+                )
+            }
             val request = MeasurementSequenceRequest(
                 groupId = uuid4().toString(),
                 inVehicle = false,

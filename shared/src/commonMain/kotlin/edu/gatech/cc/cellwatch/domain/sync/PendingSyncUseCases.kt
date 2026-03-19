@@ -43,9 +43,22 @@ class GetPendingSyncCountsUseCase(
 class RetryPendingSyncUseCase(
     private val syncService: MeasurementSyncService,
     private val pendingCountsUseCase: GetPendingSyncCountsUseCase,
+    private val disabledMessage: String? = null,
 ) {
     suspend fun execute(): SyncRunSummary {
         val before = pendingCountsUseCase.execute()
+        if (disabledMessage != null) {
+            return SyncRunSummary(
+                status = SyncRunStatus.IDLE,
+                before = before,
+                after = before,
+                report = SyncAllReport(
+                    measurements = SyncReport(),
+                    submissions = SyncReport(),
+                ),
+                userMessage = disabledMessage,
+            )
+        }
         if (before.total == 0) {
             return SyncRunSummary(
                 status = SyncRunStatus.IDLE,

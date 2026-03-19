@@ -356,7 +356,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatch.iosTestAppUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatchUITests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = iosTestApp;
@@ -496,7 +496,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatch.iosTestApp;
+				CELLWATCH_DISABLE_SUPABASE_SYNC = NO;
+				CELLWATCH_ALLOW_REMOTE_SUPABASE = YES;
+				CELLWATCH_DEFAULT_MSAK_MODE = PUBLIC;
+				CELLWATCH_DEFAULT_SUPABASE_MODE = TESTING;
+				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatch;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -516,7 +520,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatch.iosTestAppTests;
+				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatchTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iosTestApp.app/iosTestApp";
@@ -533,7 +537,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatch.iosTestAppUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatchUITests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = iosTestApp;
@@ -554,7 +558,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatch.iosTestAppTests;
+				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatchTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iosTestApp.app/iosTestApp";
@@ -575,7 +579,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatch.iosTestApp;
+				CELLWATCH_DISABLE_SUPABASE_SYNC = NO;
+				CELLWATCH_ALLOW_REMOTE_SUPABASE = NO;
+				CELLWATCH_DEFAULT_MSAK_MODE = LOCAL;
+				CELLWATCH_DEFAULT_SUPABASE_MODE = LOCAL;
+				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatch;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

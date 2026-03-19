@@ -15,6 +15,7 @@ import edu.gatech.cc.cellwatch.domain.sync.GetPendingSyncCountsUseCase
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncRemoteDataSource
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncService
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSyncUseCase
+import edu.gatech.cc.cellwatch.domain.sync.NoOpMeasurementSyncService
 import edu.gatech.cc.cellwatch.domain.sync.RetryPendingSyncUseCase
 import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerUseCase
@@ -175,6 +176,18 @@ object MeasurementSyncServiceFactory {
         )
     }
 
+    fun createLocalOnlyUploadTriggerUseCase(
+        database: CellwatchDatabase,
+        io: CoroutineContext = EmptyCoroutineContext,
+    ): UploadTriggerUseCase {
+        val repos = createRepositories(database, io)
+        return UploadTriggerUseCase(
+            syncService = NoOpMeasurementSyncService,
+            measurementRepository = repos.measurementRepo,
+            submissionRepository = repos.submissionRepo,
+        )
+    }
+
     fun createSyncService(
         database: CellwatchDatabase,
         io: CoroutineContext = EmptyCoroutineContext,
@@ -234,6 +247,22 @@ object MeasurementSyncServiceFactory {
                 measurementRepository = repositories.measurementRepository,
                 submissionRepository = repositories.submissionRepository,
             ),
+        )
+    }
+
+    fun createLocalOnlyRetryPendingSyncUseCase(
+        database: CellwatchDatabase,
+        io: CoroutineContext = EmptyCoroutineContext,
+        disabledMessage: String = "Sync disabled for this build.",
+    ): RetryPendingSyncUseCase {
+        val repositories = createRepositoriesForSyncUseCases(database = database, io = io)
+        return RetryPendingSyncUseCase(
+            syncService = NoOpMeasurementSyncService,
+            pendingCountsUseCase = GetPendingSyncCountsUseCase(
+                measurementRepository = repositories.measurementRepository,
+                submissionRepository = repositories.submissionRepository,
+            ),
+            disabledMessage = disabledMessage,
         )
     }
 

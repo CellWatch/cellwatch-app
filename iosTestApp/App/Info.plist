@@ -18,8 +18,16 @@
     <string>1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
-    <key>MAPBOX_ACCESS_TOKEN</key>
-    <string>$(MAPBOX_ACCESS_TOKEN)</string>
+	<key>MAPBOX_ACCESS_TOKEN</key>
+	<string>$(MAPBOX_ACCESS_TOKEN)</string>
+	<key>CELLWATCH_DISABLE_SUPABASE_SYNC</key>
+	<string>$(CELLWATCH_DISABLE_SUPABASE_SYNC)</string>
+	<key>CELLWATCH_ALLOW_REMOTE_SUPABASE</key>
+	<string>$(CELLWATCH_ALLOW_REMOTE_SUPABASE)</string>
+	<key>CELLWATCH_DEFAULT_MSAK_MODE</key>
+	<string>$(CELLWATCH_DEFAULT_MSAK_MODE)</string>
+	<key>CELLWATCH_DEFAULT_SUPABASE_MODE</key>
+	<string>$(CELLWATCH_DEFAULT_SUPABASE_MODE)</string>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>

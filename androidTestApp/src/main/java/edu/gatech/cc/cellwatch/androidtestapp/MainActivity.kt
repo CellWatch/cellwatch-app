@@ -272,6 +272,7 @@ class MainActivity : AppCompatActivity() {
     private var selectedMsakMode: RuntimeMsakMode = RuntimeMsakMode.LOCAL
     private var selectedSupabaseMode: RuntimeSupabaseMode = RuntimeSupabaseMode.LOCAL
     private val allowRemoteSupabase: Boolean = System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE") == "true"
+    private val disableSupabaseSync: Boolean = BuildConfig.CELLWATCH_DISABLE_SUPABASE_SYNC
     private var runtimeProfile: RuntimeSyncMsakProfile =
         RuntimeProfileResolver.resolveProfile(resolveRuntimeProfileConfig())
     private val onboardingValidationUseCase = OnboardingValidationUseCase()
@@ -2607,10 +2608,10 @@ class MainActivity : AppCompatActivity() {
                 val measurementCompleteReportSummary =
                     outcome.measurementCompleteReport.renderForStatus()
                 val envelope = smokeEnvelopeBuilder.phase3Sequence(
-                    measurementCompleteUploadTimeSet = outcome.measurementCompleteUploadTime != null,
+                    measurementCompleteUploadTimeSet = disableSupabaseSync || outcome.measurementCompleteUploadTime != null,
                     persistedMeasurements = persistedMeasurements,
                     persistedSubmissions = persistedSubmissions,
-                    errorMessage = if (outcome.measurementCompleteUploadTime == null) {
+                    errorMessage = if (!disableSupabaseSync && outcome.measurementCompleteUploadTime == null) {
                         "measurement-complete upload time missing; $measurementCompleteReportSummary"
                     } else {
                         null
@@ -2624,7 +2625,11 @@ class MainActivity : AppCompatActivity() {
                 measurementRunViewController.onUploadTimeResolved(outcome.measurementCompleteUploadTime)
                 if (uiMode == UiMode.MEASUREMENT_RUN_FLOW) {
                     renderMeasurementRunFlowState(
-                        detailText = "Measurement complete. Results are saved and sync was attempted.",
+                        detailText = if (disableSupabaseSync) {
+                            "Measurement complete. Results saved on this device. Sync is disabled."
+                        } else {
+                            "Measurement complete. Results are saved and sync was attempted."
+                        },
                     )
                 } else {
                     val runHeader = measurementRunUiPresenter
@@ -2700,12 +2705,22 @@ class MainActivity : AppCompatActivity() {
         } else {
             "Start Measurement"
         }
+        val uploadedText = if (showTerminal && disableSupabaseSync) {
+            "Sync disabled"
+        } else {
+            resultModel.uploadedText
+        }
+        val summaryText = if (showTerminal && disableSupabaseSync) {
+            "Measurement complete. Results saved on this device. Sync is disabled."
+        } else {
+            resultModel.summaryText
+        }
         measurementRunResults.text =
             "Latency: ${resultModel.latencyText}\n" +
                 "Download: ${resultModel.downloadText}\n" +
                 "Upload: ${resultModel.uploadText}\n" +
-                "Uploaded: ${resultModel.uploadedText}\n\n" +
-                "${resultModel.summaryText}"
+                "Uploaded: $uploadedText\n\n" +
+                summaryText
         measurementRunResults.setTextColor(
             if (state.progress == edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress.ERROR) {
                 Color.parseColor("#A82329")
@@ -2719,8 +2734,8 @@ class MainActivity : AppCompatActivity() {
                 latency = resultModel.latencyText,
                 download = resultModel.downloadText,
                 upload = resultModel.uploadText,
-                uploaded = resultModel.uploadedText,
-                detail = resultModel.summaryText,
+                uploaded = uploadedText,
+                detail = summaryText,
                 latitude = centerLatLon?.first,
                 longitude = centerLatLon?.second,
             )
@@ -2987,6 +3002,7 @@ class MainActivity : AppCompatActivity() {
                     timestamp = Clock.System.now().toEpochMilliseconds(),
                 )
             },
+            syncEnabled = !disableSupabaseSync,
             environmentProvider = FixedSupabaseEnvironmentProvider(runtimeProfile.syncConfig),
             io = EmptyCoroutineContext,
         )
