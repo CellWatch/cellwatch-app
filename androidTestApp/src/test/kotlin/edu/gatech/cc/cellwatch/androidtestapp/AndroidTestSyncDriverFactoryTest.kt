@@ -37,20 +37,22 @@ class AndroidTestSyncDriverFactoryTest {
     fun create_defaultsToLocalTransportTarget() = runBlocking {
         val provider = RecordingEnvironmentProvider()
         val factory = buildFactory(provider)
+        val driver = factory.create()
 
-        factory.create()
+        driver.runMapStartSync()
 
-        assertEquals(listOf(SyncTransportTarget.LOCAL), provider.transportRequests)
+        assertEquals(listOf(SyncTransportTarget.LOCAL, SyncTransportTarget.LOCAL), provider.transportRequests)
     }
 
     @Test
     fun create_remoteUsesRemoteTransportTarget() = runBlocking {
         val provider = RecordingEnvironmentProvider()
         val factory = buildFactory(provider)
+        val driver = factory.create(SupabaseTarget.REMOTE)
 
-        factory.create(SupabaseTarget.REMOTE)
+        driver.runMapStartSync()
 
-        assertEquals(listOf(SyncTransportTarget.REMOTE), provider.transportRequests)
+        assertEquals(listOf(SyncTransportTarget.REMOTE, SyncTransportTarget.REMOTE), provider.transportRequests)
     }
 
     private fun buildFactory(provider: RecordingEnvironmentProvider): AndroidTestSyncDriverFactory {

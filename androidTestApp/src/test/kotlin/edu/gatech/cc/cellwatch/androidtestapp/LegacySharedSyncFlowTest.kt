@@ -114,7 +114,7 @@ class LegacySharedSyncFlowTest {
     }
 
     @Test
-    fun resolveUploadTime_returnsNull_whenSubmissionNotYetUploaded() = runBlocking {
+    fun resolveUploadTime_returnsMeasurementTime_whenSubmissionNotYetUploaded() = runBlocking {
         val flow = LegacySharedSyncFlow(FakeMeasurementSyncService(), measurementRepo, submissionRepo)
 
         val now = Clock.System.now()
@@ -153,7 +153,7 @@ class LegacySharedSyncFlowTest {
                 id = groupId,
             )
         )
-        assertNull(uploadTime)
+        assertEquals(now.toEpochMilliseconds(), uploadTime?.toEpochMilliseconds())
     }
 }
 

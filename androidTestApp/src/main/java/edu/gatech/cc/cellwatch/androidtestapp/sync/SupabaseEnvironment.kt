@@ -33,6 +33,7 @@ interface SupabaseEnvironmentProvider : SyncSupabaseConfigResolver {
 class CellwatchPropertiesSupabaseEnvironmentProvider(
     private val workingDir: File = File(System.getProperty("user.dir") ?: "."),
     private val allowRemote: Boolean = System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE") == "true",
+    private val env: Map<String, String> = System.getenv(),
 ) : SupabaseEnvironmentProvider {
 
     override fun resolve(target: SupabaseTarget): SupabaseEnvironment {
@@ -81,6 +82,7 @@ class CellwatchPropertiesSupabaseEnvironmentProvider(
                 msakMode = RuntimeMsakMode.PUBLIC,
                 supabaseMode = RuntimeSupabaseMode.LIVE,
                 allowRemoteSupabase = true,
+                env = env,
             ).syncConfig
         } else {
             resolveRuntimeProfileFromProperties(
@@ -89,6 +91,7 @@ class CellwatchPropertiesSupabaseEnvironmentProvider(
                 msakMode = RuntimeMsakMode.PUBLIC,
                 supabaseMode = RuntimeSupabaseMode.LOCAL,
                 allowRemoteSupabase = false,
+                env = env,
             ).syncConfig
         }
     }

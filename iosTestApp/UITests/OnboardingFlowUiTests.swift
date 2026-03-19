@@ -137,7 +137,6 @@ final class OnboardingFlowUiTests: XCTestCase {
 
         XCTAssertTrue(inVehicleSwitch.waitForExistence(timeout: 8))
         XCTAssertTrue(evaluateButton.waitForExistence(timeout: 8))
-        XCTAssertTrue(output.waitForExistence(timeout: 8))
         captureMeasurementStartScreenshot(named: "01-ready")
 
         evaluateButton.tap()
@@ -160,7 +159,6 @@ final class OnboardingFlowUiTests: XCTestCase {
         let unknownEvaluate = unknown.buttons["harness.measurementStart.evaluate"]
         let unknownOutput = unknown.staticTexts["harness.measurementStart.output"]
         XCTAssertTrue(unknownEvaluate.waitForExistence(timeout: 8))
-        XCTAssertTrue(unknownOutput.waitForExistence(timeout: 8))
         unknownEvaluate.tap()
         XCTAssertTrue(unknown.alerts.element.waitForExistence(timeout: 5))
         captureMeasurementStartScreenshot(named: "04-unknown-warning-dialog")

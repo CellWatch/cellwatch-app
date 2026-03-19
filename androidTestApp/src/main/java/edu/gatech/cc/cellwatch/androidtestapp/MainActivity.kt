@@ -183,6 +183,7 @@ class MainActivity : AppCompatActivity() {
         const val UI_MODE_MEASUREMENT_HISTORY_FLOW = "measurement-history-flow"
         const val UI_MODE_MAP_HOME = "map-home"
         const val UI_MODE_MVP_MENU = "mvp-menu"
+        const val UI_MODE_FULL_HARNESS = "full-harness"
         const val EXTRA_NEXT_UI_MODE_ON_SUCCESS = "cellwatch.nextUiModeOnSuccess"
         const val EXTRA_MEASUREMENT_START_AUTO_RUN = "cellwatch.measurementStart.autoRun"
         const val EXTRA_MEASUREMENT_RUN_AUTO_START = "cellwatch.measurementRun.autoStart"
@@ -332,6 +333,8 @@ class MainActivity : AppCompatActivity() {
             UiMode.MVP_MENU
         } else if (explicitMode == UI_MODE_MAP_HOME) {
             UiMode.MAP_HOME
+        } else if (explicitMode == UI_MODE_FULL_HARNESS) {
+            UiMode.FULL_HARNESS
         } else {
             resolveDefaultUiMode()
         }
@@ -888,6 +891,15 @@ class MainActivity : AppCompatActivity() {
         val defaultLat = System.getenv("CELLWATCH_MAP_SIM_LAT")?.toDoubleOrNull() ?: 33.778462
         val defaultLon = System.getenv("CELLWATCH_MAP_SIM_LON")?.toDoubleOrNull() ?: -84.390123
         val defaults = Pair(defaultLat, defaultLon)
+        val hasLocationPermission = listOf(
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ).any { permission ->
+            ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+        }
+        if (!hasLocationPermission) {
+            return defaults
+        }
         val manager = getSystemService(LOCATION_SERVICE) as? LocationManager ?: return defaults
         val providers = listOf(
             LocationManager.GPS_PROVIDER,

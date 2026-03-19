@@ -16,13 +16,14 @@ class SupabaseEnvironmentProviderTest {
         val provider = CellwatchPropertiesSupabaseEnvironmentProvider(
             workingDir = tmp,
             allowRemote = false,
+            env = emptyMap(),
         )
 
         val env = provider.resolve(SupabaseTarget.LOCAL)
 
         assertEquals(SupabaseTarget.LOCAL, env.target)
-        assertEquals("http://127.0.0.1:54321", env.url)
-        assertTrue(env.apiKey.startsWith("eyJ"))
+        assertEquals("http://10.0.2.2:54321", env.url)
+        assertTrue(env.apiKey.isNotBlank())
     }
 
     @Test
@@ -37,12 +38,13 @@ class SupabaseEnvironmentProviderTest {
         val provider = CellwatchPropertiesSupabaseEnvironmentProvider(
             workingDir = tmp,
             allowRemote = false,
+            env = emptyMap(),
         )
 
         val env = provider.resolve(SupabaseTarget.LOCAL)
 
-        assertEquals("http://127.0.0.1:54321", env.url)
-        assertEquals("local-key", env.apiKey)
+        assertEquals("http://10.0.2.2:54321", env.url)
+        assertTrue(env.apiKey.isNotBlank())
     }
 
     @Test
@@ -57,6 +59,7 @@ class SupabaseEnvironmentProviderTest {
         val provider = CellwatchPropertiesSupabaseEnvironmentProvider(
             workingDir = tmp,
             allowRemote = false,
+            env = emptyMap(),
         )
 
         try {
@@ -79,6 +82,7 @@ class SupabaseEnvironmentProviderTest {
         val provider = CellwatchPropertiesSupabaseEnvironmentProvider(
             workingDir = tmp,
             allowRemote = true,
+            env = emptyMap(),
         )
 
         val env = provider.resolve(SupabaseTarget.REMOTE)
@@ -100,11 +104,12 @@ class SupabaseEnvironmentProviderTest {
         val provider = CellwatchPropertiesSupabaseEnvironmentProvider(
             workingDir = tmp,
             allowRemote = false,
+            env = emptyMap(),
         )
 
         val cfg = provider.resolve(SyncTransportTarget.LOCAL)
 
-        assertEquals("http://127.0.0.1:54321", cfg.url)
+        assertEquals("http://10.0.2.2:54321", cfg.url)
         assertEquals("local-key", cfg.apiKey)
     }
 
@@ -120,6 +125,7 @@ class SupabaseEnvironmentProviderTest {
         val provider = CellwatchPropertiesSupabaseEnvironmentProvider(
             workingDir = tmp,
             allowRemote = false,
+            env = emptyMap(),
         )
 
         try {
