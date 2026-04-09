@@ -653,8 +653,12 @@ If run separately:
   - Optional transient bypass: set `CELLWATCH_ALLOW_LOCAL_MSAK_TRANSIENT_SKIP=1` to allow skip on known local infra/runtime transients.
 - Android public-MSAK/local-Supabase smoke only: `./gradlew :shared:verifyAndroidPublicMsakLocalSupabaseSmoke`
   - Runs only `PublicMsakLocalSupabaseSmokeTest` with explicit env gating.
+- Android public-MSAK/testing-Supabase smoke only: `./gradlew :shared:verifyAndroidTestingSupabaseSmoke`
+  - Runs only `AndroidTestingSupabaseSmokeTest` and verifies `SUPABASE_TESTING_*` resolves to the hosted testing project before performing a real remote sync round-trip.
 - iOS public-MSAK/local-Supabase hosted smoke only: `./gradlew :shared:verifyIosTestAppHostedPublicMsakLocalSupabaseSmoke`
   - Runs only `PublicMsakLocalSupabaseHostedTests` and creates a temporary marker file for explicit opt-in.
+- iOS public-MSAK/testing-Supabase hosted smoke only: `./gradlew :shared:verifyIosTestAppHostedTestingSupabaseSmoke`
+  - Runs only `TestingSupabaseHostedTests` and verifies `SUPABASE_TESTING_*` resolves to the hosted testing project before performing a real remote sync round-trip.
 - iOS hosted Tier 2 sequential bundle (recommended): `./gradlew :shared:verifyIosHostedTier2Sequential`
   - Serializes hosted iOS checks (including local/public MSAK smoke paths) to reduce simulator/keychain/local-service concurrency flake.
 - Simulator UI regression gate (strict success on both platforms):
