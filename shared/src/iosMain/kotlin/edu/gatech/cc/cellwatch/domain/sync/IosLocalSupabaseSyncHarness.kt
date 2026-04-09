@@ -43,6 +43,34 @@ class IosLocalSupabaseSyncHarness {
         supabaseUrl: String,
         supabaseApiKey: String,
     ): IosLocalSupabaseSyncResult {
+        return runWithTarget(
+            supabaseUrl = supabaseUrl,
+            supabaseApiKey = supabaseApiKey,
+            target = SyncTransportTarget.LOCAL,
+            allowRemote = false,
+        )
+    }
+
+    @Throws(Exception::class)
+    suspend fun runRemote(
+        supabaseUrl: String,
+        supabaseApiKey: String,
+    ): IosLocalSupabaseSyncResult {
+        return runWithTarget(
+            supabaseUrl = supabaseUrl,
+            supabaseApiKey = supabaseApiKey,
+            target = SyncTransportTarget.REMOTE,
+            allowRemote = true,
+        )
+    }
+
+    @Throws(Exception::class)
+    private suspend fun runWithTarget(
+        supabaseUrl: String,
+        supabaseApiKey: String,
+        target: SyncTransportTarget,
+        allowRemote: Boolean,
+    ): IosLocalSupabaseSyncResult {
         val now = Clock.System.now()
         val deviceAuthStore = InMemoryDeviceAuthStore()
         val deviceId = deviceAuthStore.getDeviceId()
@@ -112,11 +140,13 @@ class IosLocalSupabaseSyncHarness {
 
             val remoteProfile = SyncRemoteProfile.Supabase(
                 configResolver = SyncRuntimeConfigFactory.fromRaw(
-                    allowRemote = false,
-                    localUrl = supabaseUrl,
-                    localApiKey = supabaseApiKey,
+                    allowRemote = allowRemote,
+                    localUrl = if (target == SyncTransportTarget.LOCAL) supabaseUrl else null,
+                    localApiKey = if (target == SyncTransportTarget.LOCAL) supabaseApiKey else null,
+                    remoteUrl = if (target == SyncTransportTarget.REMOTE) supabaseUrl else null,
+                    remoteApiKey = if (target == SyncTransportTarget.REMOTE) supabaseApiKey else null,
                 ),
-                target = SyncTransportTarget.LOCAL,
+                target = target,
             )
             val uploadTriggerUseCase = MeasurementSyncServiceFactory.createUploadTriggerUseCase(
                 database = db,
@@ -153,7 +183,9 @@ class IosLocalSupabaseSyncHarness {
             val syncedSubmission = submissionRepo.getById(groupId)
             val remoteVerifier = SupabaseMeasurementSyncRemoteDataSource(
                 config = SupabaseConnectionConfig(
-                    url = supabaseUrl.replace("10.0.2.2", "127.0.0.1"),
+                    url = supabaseUrl
+                        .replace("10.0.2.2", "127.0.0.1")
+                        .replace("10.0.3.2", "127.0.0.1"),
                     apiKey = supabaseApiKey,
                 ),
                 deviceAuthStore = deviceAuthStore,
