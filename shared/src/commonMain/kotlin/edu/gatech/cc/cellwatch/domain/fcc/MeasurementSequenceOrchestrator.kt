@@ -36,6 +36,7 @@ interface MeasurementResultStore {
 
 interface FccSubmissionContextFactory {
     fun create(
+        request: MeasurementSequenceRequest,
         groupId: String,
         inVehicle: Boolean,
         metadata: FccSubmissionMetadataSnapshot,
@@ -47,12 +48,14 @@ data class MeasurementSequenceRequest(
     val inVehicle: Boolean,
     val mode: CollectionMode,
     val measurementId: String? = null,
+    val submissionProfile: FccSubmissionProfile? = null,
 )
 
 data class MeasurementSequenceOutcome(
     val throughputServerMachine: String,
     val latencyServerMachine: String,
     val group: MeasurementGroup,
+    val submissionValidation: FccSubmissionValidationResult? = null,
 )
 
 enum class MeasurementSequenceStage {
@@ -110,12 +113,13 @@ class MeasurementSequenceOrchestrator(
         )
         resultStore.insertMeasurement(uploadMeasurement)
 
-        val submission = buildSubmissionIfEligible(
+        val submissionAttempt = buildSubmissionIfEligible(
             request = request,
             latencyMeasurement = latencyMeasurement,
             downloadMeasurement = downloadMeasurement,
             uploadMeasurement = uploadMeasurement,
         )
+        val submission = submissionAttempt.submission
         if (submission != null) {
             resultStore.insertFccSubmission(submission)
         }
@@ -130,6 +134,7 @@ class MeasurementSequenceOrchestrator(
                 upload = uploadMeasurement,
                 submission = submission,
             ),
+            submissionValidation = submissionAttempt.validation,
         )
     }
 
@@ -138,7 +143,7 @@ class MeasurementSequenceOrchestrator(
         latencyMeasurement: Measurement,
         downloadMeasurement: Measurement,
         uploadMeasurement: Measurement,
-    ): FccSubmission? {
+    ): SubmissionAttempt {
         if (!FccSubmissionPolicy.shouldCreateSubmission(
                 mode = request.mode,
                 latencyMeasurement = latencyMeasurement,
@@ -146,7 +151,10 @@ class MeasurementSequenceOrchestrator(
                 uploadMeasurement = uploadMeasurement,
             )
         ) {
-            return null
+            return SubmissionAttempt(
+                submission = null,
+                validation = null,
+            )
         }
 
         val metadata = FccSubmissionPolicy.metadataSnapshot(
@@ -155,10 +163,26 @@ class MeasurementSequenceOrchestrator(
             uploadMeasurement = uploadMeasurement,
         )
         val context = submissionContextFactory.create(
+            request = request,
             groupId = request.groupId,
             inVehicle = request.inVehicle,
             metadata = metadata,
         )
-        return FccSubmissionPolicy.buildSubmission(context, metadata)
+        val submission = FccSubmissionPolicy.buildSubmission(context, metadata)
+        val validation = FccSubmissionValidationPolicy.validate(
+            submission = submission,
+            latencyMeasurement = latencyMeasurement,
+            downloadMeasurement = downloadMeasurement,
+            uploadMeasurement = uploadMeasurement,
+        )
+        return SubmissionAttempt(
+            submission = if (validation.allowed) submission else null,
+            validation = validation,
+        )
     }
 }
+
+private data class SubmissionAttempt(
+    val submission: FccSubmission?,
+    val validation: FccSubmissionValidationResult?,
+)

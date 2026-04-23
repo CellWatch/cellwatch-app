@@ -40,7 +40,8 @@ class MsakMeasurementExecutorPlatformCapabilityTest {
         assertEquals("260", measurement.simMnc)
         assertEquals("311", measurement.netMcc)
         assertEquals("480", measurement.netMnc)
-        assertEquals("msak-test.example", measurement.provider)
+        assertEquals("provider-from-capability", measurement.provider)
+        assertEquals("test-app", measurement.appVersion)
         assertEquals(NetworkConnectionType.CELLULAR, measurement.connectionType)
     }
 }

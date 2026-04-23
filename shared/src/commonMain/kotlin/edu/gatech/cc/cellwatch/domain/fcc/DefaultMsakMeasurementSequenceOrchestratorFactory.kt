@@ -14,6 +14,7 @@ object DefaultMsakMeasurementSequenceOrchestratorFactory {
         resultStore: MeasurementResultStore,
         clock: Clock = Clock.System,
         appSource: String = "phase3-harness",
+        submissionProfile: FccSubmissionProfile? = null,
         capabilityProvider: PlatformCapabilityProvider = NoOpPlatformCapabilityProvider,
         progressListener: MeasurementSequenceProgressListener = MeasurementSequenceProgressListener { _ -> },
     ): MeasurementSequenceOrchestrator {
@@ -33,7 +34,7 @@ object DefaultMsakMeasurementSequenceOrchestratorFactory {
             resultStore = resultStore,
             submissionContextFactory = FactoryHarnessSubmissionContextFactory(
                 clock = clock,
-                appSource = appSource,
+                submissionProfile = submissionProfile,
             ),
             progressListener = progressListener,
         )
@@ -52,9 +53,10 @@ private class FactorySelectorBackedServerPairProvider(
 
 private class FactoryHarnessSubmissionContextFactory(
     private val clock: Clock,
-    private val appSource: String,
+    private val submissionProfile: FccSubmissionProfile?,
 ) : FccSubmissionContextFactory {
     override fun create(
+        request: MeasurementSequenceRequest,
         groupId: String,
         inVehicle: Boolean,
         metadata: FccSubmissionMetadataSnapshot,
@@ -66,11 +68,7 @@ private class FactoryHarnessSubmissionContextFactory(
             externalAntenna = false,
             deviceType = inferDeviceType(metadata.deviceOsName),
             deviceOsName = formatDeviceOsName(metadata.deviceOsName, metadata.deviceOsVersion),
-            appVersion = appSource,
-            provider = appSource,
-            contactName = "Harness User",
-            contactEmail = "harness@cellwatch.local",
-            contactPhone = "555-0000",
+            submissionProfile = request.submissionProfile ?: submissionProfile,
         )
     }
 }

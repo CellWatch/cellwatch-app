@@ -44,7 +44,6 @@ actual object MsakMeasurementExecutorPlatform {
                     timestamp = now,
                     duration = config.latencyDurationMs * 1_000,
                     success = MeasurementResultPolicy.latencyResultSuccess(summary.received),
-                    provider = server.machine,
                     connectionType = NetworkConnectionType.CELLULAR,
                     cellularDataEnabled = true,
                     latencyData = LatencyData(
@@ -97,7 +96,6 @@ actual object MsakMeasurementExecutorPlatform {
                     timestamp = now,
                     duration = config.throughputDurationMs * 1_000,
                     success = MeasurementResultPolicy.throughputResultSuccess(bytesPerSec),
-                    provider = server.machine,
                     connectionType = NetworkConnectionType.CELLULAR,
                     cellularDataEnabled = true,
                     uploadDownloadData = UploadDownloadData(

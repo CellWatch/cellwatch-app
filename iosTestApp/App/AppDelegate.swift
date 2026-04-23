@@ -409,7 +409,7 @@ final class InsetLabel: UILabel {
     }
 }
 
-final class HarnessViewController: UIViewController, UITextFieldDelegate {
+final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLocationManagerDelegate {
     enum DisplayMode {
         case fullHarness
         case mapHome
@@ -639,6 +639,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         configureSyncDiagnostics()
+        locationPermissionManager.delegate = self
+        locationPermissionManager.desiredAccuracy = kCLLocationAccuracyBest
         if onboardingPersistenceUseCase.loadProfile()?.onboardingComplete != true {
             clearPersistedHistorySnapshots()
         }
@@ -656,6 +658,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         requestLocationPermissionIfNeeded()
+        refreshLocationSamplingIfAuthorized()
         if displayMode == .measurementRunFlow &&
             autoStartMeasurementRunOnAppear &&
             !didAutoStartMeasurementRun {
@@ -2337,6 +2340,20 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         return raw.isEmpty ? "unavailable" : raw
     }
 
+    private func resolveSettingsAppName() -> String {
+        let displayName = (Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let displayName, !displayName.isEmpty {
+            return displayName
+        }
+        let bundleName = (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let bundleName, !bundleName.isEmpty {
+            return bundleName
+        }
+        return "CellWatch"
+    }
+
     private func resolveSettingsAppVersion() -> String {
         let short = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2352,6 +2369,19 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             return build
         }
         return "unknown"
+    }
+
+    private func buildFccSubmissionProfile() -> FccSubmissionProfile {
+        let persisted = OnboardingUserDefaultsStore().loadProfile()
+        return FccSubmissionProfile(
+            appName: resolveSettingsAppName(),
+            appVersion: resolveSettingsAppVersion(),
+            deviceId: resolveSettingsDeviceId(),
+            provider: nil,
+            contactName: persisted?.name,
+            contactEmail: persisted?.email,
+            contactPhone: persisted?.phone
+        )
     }
 
     @objc private func runMapStart() {
@@ -3009,6 +3039,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
             msakConfig: config,
             supabaseUrl: runtimeSnapshot.supabaseUrl,
             supabaseApiKey: runtimeSnapshot.supabaseApiKey,
+            submissionProfile: buildFccSubmissionProfile(),
             syncEnabled: !self.supabaseSyncDisabled,
             onProgressHeader: { headerText in
                 if self.displayMode == .measurementRunFlow {
@@ -3746,6 +3777,37 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate {
         if status == .notDetermined {
             locationPermissionManager.requestWhenInUseAuthorization()
         }
+    }
+
+    private func refreshLocationSamplingIfAuthorized() {
+        let status = CLLocationManager.authorizationStatus()
+        guard status == .authorizedWhenInUse || status == .authorizedAlways else {
+            IosLocationSampleBridge.shared.clearSample()
+            return
+        }
+        locationPermissionManager.requestLocation()
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        refreshLocationSamplingIfAuthorized()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let latest = locations.last else { return }
+        let timestampMillis = KotlinLong(longLong: Int64(latest.timestamp.timeIntervalSince1970 * 1000.0))
+        IosLocationSampleBridge.shared.updateSample(
+            timestampEpochMillis: timestampMillis,
+            lat: latest.coordinate.latitude,
+            lon: latest.coordinate.longitude,
+            accuracy: latest.horizontalAccuracy >= 0 ? KotlinDouble(double: latest.horizontalAccuracy) : nil,
+            speed: latest.speed >= 0 ? KotlinDouble(double: latest.speed) : nil,
+            speedAccuracy: latest.speedAccuracy >= 0 ? KotlinDouble(double: latest.speedAccuracy) : nil,
+            heading: latest.course >= 0 ? KotlinDouble(double: latest.course) : nil
+        )
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        NSLog("[iosTestApp][location] %@", "location update failed: \(error.localizedDescription)")
     }
 
     private func replaceRootWithMvpMenu() {

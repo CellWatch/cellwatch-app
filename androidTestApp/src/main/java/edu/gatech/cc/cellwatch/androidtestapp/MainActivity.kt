@@ -7,10 +7,12 @@ import android.content.ClipboardManager
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.location.Location
 import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.os.CancellationSignal
 import android.provider.Settings
 import android.os.Looper
 import android.text.Editable
@@ -43,15 +45,20 @@ import edu.gatech.cc.cellwatch.androidtestapp.sync.resolveRuntimeProfileConfigFr
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
 import edu.gatech.cc.cellwatch.data.repo.FccSubmissionRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
+import edu.gatech.cc.cellwatch.data.repo.LocationRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.MeasurementRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.UploadDownloadDataRepositoryImpl
+import edu.gatech.cc.cellwatch.data.repo.CellRepositoryImpl
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingInput
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingUseCase
 import edu.gatech.cc.cellwatch.domain.capability.AndroidPlatformCapabilityProvider
+import edu.gatech.cc.cellwatch.domain.capability.AndroidLocationSample
+import edu.gatech.cc.cellwatch.domain.capability.AndroidLocationSampleBridge
 import edu.gatech.cc.cellwatch.domain.capability.CapabilityCaptureReportFormatter
 import edu.gatech.cc.cellwatch.domain.capability.CapabilityPersistenceSummaryFormatter
 import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
+import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionProfile
 import edu.gatech.cc.cellwatch.domain.fcc.MsakServerSelectionHarness
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceStage
@@ -118,6 +125,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.text.DateFormat
@@ -309,6 +317,9 @@ class MainActivity : AppCompatActivity() {
     private var historyPendingMeasurements: Int? = null
     private var historyPendingSubmissions: Int? = null
     private var selectedHistoryTimestampMs: Long? = null
+    private val deviceAuthStore: DeviceAuthStore by lazy {
+        InMemoryDeviceAuthStore(deviceId = resolveInstallScopedDeviceId())
+    }
     private lateinit var settingsModeGroup: RadioGroup
     private lateinit var settingsModeTesting: RadioButton
     private lateinit var settingsModeFcc: RadioButton
@@ -371,6 +382,7 @@ class MainActivity : AppCompatActivity() {
             applySettingsUiState(settingsViewModel.loadPersistedProfile())
         }
         requestHarnessRuntimePermissions()
+        refreshHarnessLocationSampleIfAuthorized()
     }
 
     override fun onDestroy() {
@@ -404,6 +416,7 @@ class MainActivity : AppCompatActivity() {
             val granted = grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED
             Log.d(LOG_TAG, "Runtime permission result: $permission granted=$granted")
         }
+        refreshHarnessLocationSampleIfAuthorized()
     }
 
     private fun initDataLayer() {
@@ -437,6 +450,57 @@ class MainActivity : AppCompatActivity() {
             this,
             missing.toTypedArray(),
             PERMISSION_REQUEST_CODE,
+        )
+    }
+
+    private fun refreshHarnessLocationSampleIfAuthorized() {
+        if (!hasHarnessLocationPermissions()) {
+            AndroidLocationSampleBridge.clearSample()
+            return
+        }
+        val manager = getSystemService(LOCATION_SERVICE) as? LocationManager ?: return
+        val providers = listOf(
+            LocationManager.GPS_PROVIDER,
+            LocationManager.NETWORK_PROVIDER,
+            LocationManager.PASSIVE_PROVIDER,
+        )
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            val cancellationSignal = CancellationSignal()
+            val executor = ContextCompat.getMainExecutor(this)
+            providers.forEach { provider ->
+                runCatching {
+                    manager.getCurrentLocation(provider, cancellationSignal, executor) { location ->
+                        location?.let(::publishHarnessLocationSample)
+                    }
+                }.onFailure {
+                    Log.d(LOG_TAG, "getCurrentLocation failed for provider=$provider: ${it.message}")
+                }
+            }
+        } else {
+            providers.asSequence()
+                .mapNotNull { provider ->
+                    runCatching { manager.getLastKnownLocation(provider) }.getOrNull()
+                }
+                .maxByOrNull { it.time }
+                ?.let(::publishHarnessLocationSample)
+        }
+    }
+
+    private fun publishHarnessLocationSample(location: Location) {
+        AndroidLocationSampleBridge.updateSample(
+            AndroidLocationSample(
+                timestamp = Instant.fromEpochMilliseconds(location.time),
+                lat = location.latitude,
+                lon = location.longitude,
+                accuracy = location.accuracy.toDouble(),
+                speed = location.speed.toDouble().takeIf { it >= 0.0 },
+                speedAccuracy = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    location.speedAccuracyMetersPerSecond.toDouble().takeIf { it >= 0.0 }
+                } else {
+                    null
+                },
+                heading = location.bearing.toDouble().takeIf { it >= 0.0 },
+            ),
         )
     }
 
@@ -1789,6 +1853,18 @@ class MainActivity : AppCompatActivity() {
         return androidId.ifBlank { "unavailable" }
     }
 
+    private fun resolveInstallScopedDeviceId(): String {
+        return resolveSettingsDeviceId()
+            .takeUnless { it.equals("unavailable", ignoreCase = true) }
+            ?: UUID.randomUUID().toString()
+    }
+
+    private fun resolveSettingsAppName(): String {
+        return runCatching {
+            packageManager.getApplicationLabel(applicationInfo)?.toString()?.trim().orEmpty()
+        }.getOrNull().takeUnless { it.isNullOrBlank() } ?: "CellWatch"
+    }
+
     private fun resolveSettingsAppVersion(): String {
         return runCatching {
             val info = packageManager.getPackageInfo(packageName, 0)
@@ -1796,6 +1872,19 @@ class MainActivity : AppCompatActivity() {
             val versionCode = PackageInfoCompat.getLongVersionCode(info)
             "$versionName ($versionCode)"
         }.getOrElse { BuildConfig.VERSION_NAME }
+    }
+
+    private fun buildFccSubmissionProfile(): FccSubmissionProfile {
+        val persisted = onboardingPersistenceUseCase.loadProfile()
+        return FccSubmissionProfile(
+            appName = resolveSettingsAppName(),
+            appVersion = resolveSettingsAppVersion(),
+            deviceId = resolveInstallScopedDeviceId(),
+            provider = null,
+            contactName = persisted?.name,
+            contactEmail = persisted?.email,
+            contactPhone = persisted?.phone,
+        )
     }
 
     private fun bindOnboardingInputs() {
@@ -2542,17 +2631,21 @@ class MainActivity : AppCompatActivity() {
                     inVehicle = false,
                     mode = edu.gatech.cc.cellwatch.domain.model.CollectionMode.FCC_CHALLENGE,
                     measurementId = null,
+                    submissionProfile = buildFccSubmissionProfile(),
                 )
                 val resultStore = RepositoryBackedMeasurementResultStore(
                     measurementRepository = measurementRepo,
                     latencyDataRepository = latencyRepo,
                     uploadDownloadDataRepository = uploadDownloadRepo,
                     submissionRepository = submissionRepo,
+                    locationRepository = LocationRepositoryImpl(db.locationQueries, EmptyCoroutineContext),
+                    cellRepository = CellRepositoryImpl(db.cellQueries, EmptyCoroutineContext),
                 )
                 val sequenceOrchestrator = DefaultMsakMeasurementSequenceOrchestratorFactory.create(
                     config = runtimeProfile.msakConfig.copy(userAgent = "android-test-app-phase3-sync"),
                     resultStore = resultStore,
                     appSource = "android-test-app-phase3-sync",
+                    submissionProfile = request.submissionProfile,
                     capabilityProvider = capabilityProvider,
                     progressListener = { stage ->
                         var phaseDetail = "Running tests against selected server..."
@@ -3006,7 +3099,7 @@ class MainActivity : AppCompatActivity() {
     private fun createSyncDriverFactory(): AndroidTestSyncDriverFactory {
         return AndroidTestSyncDriverFactory(
             database = db,
-            deviceAuthStore = InMemoryDeviceAuthStore(),
+            deviceAuthStore = deviceAuthStore,
             tcpTupleProvider = object : TcpTupleProvider {
                 override suspend fun getPublicTcpTuple(): TcpTuple = TcpTuple(
                     remoteAddress = "203.0.113.20",

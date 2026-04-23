@@ -128,6 +128,8 @@ class FccSubmissionPolicyTest {
         assertEquals("iOS", actual.deviceOsName)
         assertEquals("14", actual.deviceOsVersion)
         assertEquals("download-app", actual.appName)
+        assertEquals(null, actual.appVersion)
+        assertEquals(null, actual.provider)
         assertEquals("310", actual.simMcc)
         assertEquals("260", actual.simMnc)
         assertEquals("311", actual.netMcc)
@@ -143,19 +145,25 @@ class FccSubmissionPolicyTest {
             externalAntenna = false,
             deviceType = "Android",
             deviceOsName = "Android 14",
-            appVersion = "2.1.0",
-            provider = "carrier-a",
-            contactName = "Alice",
-            contactEmail = "alice@example.com",
-            contactPhone = "555-1111",
+            submissionProfile = FccSubmissionProfile(
+                appName = "CellWatch",
+                appVersion = "2.1.0",
+                deviceId = "device-1",
+                provider = "carrier-a",
+                contactName = "Alice",
+                contactEmail = "alice@example.com",
+                contactPhone = "555-1111",
+            ),
         )
         val metadata = FccSubmissionMetadataSnapshot(
-            deviceId = "device-1",
+            deviceId = null,
             deviceManufacturer = "Google",
             deviceModel = "Pixel",
             deviceOsName = "Android",
             deviceOsVersion = "14",
-            appName = "CellWatch",
+            appName = null,
+            appVersion = null,
+            provider = null,
             simMcc = "310",
             simMnc = "260",
             netMcc = "311",

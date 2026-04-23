@@ -3,6 +3,7 @@ package edu.gatech.cc.cellwatch.domain.sync
 import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionBuildContext
 import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionContextFactory
 import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionMetadataSnapshot
+import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionProfile
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementExecutor
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementResultStore
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceOrchestrator
@@ -180,7 +181,14 @@ private class StaticMeasurementExecutor : MeasurementExecutor {
         server: MsakServerEndpoint,
         groupId: String,
         measurementId: String?,
-    ): Measurement = latencyMeasurement(groupId = groupId, id = "latency-1", uploadTime = null)
+    ): Measurement = latencyMeasurement(
+        groupId = groupId,
+        id = "latency-1",
+        uploadTime = null,
+    ).copy(
+        deviceManufacturer = "Google",
+        deviceOsVersion = "14",
+    )
 
     override suspend fun runThroughput(
         server: MsakServerEndpoint,
@@ -195,6 +203,7 @@ private class StaticMeasurementExecutor : MeasurementExecutor {
             type = type,
             connectionType = NetworkConnectionType.CELLULAR,
             cellularDataEnabled = true,
+            deviceModel = "Pixel",
             uploadDownloadData = UploadDownloadData(
                 id = "ud-$type-1",
                 measurementId = "$type-1",
@@ -230,6 +239,7 @@ private class NoOpResultStore : MeasurementResultStore {
 
 private class StaticSubmissionContextFactory : FccSubmissionContextFactory {
     override fun create(
+        request: MeasurementSequenceRequest,
         groupId: String,
         inVehicle: Boolean,
         metadata: FccSubmissionMetadataSnapshot,
@@ -241,11 +251,15 @@ private class StaticSubmissionContextFactory : FccSubmissionContextFactory {
             externalAntenna = false,
             deviceType = "Android",
             deviceOsName = "Android 14",
-            appVersion = "test",
-            provider = "test",
-            contactName = "Test User",
-            contactEmail = "test@example.com",
-            contactPhone = "555-0100",
+            submissionProfile = FccSubmissionProfile(
+                appName = "CellWatch",
+                appVersion = "1.0-test",
+                deviceId = "device-1",
+                provider = "test",
+                contactName = "Test User",
+                contactEmail = "test@example.com",
+                contactPhone = "404-111-2222",
+            ),
         )
     }
 }
