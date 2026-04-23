@@ -100,6 +100,24 @@ Guidance:
 - Keep business decisions in shared use cases (collection-mode rules, sync trigger rules, measurement eligibility checks, submission policies).
 - Keep `frozenApp/` as reference only; no new logic there.
 
+### FCC Platform Constraints
+
+- FCC reporting remediation and current platform-gap status are tracked in:
+  - `doc/FCC_REPORTING_REQUIREMENTS_PLATFORM_GAP_ANALYSIS.md`
+- Current implementation direction:
+  - keep improving location freshness and Android telephony/cell richness where public APIs still expose data
+  - do not invent identifiers or carrier/cell fields that current platform policies no longer provide
+- Practical ceilings identified in the April 2026 feasibility review:
+  - iOS carrier/cell richness is constrained by deprecated `CoreTelephony` APIs and has no true Android-equivalent public API path for a normal app
+  - Android IMEI/TAC are not generally available to a normal consumer app targeting modern Android without elevated privileges or special device/carrier roles
+- Current progress within those ceilings:
+  - iOS now captures best-effort current location plus best-effort CoreTelephony radio access technology (`network_generation` / `network_subtype`)
+  - Android now captures best-effort active/current location when the harness receives a callback sample, otherwise falling back to last-known location, plus richer LTE/NR radio metrics (`rsrp`, `rsrq`, `sinr`, LTE `cqi`, NR `csi_*`) when the platform exposes them
+- Therefore, remaining Phase 5 FCC work should prioritize:
+  1. stronger app-owned location capture behavior
+  2. richer Android non-identifier radio metrics
+  3. clear documentation/tests around blocked fields rather than speculative workarounds
+
 ## Story 1 Analysis: First-Run Onboarding And Profile Setup
 
 ### Legacy behavior

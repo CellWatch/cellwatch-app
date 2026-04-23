@@ -95,6 +95,15 @@ class MeasurementSequenceHarness(
                     inVehicle = false,
                     mode = CollectionMode.FCC_CHALLENGE,
                     measurementId = null,
+                    submissionProfile = FccSubmissionProfile(
+                        appName = "CellWatch Harness",
+                        appVersion = "phase3-harness",
+                        deviceId = uuid4().toString(),
+                        provider = "Harness Carrier",
+                        contactName = "Harness User",
+                        contactEmail = "harness@cellwatch.local",
+                        contactPhone = "404-555-0100",
+                    ),
                 )
                 val outcome = orchestrator.run(request)
                 val persistedMeasurements = resultStore.measurements.size
@@ -151,6 +160,7 @@ private class DefaultHarnessSubmissionContextFactory(
     private val clock: Clock,
 ) : FccSubmissionContextFactory {
     override fun create(
+        request: MeasurementSequenceRequest,
         groupId: String,
         inVehicle: Boolean,
         metadata: FccSubmissionMetadataSnapshot,
@@ -162,11 +172,7 @@ private class DefaultHarnessSubmissionContextFactory(
             externalAntenna = false,
             deviceType = "Android",
             deviceOsName = metadata.deviceOsVersion?.let { "Android $it" } ?: "Android",
-            appVersion = "phase3-harness",
-            provider = "phase3-harness",
-            contactName = "Harness User",
-            contactEmail = "harness@cellwatch.local",
-            contactPhone = "555-0000",
+            submissionProfile = request.submissionProfile,
         )
     }
 }

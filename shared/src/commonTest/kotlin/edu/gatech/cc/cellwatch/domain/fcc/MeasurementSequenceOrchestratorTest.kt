@@ -80,6 +80,8 @@ class MeasurementSequenceOrchestratorTest {
         assertEquals("CellWatch Shared", submission.appName)
         assertEquals("2.0.0-test", submission.appVersion)
         assertEquals("test-carrier", submission.provider)
+        val validation = assertNotNull(outcome.submissionValidation)
+        assertEquals(true, validation.allowed)
         assertEquals("310", submission.simCountryCode)
         assertEquals("260", submission.simNetworkCode)
         assertEquals("311", submission.netCountryCode)
@@ -131,6 +133,41 @@ class MeasurementSequenceOrchestratorTest {
                 "store-measurement-upload-1",
             ),
             recorder.events,
+        )
+    }
+
+    @Test
+    fun `run blocks FCC submission when app owned metadata is invalid`() = runBlocking {
+        val recorder = Recorder()
+        val orchestrator = MeasurementSequenceOrchestrator(
+            serverPairProvider = FakeServerPairProvider(),
+            measurementExecutor = FakeMeasurementExecutor(recorder),
+            resultStore = FakeMeasurementResultStore(recorder),
+            submissionContextFactory = InvalidSubmissionContextFactory(),
+        )
+
+        val outcome = orchestrator.run(
+            MeasurementSequenceRequest(
+                groupId = "group-invalid",
+                inVehicle = false,
+                mode = CollectionMode.FCC_CHALLENGE,
+            ),
+        )
+
+        assertNull(outcome.group.submission)
+        val validation = assertNotNull(outcome.submissionValidation)
+        assertEquals(false, validation.allowed)
+        assertEquals(
+            setOf(
+                FccSubmissionValidationCode.MISSING_APP_VERSION,
+                FccSubmissionValidationCode.MISSING_PROVIDER_NAME,
+            ),
+            validation.codes.intersect(
+                setOf(
+                    FccSubmissionValidationCode.MISSING_APP_VERSION,
+                    FccSubmissionValidationCode.MISSING_PROVIDER_NAME,
+                ),
+            ),
         )
     }
 
@@ -262,6 +299,7 @@ private class FakeMeasurementResultStore(
 
 private class FakeSubmissionContextFactory : FccSubmissionContextFactory {
     override fun create(
+        request: MeasurementSequenceRequest,
         groupId: String,
         inVehicle: Boolean,
         metadata: FccSubmissionMetadataSnapshot,
@@ -273,11 +311,38 @@ private class FakeSubmissionContextFactory : FccSubmissionContextFactory {
             externalAntenna = false,
             deviceType = "Android",
             deviceOsName = "Android ${metadata.deviceOsVersion}",
-            appVersion = "2.0.0-test",
-            provider = "test-carrier",
-            contactName = "Test User",
-            contactEmail = "test@example.com",
-            contactPhone = "555-0100",
+            submissionProfile = FccSubmissionProfile(
+                appName = "CellWatch Shared",
+                appVersion = "2.0.0-test",
+                deviceId = "request-device",
+                provider = "test-carrier",
+                contactName = "Test User",
+                contactEmail = "test@example.com",
+                contactPhone = "404-111-2222",
+            ),
+        )
+    }
+}
+
+private class InvalidSubmissionContextFactory : FccSubmissionContextFactory {
+    override fun create(
+        request: MeasurementSequenceRequest,
+        groupId: String,
+        inVehicle: Boolean,
+        metadata: FccSubmissionMetadataSnapshot,
+    ): FccSubmissionBuildContext {
+        return FccSubmissionBuildContext(
+            groupId = groupId,
+            deviceTimestamp = Instant.fromEpochMilliseconds(1_710_000_123_000L),
+            inVehicle = inVehicle,
+            externalAntenna = false,
+            deviceType = "Android",
+            deviceOsName = "Android ${metadata.deviceOsVersion}",
+            submissionProfile = FccSubmissionProfile(
+                contactName = "Test User",
+                contactEmail = "test@example.com",
+                contactPhone = "404-111-2222",
+            ),
         )
     }
 }

@@ -43,6 +43,7 @@ Shared result text contract:
 - `doc/`: Supporting documentation (including architecture notes)
   - quick thread handoff: `doc/PHASE5_BOOTSTRAP.md`
   - iOS app setup guardrails: `doc/IOS_APP_BOOTSTRAP_CHECKLIST.md`
+  - FCC reporting remediation + remaining platform gaps: `doc/FCC_REPORTING_REQUIREMENTS_PLATFORM_GAP_ANALYSIS.md`
 
 Porting rule:
 - New migration work should go to `shared/`, `androidTestApp/`, and `iosTestApp/`.
@@ -1022,12 +1023,14 @@ Not yet ported (still Android-only in `frozenApp/`):
   - Reporting/upload payload assembly should proceed with partial capability snapshots when required fields are unavailable on iOS.
 - Current delivered slice (February 12, 2026):
   - Shared capability contract models + provider seam in `shared/domain/capability/PlatformCapabilitySnapshot.kt`
-  - Android best-effort provider in `shared/src/androidMain/.../AndroidPlatformCapabilityProvider.kt` (permission-aware telephony + connectivity + device snapshot)
-  - iOS best-effort provider in `shared/src/iosMain/.../IosPlatformCapabilityProvider.kt` (device metadata + explicit partial/unsupported signaling)
+  - Android best-effort provider in `shared/src/androidMain/.../AndroidPlatformCapabilityProvider.kt` (permission-aware telephony + connectivity + device snapshot, plus best-effort active/current location when the harness has a callback sample, falling back to last-known location, and richer LTE/NR radio metrics including LTE `cqi`)
+  - iOS best-effort provider in `shared/src/iosMain/.../IosPlatformCapabilityProvider.kt` (device metadata + explicit partial/unsupported signaling + best-effort current location snapshot + best-effort CoreTelephony radio access technology)
   - Contract tests in `shared/src/commonTest`, plus Android/iOS platform tests in `shared/src/androidUnitTest` and `shared/src/iosTest`
   - MSAK measurement executors now enrich every produced measurement via `MeasurementCapabilityEnricher`, and Android/iOS test harnesses inject concrete platform providers.
   - Android/iOS Phase 3 harness outputs now include a shared formatted capability capture summary (support states + notes) so best-effort gaps are explicit in smoke runs.
   - Capability support states and notes are now persisted in local measurement storage (`telephonySupport`, `networkSupport`, `locationSupport`, `deviceSupport`, `capabilityNotes`) so downstream analysis can distinguish "not available by platform/policy" from "missing due to runtime failure."
+  - iOS harness now feeds fresh `CLLocationManager` samples into the shared capability provider through a small app-to-shared bridge so FCC-bound measurements can reuse recent location callbacks without moving Core Location delegate code into shared K/N logic.
+  - iOS shared capability capture now maps best-effort CoreTelephony radio access technology into FCC-facing `network_generation` / `network_subtype` fields when Apple still exposes that value.
   - Parity guard: `PlatformCapabilityParityReportTest` compares normalized enriched measurement fields for Android-like vs iOS-like harness snapshots. Contract:
     - both platforms must persist support-state fields and device identity
     - iOS is explicitly allowed to have missing provider/SIM identifiers/network connection type due to best-effort platform limits

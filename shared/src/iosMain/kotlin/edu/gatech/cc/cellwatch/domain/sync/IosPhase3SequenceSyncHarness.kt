@@ -14,6 +14,7 @@ import edu.gatech.cc.cellwatch.domain.capability.CapabilityCaptureReportFormatte
 import edu.gatech.cc.cellwatch.domain.capability.CapabilityPersistenceSummaryFormatter
 import edu.gatech.cc.cellwatch.domain.capability.IosPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
+import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionProfile
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceStage
 import edu.gatech.cc.cellwatch.domain.fcc.MsakLocateConfig
@@ -62,6 +63,7 @@ class IosPhase3SequenceSyncHarness {
         msakConfig: MsakLocateConfig,
         supabaseUrl: String,
         supabaseApiKey: String,
+        submissionProfile: FccSubmissionProfile,
         syncEnabled: Boolean = true,
         onProgressHeader: ((String) -> Unit)? = null,
         onComplete: (IosPhase3SequenceSyncResult?, Throwable?) -> Unit,
@@ -75,6 +77,7 @@ class IosPhase3SequenceSyncHarness {
                     msakConfig = msakConfig,
                     supabaseUrl = supabaseUrl,
                     supabaseApiKey = supabaseApiKey,
+                    submissionProfile = submissionProfile,
                     syncEnabled = syncEnabled,
                     onProgressHeader = onProgressHeader,
                 )
@@ -91,13 +94,16 @@ class IosPhase3SequenceSyncHarness {
         msakConfig: MsakLocateConfig,
         supabaseUrl: String,
         supabaseApiKey: String,
+        submissionProfile: FccSubmissionProfile,
         syncEnabled: Boolean = true,
         onProgressHeader: ((String) -> Unit)? = null,
     ): IosPhase3SequenceSyncResult {
         val now = Clock.System.now()
         val runController = MeasurementRunViewController()
         val runPresenter = MeasurementRunUiPresenter()
-        val deviceAuthStore = SequenceHarnessDeviceAuthStore()
+        val deviceAuthStore = SequenceHarnessDeviceAuthStore(
+            id = submissionProfile.deviceId?.takeIf { it.isNotBlank() } ?: uuid4().toString(),
+        )
         val driver = NativeSqliteDriver(
             schema = CellwatchDatabase.Schema,
             name = "ios-phase3-sequence-sync-${uuid4()}.db",
@@ -166,6 +172,7 @@ class IosPhase3SequenceSyncHarness {
                 inVehicle = false,
                 mode = CollectionMode.FCC_CHALLENGE,
                 measurementId = null,
+                submissionProfile = submissionProfile,
             )
             val sequenceOrchestrator = DefaultMsakMeasurementSequenceOrchestratorFactory.create(
                 config = msakConfig,
@@ -174,11 +181,20 @@ class IosPhase3SequenceSyncHarness {
                     latencyDataRepository = latencyRepo,
                     uploadDownloadDataRepository = uploadDownloadRepo,
                     submissionRepository = submissionRepo,
+                    locationRepository = edu.gatech.cc.cellwatch.data.repo.LocationRepositoryImpl(
+                        queries = db.locationQueries,
+                        io = EmptyCoroutineContext,
+                    ),
+                    cellRepository = edu.gatech.cc.cellwatch.data.repo.CellRepositoryImpl(
+                        queries = db.cellQueries,
+                        io = EmptyCoroutineContext,
+                    ),
                 ),
                 clock = object : Clock {
                     override fun now(): Instant = now
                 },
                 appSource = "ios-test-app-phase3-sync",
+                submissionProfile = submissionProfile,
                 capabilityProvider = capabilityProvider,
                 progressListener = { stage ->
                     when (stage) {

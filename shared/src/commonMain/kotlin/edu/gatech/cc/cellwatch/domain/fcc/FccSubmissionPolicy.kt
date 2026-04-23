@@ -6,6 +6,16 @@ import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import kotlinx.datetime.Instant
 
+data class FccSubmissionProfile(
+    val appName: String? = null,
+    val appVersion: String? = null,
+    val deviceId: String? = null,
+    val provider: String? = null,
+    val contactName: String? = null,
+    val contactEmail: String? = null,
+    val contactPhone: String? = null,
+)
+
 data class FccSubmissionMetadataSnapshot(
     val deviceId: String?,
     val deviceManufacturer: String?,
@@ -13,6 +23,8 @@ data class FccSubmissionMetadataSnapshot(
     val deviceOsName: String?,
     val deviceOsVersion: String?,
     val appName: String?,
+    val appVersion: String?,
+    val provider: String?,
     val simMcc: String?,
     val simMnc: String?,
     val netMcc: String?,
@@ -26,11 +38,7 @@ data class FccSubmissionBuildContext(
     val externalAntenna: Boolean = false,
     val deviceType: String,
     val deviceOsName: String?,
-    val appVersion: String?,
-    val provider: String?,
-    val contactName: String?,
-    val contactEmail: String?,
-    val contactPhone: String?,
+    val submissionProfile: FccSubmissionProfile? = null,
 )
 
 object FccSubmissionPolicy {
@@ -62,6 +70,8 @@ object FccSubmissionPolicy {
             deviceOsName = ordered.firstNotNullOfOrNull { it.deviceOsName },
             deviceOsVersion = ordered.firstNotNullOfOrNull { it.deviceOsVersion },
             appName = ordered.firstNotNullOfOrNull { it.appName },
+            appVersion = ordered.firstNotNullOfOrNull { it.appVersion },
+            provider = ordered.firstNotNullOfOrNull { it.provider },
             simMcc = ordered.firstNotNullOfOrNull { it.simMcc },
             simMnc = ordered.firstNotNullOfOrNull { it.simMnc },
             netMcc = ordered.firstNotNullOfOrNull { it.netMcc },
@@ -73,9 +83,10 @@ object FccSubmissionPolicy {
         context: FccSubmissionBuildContext,
         metadata: FccSubmissionMetadataSnapshot,
     ): FccSubmission {
+        val profile = context.submissionProfile
         return FccSubmission(
             id = context.groupId,
-            deviceId = metadata.deviceId,
+            deviceId = metadata.deviceId ?: profile?.deviceId,
             deviceTimestamp = context.deviceTimestamp,
             inVehicle = context.inVehicle,
             externalAntenna = context.externalAntenna,
@@ -83,16 +94,16 @@ object FccSubmissionPolicy {
             deviceManufacturer = metadata.deviceManufacturer,
             deviceModel = metadata.deviceModel,
             deviceOsName = context.deviceOsName,
-            appName = metadata.appName,
-            appVersion = context.appVersion,
-            provider = context.provider,
+            appName = metadata.appName ?: profile?.appName,
+            appVersion = metadata.appVersion ?: profile?.appVersion,
+            provider = metadata.provider ?: profile?.provider,
             simCountryCode = metadata.simMcc,
             simNetworkCode = metadata.simMnc,
             netCountryCode = metadata.netMcc,
             netNetworkCode = metadata.netMnc,
-            contactName = context.contactName,
-            contactEmail = context.contactEmail,
-            contactPhone = context.contactPhone,
+            contactName = profile?.contactName,
+            contactEmail = profile?.contactEmail,
+            contactPhone = profile?.contactPhone,
         )
     }
 }

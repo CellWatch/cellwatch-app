@@ -23,11 +23,11 @@ class PlatformCapabilityParityReportTest {
         // Cross-platform parity contract: support-state fields are always present.
         assertEquals("PARTIAL", androidReport.telephonySupport)
         assertEquals("PARTIAL", androidReport.networkSupport)
-        assertEquals("UNAVAILABLE", androidReport.locationSupport)
+        assertEquals("PARTIAL", androidReport.locationSupport)
         assertEquals("AVAILABLE", androidReport.deviceSupport)
-        assertEquals("NOT_SUPPORTED", iosReport.telephonySupport)
+        assertEquals("PARTIAL", iosReport.telephonySupport)
         assertEquals("PARTIAL", iosReport.networkSupport)
-        assertEquals("NOT_SUPPORTED", iosReport.locationSupport)
+        assertEquals("PERMISSION_DENIED", iosReport.locationSupport)
         assertEquals("AVAILABLE", iosReport.deviceSupport)
 
         // Both platforms should provide usable device identity in the shared measurement.
@@ -67,8 +67,8 @@ class PlatformCapabilityParityReportTest {
                 note = "best-effort Android connectivity snapshot",
             ),
             location = LocationCapabilitySnapshot(
-                support = CapabilitySupport.UNAVAILABLE,
-                note = "location capture adapter not yet wired for Android provider",
+                support = CapabilitySupport.PARTIAL,
+                note = "best-effort Android location snapshot",
             ),
             device = DeviceCapabilitySnapshot(
                 support = CapabilitySupport.AVAILABLE,
@@ -83,8 +83,10 @@ class PlatformCapabilityParityReportTest {
     private fun iosLikeSnapshot(): PlatformCapabilitySnapshot {
         return PlatformCapabilitySnapshot(
             telephony = TelephonyCapabilitySnapshot(
-                support = CapabilitySupport.NOT_SUPPORTED,
-                note = "iOS telephony metadata is best-effort and not fully exposed in shared adapter yet",
+                support = CapabilitySupport.PARTIAL,
+                networkGeneration = "5G",
+                networkSubtype = "NR",
+                note = "best-effort iOS radio access technology from CoreTelephony; carrier, MCC/MNC, and cell detail remain unavailable",
             ),
             network = NetworkCapabilitySnapshot(
                 support = CapabilitySupport.PARTIAL,
@@ -95,8 +97,8 @@ class PlatformCapabilityParityReportTest {
                 note = "iOS network capability adapter currently provides best-effort partial data only",
             ),
             location = LocationCapabilitySnapshot(
-                support = CapabilitySupport.NOT_SUPPORTED,
-                note = "iOS location capture adapter not wired in shared module yet",
+                support = CapabilitySupport.PERMISSION_DENIED,
+                note = "iOS location permission is not granted",
             ),
             device = DeviceCapabilitySnapshot(
                 support = CapabilitySupport.AVAILABLE,
