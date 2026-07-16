@@ -7,12 +7,12 @@ set -euo pipefail
 #
 # Usage:
 #   scripts/refresh-local-msak-xcframework.sh
-#   scripts/refresh-local-msak-xcframework.sh 0.2.0
+#   scripts/refresh-local-msak-xcframework.sh 0.2.3
 #   MSAK_DIST_ROOT=/path/to/msak-android/msak-shared/build/local-dist/apple \
 #     MSAK_FRAMEWORK_DEST=/path/to/iosApp/Frameworks/MsakShared.xcframework \
-#     scripts/refresh-local-msak-xcframework.sh 0.2.0
+#     scripts/refresh-local-msak-xcframework.sh 0.2.3
 
-VERSION="${1:-0.2.0}"
+VERSION="${1:-0.2.3}"
 
 DIST_ROOT="${MSAK_DIST_ROOT:-/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple}"
 SOURCE_DIR="${DIST_ROOT}/msak-client-kmp/${VERSION}"

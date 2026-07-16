@@ -23,6 +23,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class MeasurementSequenceFccPersistenceJvmTest {
     private lateinit var driver: JdbcSqliteDriver
@@ -129,6 +130,14 @@ class MeasurementSequenceFccPersistenceJvmTest {
         assertEquals(-84.3880, storedLocations.first().lon)
         assertEquals(1, storedCells.size)
         assertEquals(12345L, storedCells.first().cellId)
+
+        val throughputRows = listOfNotNull(
+            uploadRepo.getByMeasurementId("download-1").firstOrNull(),
+            uploadRepo.getByMeasurementId("upload-1").firstOrNull(),
+        )
+        assertEquals(2, throughputRows.size)
+        assertTrue(throughputRows.all { row -> (row.warmupDuration ?: 0L) > 0L })
+        assertTrue(throughputRows.all { row -> (row.warmupBytes ?: 0L) > 0L })
     }
 }
 
@@ -211,6 +220,8 @@ private class PersistenceFakeMeasurementExecutor : MeasurementExecutor {
             uploadDownloadData = UploadDownloadData(
                 id = "ud-$id",
                 measurementId = id,
+                warmupDuration = if (direction == ThroughputDirection.DOWNLOAD) 350_000L else 425_000L,
+                warmupBytes = if (direction == ThroughputDirection.DOWNLOAD) 12_345L else 23_456L,
                 bytes = 1000,
             ),
         )

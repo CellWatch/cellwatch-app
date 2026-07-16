@@ -30,8 +30,7 @@ The biggest problems are:
 5. `app_version` is currently populated from the wrong source on both platforms.
 6. `app_name` and `device_id` are at risk of being null in FCC submissions.
 7. `server_source_port` appears unpopulated.
-8. Download/upload warmup fields are modeled but not captured from MSAK.
-9. Android telephony capture is materially better than iOS, but still incomplete relative to FCC richness.
+8. Android telephony capture is materially better than iOS, but still incomplete relative to FCC richness.
 
 ## Status After App-Layer Remediation Slice
 
@@ -68,12 +67,7 @@ These remain app-layer gaps after the current slice:
 
 ### Blocked By MSAK
 
-These remain blocked by the current MSAK output shape:
-
-1. `warmup_duration`
-2. `warmup_bytes_transferred`
-
-The KMP model has fields for these values, but the current MSAK throughput summaries do not expose them.
+No active MSAK output-shape blockers are currently known in this slice after `msak-client-kmp` `0.2.3` exposed throughput warmup metrics and the app wired them through to persisted measurement rows.
 
 ### Blocked By Supabase / Server-Side Export
 
@@ -492,7 +486,7 @@ Impact:
 
 - `server_source_port` likely remains null.
 
-### 8. Warmup fields are modeled but not captured
+### 8. Warmup fields are now available and should remain locked down
 
 The FCC download and upload objects include:
 
@@ -503,17 +497,19 @@ Your model supports them:
 
 - `/Users/jeff/Projects/cellwatch-app/shared/src/commonMain/kotlin/edu/gatech/cc/cellwatch/domain/model/UploadDownloadData.kt:9`
 
-But the current iOS executor does not populate them:
-
-- `/Users/jeff/Projects/cellwatch-app/shared/src/iosMain/kotlin/edu/gatech/cc/cellwatch/domain/fcc/MsakMeasurementExecutorPlatform.ios.kt:103`
-
-And the current MSAK throughput summary does not expose warmup metrics:
+They are now exposed by the current MSAK throughput summary:
 
 - `/Users/jeff/Projects/msak-android/msak-shared/src/commonMain/kotlin/edu/gatech/cc/cellwatch/msak/shared/throughput/ThroughputRunner.kt:58`
 
+And the app-layer executors now persist them into measurement rows:
+
+- `/Users/jeff/Projects/cellwatch-app/shared/src/androidMain/kotlin/edu/gatech/cc/cellwatch/domain/fcc/MsakMeasurementExecutorPlatform.android.kt`
+- `/Users/jeff/Projects/cellwatch-app/shared/src/iosMain/kotlin/edu/gatech/cc/cellwatch/domain/fcc/MsakMeasurementExecutorPlatform.ios.kt`
+
 Impact:
 
-- Supabase can export these fields, but the values are currently absent.
+- Supabase can export these fields, and the app should now provide them when MSAK returns them.
+- Remaining risk is regression, not missing upstream support, so fixture and persistence tests should keep this path locked down.
 
 ### 9. Default contact phone format is not FCC-compliant
 
@@ -748,7 +744,6 @@ Main blockers:
 - wrong provider source
 - wrong app version
 - likely weak app/device metadata population
-- missing warmup metrics
 - missing server source port
 - incomplete radio richness
 - missing IMEI / TAC population in shared submission path
