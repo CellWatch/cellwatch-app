@@ -5,7 +5,12 @@ options:
     iOS: '17.0'
 settings:
   base:
+    DEVELOPMENT_TEAM: LECSLW6UDQ
     SWIFT_VERSION: 5.0
+packages:
+  MapboxMaps:
+    url: https://github.com/mapbox/mapbox-maps-ios.git
+    exactVersion: 11.18.1
 targets:
   iosTestApp:
     type: application
@@ -14,8 +19,10 @@ targets:
       - App
     settings:
       base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatch
         INFOPLIST_FILE: App/Info.plist
+        TARGETED_DEVICE_FAMILY: 1
       configs:
         Debug:
           CELLWATCH_DISABLE_SUPABASE_SYNC: NO
@@ -28,6 +35,7 @@ targets:
           CELLWATCH_DEFAULT_MSAK_MODE: PUBLIC
           CELLWATCH_DEFAULT_SUPABASE_MODE: TESTING
     dependencies:
+      - package: MapboxMaps
       - framework: ../shared/build/bin/Current/sharedKit.framework
     preBuildScripts:
       - name: Build shared framework
@@ -47,6 +55,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/iosTestApp.app/iosTestApp"
         BUNDLE_LOADER: "$(TEST_HOST)"
+        TARGETED_DEVICE_FAMILY: 1
     dependencies:
       - target: iosTestApp
       - framework: ../shared/build/bin/Current/sharedKit.framework
@@ -61,6 +70,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: edu.gatech.cc.cellwatchUITests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: iosTestApp
+        TARGETED_DEVICE_FAMILY: 1
     dependencies:
       - target: iosTestApp
 schemes:

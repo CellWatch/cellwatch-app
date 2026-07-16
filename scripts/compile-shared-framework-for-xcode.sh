@@ -120,14 +120,31 @@ build_gradle() {
 }
 
 SRC_FRAMEWORK="$REPO_ROOT/shared/build/bin/${TARGET_DIR}/${CFG_LOW}Framework/sharedKit.framework"
+SRC_DSYM="$REPO_ROOT/shared/build/bin/${TARGET_DIR}/${CFG_LOW}Framework/sharedKit.framework.dSYM"
 TARGET_CURRENT_FRAMEWORK="$REPO_ROOT/shared/build/bin/${TARGET_DIR}/Current/sharedKit.framework"
+TARGET_CURRENT_DSYM="$REPO_ROOT/shared/build/bin/${TARGET_DIR}/Current/sharedKit.framework.dSYM"
 OUT_FRAMEWORK="$REPO_ROOT/shared/build/bin/Current/sharedKit.framework"
+OUT_DSYM="$REPO_ROOT/shared/build/bin/Current/sharedKit.framework.dSYM"
 OUT_BINARY="$OUT_FRAMEWORK/sharedKit"
+
+copy_dir_if_present() {
+  local src="$1"
+  local dest="$2"
+  if [[ ! -e "$src" ]]; then
+    return 0
+  fi
+  mkdir -p "$(dirname "$dest")"
+  rm -rf "$dest"
+  cp -R "$src" "$dest"
+}
 
 prepare_target_dirs() {
   rm -rf "$TARGET_CURRENT_FRAMEWORK"
+  rm -rf "$TARGET_CURRENT_DSYM"
   rm -rf "$REPO_ROOT/shared/build/bin/${TARGET_DIR}/${CFG_LOW}Framework/sharedKit.framework"
+  rm -rf "$REPO_ROOT/shared/build/bin/${TARGET_DIR}/${CFG_LOW}Framework/sharedKit.framework.dSYM"
   rm -rf "$OUT_FRAMEWORK"
+  rm -rf "$OUT_DSYM"
 }
 
 verify_fresh_output() {
@@ -172,11 +189,13 @@ attempt_build() {
     mkdir -p "$(dirname "$TARGET_CURRENT_FRAMEWORK")"
     rm -rf "$TARGET_CURRENT_FRAMEWORK"
     cp -R "$SRC_FRAMEWORK" "$TARGET_CURRENT_FRAMEWORK"
+    copy_dir_if_present "$SRC_DSYM" "$TARGET_CURRENT_DSYM"
   fi
 
   mkdir -p "$(dirname "$OUT_FRAMEWORK")"
   rm -rf "$OUT_FRAMEWORK"
   cp -R "$TARGET_CURRENT_FRAMEWORK" "$OUT_FRAMEWORK"
+  copy_dir_if_present "$TARGET_CURRENT_DSYM" "$OUT_DSYM"
 
   verify_fresh_output
 }
@@ -256,6 +275,35 @@ generate_runtime_properties_resource() {
   fi
 }
 
+stage_archive_dsyms() {
+  if [[ -z "${DWARF_DSYM_FOLDER_PATH:-}" ]]; then
+    return 0
+  fi
+
+  copy_dir_if_present "$OUT_DSYM" "$DWARF_DSYM_FOLDER_PATH/$(basename "$OUT_DSYM")"
+
+  if [[ -z "${BUILD_DIR:-}" ]]; then
+    return 0
+  fi
+
+  local derived_data_dir
+  derived_data_dir="$(cd "$BUILD_DIR/../.." 2>/dev/null && pwd)"
+  local artifacts_dir="$derived_data_dir/SourcePackages/artifacts"
+  if [[ ! -d "$artifacts_dir" ]]; then
+    return 0
+  fi
+
+  local framework_name
+  for framework_name in MapboxCommon MapboxCoreMaps Turf; do
+    local package_dsym
+    package_dsym="$(find "$artifacts_dir" -type d -name "${framework_name}.framework.dSYM" -print -quit 2>/dev/null || true)"
+    if [[ -n "$package_dsym" ]]; then
+      copy_dir_if_present "$package_dsym" "$DWARF_DSYM_FOLDER_PATH/$(basename "$package_dsym")"
+    fi
+  done
+}
+
 generate_runtime_properties_resource
+stage_archive_dsyms
 
 echo "sharedKit framework ready at: $OUT_FRAMEWORK"
