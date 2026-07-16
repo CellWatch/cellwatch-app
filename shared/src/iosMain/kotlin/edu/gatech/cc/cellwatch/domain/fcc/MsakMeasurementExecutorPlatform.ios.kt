@@ -101,6 +101,8 @@ actual object MsakMeasurementExecutorPlatform {
                     uploadDownloadData = UploadDownloadData(
                         id = uuid4().toString(),
                         measurementId = id,
+                        warmupDuration = summary.warmupDurationMs * 1_000,
+                        warmupBytes = summary.warmupBytesTransferred,
                         duration = config.throughputDurationMs * 1_000,
                         bytes = summary.appBytesTotal,
                         bytesPerSec = bytesPerSec,

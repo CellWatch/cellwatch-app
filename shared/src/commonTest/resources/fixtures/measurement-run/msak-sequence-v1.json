@@ -2,8 +2,8 @@
     "metadata": {
         "fixtureSchemaVersion": 1,
         "source": "measurement-run-controller-capture",
-        "capturedAtUtc": "2026-02-16T11:33:51.338380Z",
-        "msakClientKmpVersion": "0.2.2"
+        "capturedAtUtc": "2026-07-16T19:07:01.211339Z",
+        "msakClientKmpVersion": "0.2.3"
     },
     "steps": [
         {

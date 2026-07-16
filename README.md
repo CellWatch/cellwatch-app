@@ -455,7 +455,7 @@ or foreground:
 ## Local KMP `msak` Client Override
 
 `shared/` currently depends on the published artifact:
-- `edu.gatech.cc.cellwatch:msak-client-kmp:0.2.2`
+- `edu.gatech.cc.cellwatch:msak-client-kmp:0.2.3`
 
 Reference repositories used during CellWatch development:
 - KMP client library source: [CellWatch/msak-client-kmp](https://github.com/CellWatch/msak-client-kmp)
@@ -534,7 +534,7 @@ dependencyResolutionManagement {
 
 ```toml
 [versions]
-msakClientKmp = "0.2.2"
+msakClientKmp = "0.2.3"
 
 [libraries]
 msak-client-kmp = { module = "edu.gatech.cc.cellwatch:msak-client-kmp", version.ref = "msakClientKmp" }
@@ -557,14 +557,14 @@ kotlin {
 If you do not use the version catalog:
 
 ```kotlin
-implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.2.2")
+implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.2.3")
 ```
 
 ### Local iOS XCFramework Consumption
 
 Producer output:
-- zip: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.2/MsakShared.xcframework.zip`
-- sha256: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.2/MsakShared.xcframework.sha256`
+- zip: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.3/MsakShared.xcframework.zip`
+- sha256: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.3/MsakShared.xcframework.sha256`
 
 Steps:
 1. Unzip into a stable local path, for example:
@@ -581,7 +581,7 @@ Steps:
 
 Android/KMP:
 1. Confirm artifact exists in Maven local:
-   - `~/.m2/repository/edu/gatech/cc/cellwatch/msak-client-kmp/0.2.2/`
+   - `~/.m2/repository/edu/gatech/cc/cellwatch/msak-client-kmp/0.2.3/`
 2. Run dependency insight:
    - `./gradlew -q :shared:dependencies --configuration jvmCompileClasspath | grep msak-client-kmp`
 3. Run a fast compile/test task:
@@ -606,12 +606,12 @@ Optional args/env:
 
 ```bash
 # version argument
-scripts/refresh-local-msak-xcframework.sh 0.2.2
+scripts/refresh-local-msak-xcframework.sh 0.2.3
 
 # custom producer/dist root and destination
 MSAK_DIST_ROOT=/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple \
 MSAK_FRAMEWORK_DEST=/Users/jeff/Projects/cellwatch-app/iosTestApp/Frameworks/MsakShared.xcframework \
-scripts/refresh-local-msak-xcframework.sh 0.2.2
+scripts/refresh-local-msak-xcframework.sh 0.2.3
 ```
 
 The script verifies SHA-256 against the sidecar file and atomically replaces the destination framework.
