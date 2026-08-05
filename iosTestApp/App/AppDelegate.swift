@@ -8,10 +8,12 @@ import MapboxMaps
 #endif
 
 enum RuntimeConfigSource {
+#if DEBUG
     private static let defaultLocalServiceRoleJwt =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
         "eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0." +
         "EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU"
+#endif
 
     static func value(_ key: String) -> String? {
         let env = ProcessInfo.processInfo.environment
@@ -23,6 +25,9 @@ enum RuntimeConfigSource {
         }
         if let propertyValue = property(key) {
             return propertyValue
+        }
+        if let bundledValue = bundledRuntimeProperty(key) {
+            return bundledValue
         }
         if let plistValue = infoDictionaryStringValue(key) {
             return plistValue
@@ -92,7 +97,11 @@ enum RuntimeConfigSource {
                 return candidate
             }
         }
+#if DEBUG
         return defaultLocalServiceRoleJwt
+#else
+        return nil
+#endif
     }
 
     static func localMsakHostForIos(msakModeRaw: String) -> String? {

@@ -278,9 +278,15 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var phase3RunInFlight: Boolean = false
     private var previousDefaultUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
     private val runtimeModeBridge = RuntimeModeUiBridge()
-    private var selectedMsakMode: RuntimeMsakMode = RuntimeMsakMode.LOCAL
-    private var selectedSupabaseMode: RuntimeSupabaseMode = RuntimeSupabaseMode.LOCAL
-    private val allowRemoteSupabase: Boolean = System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE") == "true"
+    private var selectedMsakMode: RuntimeMsakMode = runCatching {
+        RuntimeMsakMode.valueOf(BuildConfig.CELLWATCH_DEFAULT_MSAK_MODE)
+    }.getOrDefault(RuntimeMsakMode.LOCAL)
+    private var selectedSupabaseMode: RuntimeSupabaseMode = runCatching {
+        RuntimeSupabaseMode.valueOf(BuildConfig.CELLWATCH_DEFAULT_SUPABASE_MODE)
+    }.getOrDefault(RuntimeSupabaseMode.LOCAL)
+    private val allowRemoteSupabase: Boolean =
+        System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE")?.toBooleanStrictOrNull()
+            ?: BuildConfig.CELLWATCH_ALLOW_REMOTE_SUPABASE
     private val disableSupabaseSync: Boolean = BuildConfig.CELLWATCH_DISABLE_SUPABASE_SYNC
     private var runtimeProfile: RuntimeSyncMsakProfile =
         RuntimeProfileResolver.resolveProfile(resolveRuntimeProfileConfig())

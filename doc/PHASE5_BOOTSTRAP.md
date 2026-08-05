@@ -84,6 +84,19 @@ iOS hosted-testing Release defaults:
   - `SUPABASE_TESTING_URL`
   - `SUPABASE_TESTING_API_KEY`
 - Current TestFlight intent is hosted testing Supabase, not `SUPABASE_URL` / `SUPABASE_API_KEY`.
+- Xcode prebuild runs `scripts/generate-ios-runtime-properties.sh` and writes an ephemeral bundle resource; deployed apps do not attempt to read the developer machine's properties file.
+- The generator packages only the selected environment and fails when its URL/public key is missing:
+  - `TESTING` -> `SUPABASE_TESTING_URL` + `SUPABASE_TESTING_API_KEY`
+  - `LIVE` -> `SUPABASE_URL` + `SUPABASE_API_KEY`
+- `RuntimeConfigSource.value(...)` reads the generated resource, so the same strict runtime profile resolves in TestFlight as during a local Release build.
+- `HarnessUiSmokeTests.testBundledSupabaseConfig_matchesSelectedDeploymentMode` verifies that the selected pair is present and the non-selected remote pair is absent.
+
+Android packaged-environment parity:
+- Debug remains `MSAK=LOCAL`, `Supabase=LOCAL`.
+- Release defaults to `MSAK=PUBLIC`, `Supabase=TESTING` and packages only the selected remote URL/public key in variant-specific `BuildConfig` fields.
+- Set untracked `CELLWATCH_RELEASE_SUPABASE_MODE=LIVE` for a future official Release build; this selects `SUPABASE_URL` + `SUPABASE_API_KEY` instead.
+- `validateReleaseRuntimeProfile` blocks Android Release assembly if the selected pair is missing.
+- Neither platform packages a local Supabase service-role key in Release artifacts.
 
 Run Phase 3 simulator smoke evidence:
 

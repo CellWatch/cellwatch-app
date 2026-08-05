@@ -115,6 +115,23 @@ iOS build defaults:
 - `Release` -> `MSAK=PUBLIC`, `Supabase=TESTING`, `CELLWATCH_ALLOW_REMOTE_SUPABASE=YES`
 - Current TestFlight intent is to use hosted testing Supabase via `SUPABASE_TESTING_*`, not `SUPABASE_URL` / `SUPABASE_API_KEY`
 
+Packaged deployment configuration:
+- Runtime service configuration is separate from the user's onboarding/profile data.
+- Local property files are build inputs only and remain untracked; installed apps cannot read them directly.
+- iOS generates an ephemeral `cellwatch.runtime.properties` inside the app bundle. The runtime resolver reads this resource on simulator, device, and TestFlight installations.
+- Android generates variant-specific `BuildConfig` values. Debug packages local configuration; Release packages one selected remote configuration.
+- A packaged remote build contains only the selected environment's URL and public anon/publishable key:
+  - `TESTING` packages `SUPABASE_TESTING_URL` and `SUPABASE_TESTING_API_KEY`.
+  - `LIVE` packages `SUPABASE_URL` and `SUPABASE_API_KEY`.
+- Local service-role keys must never be packaged in Release builds.
+- The iOS local demo service-role fallback is compiled only in `Debug`; `Release` requires the selected public remote key from the generated runtime resource.
+- Current iOS and Android Release defaults are `TESTING`. Missing selected values fail the build instead of producing a runtime-only failure.
+
+Future production switch:
+- iOS: add/use a production Xcode configuration whose `CELLWATCH_DEFAULT_SUPABASE_MODE` is `LIVE` (a command-line build-setting override also works for controlled validation).
+- Android: set untracked `CELLWATCH_RELEASE_SUPABASE_MODE=LIVE` before building the Release variant.
+- Production builds then consume the existing official `SUPABASE_URL` and `SUPABASE_API_KEY`; testing values are not packaged in that artifact.
+
 Strict runtime config hardening (current):
 - Shared runtime config now supports strict resolution mode (no silent local fallback defaults).
 - `iosTestApp` runtime mode resolution runs in strict mode; missing Supabase URL/key fails fast as `Runtime profile unavailable` instead of silently defaulting.
@@ -125,9 +142,10 @@ Strict runtime config hardening (current):
 - Android/iOS runtime mode buttons now use shared mode-cycle/label/resolve behavior via `RuntimeModeUiBridge` (`shared/src/commonMain/kotlin/edu/gatech/cc/cellwatch/domain/runtime/RuntimeModeUiBridge.kt`) so UI entrypoints cannot drift in mode ordering.
 
 Deployed-build intent:
-- Production/staged app entrypoints should use strict runtime config and require explicit values from persisted app/user profile state.
+- Production/staged app entrypoints use strict runtime config and require an explicitly selected packaged deployment environment.
+- Runtime service configuration is app deployment state, not the persisted user/onboarding profile.
 - Local fallback defaults are only for dev-focused helper paths/tests where explicitly enabled.
-- Future final app flow should persist a user-selected `RuntimeProfileConfig` via `RuntimeProfileStore` and resolve at startup through `RuntimeProfileResolver` only.
+- If runtime environment selection ever becomes user/admin configurable, it must still persist through `RuntimeProfileStore` and resolve through `RuntimeProfileResolver`; ordinary users should not select backend credentials.
 
 MSAK local host defaults in harness apps:
 - Android harness (`androidTestApp`): when `MSAK` mode is `LOCAL` and `MSAK_LOCAL_SERVER_HOST` is unset, host defaults to `10.0.2.2:8080`.
