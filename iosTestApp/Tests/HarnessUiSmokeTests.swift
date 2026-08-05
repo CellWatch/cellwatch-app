@@ -110,6 +110,29 @@ final class HarnessUiSmokeTests: XCTestCase {
         )
     }
 
+    func testBundledSupabaseConfig_matchesSelectedDeploymentMode() throws {
+        let packagedMode = try bundledRuntimeConfigValue("CELLWATCH_PACKAGED_SUPABASE_MODE")
+        switch packagedMode {
+        case "LOCAL":
+            XCTAssertNil(bundledRuntimeConfigValueIfPresent("SUPABASE_TESTING_URL"))
+            XCTAssertNil(bundledRuntimeConfigValueIfPresent("SUPABASE_TESTING_API_KEY"))
+            XCTAssertNil(bundledRuntimeConfigValueIfPresent("SUPABASE_URL"))
+            XCTAssertNil(bundledRuntimeConfigValueIfPresent("SUPABASE_API_KEY"))
+        case "TESTING":
+            XCTAssertFalse(try bundledRuntimeConfigValue("SUPABASE_TESTING_URL").isEmpty)
+            XCTAssertFalse(try bundledRuntimeConfigValue("SUPABASE_TESTING_API_KEY").isEmpty)
+            XCTAssertNil(bundledRuntimeConfigValueIfPresent("SUPABASE_URL"))
+            XCTAssertNil(bundledRuntimeConfigValueIfPresent("SUPABASE_API_KEY"))
+        case "LIVE":
+            XCTAssertFalse(try bundledRuntimeConfigValue("SUPABASE_URL").isEmpty)
+            XCTAssertFalse(try bundledRuntimeConfigValue("SUPABASE_API_KEY").isEmpty)
+            XCTAssertNil(bundledRuntimeConfigValueIfPresent("SUPABASE_TESTING_URL"))
+            XCTAssertNil(bundledRuntimeConfigValueIfPresent("SUPABASE_TESTING_API_KEY"))
+        default:
+            XCTFail("Unsupported packaged Supabase mode: \(packagedMode)")
+        }
+    }
+
     private func bundledRuntimeConfigValue(_ key: String) throws -> String {
         guard let url = Bundle.main.url(forResource: "cellwatch.runtime", withExtension: "properties") else {
             XCTFail("Missing bundled resource: cellwatch.runtime.properties")
@@ -121,6 +144,14 @@ final class HarnessUiSmokeTests: XCTestCase {
         }
         XCTFail("\(key) missing in bundled runtime properties")
         return ""
+    }
+
+    private func bundledRuntimeConfigValueIfPresent(_ key: String) -> String? {
+        guard let url = Bundle.main.url(forResource: "cellwatch.runtime", withExtension: "properties"),
+              let contents = try? String(contentsOf: url, encoding: .utf8) else {
+            return nil
+        }
+        return parseProperty(key, from: contents)
     }
 
     private func parseProperty(_ key: String, from contents: String) -> String? {

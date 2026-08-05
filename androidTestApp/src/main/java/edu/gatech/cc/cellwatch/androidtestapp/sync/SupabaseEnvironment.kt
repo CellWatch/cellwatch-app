@@ -32,7 +32,8 @@ interface SupabaseEnvironmentProvider : SyncSupabaseConfigResolver {
 
 class CellwatchPropertiesSupabaseEnvironmentProvider(
     private val workingDir: File = File(System.getProperty("user.dir") ?: "."),
-    private val allowRemote: Boolean = System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE") == "true",
+    private val allowRemote: Boolean = System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE")?.toBooleanStrictOrNull()
+        ?: BuildConfig.CELLWATCH_ALLOW_REMOTE_SUPABASE,
     private val env: Map<String, String> = System.getenv(),
 ) : SupabaseEnvironmentProvider {
 
@@ -76,11 +77,13 @@ class CellwatchPropertiesSupabaseEnvironmentProvider(
     private fun runtimeConfig() = run {
         val props = loadProperties()
         if (allowRemote) {
+            val remoteMode = packagedSupabaseMode().takeIf { it != RuntimeSupabaseMode.LOCAL }
+                ?: RuntimeSupabaseMode.LIVE
             resolveRuntimeProfileFromProperties(
                 workingDir = workingDir,
                 preloadedProperties = props,
                 msakMode = RuntimeMsakMode.PUBLIC,
-                supabaseMode = RuntimeSupabaseMode.LIVE,
+                supabaseMode = remoteMode,
                 allowRemoteSupabase = true,
                 env = env,
             ).syncConfig
@@ -154,6 +157,9 @@ fun resolveRuntimeProfileConfigFromProperties(
     val strictRuntimeConfig = runtimeValue(props, env, RuntimeProfileContract.KEY_STRICT_RUNTIME_CONFIG)
         ?.toBooleanStrictOrNull()
         ?: DEFAULT_STRICT_RUNTIME_CONFIG
+    val packagedMode = packagedSupabaseMode()
+    val packagedUrl = BuildConfig.CELLWATCH_PACKAGED_SUPABASE_URL.takeIf { it.isNotBlank() }
+    val packagedApiKey = BuildConfig.CELLWATCH_PACKAGED_SUPABASE_API_KEY.takeIf { it.isNotBlank() }
     return RuntimeProfileConfig(
         msakMode = msakMode,
         supabaseMode = supabaseMode,
@@ -163,10 +169,14 @@ fun resolveRuntimeProfileConfigFromProperties(
             ?: runtimeValue(props, env, RuntimeProfileContract.KEY_LOCAL_SUPABASE_API_KEY)
             ?: BuildConfig.CELLWATCH_LOCAL_SUPABASE_API_KEY
                 .takeIf { it.isNotBlank() },
-        testingSupabaseUrl = runtimeValue(props, env, RuntimeProfileContract.KEY_TESTING_SUPABASE_URL),
-        testingSupabaseApiKey = runtimeValue(props, env, RuntimeProfileContract.KEY_TESTING_SUPABASE_API_KEY),
-        liveSupabaseUrl = runtimeValue(props, env, RuntimeProfileContract.KEY_REMOTE_SUPABASE_URL),
-        liveSupabaseApiKey = runtimeValue(props, env, RuntimeProfileContract.KEY_REMOTE_SUPABASE_API_KEY),
+        testingSupabaseUrl = runtimeValue(props, env, RuntimeProfileContract.KEY_TESTING_SUPABASE_URL)
+            ?: packagedUrl.takeIf { packagedMode == RuntimeSupabaseMode.TESTING },
+        testingSupabaseApiKey = runtimeValue(props, env, RuntimeProfileContract.KEY_TESTING_SUPABASE_API_KEY)
+            ?: packagedApiKey.takeIf { packagedMode == RuntimeSupabaseMode.TESTING },
+        liveSupabaseUrl = runtimeValue(props, env, RuntimeProfileContract.KEY_REMOTE_SUPABASE_URL)
+            ?: packagedUrl.takeIf { packagedMode == RuntimeSupabaseMode.LIVE },
+        liveSupabaseApiKey = runtimeValue(props, env, RuntimeProfileContract.KEY_REMOTE_SUPABASE_API_KEY)
+            ?: packagedApiKey.takeIf { packagedMode == RuntimeSupabaseMode.LIVE },
         allowRemoteSupabase = allowRemoteSupabase,
         strictSupabaseConfig = strictRuntimeConfig,
         localMsakHost = resolvedLocalMsakHost,
@@ -175,6 +185,10 @@ fun resolveRuntimeProfileConfigFromProperties(
             ?: false,
     )
 }
+
+private fun packagedSupabaseMode(): RuntimeSupabaseMode = runCatching {
+    RuntimeSupabaseMode.valueOf(BuildConfig.CELLWATCH_PACKAGED_SUPABASE_MODE.uppercase())
+}.getOrDefault(RuntimeSupabaseMode.LOCAL)
 
 private fun runtimeValue(props: Properties, env: Map<String, String>, key: String): String? {
     val fromEnv = env[key]?.trim()?.trim('"')?.takeIf { it.isNotEmpty() }

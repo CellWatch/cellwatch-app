@@ -47,6 +47,18 @@ SUPABASE_TESTING_API_KEY=...
 
 Current staged deployment intent is to use hosted testing Supabase, not `SUPABASE_URL` / `SUPABASE_API_KEY`.
 
+The Xcode prebuild generates `cellwatch.runtime.properties` directly in the built app bundle. For the current Release configuration it includes only:
+
+```properties
+CELLWATCH_PACKAGED_SUPABASE_MODE=TESTING
+SUPABASE_TESTING_URL=...
+SUPABASE_TESTING_API_KEY=...
+```
+
+The source `cellwatch.properties` remains untracked and is not copied wholesale. A Release build fails when either selected testing value is missing. `SUPABASE_URL`, `SUPABASE_API_KEY`, and local service-role keys are not included in the current TestFlight artifact. The built-in local demo service-role fallback is compiled only in `Debug`.
+
+For a future production configuration, set `CELLWATCH_DEFAULT_SUPABASE_MODE=LIVE`. The same generator then packages only `SUPABASE_URL` and `SUPABASE_API_KEY`. Prefer a dedicated production Xcode configuration/scheme before final deployment so the environment choice is visible and repeatable.
+
 Xcode prebuild now uses `/Users/jeff/Projects/cellwatch-app/scripts/compile-shared-framework-for-xcode.sh`,
 which keeps `sharedKit.framework` current at:
 - `/Users/jeff/Projects/cellwatch-app/shared/build/bin/Current/sharedKit.framework`

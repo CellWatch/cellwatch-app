@@ -213,66 +213,13 @@ if ! attempt_build "$FORCE_RERUN"; then
   esac
 fi
 
-read_property_value() {
-  local key="$1"
-  local file="$2"
-  [[ -f "$file" ]] || return 1
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    line="${line#"${line%%[![:space:]]*}"}"
-    line="${line%"${line##*[![:space:]]}"}"
-    [[ -z "$line" || "${line:0:1}" == "#" ]] && continue
-    if [[ "$line" == "$key="* ]]; then
-      local value="${line#*=}"
-      value="${value%"${value##*[![:space:]]}"}"
-      value="${value#"${value%%[![:space:]]*}"}"
-      if [[ "${value:0:1}" == "\"" && "${value: -1}" == "\"" && ${#value} -ge 2 ]]; then
-        value="${value:1:${#value}-2}"
-      fi
-      printf "%s" "$value"
-      return 0
-    fi
-  done < "$file"
-  return 1
-}
-
-resolve_mapbox_token() {
-  local files=(
-    "$REPO_ROOT/cellwatch.local.properties"
-    "$REPO_ROOT/cellwatch.properties"
-    "$REPO_ROOT/iosTestApp/cellwatch.local.properties"
-    "$REPO_ROOT/iosTestApp/cellwatch.properties"
-  )
-  local file=""
-  local token=""
-  MAPBOX_TOKEN=""
-  for file in "${files[@]}"; do
-    token="$(read_property_value "MAPBOX_ACCESS_TOKEN" "$file" || true)"
-    if [[ -n "$token" ]]; then
-      MAPBOX_TOKEN="$token"
-      return 0
-    fi
-    token="$(read_property_value "MAPBOX_DOWNLOADS_TOKEN" "$file" || true)"
-    if [[ -n "$token" ]]; then
-      MAPBOX_TOKEN="$token"
-      return 0
-    fi
-  done
-  return 1
-}
-
 generate_runtime_properties_resource() {
-  resolve_mapbox_token || true
   if [[ -z "${BUILT_PRODUCTS_DIR:-}" || -z "${UNLOCALIZED_RESOURCES_FOLDER_PATH:-}" ]]; then
     return 0
   fi
   local out_dir="$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
   local out_file="$out_dir/cellwatch.runtime.properties"
-  mkdir -p "$out_dir"
-  if [[ -n "${MAPBOX_TOKEN:-}" ]]; then
-    printf "MAPBOX_ACCESS_TOKEN=%s\n" "$MAPBOX_TOKEN" > "$out_file"
-  else
-    rm -f "$out_file"
-  fi
+  "$REPO_ROOT/scripts/generate-ios-runtime-properties.sh" "$out_file"
 }
 
 stage_archive_dsyms() {

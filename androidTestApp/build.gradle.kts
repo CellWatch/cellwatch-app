@@ -6,14 +6,18 @@ plugins {
 }
 
 val cellwatchProperties = Properties().apply {
-    val file = rootProject.file("cellwatch.properties")
-    if (file.exists()) {
-        file.inputStream().use { load(it) }
+    listOf(
+        rootProject.file("cellwatch.properties"),
+        rootProject.file("cellwatch.local.properties"),
+    ).forEach { file ->
+        if (file.exists()) {
+            file.inputStream().use { load(it) }
+        }
     }
 }
 
 fun readCellwatchProperty(name: String, defaultValue: String = ""): String {
-    return (cellwatchProperties.getProperty(name) ?: System.getenv(name) ?: defaultValue)
+    return (System.getenv(name) ?: cellwatchProperties.getProperty(name) ?: defaultValue)
         .trim()
         .removeSurrounding("\"")
 }
@@ -55,6 +59,17 @@ val buildConfigMapboxAccessToken = readCellwatchProperty(
         defaultValue = "",
     ),
 )
+val releaseSupabaseMode = readCellwatchProperty("CELLWATCH_RELEASE_SUPABASE_MODE", "TESTING")
+    .uppercase()
+    .also { mode ->
+        require(mode == "TESTING" || mode == "LIVE") {
+            "CELLWATCH_RELEASE_SUPABASE_MODE must be TESTING or LIVE (was $mode)"
+        }
+    }
+val releaseSupabaseUrlKey = if (releaseSupabaseMode == "LIVE") "SUPABASE_URL" else "SUPABASE_TESTING_URL"
+val releaseSupabaseApiKeyKey = if (releaseSupabaseMode == "LIVE") "SUPABASE_API_KEY" else "SUPABASE_TESTING_API_KEY"
+val releaseSupabaseUrl = readCellwatchProperty(releaseSupabaseUrlKey)
+val releaseSupabaseApiKey = readCellwatchProperty(releaseSupabaseApiKeyKey)
 
 android {
     namespace = "edu.gatech.cc.cellwatch.androidtestapp"
@@ -67,13 +82,34 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_URL", toBuildConfigString(buildConfigLocalSupabaseUrl))
-        buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_API_KEY", toBuildConfigString(buildConfigLocalSupabaseApiKey))
         buildConfigField("String", "CELLWATCH_SYNC_DIAGNOSTICS_LEVEL", toBuildConfigString(buildConfigSyncDiagnosticsLevel))
         buildConfigField("int", "CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES", buildConfigSyncDiagnosticsMaxSamples.toString())
         buildConfigField("boolean", "CELLWATCH_SYNC_DIAGNOSTICS_INCLUDE_CAUSE_CHAIN", buildConfigSyncDiagnosticsIncludeCauseChain.toString())
         buildConfigField("boolean", "CELLWATCH_DISABLE_SUPABASE_SYNC", buildConfigDisableSupabaseSync.toString())
         resValue("string", "mapbox_access_token", buildConfigMapboxAccessToken)
+    }
+
+    buildTypes {
+        getByName("debug") {
+            buildConfigField("String", "CELLWATCH_DEFAULT_MSAK_MODE", "\"LOCAL\"")
+            buildConfigField("String", "CELLWATCH_DEFAULT_SUPABASE_MODE", "\"LOCAL\"")
+            buildConfigField("boolean", "CELLWATCH_ALLOW_REMOTE_SUPABASE", "false")
+            buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_URL", toBuildConfigString(buildConfigLocalSupabaseUrl))
+            buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_API_KEY", toBuildConfigString(buildConfigLocalSupabaseApiKey))
+            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_MODE", "\"LOCAL\"")
+            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_URL", toBuildConfigString(buildConfigLocalSupabaseUrl))
+            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_API_KEY", toBuildConfigString(buildConfigLocalSupabaseApiKey))
+        }
+        getByName("release") {
+            buildConfigField("String", "CELLWATCH_DEFAULT_MSAK_MODE", "\"PUBLIC\"")
+            buildConfigField("String", "CELLWATCH_DEFAULT_SUPABASE_MODE", toBuildConfigString(releaseSupabaseMode))
+            buildConfigField("boolean", "CELLWATCH_ALLOW_REMOTE_SUPABASE", "true")
+            buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_URL", "\"\"")
+            buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_API_KEY", "\"\"")
+            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_MODE", toBuildConfigString(releaseSupabaseMode))
+            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_URL", toBuildConfigString(releaseSupabaseUrl))
+            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_API_KEY", toBuildConfigString(releaseSupabaseApiKey))
+        }
     }
 
     buildFeatures {
@@ -90,6 +126,23 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+    }
+}
+
+val validateReleaseRuntimeProfile by tasks.registering {
+    doLast {
+        check(releaseSupabaseUrl.isNotBlank()) {
+            "Missing $releaseSupabaseUrlKey for Android $releaseSupabaseMode release packaging."
+        }
+        check(releaseSupabaseApiKey.isNotBlank()) {
+            "Missing $releaseSupabaseApiKeyKey for Android $releaseSupabaseMode release packaging."
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.named("preReleaseBuild").configure {
+        dependsOn(validateReleaseRuntimeProfile)
     }
 }
 
