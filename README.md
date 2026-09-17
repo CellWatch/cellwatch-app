@@ -473,7 +473,7 @@ or foreground:
 ## Local KMP `msak` Client Override
 
 `shared/` currently depends on the published artifact:
-- `edu.gatech.cc.cellwatch:msak-client-kmp:0.2.3`
+- `edu.gatech.cc.cellwatch:msak-client-kmp:0.3.0`
 
 Reference repositories used during CellWatch development:
 - KMP client library source: [CellWatch/msak-client-kmp](https://github.com/CellWatch/msak-client-kmp)
@@ -491,6 +491,27 @@ Standard endpoint paths expected by current shared selector/executor wiring:
 Preferred local-dev path is Maven Local publication from `msak-client-kmp`:
 - publish in producer: `:msak-shared:publishToMavenLocal`
 - this repo already has `mavenLocal()` before `mavenCentral()`, so no extra flags are needed
+
+### How MSAK reaches iOS
+
+CellWatch does **not** consume the `MsakShared.xcframework` zips that `msak-android`
+publishes under `msak-shared/build/local-dist/apple/`. Those are for consumers that
+link MSAK directly from Xcode, and they are configuration-baked (a separate
+`MsakShared-debug.xcframework.zip` and `MsakShared-release.xcframework.zip`).
+
+Here, `msak-client-kmp` is an ordinary Maven `.klib` dependency of `shared/`
+(`commonMain`). Kotlin/Native links it into CellWatch's own `sharedKit.framework`,
+which is the only framework `iosTestApp` depends on. That means:
+
+- Debug vs Release is decided by the `sharedKit` link task, not by which MSAK zip you
+  downloaded. `scripts/compile-shared-framework-for-xcode.sh` reads `$CONFIGURATION`
+  and runs `:shared:link{Debug,Release}Framework<Target>` accordingly, so a Release /
+  TestFlight build already links release-compiled MSAK code.
+- There is nothing extra to embed. `sharedKit.framework` is already in the app
+  target's `Embed Frameworks` phase with `CodeSignOnCopy`; MSAK rides along inside it.
+
+To pick up a new MSAK build, publish it to Maven local from the producer and bump
+`msakClientKmp` in `gradle/libs.versions.toml`. Nothing on the Xcode side changes.
 
 Advanced option (source-composite substitution):
 - Use this only when you explicitly want to substitute from a local checkout source tree.
@@ -552,7 +573,7 @@ dependencyResolutionManagement {
 
 ```toml
 [versions]
-msakClientKmp = "0.2.3"
+msakClientKmp = "0.3.0"
 
 [libraries]
 msak-client-kmp = { module = "edu.gatech.cc.cellwatch:msak-client-kmp", version.ref = "msakClientKmp" }
@@ -575,64 +596,26 @@ kotlin {
 If you do not use the version catalog:
 
 ```kotlin
-implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.2.3")
+implementation("edu.gatech.cc.cellwatch:msak-client-kmp:0.3.0")
 ```
-
-### Local iOS XCFramework Consumption
-
-Producer output:
-- zip: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.3/MsakShared.xcframework.zip`
-- sha256: `/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple/msak-client-kmp/0.2.3/MsakShared.xcframework.sha256`
-
-Steps:
-1. Unzip into a stable local path, for example:
-   - `/Users/jeff/Projects/cellwatch-app/iosTestApp/Frameworks/MsakShared.xcframework`
-2. In Xcode, open the iOS app project and select the app target.
-3. Under `General` -> `Frameworks, Libraries, and Embedded Content`, add `MsakShared.xcframework`.
-4. Set embed mode:
-   - app target: `Embed & Sign` (recommended for Kotlin/Native dynamic frameworks)
-   - test target(s): typically `Do Not Embed` (link only)
-5. Usually no extra search paths are needed if you added the framework directly in Xcode.
-   - If needed, set `FRAMEWORK_SEARCH_PATHS` to include: `$(PROJECT_DIR)/Frameworks`
 
 ### Verification Checklist
 
 Android/KMP:
 1. Confirm artifact exists in Maven local:
-   - `~/.m2/repository/edu/gatech/cc/cellwatch/msak-client-kmp/0.2.3/`
+   - `~/.m2/repository/edu/gatech/cc/cellwatch/msak-client-kmp/0.3.0/`
 2. Run dependency insight:
    - `./gradlew -q :shared:dependencies --configuration jvmCompileClasspath | grep msak-client-kmp`
 3. Run a fast compile/test task:
    - `./gradlew :shared:jvmTest`
 
 iOS:
-1. Verify installed framework slices:
-   - `x86_64` and/or `arm64` simulator slice present for your simulator
+1. Build the shared framework for the slice you are targeting:
+   - `./gradlew :shared:linkDebugFrameworkIosSimulatorArm64` (simulator)
+   - `./gradlew :shared:linkReleaseFrameworkIosArm64` (device/TestFlight)
 2. Build app target in Xcode for iOS Simulator
 3. Run hosted tests that touch the shared path
-4. If launch fails with missing framework, re-check `Embed & Sign` on app target
-
-### Deterministic Local Refresh Script
-
-Use:
-
-```bash
-scripts/refresh-local-msak-xcframework.sh
-```
-
-Optional args/env:
-
-```bash
-# version argument
-scripts/refresh-local-msak-xcframework.sh 0.2.3
-
-# custom producer/dist root and destination
-MSAK_DIST_ROOT=/Users/jeff/Projects/msak-android/msak-shared/build/local-dist/apple \
-MSAK_FRAMEWORK_DEST=/Users/jeff/Projects/cellwatch-app/iosTestApp/Frameworks/MsakShared.xcframework \
-scripts/refresh-local-msak-xcframework.sh 0.2.3
-```
-
-The script verifies SHA-256 against the sidecar file and atomically replaces the destination framework.
+4. If launch fails with missing framework, re-check `Embed & Sign` on the app target
 
 ## Testing
 

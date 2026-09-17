@@ -2,8 +2,8 @@
     "metadata": {
         "fixtureSchemaVersion": 1,
         "source": "measurement-history-usecase-capture",
-        "capturedAtUtc": "2026-07-16T19:07:02.003771Z",
-        "msakClientKmpVersion": "0.2.3"
+        "capturedAtUtc": "2026-09-16T21:22:43.835135Z",
+        "msakClientKmpVersion": "0.3.0"
     },
     "scenarios": [
         {
