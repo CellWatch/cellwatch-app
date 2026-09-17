@@ -7,6 +7,7 @@ import edu.gatech.cc.cellwatch.domain.capability.PlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.Measurement
+import edu.gatech.cc.cellwatch.core.util.runCatchingCancellable
 import com.benasher44.uuid.uuid4
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,8 +64,8 @@ class MeasurementSequenceHarness(
         onComplete: (MeasurementSequenceHarnessResult?, Throwable?) -> Unit,
     ) {
         scope.launch {
-            runCatching {
-                val capabilitySummary = runCatching {
+            runCatchingCancellable {
+                val capabilitySummary = runCatchingCancellable {
                     CapabilityCaptureReportFormatter.format(
                         CapabilityCaptureReportFormatter.fromSnapshot(
                             capabilityProvider.captureSnapshot(),
