@@ -372,6 +372,23 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		0E962ABB8A3257069595FC82 /* AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatchUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = iosTestApp;
+			};
+			name = AppStore;
+		};
 		107D6060F2979D4BDB0C9CE2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -510,6 +527,63 @@
 			};
 			name = Release;
 		};
+		83201B59D705E91AA2BC22E0 /* AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = LECSLW6UDQ;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = AppStore;
+		};
 		9AFF888F6FC2EC8E2EB11763 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -554,6 +628,31 @@
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iosTestApp.app/iosTestApp";
 			};
 			name = Release;
+		};
+		B9A9AA2B7A06FB15181C07E6 /* AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CELLWATCH_ALLOW_LIVE_SUPABASE = YES;
+				CELLWATCH_ALLOW_REMOTE_SUPABASE = YES;
+				CELLWATCH_DEFAULT_MSAK_MODE = PUBLIC;
+				CELLWATCH_DEFAULT_SUPABASE_MODE = LIVE;
+				CELLWATCH_DISABLE_SUPABASE_SYNC = NO;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../shared/build/bin/Current\"",
+				);
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatch;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = AppStore;
 		};
 		CC8F7FB418A42BE66CB8A0EB /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -617,44 +716,69 @@
 			};
 			name = Debug;
 		};
+		F30AEF6B8626F9CFB83ECF6F /* AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../shared/build/bin/Current\"",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = edu.gatech.cc.cellwatchTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iosTestApp.app/iosTestApp";
+			};
+			name = AppStore;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
 		72EDBD35D5A0405A8CB05EDD /* Build configuration list for PBXNativeTarget "iosTestAppTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
+				F30AEF6B8626F9CFB83ECF6F /* AppStore */,
 				DD9B81743D6BF73C2B85BF4C /* Debug */,
 				B6C578EA9E1CD32FD78F3A74 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = AppStore;
 		};
 		7AF44EB6010696C3AE2EEBA2 /* Build configuration list for PBXNativeTarget "iosTestApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
+				B9A9AA2B7A06FB15181C07E6 /* AppStore */,
 				EEE22FCA9D01FF30B29E638A /* Debug */,
 				9AFF888F6FC2EC8E2EB11763 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = AppStore;
 		};
 		8B18D936C19AA29BC4C1594C /* Build configuration list for PBXProject "iosTestApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
+				83201B59D705E91AA2BC22E0 /* AppStore */,
 				33C932C3D2A10B229D157C26 /* Debug */,
 				82BE3DC679B17965D0CA0DEF /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = AppStore;
 		};
 		E75D79F97481B54092A81AE1 /* Build configuration list for PBXNativeTarget "iosTestAppUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
+				0E962ABB8A3257069595FC82 /* AppStore */,
 				CC8F7FB418A42BE66CB8A0EB /* Debug */,
 				107D6060F2979D4BDB0C9CE2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = AppStore;
 		};
 /* End XCConfigurationList section */
 

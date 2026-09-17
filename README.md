@@ -110,10 +110,52 @@ Supabase mode mapping:
 - `TESTING` -> shared sync target `REMOTE` (uses `SUPABASE_TESTING_URL` + `SUPABASE_TESTING_API_KEY`)
 - `LIVE` -> shared sync target `REMOTE` (uses `SUPABASE_URL` + `SUPABASE_API_KEY`)
 
-iOS build defaults:
-- `Debug` -> `MSAK=LOCAL`, `Supabase=LOCAL`, `CELLWATCH_ALLOW_REMOTE_SUPABASE=NO`
-- `Release` -> `MSAK=PUBLIC`, `Supabase=TESTING`, `CELLWATCH_ALLOW_REMOTE_SUPABASE=YES`
-- Current TestFlight intent is to use hosted testing Supabase via `SUPABASE_TESTING_*`, not `SUPABASE_URL` / `SUPABASE_API_KEY`
+iOS Xcode configurations:
+
+| Configuration | MSAK | Supabase | Use for |
+|---|---|---|---|
+| `Debug` | `LOCAL` | `LOCAL` | simulator development |
+| `Release` | `PUBLIC` | `TESTING` | TestFlight / hosted testing |
+| `AppStore` | `PUBLIC` | `LIVE` | App Store submission only |
+
+- TestFlight uses hosted testing Supabase via `SUPABASE_TESTING_*`, not `SUPABASE_URL` / `SUPABASE_API_KEY`.
+- `AppStore` additionally sets `CELLWATCH_ALLOW_LIVE_SUPABASE=YES`; see "Reaching live Supabase" below.
+- Archive the `iosTestAppAppStore` scheme for a store build. Nothing else selects `LIVE`.
+
+### Device builds vs simulator builds
+
+**The effective runtime profile depends on the build target, not only the configuration.**
+A phone cannot reach services bound to the developer machine's loopback - on the phone
+`127.0.0.1` is the phone - so `scripts/generate-ios-runtime-properties.sh` reads
+`PLATFORM_NAME` and computes the profile it actually packages:
+
+| Build | MSAK | Supabase | Local host packaged |
+|---|---|---|---|
+| Simulator, `Debug` | `LOCAL` | `LOCAL` | `127.0.0.1` |
+| **Device**, `Debug` (default) | `PUBLIC` | `TESTING` | none |
+| **Device**, `Debug` + `CELLWATCH_DEVICE_USE_LOCAL=1` | `LOCAL` | `LOCAL` | this Mac's LAN address, resolved at build time |
+| Device, `Release` / `AppStore` | as configured | as configured | none |
+
+So a tethered device build "just works" with no setup: it targets hosted services, which
+need no network topology between the phone and the Mac.
+
+To point a tethered device at this machine's local `msak-server` and Supabase instead:
+
+```bash
+xcodebuild -project iosTestApp/iosTestApp.xcodeproj -scheme iosTestApp \
+  -configuration Debug -destination generic/platform=iOS \
+  CELLWATCH_DEVICE_USE_LOCAL=1 build
+```
+
+In Xcode, set `CELLWATCH_DEVICE_USE_LOCAL = 1` in the scheme's Run action environment
+variables. The LAN address is re-resolved on every build (`ipconfig getifaddr en0`), so it
+survives DHCP changes without edits. The phone must be on the same network, and macOS must
+allow incoming connections to `msak-server`. Many campus and enterprise networks enable
+client isolation, which blocks this - the hosted default exists because of that.
+
+A device build **never** packages a loopback address: the generator refuses, and
+`HarnessUiSmokeTests.testBundledRuntimeConfig_deviceBuildPackagesNoLoopbackAddress`
+asserts it in the artifact.
 
 Packaged deployment configuration:
 - Runtime service configuration is separate from the user's onboarding/profile data.
@@ -127,10 +169,37 @@ Packaged deployment configuration:
 - The iOS local demo service-role fallback is compiled only in `Debug`; `Release` requires the selected public remote key from the generated runtime resource.
 - Current iOS and Android Release defaults are `TESTING`. Missing selected values fail the build instead of producing a runtime-only failure.
 
-Future production switch:
-- iOS: add/use a production Xcode configuration whose `CELLWATCH_DEFAULT_SUPABASE_MODE` is `LIVE` (a command-line build-setting override also works for controlled validation).
-- Android: set untracked `CELLWATCH_RELEASE_SUPABASE_MODE=LIVE` before building the Release variant.
-- Production builds then consume the existing official `SUPABASE_URL` and `SUPABASE_API_KEY`; testing values are not packaged in that artifact.
+### Reaching live Supabase
+
+`LIVE` writes to real deployed data collection, so it requires **two** independent opt-ins.
+`CELLWATCH_ALLOW_REMOTE_SUPABASE` is not sufficient on its own - hosted-testing builds set it
+too, which would otherwise leave production data one mode string away.
+
+- iOS: archive the `AppStore` configuration. It sets `CELLWATCH_DEFAULT_SUPABASE_MODE=LIVE`
+  and `CELLWATCH_ALLOW_LIVE_SUPABASE=YES`. Without the second flag the build fails in
+  `generate-ios-runtime-properties.sh`.
+- Android: set untracked `CELLWATCH_RELEASE_SUPABASE_MODE=LIVE` **and**
+  `CELLWATCH_ALLOW_LIVE_SUPABASE=true` before building the Release variant. Missing either
+  fails at Gradle **configuration** time, so no artifact is produced.
+- `RuntimeProfileContract.requireValid` enforces the same rule at runtime on both platforms.
+- Live builds consume the official `SUPABASE_URL` / `SUPABASE_API_KEY`; testing values are not
+  packaged in that artifact, asserted by
+  `HarnessUiSmokeTests.testBundledSupabaseConfig_matchesSelectedDeploymentMode`.
+
+### Keeping the Xcode project in sync
+
+`iosTestApp/project.yml` is the source of truth, but the committed `project.pbxproj` is what
+builds, and nothing regenerates it automatically. After editing `project.yml`:
+
+```bash
+cd iosTestApp && xcodegen generate --spec project.yml --project .
+```
+
+Commit the regenerated `project.pbxproj` and `xcshareddata/xcschemes/`. Verify with:
+
+```bash
+./gradlew :shared:verifyXcodeProjectInSync
+```
 
 Strict runtime config hardening (current):
 - Shared runtime config now supports strict resolution mode (no silent local fallback defaults).

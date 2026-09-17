@@ -146,6 +146,7 @@ fun resolveRuntimeProfileConfigFromProperties(
     msakMode: RuntimeMsakMode = RuntimeMsakMode.PUBLIC,
     supabaseMode: RuntimeSupabaseMode = RuntimeSupabaseMode.LOCAL,
     allowRemoteSupabase: Boolean = false,
+    allowLiveSupabase: Boolean = false,
     env: Map<String, String> = System.getenv(),
 ): RuntimeProfileConfig {
     val props = preloadedProperties ?: loadCellwatchProperties(workingDir)
@@ -178,6 +179,9 @@ fun resolveRuntimeProfileConfigFromProperties(
         liveSupabaseApiKey = runtimeValue(props, env, RuntimeProfileContract.KEY_REMOTE_SUPABASE_API_KEY)
             ?: packagedApiKey.takeIf { packagedMode == RuntimeSupabaseMode.LIVE },
         allowRemoteSupabase = allowRemoteSupabase,
+        allowLiveSupabase = allowLiveSupabase ||
+            runtimeValue(props, env, RuntimeProfileContract.KEY_ALLOW_LIVE_SUPABASE)
+                ?.toBooleanStrictOrNull() == true,
         strictSupabaseConfig = strictRuntimeConfig,
         localMsakHost = resolvedLocalMsakHost,
         localMsakSecure = runtimeValue(props, env, RuntimeProfileContract.KEY_LOCAL_MSAK_SECURE)

@@ -10,6 +10,14 @@ data class RuntimeProfileConfig(
     val msakMode: RuntimeMsakMode = RuntimeMsakMode.PUBLIC,
     val supabaseMode: RuntimeSupabaseMode = RuntimeSupabaseMode.LOCAL,
     val allowRemoteSupabase: Boolean = false,
+    /**
+     * Separate opt-in for the LIVE (production) Supabase target.
+     *
+     * [allowRemoteSupabase] covers TESTING and LIVE alike, and a hosted-testing
+     * build has to enable it, which left production data one mode string away.
+     * LIVE requires this flag as well.
+     */
+    val allowLiveSupabase: Boolean = false,
     val strictSupabaseConfig: Boolean = true,
     val localSupabaseUrl: String? = null,
     val localSupabaseApiKey: String? = null,

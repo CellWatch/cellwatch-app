@@ -96,6 +96,7 @@ android {
             buildConfigField("boolean", "CELLWATCH_ALLOW_REMOTE_SUPABASE", "false")
             buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_URL", toBuildConfigString(buildConfigLocalSupabaseUrl))
             buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_API_KEY", toBuildConfigString(buildConfigLocalSupabaseApiKey))
+            buildConfigField("boolean", "CELLWATCH_ALLOW_LIVE_SUPABASE", "false")
             buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_MODE", "\"LOCAL\"")
             buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_URL", toBuildConfigString(buildConfigLocalSupabaseUrl))
             buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_API_KEY", toBuildConfigString(buildConfigLocalSupabaseApiKey))
@@ -106,6 +107,7 @@ android {
             buildConfigField("boolean", "CELLWATCH_ALLOW_REMOTE_SUPABASE", "true")
             buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_URL", "\"\"")
             buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_API_KEY", "\"\"")
+            buildConfigField("boolean", "CELLWATCH_ALLOW_LIVE_SUPABASE", releaseAllowLiveSupabase.toString())
             buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_MODE", toBuildConfigString(releaseSupabaseMode))
             buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_URL", toBuildConfigString(releaseSupabaseUrl))
             buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_API_KEY", toBuildConfigString(releaseSupabaseApiKey))
@@ -129,13 +131,48 @@ android {
     }
 }
 
+// LIVE writes to real, deployed data collection, so it needs its own opt-in
+// rather than riding on CELLWATCH_ALLOW_REMOTE_SUPABASE, which a hosted-testing
+// release also sets. Mirrors RuntimeProfileContract.KEY_ALLOW_LIVE_SUPABASE and
+// the iOS AppStore configuration.
+val releaseAllowLiveSupabase =
+    readCellwatchProperty("CELLWATCH_ALLOW_LIVE_SUPABASE", "false")
+        .lowercase() in setOf("true", "1", "yes", "y")
+
+// Checked at CONFIGURATION time, not in a task.
+//
+// readCellwatchProperty defaults to "", so a missing value used to be baked into
+// BuildConfig as an empty string and was only caught if preReleaseBuild ran.
+// Failing here means a Release variant cannot be configured with an incomplete
+// or improperly gated runtime profile at all.
+if (releaseSupabaseMode == "LIVE") {
+    require(releaseAllowLiveSupabase) {
+        "Android release mode LIVE requires CELLWATCH_ALLOW_LIVE_SUPABASE=true. " +
+            "LIVE targets deployed production data; set it deliberately."
+    }
+}
+require(releaseSupabaseUrl.isNotBlank()) {
+    "Missing $releaseSupabaseUrlKey for Android $releaseSupabaseMode release packaging."
+}
+require(releaseSupabaseApiKey.isNotBlank()) {
+    "Missing $releaseSupabaseApiKeyKey for Android $releaseSupabaseMode release packaging."
+}
+
 val validateReleaseRuntimeProfile by tasks.registering {
+    group = "verification"
+    description = "Fails when the selected Android release Supabase profile is incomplete or ungated."
     doLast {
+        // The require() calls above already failed the build at configuration
+        // time; this task keeps a discoverable verification entry point and
+        // re-checks in case the values are ever resolved lazily.
         check(releaseSupabaseUrl.isNotBlank()) {
             "Missing $releaseSupabaseUrlKey for Android $releaseSupabaseMode release packaging."
         }
         check(releaseSupabaseApiKey.isNotBlank()) {
             "Missing $releaseSupabaseApiKeyKey for Android $releaseSupabaseMode release packaging."
+        }
+        check(releaseSupabaseMode != "LIVE" || releaseAllowLiveSupabase) {
+            "Android release mode LIVE requires CELLWATCH_ALLOW_LIVE_SUPABASE=true."
         }
     }
 }

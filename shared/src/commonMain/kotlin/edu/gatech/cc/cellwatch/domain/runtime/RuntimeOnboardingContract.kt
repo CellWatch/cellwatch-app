@@ -18,6 +18,7 @@ data class RuntimeOnboardingDraft(
 ) {
     fun toRuntimeProfileConfig(
         allowRemoteSupabase: Boolean,
+        allowLiveSupabase: Boolean = false,
         strictSupabaseConfig: Boolean = true,
         userAgent: String = "cellwatch-runtime-profile",
     ): RuntimeProfileConfig {
@@ -25,6 +26,7 @@ data class RuntimeOnboardingDraft(
             msakMode = msakMode,
             supabaseMode = supabaseMode,
             allowRemoteSupabase = allowRemoteSupabase,
+            allowLiveSupabase = allowLiveSupabase,
             strictSupabaseConfig = strictSupabaseConfig,
             localSupabaseUrl = localSupabaseUrl,
             localSupabaseApiKey = localSupabaseApiKey,

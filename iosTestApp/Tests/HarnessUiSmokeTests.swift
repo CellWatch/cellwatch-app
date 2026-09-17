@@ -128,8 +128,54 @@ final class HarnessUiSmokeTests: XCTestCase {
             XCTAssertFalse(try bundledRuntimeConfigValue("SUPABASE_API_KEY").isEmpty)
             XCTAssertNil(bundledRuntimeConfigValueIfPresent("SUPABASE_TESTING_URL"))
             XCTAssertNil(bundledRuntimeConfigValueIfPresent("SUPABASE_TESTING_API_KEY"))
+            XCTAssertEqual(
+                bundledRuntimeConfigValueIfPresent("CELLWATCH_ALLOW_LIVE_SUPABASE"),
+                "true",
+                "A LIVE artifact must carry its own opt-in, not just allow-remote"
+            )
         default:
             XCTFail("Unsupported packaged Supabase mode: \(packagedMode)")
+        }
+    }
+
+    func testBundledRuntimeConfig_declaresTargetAndMsakMode() throws {
+        let target = try bundledRuntimeConfigValue("CELLWATCH_PACKAGED_TARGET")
+        XCTAssertTrue(
+            ["device", "simulator"].contains(target),
+            "Unexpected packaged build target: \(target)"
+        )
+
+        let msakMode = try bundledRuntimeConfigValue("CELLWATCH_PACKAGED_MSAK_MODE")
+        XCTAssertTrue(
+            ["LOCAL", "PUBLIC", "STAGING"].contains(msakMode),
+            "Unexpected packaged MSAK mode: \(msakMode)"
+        )
+
+        // MSAK LOCAL is only usable if a host was actually packaged. Without this,
+        // a missing host silently fell back to loopback at runtime.
+        if msakMode == "LOCAL" {
+            let host = try bundledRuntimeConfigValue("MSAK_LOCAL_SERVER_HOST")
+            XCTAssertFalse(host.isEmpty, "MSAK LOCAL packaged without a server host")
+        }
+    }
+
+    /// A phone cannot reach the developer machine's loopback, so a device
+    /// artifact containing one is broken by construction. This is the assertion
+    /// that would have caught `MsakException: authorize call failed` at build time.
+    func testBundledRuntimeConfig_deviceBuildPackagesNoLoopbackAddress() throws {
+        let target = try bundledRuntimeConfigValue("CELLWATCH_PACKAGED_TARGET")
+        try XCTSkipUnless(target == "device", "Loopback is valid on the simulator")
+
+        let loopbacks = ["127.0.0.1", "localhost", "::1", "10.0.2.2", "10.0.3.2"]
+        for key in ["MSAK_LOCAL_SERVER_HOST", "SUPABASE_LOCAL_URL",
+                    "SUPABASE_TESTING_URL", "SUPABASE_URL"] {
+            guard let value = bundledRuntimeConfigValueIfPresent(key) else { continue }
+            for loopback in loopbacks {
+                XCTAssertFalse(
+                    value.contains(loopback),
+                    "Device build packaged an unreachable \(key)=\(value)"
+                )
+            }
         }
     }
 

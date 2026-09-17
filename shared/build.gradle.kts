@@ -1526,6 +1526,47 @@ tasks.register("verifyParityPipelines") {
     )
 }
 
+// Nothing else in this repo runs XcodeGen, so iosTestApp/project.yml is only
+// nominally the source of truth while the committed project.pbxproj is what
+// actually builds. Editing project.yml without regenerating silently does
+// nothing - which would quietly disable the AppStore configuration. This task
+// regenerates into a temp directory and diffs.
+tasks.register("verifyXcodeProjectInSync") {
+    description = "Fails when iosTestApp.xcodeproj differs from what project.yml generates."
+    group = "verification"
+    doLast {
+        val xcodegen = listOf("/opt/homebrew/bin/xcodegen", "/usr/local/bin/xcodegen")
+            .map { File(it) }
+            .firstOrNull { it.canExecute() }
+            ?: throw GradleException(
+                "xcodegen not found; install it (brew install xcodegen) to verify project sync."
+            )
+
+        val source = rootProject.file("iosTestApp")
+        val scratch = File(layout.buildDirectory.get().asFile, "xcodegen-sync")
+        scratch.deleteRecursively()
+        scratch.mkdirs()
+        val staged = File(scratch, "iosTestApp")
+        source.copyRecursively(staged, overwrite = true)
+
+        providers.exec {
+            commandLine(xcodegen.absolutePath, "generate", "--spec", "project.yml", "--project", ".")
+            workingDir = staged
+        }.standardOutput.asText.get()
+
+        val committed = File(source, "iosTestApp.xcodeproj/project.pbxproj").readText()
+        val regenerated = File(staged, "iosTestApp.xcodeproj/project.pbxproj").readText()
+        if (committed != regenerated) {
+            throw GradleException(
+                "iosTestApp.xcodeproj is out of sync with project.yml.\n" +
+                    "Run: (cd iosTestApp && xcodegen generate --spec project.yml --project .)\n" +
+                    "then commit the regenerated project.pbxproj and xcschemes."
+            )
+        }
+        logger.lifecycle("iosTestApp.xcodeproj matches project.yml.")
+    }
+}
+
 tasks.register("refreshIosSimulatorCurrentFramework") {
     description = "Refreshes sharedKit.framework at iosSimulatorArm64/Current from latest debug framework output."
     group = "verification"

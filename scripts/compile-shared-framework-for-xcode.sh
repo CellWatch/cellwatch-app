@@ -215,6 +215,17 @@ fi
 
 generate_runtime_properties_resource() {
   if [[ -z "${BUILT_PRODUCTS_DIR:-}" || -z "${UNLOCALIZED_RESOURCES_FOLDER_PATH:-}" ]]; then
+    # The packaged resource is the only runtime configuration an installed app
+    # can read, so skipping generation produces an app that silently has no
+    # config. Inside Xcode that is a build error; outside it (a plain CLI or
+    # Gradle-driven framework build) there is no bundle to write into, so say so
+    # and carry on rather than failing a build that never needed the resource.
+    if [[ -n "${XCODE_VERSION_ACTUAL:-}" ]]; then
+      echo "BUILT_PRODUCTS_DIR/UNLOCALIZED_RESOURCES_FOLDER_PATH unset inside an Xcode build;" >&2
+      echo "cannot write cellwatch.runtime.properties, which the app needs at runtime." >&2
+      exit 1
+    fi
+    echo "note: no bundle resource path in this environment; skipping runtime properties." >&2
     return 0
   fi
   local out_dir="$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
