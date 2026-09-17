@@ -8,7 +8,10 @@ import MapboxMaps
 #endif
 
 enum RuntimeConfigSource {
-#if DEBUG
+// Simulator-only: a Debug build installed on a phone previously fell back to
+// this demo credential silently. Device builds now resolve their key from the
+// packaged runtime resource or fail strict validation.
+#if DEBUG && targetEnvironment(simulator)
     private static let defaultLocalServiceRoleJwt =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
         "eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0." +
@@ -23,11 +26,18 @@ enum RuntimeConfigSource {
         if let launchValue = launchArgumentValue(key) {
             return launchValue
         }
-        if let propertyValue = property(key) {
-            return propertyValue
-        }
+        // The packaged resource is checked BEFORE the developer machine's
+        // property files. Those files are build-time inputs to
+        // scripts/generate-ios-runtime-properties.sh and are unreadable from an
+        // installed app, so consulting them first made the simulator resolve
+        // config differently from a device - which is how a device build ended
+        // up dialing 127.0.0.1. The bundled resource is regenerated on every
+        // Xcode build, so it cannot go stale relative to those files.
         if let bundledValue = bundledRuntimeProperty(key) {
             return bundledValue
+        }
+        if let propertyValue = property(key) {
+            return propertyValue
         }
         if let plistValue = infoDictionaryStringValue(key) {
             return plistValue
@@ -77,13 +87,19 @@ enum RuntimeConfigSource {
         }
     }
 
+    /// Returns nil when unconfigured rather than guessing at loopback.
+    ///
+    /// A hardcoded `http://127.0.0.1:54321` fallback here defeated strict
+    /// validation: the config was never blank, so `RuntimeProfileContract`
+    /// passed and the app dialed an address that on a device is the device
+    /// itself. Returning nil lets the existing strict check report the real
+    /// problem instead.
     static func localSupabaseUrlForIos() -> String? {
-        let raw = value("SUPABASE_LOCAL_URL")
-        let normalized = normalizeIosLoopback(raw)
+        let normalized = normalizeIosLoopback(value("SUPABASE_LOCAL_URL"))
         if let normalized, !normalized.isEmpty {
             return normalized
         }
-        return "http://127.0.0.1:54321"
+        return nil
     }
 
     static func localSupabaseApiKeyPreferServiceRoleJwt() -> String? {
@@ -97,19 +113,27 @@ enum RuntimeConfigSource {
                 return candidate
             }
         }
-#if DEBUG
+#if DEBUG && targetEnvironment(simulator)
         return defaultLocalServiceRoleJwt
 #else
         return nil
 #endif
     }
 
+    /// Returns nil when unconfigured rather than guessing at loopback.
+    ///
+    /// The previous `"127.0.0.1:8080"` fallback is what made a tethered device
+    /// report `MsakException: authorize call failed` - on a phone that address
+    /// is the phone, so the authorize request could never connect, and because
+    /// the value was non-blank strict validation never objected. The host now
+    /// comes from the packaged runtime resource, which
+    /// scripts/generate-ios-runtime-properties.sh fills in per build target.
+    ///
+    /// `msakModeRaw` no longer affects the result - it only selected the
+    /// removed fallback - but is kept so existing call sites are unchanged.
     static func localMsakHostForIos(msakModeRaw: String) -> String? {
         let configured = normalizeIosLoopback(value("MSAK_LOCAL_SERVER_HOST"))
-        if msakModeRaw.uppercased() == "LOCAL" {
-            return (configured?.isEmpty == false) ? configured : "127.0.0.1:8080"
-        }
-        return configured
+        return (configured?.isEmpty == false) ? configured : nil
     }
 
     static func shouldDisableSupabaseSync() -> Bool {
@@ -4193,6 +4217,7 @@ private enum RuntimeSelection {
         )
         let config = draft.toRuntimeProfileConfig(
             allowRemoteSupabase: RuntimeConfigSource.bool("CELLWATCH_ALLOW_REMOTE_SUPABASE"),
+            allowLiveSupabase: RuntimeConfigSource.bool("CELLWATCH_ALLOW_LIVE_SUPABASE"),
             strictSupabaseConfig: true,
             userAgent: "ios-test-app-runtime-profile"
         )

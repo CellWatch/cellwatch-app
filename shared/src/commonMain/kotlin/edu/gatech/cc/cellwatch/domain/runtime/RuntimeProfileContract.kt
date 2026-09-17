@@ -6,6 +6,7 @@ package edu.gatech.cc.cellwatch.domain.runtime
  */
 object RuntimeProfileContract {
     const val KEY_ALLOW_REMOTE_SUPABASE = "CELLWATCH_ALLOW_REMOTE_SUPABASE"
+    const val KEY_ALLOW_LIVE_SUPABASE = "CELLWATCH_ALLOW_LIVE_SUPABASE"
     const val KEY_STRICT_RUNTIME_CONFIG = "CELLWATCH_STRICT_RUNTIME_CONFIG"
     const val KEY_LOCAL_SUPABASE_URL = "SUPABASE_LOCAL_URL"
     const val KEY_LOCAL_SUPABASE_API_KEY = "SUPABASE_LOCAL_API_KEY"
@@ -49,6 +50,12 @@ object RuntimeProfileContract {
             RuntimeSupabaseMode.LIVE -> {
                 check(config.allowRemoteSupabase) {
                     "live supabase target requires $KEY_ALLOW_REMOTE_SUPABASE=true"
+                }
+                // Deliberately a second, LIVE-only gate: a hosted-testing build
+                // already sets allowRemoteSupabase, so that flag alone cannot
+                // distinguish "talk to a remote" from "write production data".
+                check(config.allowLiveSupabase) {
+                    "live supabase target requires $KEY_ALLOW_LIVE_SUPABASE=true"
                 }
                 check(!config.liveSupabaseUrl.isNullOrBlank()) {
                     "missing $KEY_REMOTE_SUPABASE_URL for live supabase runtime mode"

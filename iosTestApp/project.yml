@@ -3,6 +3,13 @@ options:
   bundleIdPrefix: edu.gatech.cc.cellwatch
   deploymentTarget:
     iOS: '17.0'
+configs:
+  Debug: debug
+  # AppStore is a release-type configuration that selects LIVE Supabase. It
+  # exists so a store submission is a matter of archiving the right
+  # configuration rather than remembering a command-line override.
+  Release: release
+  AppStore: release
 settings:
   base:
     DEVELOPMENT_TEAM: LECSLW6UDQ
@@ -34,6 +41,12 @@ targets:
           CELLWATCH_ALLOW_REMOTE_SUPABASE: YES
           CELLWATCH_DEFAULT_MSAK_MODE: PUBLIC
           CELLWATCH_DEFAULT_SUPABASE_MODE: TESTING
+        AppStore:
+          CELLWATCH_DISABLE_SUPABASE_SYNC: NO
+          CELLWATCH_ALLOW_REMOTE_SUPABASE: YES
+          CELLWATCH_ALLOW_LIVE_SUPABASE: YES
+          CELLWATCH_DEFAULT_MSAK_MODE: PUBLIC
+          CELLWATCH_DEFAULT_SUPABASE_MODE: LIVE
     dependencies:
       - package: MapboxMaps
       - framework: ../shared/build/bin/Current/sharedKit.framework
@@ -74,6 +87,18 @@ targets:
     dependencies:
       - target: iosTestApp
 schemes:
+  iosTestAppAppStore:
+    build:
+      targets:
+        iosTestApp: [archive, run, profile, analyze]
+    run:
+      config: AppStore
+    profile:
+      config: AppStore
+    analyze:
+      config: AppStore
+    archive:
+      config: AppStore
   iosTestApp:
     build:
       targets:

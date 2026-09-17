@@ -5,6 +5,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.sync.SupabaseTarget
 import edu.gatech.cc.cellwatch.data.sync.SyncTransportTarget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.nio.file.Files
 
@@ -77,6 +78,7 @@ class SupabaseEnvironmentProviderTest {
             """
             SUPABASE_URL="https://example.supabase.co"
             SUPABASE_API_KEY="remote-key"
+            CELLWATCH_ALLOW_LIVE_SUPABASE="true"
             """.trimIndent()
         )
         val provider = CellwatchPropertiesSupabaseEnvironmentProvider(
@@ -90,6 +92,36 @@ class SupabaseEnvironmentProviderTest {
         assertEquals(SupabaseTarget.REMOTE, env.target)
         assertEquals("https://example.supabase.co", env.url)
         assertEquals("remote-key", env.apiKey)
+    }
+
+    @Test
+    fun remoteTarget_failsWhenOnlyAllowRemoteIsSet() {
+        // allowRemote is also set by hosted-testing builds, so on its own it must
+        // not be enough to reach LIVE - the deployed production database.
+        val tmp = Files.createTempDirectory("cw-supa-live-ungated").toFile()
+        tmp.resolve("cellwatch.properties").writeText(
+            """
+            SUPABASE_URL="https://example.supabase.co"
+            SUPABASE_API_KEY="remote-key"
+            """.trimIndent()
+        )
+        val provider = CellwatchPropertiesSupabaseEnvironmentProvider(
+            workingDir = tmp,
+            allowRemote = true,
+            env = emptyMap(),
+        )
+
+        val message = try {
+            provider.resolve(SupabaseTarget.REMOTE)
+            fail("LIVE resolved with only allowRemote set")
+            ""
+        } catch (e: IllegalStateException) {
+            e.message.orEmpty()
+        }
+        assertTrue(
+            "Expected the live-gate message, got: $message",
+            message.contains("CELLWATCH_ALLOW_LIVE_SUPABASE"),
+        )
     }
 
     @Test
