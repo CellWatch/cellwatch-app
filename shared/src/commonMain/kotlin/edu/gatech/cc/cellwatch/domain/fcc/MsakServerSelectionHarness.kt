@@ -1,5 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
+import edu.gatech.cc.cellwatch.core.util.runCatchingCancellable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,7 +25,7 @@ class MsakServerSelectionHarness(
         onComplete: (MsakServerSelectionResult?, Throwable?) -> Unit,
     ) {
         scope.launch {
-            runCatching {
+            runCatchingCancellable {
                 val locator = MsakServerSelectorPlatform.createLocator(config)
                 val pinger = MsakServerSelectorPlatform.createPinger()
                 val pair = MsakServerSelector.chooseServers(locator, pinger)

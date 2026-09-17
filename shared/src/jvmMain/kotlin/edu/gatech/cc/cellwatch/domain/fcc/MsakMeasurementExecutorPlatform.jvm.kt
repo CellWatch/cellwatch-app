@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
 import edu.gatech.cc.cellwatch.domain.capability.MeasurementCapabilityEnricher
+import edu.gatech.cc.cellwatch.core.util.runCatchingCancellable
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
@@ -40,7 +41,7 @@ actual object MsakMeasurementExecutorPlatform {
                         servers = listOf(server.machine),
                     ),
                 )
-                return runCatching {
+                return runCatchingCancellable {
                     enricher.enrich(
                         measurement = measurement,
                         snapshot = config.capabilityProvider.captureSnapshot(),
@@ -78,7 +79,7 @@ actual object MsakMeasurementExecutorPlatform {
                         servers = listOf(server.machine),
                     ),
                 )
-                return runCatching {
+                return runCatchingCancellable {
                     enricher.enrich(
                         measurement = measurement,
                         snapshot = config.capabilityProvider.captureSnapshot(),
