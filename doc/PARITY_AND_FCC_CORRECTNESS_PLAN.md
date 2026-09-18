@@ -175,48 +175,67 @@ CoreLocation and `FusedLocationProvider`/`LocationManager` both do this. Impleme
 
 ---
 
-## 4. Make a measurement survive backgrounding and screen lock
+## 4. Keep a measurement alive, and cancel cleanly when it cannot be
 
 ### What is wrong
 
-frozenApp ran every measurement inside a foreground `Service`, held a
-`PowerManager.WakeLock`, and declared `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION` and
-`WAKE_LOCK`. `androidTestApp` declares **none of those three** and has no service. A ~30s
-measurement can therefore be throttled or killed if the screen locks or the user switches away,
-and background location is restricted without a foreground service.
+frozenApp ran every measurement inside a foreground `Service` and held a
+`PARTIAL_WAKE_LOCK` (10-minute timeout), declaring `FOREGROUND_SERVICE`,
+`FOREGROUND_SERVICE_LOCATION` and `WAKE_LOCK`. `androidTestApp` declares **none of those
+three** and has no service, so a ~30s measurement can be throttled or killed when the app is
+backgrounded, and background location is restricted without a foreground service.
 
-This is a field-testing app; users walk around and pocket the phone.
+Neither app — old or new — stops the screen from auto-locking during a test, and neither
+detects that a test was interrupted. A `PARTIAL_WAKE_LOCK` keeps the CPU awake but lets the
+display sleep, which on iOS has no equivalent at all.
 
-### Build
+### Build — three layers, cheapest first
 
-**Android:** port the foreground service — notification channel, `startForeground`, wake lock
-acquired for the run and released in `finally`, plus the three manifest permissions. frozenApp's
-`MeasurementService.kt` is a direct reference.
+**4a — don't let the screen lock during a measurement.** The most common interruption is the
+idle timer, and both platforms can suppress it with no permission and no service:
 
-**iOS:** no true equivalent. Options, best-effort:
-- `UIApplication.beginBackgroundTask` buys ~30s of grace — enough for one measurement phase,
-  not a full three-phase sequence.
-- `CLLocationManager.allowsBackgroundLocationUpdates` with Always authorisation keeps the app
-  alive while location updates flow, but requires a stronger permission prompt and App Store
-  justification.
+| Platform | Mechanism |
+|---|---|
+| iOS | `UIApplication.shared.isIdleTimerDisabled = true` for the run |
+| Android | `FLAG_KEEP_SCREEN_ON` on the window for the run |
 
-### Platform asymmetry — needs your decision
+Set on start, cleared in a `finally` so a crash cannot leave the screen pinned awake. This
+alone removes most real-world interruptions and is a few lines per platform.
 
-| | Approach | Consequence |
-|---|---|---|
-| **A (recommended)** | Android foreground service; iOS `beginBackgroundTask` plus explicit UI telling the user to keep the app open | Honest, no new iOS permission, no store-review risk |
-| B | Also adopt background location on iOS | Better survival, but Always-location is a heavier ask and needs App Store justification for a research app |
+**4b — detect interruption and cancel deliberately.** Observe app lifecycle and abort the run
+rather than letting it produce partial data:
 
-**Recommendation: A** — it is the best iOS can do without a heavier permission, which matches
-the standing strategy. Log the shortfall as a discrepancy and revisit B only if field use shows
-real attrition. Pair it with
-detecting the interruption and marking the measurement rather than submitting a truncated one —
-the duration-coverage check added earlier already fails those, so they will be recorded with
-`success_flag=false` rather than silently wrong.
+| Platform | Signal |
+|---|---|
+| iOS | `willResignActiveNotification` / `didEnterBackgroundNotification` |
+| Android | lifecycle `ON_STOP` |
 
-**Effort:** medium on Android, small on iOS.
+On that signal, cancel the measurement (the `runCatchingCancellable` plumbing already
+propagates cancellation correctly) and surface `MeasurementFailureMessage.CANCELLED`.
 
----
+**A user-cancelled run must not be submitted, and must not be recorded as a failed test.**
+This is the important distinction:
+
+- *Network degraded or changed mid-test* → real evidence. Submit with `success_flag=false`.
+- *User backgrounded the app* → evidence about the user, not the network. Discard; submitting
+  it would bias a coverage dataset with behavioural noise that looks like poor coverage.
+
+**4c — Android foreground service.** Port frozenApp's service, notification channel, wake lock
+and three manifest permissions, so a backgrounded run can continue rather than merely cancel
+cleanly. `MeasurementService.kt` is a direct reference.
+
+### Platform asymmetry — no decision needed
+
+4a and 4b work on both. 4c is Android-only: iOS has no foreground-service equivalent, and the
+one mechanism that would keep the app alive indefinitely — Always-authorised background
+location — is a heavier permission than a speed test justifies, with App Store review
+attached. `UIApplication.beginBackgroundTask` gives roughly 30 seconds, which is the right size
+for 4b's job: enough to cancel and persist cleanly, not enough to finish a sequence.
+
+So iOS gets "stay awake, and cancel cleanly if we cannot", Android gets that plus "keep
+running". Logged as discrepancy 2.
+
+**Effort:** 4a small and immediately worthwhile; 4b small; 4c medium.
 
 ## 5. Restore error and crash reporting
 
@@ -286,8 +305,11 @@ with `minBy` and a timeout.
 3. **2b / 2c** cells, Android then iOS
 4. **3** begin/end location — fold into the same change
 5. **5** shared logger — pull earlier if diagnosing gets painful again
-6. **4** run survival
-7. **6** secret encryption
+6. **4a** keep the screen awake during a run — small and worth pulling earlier than its
+   position suggests
+7. **4b** cancel cleanly on interruption
+8. **4c** Android foreground service
+9. **6** secret encryption
 
 Items 1–3 are one coherent workstream and should land together behind the same device
 verification. Items 4–6 are independent and can be done in any order.
@@ -303,5 +325,7 @@ Tracked in `FCC_IOS_DISCREPANCIES.md`; none of these block the work above.
 
 ## Still ours to decide
 
-- **Crashlytics** — acceptable for a research app collecting location traces? A data-governance
-  question, not an FCC one (item 5)
+- **Crashlytics** — tracked as **low priority**, deferred. No IRB study is running, so the
+  governance question is lighter than first assumed, but it remains a third-party SDK
+  collecting from an app that gathers location traces. The shared logger (item 5) proceeds
+  regardless and does not depend on it.
