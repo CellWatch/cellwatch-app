@@ -3,7 +3,7 @@
         "fixtureSchemaVersion": 1,
         "source": "measurement-run-controller-capture",
         "capturedAtUtc": "2026-09-17T23:01:36.443920Z",
-        "msakClientKmpVersion": "0.5.0"
+        "msakClientKmpVersion": "0.5.1"
     },
     "steps": [
         {
