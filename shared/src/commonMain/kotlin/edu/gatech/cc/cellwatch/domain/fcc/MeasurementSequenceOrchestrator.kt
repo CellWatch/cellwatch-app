@@ -3,9 +3,7 @@ package edu.gatech.cc.cellwatch.domain.fcc
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
-import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
-import kotlin.coroutines.cancellation.CancellationException
 
 enum class ThroughputDirection {
     DOWNLOAD,
@@ -83,17 +81,6 @@ class MeasurementSequenceOrchestrator(
     private val resultStore: MeasurementResultStore,
     private val submissionContextFactory: FccSubmissionContextFactory,
     private val progressListener: MeasurementSequenceProgressListener = NoOpMeasurementSequenceProgressListener,
-    /**
-     * Captures the device's public address while the measurement network is
-     * still in use.
-     *
-     * Deliberately read here rather than at sync time. Sync can be deferred -
-     * CellWatch queues submissions and retries later - so a measurement taken on
-     * cellular and uploaded afterwards over WiFi would otherwise record the
-     * WiFi-era address for a cellular measurement. Optional, because a failure to
-     * reach the service must not cost us the measurement.
-     */
-    private val tcpTupleProvider: TcpTupleProvider? = null,
 ) {
     suspend fun run(request: MeasurementSequenceRequest): MeasurementSequenceOutcome {
         progressListener.onStageChanged(MeasurementSequenceStage.STARTED)
@@ -151,7 +138,7 @@ class MeasurementSequenceOrchestrator(
         )
     }
 
-    private suspend fun buildSubmissionIfEligible(
+    private fun buildSubmissionIfEligible(
         request: MeasurementSequenceRequest,
         latencyMeasurement: Measurement,
         downloadMeasurement: Measurement,
@@ -182,7 +169,6 @@ class MeasurementSequenceOrchestrator(
             metadata = metadata,
         )
         val submission = FccSubmissionPolicy.buildSubmission(context, metadata)
-            .withPublicTupleIfAvailable(tcpTupleProvider)
         val validation = FccSubmissionValidationPolicy.validate(
             submission = submission,
             latencyMeasurement = latencyMeasurement,
@@ -194,25 +180,6 @@ class MeasurementSequenceOrchestrator(
             validation = validation,
         )
     }
-}
-
-/**
- * Fills sourceIp/sourcePort from the tuple service, leaving them null on any
- * failure so the Supabase `fcc_submission_update_source_ip` trigger can still
- * fall back to the address it observed. Returning a placeholder would defeat
- * that trigger, which only fires when the column is NULL.
- */
-private suspend fun FccSubmission.withPublicTupleIfAvailable(
-    provider: TcpTupleProvider?,
-): FccSubmission {
-    if (provider == null) return this
-    val tuple = try {
-        provider.getPublicTcpTuple()
-    } catch (e: Exception) {
-        if (e is CancellationException) throw e
-        return this
-    }
-    return copy(sourceIp = tuple.remoteAddress, sourcePort = tuple.remotePort)
 }
 
 private data class SubmissionAttempt(
