@@ -3093,7 +3093,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
             DispatchQueue.main.async {
                 if let error = error {
                     NSLog("[iosTestApp] Phase3 sequence failed: %@", String(describing: error))
-                    let hinted = self.withProtocolHint("\(error)")
+                    // The raw text stays in the log above; what reaches the
+                    // screen has to be something a person can act on. A locate
+                    // timeout otherwise shows up as "authorize call failed".
+                    let hinted = MeasurementFailureMessage.shared.forFailure(raw: "\(error)")
                     let envelope = self.smokeEnvelopeBuilder.failure(
                         scenario: "phase3-sequence-sync",
                         errorMessage: hinted
@@ -3234,11 +3237,15 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
                     )
                 }
                 NSLog(
-                    "[iosTestApp] Phase3 sequence success measurements=%d submissions=%d submissionCreated=%@ uploadTimeSet=%@ diagnostics=%@",
+                    "[iosTestApp] Phase3 sequence success measurements=%d submissions=%d submissionCreated=%@ uploadTimeSet=%@ syncReport=%@ diagnostics=%@",
                     value.persistedMeasurements,
                     value.persistedSubmissions,
                     value.submissionCreated ? "true" : "false",
                     value.measurementCompleteUploadTimeSet ? "true" : "false",
+                    // uploadTimeSet is read back out of the LOCAL database, so
+                    // false only says the app never recorded a successful
+                    // upload - it does not say why. The sync report does.
+                    value.measurementCompleteReportSummary,
                     self.diagnosticsSummary
                 )
             }
