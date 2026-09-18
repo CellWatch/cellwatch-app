@@ -37,6 +37,34 @@ internal fun loadLocalSupabaseConfig(): SupabaseConnectionConfig {
     )
 }
 
+
+/**
+ * Config for integration tests that can run against either Supabase.
+ *
+ * Defaults to local Docker; `-Pcellwatch.integration.supabase=testing` targets
+ * the hosted TESTING project instead, which avoids standing Docker up just to
+ * exercise a round trip. The testing database is disposable and is never
+ * forwarded to the FCC, so the rows these tests write are free.
+ */
+internal fun loadIntegrationSupabaseConfig(): SupabaseConnectionConfig {
+    val target = System.getProperty("cellwatch.integration.supabase", "local").trim().lowercase()
+    if (target != "testing") return loadLocalSupabaseConfig()
+
+    val propsFile = findCellwatchProperties(File(System.getProperty("user.dir")))
+    val props = Properties()
+    checkNotNull(propsFile) { "cellwatch.properties not found; cannot target hosted TESTING" }
+    propsFile.inputStream().use(props::load)
+
+    fun required(key: String): String =
+        props.getProperty(key)?.trim()?.removeSurrounding("\"")?.takeIf { it.isNotEmpty() }
+            ?: error("$key missing from ${propsFile.absolutePath}")
+
+    return SupabaseConnectionConfig(
+        url = required("SUPABASE_TESTING_URL"),
+        apiKey = required("SUPABASE_TESTING_API_KEY"),
+    )
+}
+
 private fun findCellwatchProperties(startDir: File): File? {
     var current: File? = startDir
     while (current != null) {

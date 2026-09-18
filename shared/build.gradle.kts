@@ -248,6 +248,12 @@ tasks.register<Test>("jvmLocalSupabaseIntegrationTest") {
     testClassesDirs = jvmTest.testClassesDirs
     classpath = jvmTest.classpath
     include("**/*LocalSupabaseIntegrationTest*")
+    // -Pcellwatch.integration.supabase=testing runs against hosted TESTING
+    // instead of local Docker.
+    systemProperty(
+        "cellwatch.integration.supabase",
+        (findProperty("cellwatch.integration.supabase") as String?) ?: "local",
+    )
     shouldRunAfter(jvmTest)
 }
 
