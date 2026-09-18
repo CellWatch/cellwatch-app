@@ -66,19 +66,30 @@ sparse object because the array is not on the exemption list.
 state or connectivity."*
 
 **Platform limitation:** iOS offers no equivalent to an Android foreground service. If the user
-backgrounds the app or the screen locks mid-test, the app can be suspended.
-`UIApplication.beginBackgroundTask` buys roughly 30 seconds — enough for one phase, not a full
-three-phase sequence. Keeping the app alive otherwise requires Always-authorised background
-location, a heavier permission than a speed test warrants.
+backgrounds the app mid-test, it can be suspended. `UIApplication.beginBackgroundTask` buys
+roughly 30 seconds — enough to wind down cleanly, not to finish a three-phase sequence.
+Keeping the app alive otherwise requires Always-authorised background location, a heavier
+permission than a speed test warrants.
 
-**What we submit:** interrupted runs are detected by duration coverage (measured window vs
-requested) and marked `success_flag=false` with the measured values retained, rather than
-submitted as complete. The user is told to keep the app open.
+**What we submit:** nothing for an interrupted run, deliberately.
 
-**Question for the FCC:** is that treatment acceptable, or is there a preferred way to signal an
-interrupted test?
+Mitigations in order:
 
----
+1. The screen is prevented from auto-locking for the duration of a measurement
+   (`isIdleTimerDisabled` on iOS, `FLAG_KEEP_SCREEN_ON` on Android), which removes the most
+   common interruption on both platforms.
+2. If the app is backgrounded anyway, the run is detected and **cancelled**, not truncated.
+3. A cancelled run is discarded rather than submitted with `success_flag=false`.
+
+That third point is a deliberate choice: a user backgrounding the app is evidence about the
+user, not about the network. Submitting it as a failed test would bias a coverage dataset with
+behavioural noise that reads as poor coverage. Tests that genuinely degrade — a generation
+change, a truncated transfer — are still submitted with `success_flag=false`, because those
+*are* network evidence.
+
+**Question for the FCC:** is discarding user-cancelled runs the treatment you want, or would
+you rather receive them flagged in some way? We chose to discard so the submitted set contains
+only network evidence.
 
 ## 3. Radio-generation change detection is coarser on iOS
 
