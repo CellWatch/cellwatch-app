@@ -33,7 +33,7 @@ class PersistentDeviceCredentialLocalSupabaseIntegrationTest {
         // --- first launch: registers, uploads, persists the credential ---
         val firstRun = SupabaseMeasurementSyncRemoteDataSource(
             config,
-            PersistentDeviceAuthStore(storage),
+            PersistentDeviceAuthStore(storage, encrypt = { it }, decrypt = { it }),
         )
 
         // deviceId deliberately NOT set: production never set it, and RLS
@@ -50,7 +50,7 @@ class PersistentDeviceCredentialLocalSupabaseIntegrationTest {
         // is precisely how sync died on a real device.
         val secondRun = SupabaseMeasurementSyncRemoteDataSource(
             config,
-            PersistentDeviceAuthStore(storage),
+            PersistentDeviceAuthStore(storage, encrypt = { it }, decrypt = { it }),
         )
         val secondId = UUID.randomUUID().toString()
         val second = secondRun.insertMeasurement(measurement(secondId))
@@ -64,14 +64,14 @@ class PersistentDeviceCredentialLocalSupabaseIntegrationTest {
 
         // Register once so the id genuinely exists server-side.
         val storage = MemoryCredentialStorage()
-        val first = SupabaseMeasurementSyncRemoteDataSource(config, PersistentDeviceAuthStore(storage))
+        val first = SupabaseMeasurementSyncRemoteDataSource(config, PersistentDeviceAuthStore(storage, encrypt = { it }, decrypt = { it }))
         val strandedId = first.insertMeasurement(measurement(UUID.randomUUID().toString())).deviceId
         assertNotNull(strandedId)
 
         // Now simulate the secret being lost while the id survives.
         storage.value = """{"deviceId":"$strandedId","deviceSecret":""}"""
 
-        val recovered = SupabaseMeasurementSyncRemoteDataSource(config, PersistentDeviceAuthStore(storage))
+        val recovered = SupabaseMeasurementSyncRemoteDataSource(config, PersistentDeviceAuthStore(storage, encrypt = { it }, decrypt = { it }))
         val inserted = recovered.insertMeasurement(measurement(UUID.randomUUID().toString()))
 
         assertTrue(

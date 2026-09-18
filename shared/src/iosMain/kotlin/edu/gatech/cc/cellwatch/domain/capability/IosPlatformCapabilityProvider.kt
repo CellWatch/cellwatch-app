@@ -2,6 +2,7 @@ package edu.gatech.cc.cellwatch.domain.capability
 
 import com.benasher44.uuid.uuid4
 import edu.gatech.cc.cellwatch.domain.model.Cell
+import edu.gatech.cc.cellwatch.core.util.SharedLog
 import edu.gatech.cc.cellwatch.domain.model.Location
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
@@ -69,16 +70,17 @@ class IosPlatformCapabilityProvider(
                 // Diagnostic: the interface decides whether a measurement is
                 // submittable, and it was previously recorded only in the
                 // persisted note - invisible while field testing.
-                println("[W] IosNetworkPath: network path unavailable; connection type unknown")
+                SharedLog.w(LOG_TAG, "network path unavailable; connection type unknown")
                 return NetworkCapabilitySnapshot(
                     support = CapabilitySupport.UNAVAILABLE,
                     note = "network path unavailable; connection type could not be determined",
                 )
             }
-        println(
-            "[D] IosNetworkPath: interface=${path.describedInterface} " +
-                "connectionType=${path.connectionType} satisfied=${path.satisfied} " +
-                "cellular=${path.usesCellular} wifi=${path.usesWifi} wired=${path.usesWired}"
+        SharedLog.d(
+            LOG_TAG,
+            "interface=${path.describedInterface} connectionType=${path.connectionType} " +
+                "satisfied=${path.satisfied} cellular=${path.usesCellular} " +
+                "wifi=${path.usesWifi} wired=${path.usesWired}",
         )
 
         return NetworkCapabilitySnapshot(
@@ -94,6 +96,10 @@ class IosPlatformCapabilityProvider(
             cellularDataEnabled = if (path.usesCellular) true else null,
             note = "nw_path interface: ${path.describedInterface}",
         )
+    }
+
+    private companion object {
+        const val LOG_TAG = "IosCapability"
     }
 
     override fun createObserver(): MeasurementObserver = IosMeasurementObserver()
