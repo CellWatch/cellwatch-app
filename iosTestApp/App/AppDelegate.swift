@@ -3125,7 +3125,11 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
                                 errorCode: nil,
                                 errorText: hinted
                             )
-                            self.renderMeasurementRunFlowState(detailText: "Measurement failed. \(hinted)")
+                            self.renderMeasurementRunFlowState(
+                                detailText: MeasurementFailureMessage.shared.isCancellation(raw: "\(error)")
+                                    ? hinted
+                                    : "Measurement failed. \(hinted)"
+                            )
                         }
                     } else {
                         _ = self.measurementRunViewController.onCompleted(

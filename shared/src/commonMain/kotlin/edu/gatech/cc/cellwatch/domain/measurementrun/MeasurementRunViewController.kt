@@ -1,5 +1,6 @@
 package edu.gatech.cc.cellwatch.domain.measurementrun
 
+import edu.gatech.cc.cellwatch.domain.fcc.MeasurementFailureMessage
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import kotlinx.datetime.Instant
@@ -129,9 +130,15 @@ class MeasurementRunUiPresenter {
             MeasurementRunProgress.UPLOAD -> "Measuring upload speed"
             MeasurementRunProgress.END -> "Measurement complete"
             MeasurementRunProgress.ERROR -> {
-                val base = "Measurement failed"
                 val msg = state.errorMessage
-                if (msg.isNullOrBlank()) base else "$base: $msg"
+                when {
+                    msg.isNullOrBlank() -> "Measurement failed"
+                    // A run the user stopped is not a failure, and reading
+                    // "Measurement failed: The measurement was cancelled" back
+                    // to them is both redundant and wrong.
+                    MeasurementFailureMessage.isCancellation(msg) -> "Measurement cancelled"
+                    else -> "Measurement failed: $msg"
+                }
             }
         }
         val key = when (state.progress) {

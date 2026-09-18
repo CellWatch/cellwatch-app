@@ -32,13 +32,19 @@ object MeasurementFailureMessage {
         val text = raw?.lowercase().orEmpty()
         return when {
             text.isBlank() -> GENERIC
-            isCancellation(text) -> CANCELLED
+            matchesCancellation(text) -> CANCELLED
             isUnreachable(text) -> UNREACHABLE
             else -> GENERIC
         }
     }
 
-    private fun isCancellation(text: String): Boolean =
+    /**
+     * Whether a failure was the user stopping the run rather than something
+     * going wrong. Callers should not describe these as failures.
+     */
+    fun isCancellation(raw: String?): Boolean = matchesCancellation(raw?.lowercase().orEmpty())
+
+    private fun matchesCancellation(text: String): Boolean =
         text.contains("cancellationexception") || text.contains("was cancelled")
 
     private fun isUnreachable(text: String): Boolean =
