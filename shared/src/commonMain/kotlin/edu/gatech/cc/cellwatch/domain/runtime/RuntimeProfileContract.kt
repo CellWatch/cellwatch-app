@@ -16,6 +16,12 @@ object RuntimeProfileContract {
     const val KEY_REMOTE_SUPABASE_API_KEY = "SUPABASE_API_KEY"
     const val KEY_TESTING_SUPABASE_URL = "SUPABASE_TESTING_URL"
     const val KEY_TESTING_SUPABASE_API_KEY = "SUPABASE_TESTING_API_KEY"
+    /**
+     * Echo service returning the device's public address and port.
+     *
+     * Absent or blank disables the lookup; see tcpTupleProviderFor.
+     */
+    const val KEY_TCP_TUPLE_URL = "TCP_TUPLE_URL"
     const val KEY_LOCAL_MSAK_HOST = "MSAK_LOCAL_SERVER_HOST"
     const val KEY_LOCAL_MSAK_SECURE = "MSAK_LOCAL_SERVER_SECURE"
 

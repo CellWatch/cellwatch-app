@@ -155,7 +155,11 @@ class IosLocalSupabaseSyncHarness {
                 remoteFactory = DefaultSyncRemoteDataSourceFactory(
                     SupabaseSyncRemoteDataSourceProvider(deviceAuthStore = deviceAuthStore),
                 ),
-                tcpTupleProvider = UnavailableTcpTupleProvider,
+                tcpTupleProvider = tcpTupleProviderFor(
+                        serviceUrl = readPackagedRuntimeProperty("TCP_TUPLE_URL"),
+                        userAgent = "cellwatch-ios",
+                        nowMillis = { Clock.System.now().toEpochMilliseconds() },
+                    ),
                 clock = object : Clock {
                     override fun now(): Instant = now
                 },
