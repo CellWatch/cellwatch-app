@@ -4,7 +4,6 @@ import edu.gatech.cc.cellwatch.domain.capability.MeasurementCapabilityEnricher
 import edu.gatech.cc.cellwatch.core.util.runCatchingCancellable
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
-import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.UploadDownloadData
 import edu.gatech.cc.cellwatch.msak.shared.Server
 import edu.gatech.cc.cellwatch.msak.shared.latency.LatencyConfig
@@ -45,8 +44,15 @@ actual object MsakMeasurementExecutorPlatform {
                     timestamp = now,
                     duration = config.latencyDurationMs * 1_000,
                     success = MeasurementResultPolicy.latencyResultSuccess(summary.received),
-                    connectionType = NetworkConnectionType.CELLULAR,
-                    cellularDataEnabled = true,
+                    // Left null deliberately: the real values come from the
+                    // capability snapshot via MeasurementCapabilityEnricher,
+                    // which fills only absent fields. Hardcoding CELLULAR here
+                    // meant the detected type could never override it, so a
+                    // measurement over WiFi or USB tethering was still recorded
+                    // as cellular - and FccSubmissionPolicy's cellular check
+                    // could never fail.
+                    connectionType = null,
+                    cellularDataEnabled = null,
                     latencyData = LatencyData(
                         id = uuid4().toString(),
                         measurementId = id,
@@ -97,8 +103,15 @@ actual object MsakMeasurementExecutorPlatform {
                     timestamp = now,
                     duration = config.throughputDurationMs * 1_000,
                     success = MeasurementResultPolicy.throughputResultSuccess(bytesPerSec),
-                    connectionType = NetworkConnectionType.CELLULAR,
-                    cellularDataEnabled = true,
+                    // Left null deliberately: the real values come from the
+                    // capability snapshot via MeasurementCapabilityEnricher,
+                    // which fills only absent fields. Hardcoding CELLULAR here
+                    // meant the detected type could never override it, so a
+                    // measurement over WiFi or USB tethering was still recorded
+                    // as cellular - and FccSubmissionPolicy's cellular check
+                    // could never fail.
+                    connectionType = null,
+                    cellularDataEnabled = null,
                     uploadDownloadData = UploadDownloadData(
                         id = uuid4().toString(),
                         measurementId = id,

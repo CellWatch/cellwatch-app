@@ -53,7 +53,17 @@ final class LocalMsakPhase3HostedTests: XCTestCase {
 
             XCTAssertNotNil(result)
             XCTAssertEqual(result?.persistedMeasurements, Int32(3))
-            XCTAssertEqual(result?.persistedSubmissions, Int32(1))
+            // No FCC submission: a simulator routes through the host, so the
+            // measurement is not cellular and FccSubmissionPolicy correctly
+            // withholds it. The measurements themselves are still taken and
+            // stored, which is what this test is here to prove.
+            //
+            // This asserted 1 while the executors hardcoded connectionType to
+            // CELLULAR, which made the policy's cellular check unfailable.
+            // Submission creation is covered against a cellular measurement by
+            // MeasurementSequenceFccPersistenceJvmTest; reaching it end-to-end
+            // now requires real cellular hardware.
+            XCTAssertEqual(result?.persistedSubmissions, Int32(0))
             XCTAssertEqual(result?.persistedMeasurementsWithCapabilitySupport, result?.persistedMeasurements)
             XCTAssertNotNil(result?.persistedMeasurementsWithCapabilityNotes)
             XCTAssertTrue((result?.capabilityPersistenceSummary ?? "").hasPrefix("capabilityPersistence("))

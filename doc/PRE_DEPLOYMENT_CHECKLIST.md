@@ -102,3 +102,62 @@ Lower severity; review before release.
 
 The service-role JWT is Debug-only by construction, but a Debug build installed on a device
 previously used it silently. See the device runtime-config work for the guard added there.
+
+---
+
+## 5. IPv4 / IPv6 exposure
+
+Recorded while investigating whether IP version affects FCC challenge validity.
+No blocker found, but three things are worth deciding before release.
+
+### `server_source_ip_address` is captured from the wrong connection
+
+FCC requires "the source IP address and port of the device, **as measured by the
+server**". CellWatch fills it from a Postgres trigger
+(`fcc_submission_update_source_ip`, `supabase/schema.sql:345`) that takes the
+first entry of `x-forwarded-for` when `source_ip IS NULL` - i.e. the address the
+device presented to **Supabase**, on the sync upload, not the address used for
+the MSAK measurement. Those can differ, and will differ whenever sync happens on
+a different network from the measurement.
+
+The column is `character varying` (`schema.sql:1372`), so it accepts IPv4 and
+IPv6 alike; nothing constrains or normalises the family. Confirm with the FCC
+specification whether an IPv6 value is acceptable there, and whether measuring
+it at the submission endpoint satisfies "as measured by the server". The
+authoritative spec (`bdc-mobile-speed-test-data-specifications.pdf`) returned
+HTTP 403 when fetched, so this was not verified.
+
+### `TCP_TUPLE_URL` is a bare IPv4 literal
+
+`cellwatch.properties` sets `TCP_TUPLE_URL="http://52.55.102.226/"` - an IPv4
+address with no hostname. On an IPv6-only carrier network (increasingly common,
+via NAT64/464XLAT) this either fails or traverses a translator, in which case the
+reported "public tuple" is the translated address rather than the device's. Give
+it a dual-stack hostname.
+
+Note also that `TcpTupleProvider` is **stubbed** in the iOS sync harnesses
+(`IosPhase3SequenceSyncHarness.kt:159`, hardcoded `remotePort = 4242`), so iOS
+does not report a real tuple at all.
+
+### MSAK handles both families deliberately
+
+For reference, not a defect: `IosSocket.kt` prefers `AF_INET6` with
+`IPV6_V6ONLY = 0` for dual-stack, and switches to `AF_INET` for IPv4 literals to
+"avoid v4-on-v6 issues". m-lab hostnames resolve `AF_UNSPEC`, so a measurement
+may run over either family and nothing records which. If the FCC submission is
+expected to state the family, that information is currently discarded.
+
+---
+
+## 6. FCC submission now requires a real cellular connection
+
+Not a deferred item - a behaviour change to be aware of. The executors used to
+hardcode `connectionType = CELLULAR`, so `FccSubmissionPolicy`'s cellular check
+could never fail and WiFi or tethered measurements were submitted as cellular.
+Connection type is now detected (`nw_path` on iOS, `NetworkCapabilities` on
+Android) and the policy requires `CELLULAR`.
+
+Consequence: measurements taken on a simulator, an emulator, over WiFi, or while
+USB-tethered are stored but **not** submittable. iOS offers no way to force
+traffic onto cellular for a URLSession or BSD socket, so field testing for
+submittable data must be done on a device with WiFi off and no tethering.
