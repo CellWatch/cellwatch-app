@@ -31,6 +31,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -64,6 +65,16 @@ class LocalSupabaseSharedSyncSmokeTest {
 
     @Test
     fun syncAll_runsAgainstLocalSupabase_only() = runBlocking {
+        // Opt-in, like every other local-Supabase test here
+        // (PublicMsakLocalSupabaseSmokeTest, AndroidTestingSupabaseSmokeTest).
+        // This one had no gate, so it ran unconditionally and failed whenever
+        // local Docker Supabase was not up - which made the default Android
+        // unit-test run red for a reason unrelated to the code under test.
+        assumeTrue(
+            "Set CELLWATCH_RUN_LOCAL_SUPABASE_SHARED_SYNC_SMOKE=1 to enable this local Supabase smoke test",
+            System.getenv("CELLWATCH_RUN_LOCAL_SUPABASE_SHARED_SYNC_SMOKE") == "1",
+        )
+
         val environmentProvider = CellwatchPropertiesSupabaseEnvironmentProvider()
         val localEnv = environmentProvider.resolve(SupabaseTarget.LOCAL)
         val hostLocalUrl = normalizeForHost(localEnv.url)

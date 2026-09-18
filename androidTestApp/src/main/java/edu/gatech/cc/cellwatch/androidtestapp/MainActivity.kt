@@ -42,7 +42,9 @@ import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriverFactory
 import edu.gatech.cc.cellwatch.androidtestapp.sync.FixedSupabaseEnvironmentProvider
 import edu.gatech.cc.cellwatch.androidtestapp.sync.SupabaseTarget
 import edu.gatech.cc.cellwatch.androidtestapp.sync.resolveRuntimeProfileConfigFromProperties
+import edu.gatech.cc.cellwatch.data.remote.AndroidDeviceCredentialStorage
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
+import edu.gatech.cc.cellwatch.data.remote.PersistentDeviceAuthStore
 import edu.gatech.cc.cellwatch.data.repo.FccSubmissionRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.LatencyDataRepositoryImpl
 import edu.gatech.cc.cellwatch.data.repo.LocationRepositoryImpl
@@ -324,7 +326,11 @@ class MainActivity : AppCompatActivity() {
     private var historyPendingSubmissions: Int? = null
     private var selectedHistoryTimestampMs: Long? = null
     private val deviceAuthStore: DeviceAuthStore by lazy {
-        InMemoryDeviceAuthStore(deviceId = resolveInstallScopedDeviceId())
+        // Persisted, id and secret together. Previously this paired the
+        // OS-supplied ANDROID_ID with an in-memory secret, so every launch
+        // re-registered an id the server already knew and sync uploaded
+        // nothing - the same fault fixed on iOS.
+        PersistentDeviceAuthStore(AndroidDeviceCredentialStorage(applicationContext))
     }
     private lateinit var settingsModeGroup: RadioGroup
     private lateinit var settingsModeTesting: RadioButton
@@ -3255,16 +3261,4 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-private class InMemoryDeviceAuthStore(
-    private val deviceId: String = UUID.randomUUID().toString(),
-) : DeviceAuthStore {
-    private var secret: String? = null
 
-    override suspend fun getDeviceId(): String = deviceId
-
-    override suspend fun getDeviceSecret(): String? = secret
-
-    override suspend fun saveDeviceSecret(secret: String) {
-        this.secret = secret
-    }
-}
