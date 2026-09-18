@@ -589,7 +589,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
     private var measurementRunCachedDownloadSummary = "--"
     private var measurementRunCachedUploadSummary = "--"
     private var measurementRunCachedUploadedSummary = "In progress"
-    private var measurementRunCachedCompletionSummary = "Measurement in progress."
+    private var measurementRunCachedCompletionSummary = "Measurement in progress. Keep the app open."
     private var measurementRunCachedCenterLatitude: Double? = nil
     private var measurementRunCachedCenterLongitude: Double? = nil
     private let measurementRunFlowQueue = DispatchQueue(label: "cellwatch.measurementRunFlow.queue")
@@ -3062,12 +3062,12 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
         measurementRunCachedDownloadSummary = "--"
         measurementRunCachedUploadSummary = "--"
         measurementRunCachedUploadedSummary = "In progress"
-        measurementRunCachedCompletionSummary = "Measurement in progress."
+        measurementRunCachedCompletionSummary = "Measurement in progress. Keep the app open."
         measurementRunCachedCenterLatitude = nil
         measurementRunCachedCenterLongitude = nil
         resetMeasurementRunFlowScheduling()
         if displayMode == .measurementRunFlow {
-            renderMeasurementRunFlowState(detailText: "Measurement started. Preparing test run...")
+            renderMeasurementRunFlowState(detailText: "Measurement started. Keep the app open until it finishes.")
         } else {
             setStatus(measurementRunUiPresenter.present(state: measurementRunViewController.currentState()).headerText)
         }
