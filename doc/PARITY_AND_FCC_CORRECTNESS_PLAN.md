@@ -220,22 +220,34 @@ This is the important distinction:
 - *User backgrounded the app* → evidence about the user, not the network. Discard; submitting
   it would bias a coverage dataset with behavioural noise that looks like poor coverage.
 
-**4c — Android foreground service.** Port frozenApp's service, notification channel, wake lock
-and three manifest permissions, so a backgrounded run can continue rather than merely cancel
-cleanly. `MeasurementService.kt` is a direct reference.
+**4c — deliberately not built.** frozenApp ran measurements in a foreground `Service`, and the
+original plan was to port it. **Decision: Android adopts the same foreground requirement as
+iOS instead.** A measurement runs only while the app is in front, on both platforms, and is
+cancelled otherwise — which 4b already implements.
 
-### Platform asymmetry — no decision needed
+### Platform asymmetry — resolved by removing it
 
-4a and 4b work on both. 4c is Android-only: iOS has no foreground-service equivalent, and the
-one mechanism that would keep the app alive indefinitely — Always-authorised background
-location — is a heavier permission than a speed test justifies, with App Store review
-attached. `UIApplication.beginBackgroundTask` gives roughly 30 seconds, which is the right size
-for 4b's job: enough to cancel and persist cleanly, not enough to finish a sequence.
+The reasoning, in order of weight:
 
-So iOS gets "stay awake, and cancel cleanly if we cannot", Android gets that plus "keep
-running". Logged as discrepancy 2.
+1. **Data comparability.** iOS cannot run a measurement in the background without
+   Always-authorised background location. If Android could and iOS could not, the two
+   platforms would produce systematically different datasets — Android including runs taken
+   with the screen off and the phone moving, iOS not. Submitting a coverage challenge from
+   both, one methodology is worth more than one platform's extra reach.
+2. **The payoff shrank.** 4a stops the screen locking, which was the common interruption, and
+   4b makes a genuine interruption clean rather than corrupting. What a service would add is
+   only "survives deliberate backgrounding on Android".
+3. **Cost.** A service means extracting measurement execution out of the Activity, plus a
+   notification channel, a wake lock, and three manifest permissions
+   (`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `WAKE_LOCK`) to justify.
 
-**Effort:** 4a small and immediately worthwhile; 4b small; 4c medium.
+This is a deliberate divergence from frozenApp, recorded here so it is not later mistaken for
+an oversight. Revisit only if field use shows users genuinely need to pocket the phone
+mid-test; the service remains portable from `frozenApp/.../MeasurementService.kt` if so.
+
+The user-facing consequence is a requirement, so the UI says so while a run is in progress.
+
+**Effort:** 4a small and immediately worthwhile; 4b small; 4c now nil.
 
 ## 5. Restore error and crash reporting
 
@@ -308,8 +320,10 @@ with `minBy` and a timeout.
 6. **4a** keep the screen awake during a run — small and worth pulling earlier than its
    position suggests
 7. **4b** cancel cleanly on interruption
-8. **4c** Android foreground service
-9. **6** secret encryption
+8. **6** secret encryption
+
+4c is not built: Android adopts iOS's foreground requirement instead, which 4b already
+delivers.
 
 Items 1–3 are one coherent workstream and should land together behind the same device
 verification. Items 4–6 are independent and can be done in any order.

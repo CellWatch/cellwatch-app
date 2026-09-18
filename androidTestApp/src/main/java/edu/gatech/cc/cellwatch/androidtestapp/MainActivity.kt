@@ -2667,7 +2667,7 @@ class MainActivity : AppCompatActivity() {
         measurementRunViewController.onSequenceStarted(UUID.randomUUID().toString())
         if (uiMode == UiMode.MEASUREMENT_RUN_FLOW) {
             renderMeasurementRunFlowState(
-                detailText = "Measurement started. Collecting test data...",
+                detailText = "Measurement started. Keep the app open until it finishes.",
             )
         } else {
             statusText.text = measurementRunUiPresenter.present(measurementRunViewController.currentState()).headerText

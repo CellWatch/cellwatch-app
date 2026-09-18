@@ -60,29 +60,35 @@ sparse object because the array is not on the exemption list.
 
 ---
 
-## 2. Measurement interruption cannot be fully prevented on iOS
+## 2. Measurements require the app to be in the foreground, on both platforms
 
 **Spec:** `success_flag` is *"whether the test completed successfully and without a change in
 state or connectivity."*
 
-**Platform limitation:** iOS offers no equivalent to an Android foreground service. If the user
-backgrounds the app mid-test, it can be suspended. `UIApplication.beginBackgroundTask` buys
-roughly 30 seconds — enough to wind down cleanly, not to finish a three-phase sequence.
-Keeping the app alive otherwise requires Always-authorised background location, a heavier
-permission than a speed test warrants.
+**Platform limitation:** iOS offers no equivalent to an Android foreground service. If the app
+is backgrounded mid-test it can be suspended; `UIApplication.beginBackgroundTask` buys roughly
+30 seconds, and keeping the app alive otherwise needs Always-authorised background location, a
+heavier permission than a speed test warrants.
 
-**What we submit:** nothing for an interrupted run, deliberately.
+**What we submit:** nothing for an interrupted run, on either platform.
 
-Mitigations in order:
+CellWatch requires the app to be in the foreground for the duration of a measurement, and
+applies that rule **identically on Android and iOS** — even though Android could have run a
+foreground service. That is deliberate: if Android measured while pocketed and iOS did not,
+the two platforms would produce systematically different datasets, and a single methodology
+across both is worth more to a coverage challenge than one platform's extra reach.
 
-1. The screen is prevented from auto-locking for the duration of a measurement
-   (`isIdleTimerDisabled` on iOS, `FLAG_KEEP_SCREEN_ON` on Android), which removes the most
-   common interruption on both platforms.
-2. If the app is backgrounded anyway, the run is detected and **cancelled**, not truncated.
-3. A cancelled run is discarded rather than submitted with `success_flag=false`.
+Mitigations, in order:
 
-That third point is a deliberate choice: a user backgrounding the app is evidence about the
-user, not about the network. Submitting it as a failed test would bias a coverage dataset with
+1. The screen is prevented from auto-locking for the duration of a run
+   (`isIdleTimerDisabled` on iOS, `FLAG_KEEP_SCREEN_ON` on Android), removing the most common
+   interruption.
+2. The UI states that the app must stay open while a measurement runs.
+3. If the app is backgrounded anyway, the run is **cancelled**, not truncated.
+4. A cancelled run is discarded rather than submitted with `success_flag=false`.
+
+That last point is a deliberate choice: a user backgrounding the app is evidence about the
+user, not the network. Submitting it as a failed test would bias a coverage dataset with
 behavioural noise that reads as poor coverage. Tests that genuinely degrade — a generation
 change, a truncated transfer — are still submitted with `success_flag=false`, because those
 *are* network evidence.
