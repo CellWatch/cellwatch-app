@@ -114,7 +114,7 @@ import edu.gatech.cc.cellwatch.domain.sync.SyncDiagnosticsLevel
 import edu.gatech.cc.cellwatch.domain.sync.SyncDiagnosticsRegistry
 import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeEnvelopeBuilder
 import edu.gatech.cc.cellwatch.domain.sync.SyncSmokeResultFormatter
-import edu.gatech.cc.cellwatch.domain.sync.TcpTupleProvider
+import edu.gatech.cc.cellwatch.domain.sync.UnavailableTcpTupleProvider
 import edu.gatech.cc.cellwatch.domain.sync.UploadTriggerParityHarness
 import edu.gatech.cc.cellwatch.domain.sync.renderForStatus
 import kotlinx.coroutines.CoroutineScope
@@ -3106,13 +3106,7 @@ class MainActivity : AppCompatActivity() {
         return AndroidTestSyncDriverFactory(
             database = db,
             deviceAuthStore = deviceAuthStore,
-            tcpTupleProvider = object : TcpTupleProvider {
-                override suspend fun getPublicTcpTuple(): TcpTuple = TcpTuple(
-                    remoteAddress = "203.0.113.20",
-                    remotePort = 443,
-                    timestamp = Clock.System.now().toEpochMilliseconds(),
-                )
-            },
+            tcpTupleProvider = UnavailableTcpTupleProvider,
             syncEnabled = !disableSupabaseSync,
             environmentProvider = FixedSupabaseEnvironmentProvider(runtimeProfile.syncConfig),
             io = EmptyCoroutineContext,

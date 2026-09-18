@@ -107,7 +107,13 @@ class MeasurementSyncUseCaseTest {
     }
 
     @Test
-    fun syncFccSubmissions_stopsWhenTupleLookupFails() = runBlocking {
+    fun syncFccSubmissions_uploadsWithoutATupleWhenLookupFails() = runBlocking {
+        // A failed address lookup must not withhold a complete measurement. The
+        // submission uploads with sourceIp left null, and Supabase's
+        // fcc_submission_update_source_ip trigger fills it from the address it
+        // observes. This previously aborted the whole sync, which meant an
+        // auxiliary lookup could block real data indefinitely - and the
+        // configured echo service is not currently reachable.
         val submission = FccSubmission(id = "group-1", submitted = false)
         val local = FakeLocalStore(submissions = mutableListOf(submission))
         val remote = FakeRemoteDataSource(insertSubmissionMode = InsertSubmissionMode.SUCCESS)
@@ -116,12 +122,38 @@ class MeasurementSyncUseCaseTest {
         val report = MeasurementSyncUseCase(local, remote, tupleProvider).syncFccSubmissions()
 
         assertEquals(1, report.attempted)
-        assertEquals(true, report.blockedBeforeUpload)
-        assertEquals(1, report.unexpectedErrors)
-        assertEquals(1, report.errorSummary.totalErrors)
-        assertEquals(SyncErrorCategory.BLOCKED, report.errorSummary.sampledErrors.firstOrNull()?.category)
-        assertTrue(report.errorSummary.sampledErrors.firstOrNull()?.message?.contains("tuple-fail") == true)
-        assertEquals(0, local.markedSubmissionIds.size)
+        assertEquals(false, report.blockedBeforeUpload)
+        assertEquals(0, report.unexpectedErrors)
+        assertEquals(1, local.markedSubmissionIds.size)
+        assertEquals(null, remote.lastSubmission?.sourceIp)
+    }
+
+    @Test
+    fun syncFccSubmissions_doesNotOverwriteAMeasurementTimeAddress() = runBlocking {
+        // The measurement-time address is the correct one: sync can be deferred
+        // to a different network entirely.
+        val submission = FccSubmission(
+            id = "group-1",
+            submitted = false,
+            sourceIp = "198.51.100.7",
+            sourcePort = 51234,
+        )
+        val local = FakeLocalStore(submissions = mutableListOf(submission))
+        val remote = FakeRemoteDataSource(insertSubmissionMode = InsertSubmissionMode.SUCCESS)
+        val tupleProvider = FakeTcpTupleProvider(
+            result = Result.success(
+                edu.gatech.cc.cellwatch.domain.model.TcpTuple(
+                    remoteAddress = "203.0.113.99",
+                    remotePort = 443,
+                    timestamp = 0,
+                )
+            )
+        )
+
+        MeasurementSyncUseCase(local, remote, tupleProvider).syncFccSubmissions()
+
+        assertEquals("198.51.100.7", remote.lastSubmission?.sourceIp)
+        assertEquals(51234, remote.lastSubmission?.sourcePort)
     }
 }
 

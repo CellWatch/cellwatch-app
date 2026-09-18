@@ -111,15 +111,7 @@ class IosPendingSyncHarness {
                     remoteFactory = DefaultSyncRemoteDataSourceFactory(
                         SupabaseSyncRemoteDataSourceProvider(deviceAuthStore = deviceAuthStore),
                     ),
-                    tcpTupleProvider = object : TcpTupleProvider {
-                        override suspend fun getPublicTcpTuple(): TcpTuple {
-                            return TcpTuple(
-                                remoteAddress = "203.0.113.12",
-                                remotePort = 4242,
-                                timestamp = now.toEpochMilliseconds(),
-                            )
-                        }
-                    },
+                    tcpTupleProvider = UnavailableTcpTupleProvider,
                     clock = object : Clock {
                         override fun now(): Instant = now
                     },
