@@ -74,24 +74,23 @@ class MeasurementSyncUseCase(
         val submissions = localStore.getUnsyncedSubmissions()
         if (submissions.isEmpty()) return SyncReport()
 
+        // A missing tuple must not block the upload. The submission already
+        // carries the address captured at measurement time when one was
+        // available, and Supabase's fcc_submission_update_source_ip trigger
+        // fills the column from the address it observes when it is still NULL.
+        // Aborting here would withhold complete measurements because an
+        // auxiliary lookup failed - and the configured echo service is not
+        // currently reachable.
         val tuple = try {
             tcpTupleProvider.getPublicTcpTuple()
         } catch (e: Exception) {
-            return SyncReport(
-                attempted = submissions.size,
-                blockedBeforeUpload = true,
-                unexpectedErrors = submissions.size,
-                errorSummary = SyncErrorSummary().recordError(
-                    category = SyncErrorCategory.BLOCKED,
-                    throwable = e,
-                    contextId = "tuple-provider",
-                ),
-            )
+            if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+            null
         }
 
         var report = SyncReport(attempted = submissions.size)
         for (submission in submissions) {
-            val patched = patchWithTuple(submission, tuple.remoteAddress, tuple.remotePort, tuple.timestamp)
+            val patched = patchWithTuple(submission, tuple?.remoteAddress, tuple?.remotePort, tuple?.timestamp)
             report = try {
                 remoteDataSource.insertFccSubmission(patched)
                 localStore.markSubmissionUploaded(submission.id, clock.now())
@@ -135,12 +134,17 @@ class MeasurementSyncUseCase(
 
     private fun patchWithTuple(
         submission: FccSubmission,
-        ip: String,
-        port: Int,
-        serverEpochMillis: Long,
+        ip: String?,
+        port: Int?,
+        serverEpochMillis: Long?,
     ): FccSubmission = submission.copy(
-        sourceIp = ip,
-        sourcePort = port,
-        serverTimestamp = Instant.fromEpochMilliseconds(serverEpochMillis),
+        // Only fill what the measurement did not already capture. The
+        // measurement-time address is the correct one: sync can be deferred to a
+        // different network entirely.
+        sourceIp = submission.sourceIp ?: ip,
+        sourcePort = submission.sourcePort ?: port,
+        serverTimestamp = serverEpochMillis
+            ?.let { Instant.fromEpochMilliseconds(it) }
+            ?: submission.serverTimestamp,
     )
 }
