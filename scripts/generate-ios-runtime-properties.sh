@@ -269,14 +269,6 @@ if [[ -n "$MAPBOX_TOKEN" ]]; then
   write_property "MAPBOX_ACCESS_TOKEN" "$MAPBOX_TOKEN"
 fi
 
-# --- Public address echo service -------------------------------------------
-# Optional: without it the submission leaves sourceIp null and Supabase's
-# fcc_submission_update_source_ip trigger fills in the address it observed.
-TCP_TUPLE_URL_VALUE="$(resolve_value "TCP_TUPLE_URL" || true)"
-if [[ -n "$TCP_TUPLE_URL_VALUE" ]]; then
-  write_property "TCP_TUPLE_URL" "$TCP_TUPLE_URL_VALUE"
-fi
-
 # --- MSAK ------------------------------------------------------------------
 case "$MSAK_MODE" in
   LOCAL)

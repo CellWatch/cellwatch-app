@@ -105,43 +105,110 @@ previously used it silently. See the device runtime-config work for the guard ad
 
 ---
 
-## 5. The public-address echo service needs standing up
+## 5. `server_source_port` is required and not currently obtainable
 
-`server_source_ip_address` no longer carries a placeholder (see the source-IP
-commit), but it will stay empty on the client side until a reachable echo service
-exists. Two things to do:
+**Unresolved.** Verified against the BDC *Data Specifications for Mobile Speed Test
+Data*, v2.2 (2025-07-28), section 5.1.2 Submission Object.
 
-1. **Stand up a service and configure it by hostname.** `cellwatch.properties`
-   has `TCP_TUPLE_URL="http://52.55.102.226/"`, which is (a) unreachable -
-   `curl --max-time 10` times out - and (b) a bare IPv4 literal, so an IPv6-only
-   carrier network (increasingly common via NAT64/464XLAT) either cannot reach it
-   or traverses a translator, in which case the reported address is the
-   translator's rather than the device's. Use a dual-stack hostname.
-   `HttpTcpTupleProvider` already reads this key on all three platforms and is
-   packaged into the iOS bundle by generate-ios-runtime-properties.sh; it just
-   needs a working endpoint and the call sites switched from
-   `UnavailableTcpTupleProvider`.
-2. **Confirm what FCC expects.** The requirement is the device's source IP and
-   port "as measured by the server". Until (1) is done, the value comes from
-   Supabase's `fcc_submission_update_source_ip` trigger, i.e. the address
-   observed at the *submission* endpoint. An echo service would be a dedicated
-   lookup, still not the MSAK measurement server. Full fidelity would need msak
-   changes: its latency `Summarize()` omits the `Client` ip:port field it records
-   (it is archival-only), though throughput server-sent measurements do carry
-   connection endpoints.
+### What the spec asks for
 
-The authoritative specification
-(`bdc-mobile-speed-test-data-specifications.pdf`) and the challenge-process
-article both returned HTTP 403 when fetched, so nothing here about IPv6
-acceptability in that field has been verified against FCC documentation.
+> `server_source_ip_address` — "Source IP address of the device submitting test
+> submission data, measured by the server. Value must be in valid **IPv4 or IPv6**
+> format."
+>
+> `server_source_port` — "Source **TCP** port of the device submitting test
+> submission data, measured by the server."
+>
+> Both "must correspond to transmission recorded in the `server_timestamp`" value,
+> which is "the time at which the test submission data were transmitted to **the
+> app's servers**".
 
-### For reference: MSAK handles both families deliberately
+Three things follow, each checked rather than assumed:
 
-Not a defect. `IosSocket.kt` prefers `AF_INET6` with `IPV6_V6ONLY = 0` for
-dual-stack and switches to `AF_INET` for IPv4 literals to "avoid v4-on-v6
-issues". m-lab hostnames resolve `AF_UNSPEC`, so a measurement may run over
-either family and **nothing records which**. If a submission is expected to state
-the family, that information is currently discarded.
+1. **These describe the device -> Supabase upload, not the measurement.** They live
+   in the Submission Object; all 14 mentions in the spec are there, and *none* are
+   in the Download, Upload or Latency Test Objects. If the measurement connection
+   were meant, the field would be per-test and there would be three.
+2. **Only Supabase can supply them.** Any address the client fetches from
+   elsewhere - MSAK's `RemoteAddr`, or an echo service - describes a different TCP
+   connection, so it cannot "correspond to" the submission. Deferred sync makes
+   this worse: a measurement taken on cellular may be uploaded later over WiFi.
+3. **IPv6 is explicitly acceptable**, so there is no IP-family concern here.
+
+### What works and what does not
+
+The **IP** is already correct: `fcc_submission_update_source_ip`
+(`supabase/schema.sql:345`) records `x-forwarded-for` on insert. It fires only
+`WHEN new.source_ip IS NULL`, so the client must send nothing - which it now does
+(see `UnavailableTcpTupleProvider`).
+
+The **port** is the gap. A client's source port is a TCP property; HTTP has no
+field for it. When a reverse proxy terminates the device's connection and opens a
+new one to the backend, the port is gone unless the proxy copies it into a header.
+`X-Forwarded-For` carries only the IP; `X-Forwarded-Port` conventionally carries
+the *destination* port. Postgres's own `inet_client_port()` sees PostgREST, not the
+device. The one standard header that can carry it is RFC 7239
+(`Forwarded: for="192.0.2.43:47011"`), which is rarely set.
+
+This is not specific to Supabase - the same applies behind nginx, an ALB,
+Cloudflare or Fastly.
+
+### Why it matters
+
+`server_source_port` may be null only when `submission_category` is Consumer
+Crowdsourced, Entity Crowdsourced, Provider Response or Other, **or** when it is
+Entity Challenge *and* `device_imei` is non-null. CellWatch submits as
+**`Consumer Challenge`** (`supabase/schema.sql:1447`), which is in none of those
+cases, so the field is required and is currently absent.
+
+### To resolve, in order of preference
+
+1. **Check whether the port is already available.** `log_user_data()` stores the
+   full header JSON via `get_raw_header()`, so this is answerable from data already
+   collected:
+   ```sql
+   select request_header from log_table
+   where table_name = 'fcc_submissions' order by id desc limit 5;
+   ```
+   If any header carries a source port, read it in the trigger and the gap closes.
+2. **Put an endpoint you control in the submission path.** Only the server that
+   terminates the device's TCP connection can read the port. Note the project is on
+   **hosted** Supabase (`*.supabase.co`), so the edge is Supabase-managed and cannot
+   be modified; this repo contains the database schema only, no gateway config.
+3. **Reconsider `submission_category`.** A university research app using its own
+   software and hardware may be an **Entity Challenge** rather than a Consumer
+   Challenge, which permits `device_imei` in lieu of all three server-measured
+   fields. Note iOS cannot provide IMEI and this project's own gap analysis treats
+   it as blocked on Android, so this may not help.
+4. **Submit with the port null and see whether BDC rejects it**, and/or ask FCC -
+   the challenge process already requires submitting a methodology description.
+
+### Retire the AWS tuple service?
+
+**Undecided.** `TCP_TUPLE_URL="http://52.55.102.226/"` is an EC2 instance added by
+Jason Cox in Dec 2023 (`d7bb767`), replacing an `api.ipify.org` call, and fetched
+immediately before upload in `frozenApp`'s `tryUploadFccSubmissions()` - so the
+intent was an address contemporaneous with the *submission*, which is the right
+instinct. It supplies a usable IP, but the port necessarily describes the
+connection to the AWS box rather than to Supabase, so it cannot conform however it
+is configured. It is also currently unreachable (`curl --max-time 10` times out).
+
+Confirm with Jason whether it is meant to still be running before deciding.
+
+### Also unrecorded: which IP family a measurement used
+
+`IosSocket.kt` prefers `AF_INET6` with `IPV6_V6ONLY = 0` and switches to `AF_INET`
+for IPv4 literals, and m-lab hostnames resolve `AF_UNSPEC` - so a measurement may
+run over either family and nothing records which. Not required by the spec; noted
+in case it is ever wanted.
+
+### Related: `round_trip_time` statistic is unspecified
+
+The spec says only "Round-trip latency in microseconds" - mean, median and minimum
+are all format-legal. CellWatch reports the **mean**, which on real cellular is
+pulled upward by burst arrivals (a phone run measured mean 57ms against median
+45ms). Since the challenge process requires a methodology description, document the
+choice.
 
 ## 6. FCC submission now requires a real cellular connection
 
