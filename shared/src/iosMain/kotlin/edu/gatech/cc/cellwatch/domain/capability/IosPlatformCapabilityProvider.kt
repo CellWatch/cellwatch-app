@@ -1,5 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.capability
 
+import com.benasher44.uuid.uuid4
+import edu.gatech.cc.cellwatch.domain.model.Cell
 import edu.gatech.cc.cellwatch.domain.model.Location
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
@@ -22,7 +24,11 @@ import platform.CoreTelephony.CTRadioAccessTechnologyLTE
 import platform.CoreTelephony.CTRadioAccessTechnologyNR
 import platform.CoreTelephony.CTRadioAccessTechnologyNRNSA
 import platform.CoreTelephony.CTRadioAccessTechnologyWCDMA
+import platform.CoreTelephony.CTServiceRadioAccessTechnologyDidChangeNotification
 import platform.CoreTelephony.CTTelephonyNetworkInfo
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSOperationQueue
+import platform.darwin.NSObjectProtocol
 import platform.UIKit.UIDevice
 
 @OptIn(ExperimentalForeignApi::class)
@@ -88,6 +94,93 @@ class IosPlatformCapabilityProvider(
             cellularDataEnabled = if (path.usesCellular) true else null,
             note = "nw_path interface: ${path.describedInterface}",
         )
+    }
+
+    override fun createObserver(): MeasurementObserver = IosMeasurementObserver()
+
+    /**
+     * Best-effort observation for one measurement on iOS.
+     *
+     * iOS gives third-party apps no cell enumeration, no cell identity and no
+     * signal measurements - only the current radio access technology. But the
+     * BDC iOS exemption list (v2.2 section 3.1.1) exempts fields WITHIN a Cell
+     * Object, not the cells array itself, and exempts neither
+     * network_generation nor network_subtype. So the correct output is a sparse
+     * Cell Object carrying what CoreTelephony does know, rather than an empty
+     * array. Recorded as discrepancy 1 in doc/FCC_IOS_DISCREPANCIES.md.
+     *
+     * Radio changes are observed via CoreTelephony's notification, which is
+     * coarser than Android's per-cell callback and can lag a real handover. It
+     * therefore under-reports generation changes rather than inventing them,
+     * which is the safe direction for success_flag.
+     */
+    private inner class IosMeasurementObserver : MeasurementObserver {
+        private val cells = mutableListOf<Cell>()
+        private val generations = mutableListOf<String>()
+        private val locations = mutableListOf<Location>()
+        private var notificationObserver: NSObjectProtocol? = null
+
+        override suspend fun start() {
+            runCatching { locations += captureLocationSnapshot().samples }
+            sampleRadio()
+            notificationObserver = NSNotificationCenter.defaultCenter.addObserverForName(
+                name = CTServiceRadioAccessTechnologyDidChangeNotification,
+                `object` = null,
+                queue = NSOperationQueue.mainQueue,
+            ) { _ -> sampleRadio() }
+        }
+
+        override suspend fun stop(): MeasurementObservation {
+            notificationObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
+            notificationObserver = null
+            sampleRadio()
+            runCatching { locations += captureLocationSnapshot().samples }
+            return MeasurementObservation(
+                cells = cells.toList(),
+                generations = generations.toList(),
+                locations = locations.toList(),
+                note = "iOS exposes no cell identity or signal detail; " +
+                    "cells carry timestamp, generation and subtype only",
+            )
+        }
+
+        /**
+         * One sparse Cell Object per observation, plus the generation sample
+         * that success_flag depends on.
+         */
+        private fun sampleRadio() {
+            val radioAccess = CTTelephonyNetworkInfo().currentRadioAccessTechnology
+            if (radioAccess.isNullOrBlank()) return
+            val now = clock.now()
+            val generation = networkGeneration(radioAccess)
+            generation?.let { generations += it }
+            cells += Cell(
+                id = uuid4().toString(),
+                timestamp = now,
+                // Everything below is on the FCC's iOS exemption list; iOS
+                // genuinely cannot supply any of it.
+                cellId = null,
+                physicalCellId = null,
+                cellConnection = null,
+                networkGeneration = generation,
+                networkSubtype = networkSubtype(radioAccess),
+                signalStrength = null,
+                rssi = null,
+                rsrp = null,
+                rsrq = null,
+                sinr = null,
+                csiRsrp = null,
+                csiRsrq = null,
+                csiSinr = null,
+                cqi = null,
+                spectrumBand = null,
+                spectrumBandwidth = null,
+                arfcn = null,
+                measurementId = null,
+                createdOn = now,
+                updatedOn = now,
+            )
+        }
     }
 
     private fun captureTelephonySnapshot(): TelephonyCapabilitySnapshot {

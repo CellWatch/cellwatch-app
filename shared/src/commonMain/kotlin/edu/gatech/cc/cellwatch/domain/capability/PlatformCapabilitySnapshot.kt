@@ -64,6 +64,15 @@ data class PlatformCapabilitySnapshot(
 
 interface PlatformCapabilityProvider {
     suspend fun captureSnapshot(): PlatformCapabilitySnapshot
+
+    /**
+     * An observer for one measurement, bracketing the run so cells, radio
+     * generation and location are collected across it rather than sampled once.
+     *
+     * Defaulted so existing providers - including test fakes - stay valid; a
+     * platform that cannot observe simply keeps the no-op.
+     */
+    fun createObserver(): MeasurementObserver = NoOpMeasurementObserver
 }
 
 object NoOpPlatformCapabilityProvider : PlatformCapabilityProvider {

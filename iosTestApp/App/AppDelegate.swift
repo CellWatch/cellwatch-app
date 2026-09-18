@@ -599,6 +599,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
     private let measurementNetworkPathProbe = IosMeasurementNetworkPathProbe()
     private let locationPermissionManager = CLLocationManager()
     private let supabaseSyncDisabled = RuntimeConfigSource.shouldDisableSupabaseSync()
+    private var measurementWakeGuardDepth = 0
     private let pendingSyncHarness = IosPendingSyncHarness()
     private var onboardingTopConstraint: NSLayoutConstraint?
     private var onboardingKeyboardObservers: [NSObjectProtocol] = []
@@ -3046,6 +3047,11 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
             runtimeSnapshot.supabaseApiKey.isEmpty ? "false" : "true",
             diagnosticsSummary
         )
+        // Hold the screen awake for the run. The idle timer is the most common
+        // way a measurement gets interrupted, and iOS has no foreground-service
+        // equivalent to fall back on. Released on every completion path below.
+        beginMeasurementWakeGuard()
+
         let runGroupId = UUID().uuidString
         _ = measurementRunViewController.reset()
         _ = measurementRunViewController.onSequenceStarted(groupId: runGroupId)
@@ -3091,6 +3097,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
             }
         ) { result, error in
             DispatchQueue.main.async {
+                self.endMeasurementWakeGuard()
                 if let error = error {
                     NSLog("[iosTestApp] Phase3 sequence failed: %@", String(describing: error))
                     // The raw text stays in the log above; what reaches the
@@ -3249,6 +3256,23 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
                     self.diagnosticsSummary
                 )
             }
+        }
+    }
+
+    /// Prevents the display sleeping while a measurement runs.
+    ///
+    /// Counted rather than a plain flag so overlapping starts cannot leave the
+    /// screen pinned awake, which would drain the battery of a phone left in a
+    /// pocket. Paired strictly with `endMeasurementWakeGuard`.
+    private func beginMeasurementWakeGuard() {
+        measurementWakeGuardDepth += 1
+        UIApplication.shared.isIdleTimerDisabled = true
+    }
+
+    private func endMeasurementWakeGuard() {
+        measurementWakeGuardDepth = max(0, measurementWakeGuardDepth - 1)
+        if measurementWakeGuardDepth == 0 {
+            UIApplication.shared.isIdleTimerDisabled = false
         }
     }
 

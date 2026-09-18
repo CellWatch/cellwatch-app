@@ -1,6 +1,8 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
 import edu.gatech.cc.cellwatch.domain.capability.MeasurementCapabilityEnricher
+import edu.gatech.cc.cellwatch.domain.capability.MeasurementObservation
+import edu.gatech.cc.cellwatch.domain.capability.mergeInto
 import edu.gatech.cc.cellwatch.core.util.runCatchingCancellable
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
@@ -28,14 +30,21 @@ actual object MsakMeasurementExecutorPlatform {
                 measurementId: String?,
             ): Measurement {
                 val id = measurementId ?: uuid4().toString()
-                val summary = runLatency(
+                var observation = MeasurementObservation()
+                val observer = config.capabilityProvider.createObserver()
+                observer.start()
+                val summary = try {
+                    runLatency(
                     LatencyConfig(
                         server = server.toMsakServer(),
                         measurementId = id,
                         duration = config.latencyDurationMs,
                         userAgent = config.userAgent,
                     ),
-                )
+                    )
+                } finally {
+                    observation = observer.stop()
+                }
                 val now = clock.now()
                 val measurement = Measurement(
                     id = id,
@@ -45,10 +54,16 @@ actual object MsakMeasurementExecutorPlatform {
                     // Measured window, not the requested one: termination is driven
                     // by observed server silence, so the real window varies.
                     duration = summary.measuredDurationMs * 1_000,
-                    success = MeasurementResultPolicy.latencyResultSuccess(
-                        packetsReceived = summary.received,
-                        measuredDurationMs = summary.measuredDurationMs,
-                        requestedDurationMs = config.latencyDurationMs,
+                    // Generation stability is the second half of the FCC's
+                    // success_flag definition; the observation window is what
+                    // makes it detectable.
+                    success = MeasurementResultPolicy.finalizeMeasurementSuccess(
+                        resultSuccess = MeasurementResultPolicy.latencyResultSuccess(
+                            packetsReceived = summary.received,
+                            measuredDurationMs = summary.measuredDurationMs,
+                            requestedDurationMs = config.latencyDurationMs,
+                        ),
+                        observedGenerations = observation.generations,
                     ),
                     // Left null deliberately: the real values come from the
                     // capability snapshot via MeasurementCapabilityEnricher,
@@ -71,7 +86,7 @@ actual object MsakMeasurementExecutorPlatform {
                 )
                 return runCatchingCancellable {
                     enricher.enrich(
-                        measurement = measurement,
+                        measurement = observation.mergeInto(measurement),
                         snapshot = config.capabilityProvider.captureSnapshot(),
                     )
                 }.getOrElse { measurement }
@@ -89,7 +104,11 @@ actual object MsakMeasurementExecutorPlatform {
                     ThroughputDirection.DOWNLOAD -> MsakThroughputDirection.DOWNLOAD
                     ThroughputDirection.UPLOAD -> MsakThroughputDirection.UPLOAD
                 }
-                val summary = runThroughput(
+                var observation = MeasurementObservation()
+                val observer = config.capabilityProvider.createObserver()
+                observer.start()
+                val summary = try {
+                    runThroughput(
                     ThroughputConfig(
                         server = server.toMsakServer(),
                         direction = msakDirection,
@@ -99,7 +118,10 @@ actual object MsakMeasurementExecutorPlatform {
                         userAgent = config.userAgent,
                         measurementId = id,
                     ),
-                )
+                    )
+                } finally {
+                    observation = observer.stop()
+                }
                 val now = clock.now()
                 val bytesPerSec = (summary.mbps * 1_000_000.0) / 8.0
                 val measurement = Measurement(
@@ -108,10 +130,13 @@ actual object MsakMeasurementExecutorPlatform {
                     type = prefix,
                     timestamp = now,
                     duration = summary.measuredDurationMs * 1_000,
-                    success = MeasurementResultPolicy.throughputResultSuccess(
-                        activeBytesPerSec = bytesPerSec,
-                        measuredDurationMs = summary.measuredDurationMs,
-                        requestedDurationMs = config.throughputDurationMs,
+                    success = MeasurementResultPolicy.finalizeMeasurementSuccess(
+                        resultSuccess = MeasurementResultPolicy.throughputResultSuccess(
+                            activeBytesPerSec = bytesPerSec,
+                            measuredDurationMs = summary.measuredDurationMs,
+                            requestedDurationMs = config.throughputDurationMs,
+                        ),
+                        observedGenerations = observation.generations,
                     ),
                     // Left null deliberately: the real values come from the
                     // capability snapshot via MeasurementCapabilityEnricher,
@@ -135,7 +160,7 @@ actual object MsakMeasurementExecutorPlatform {
                 )
                 return runCatchingCancellable {
                     enricher.enrich(
-                        measurement = measurement,
+                        measurement = observation.mergeInto(measurement),
                         snapshot = config.capabilityProvider.captureSnapshot(),
                     )
                 }.getOrElse { measurement }
