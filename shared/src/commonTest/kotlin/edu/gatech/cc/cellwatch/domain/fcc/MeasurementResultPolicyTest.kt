@@ -77,4 +77,83 @@ class MeasurementResultPolicyTest {
             ),
         )
     }
+
+    // --- duration coverage: a truncated run must not report success ---
+
+    @Test
+    fun throughputTruncatedWellShortOfTheRequestedWindowIsNotSuccess() {
+        // The symptom that prompted this: an upload phase whose last recorded
+        // telemetry was 376ms into a requested 5s still reported success.
+        assertFalse(
+            MeasurementResultPolicy.throughputResultSuccess(
+                activeBytesPerSec = 1_000_000.0,
+                measuredDurationMs = 376,
+                requestedDurationMs = 5_000,
+            )
+        )
+    }
+
+    @Test
+    fun throughputRunningTheFullWindowIsSuccess() {
+        assertTrue(
+            MeasurementResultPolicy.throughputResultSuccess(
+                activeBytesPerSec = 1_000_000.0,
+                measuredDurationMs = 5_100,
+                requestedDurationMs = 5_000,
+            )
+        )
+    }
+
+    @Test
+    fun throughputEndingSlightlyEarlyIsStillSuccess() {
+        // Runs routinely end a little early; the threshold rejects truncation,
+        // not jitter.
+        assertTrue(
+            MeasurementResultPolicy.throughputResultSuccess(
+                activeBytesPerSec = 1_000_000.0,
+                measuredDurationMs = 4_500,
+                requestedDurationMs = 5_000,
+            )
+        )
+    }
+
+    @Test
+    fun throughputWithNoBytesIsNotSuccessEvenWhenItRanTheFullWindow() {
+        assertFalse(
+            MeasurementResultPolicy.throughputResultSuccess(
+                activeBytesPerSec = 0.0,
+                measuredDurationMs = 5_000,
+                requestedDurationMs = 5_000,
+            )
+        )
+    }
+
+    @Test
+    fun latencyTruncatedRunIsNotSuccess() {
+        assertFalse(
+            MeasurementResultPolicy.latencyResultSuccess(
+                packetsReceived = 12,
+                measuredDurationMs = 400,
+                requestedDurationMs = 3_000,
+            )
+        )
+    }
+
+    @Test
+    fun latencyOvershootingTheRequestedWindowIsSuccess() {
+        // The server sends for a fixed 5s regardless of the requested duration,
+        // so measuring longer than requested is normal and must not fail.
+        assertTrue(
+            MeasurementResultPolicy.latencyResultSuccess(
+                packetsReceived = 236,
+                measuredDurationMs = 5_500,
+                requestedDurationMs = 3_000,
+            )
+        )
+    }
+
+    @Test
+    fun unknownRequestedDurationCannotBeJudgedSoDoesNotFail() {
+        assertTrue(MeasurementResultPolicy.durationCoverageMet(measuredDurationMs = 0, requestedDurationMs = 0))
+    }
 }
