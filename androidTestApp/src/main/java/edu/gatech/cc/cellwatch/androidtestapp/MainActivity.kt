@@ -20,6 +20,7 @@ import android.text.TextWatcher
 import android.util.Log
 import android.view.Gravity
 import android.view.View
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -278,6 +279,7 @@ class MainActivity : AppCompatActivity() {
     private var syncDriver: AndroidTestSyncDriver? = null
     private var lastGroup: MeasurementGroup? = null
     @Volatile private var phase3RunInFlight: Boolean = false
+    private var measurementWakeGuardDepth = 0
     private var previousDefaultUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
     private val runtimeModeBridge = RuntimeModeUiBridge()
     private var selectedMsakMode: RuntimeMsakMode = runCatching {
@@ -2064,6 +2066,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Keeps the display awake while a measurement runs.
+     *
+     * Counted rather than a plain flag so overlapping starts cannot leave the
+     * screen pinned on, which would drain the battery of a pocketed phone.
+     */
+    private fun beginMeasurementWakeGuard() {
+        runOnUiThread {
+            measurementWakeGuardDepth += 1
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    private fun endMeasurementWakeGuard() {
+        runOnUiThread {
+            measurementWakeGuardDepth = maxOf(0, measurementWakeGuardDepth - 1)
+            if (measurementWakeGuardDepth == 0) {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
+    }
+
     private fun runSeedAndMapSync() {
         scope.launch {
             phase3RunInFlight = true
@@ -2621,6 +2645,10 @@ class MainActivity : AppCompatActivity() {
             statusText.text = measurementRunUiPresenter.present(measurementRunViewController.currentState()).headerText
         }
         phase3RunInFlight = true
+        // Hold the screen awake for the run. frozenApp took a PARTIAL_WAKE_LOCK,
+        // which keeps the CPU awake but lets the display sleep - and the idle
+        // timer is the most common way a measurement gets interrupted.
+        beginMeasurementWakeGuard()
         scope.launch {
             val runOutcome = withContext(Dispatchers.IO) {
                 runCatching {
@@ -2770,8 +2798,10 @@ class MainActivity : AppCompatActivity() {
                     ).let { "$runHeader\n$it" }
                 }
                 phase3RunInFlight = false
+                endMeasurementWakeGuard()
             }.onFailure {
                 phase3RunInFlight = false
+                endMeasurementWakeGuard()
                 val hintedMessage = withProtocolHint(it)
                 Log.e(LOG_TAG, "Phase3 sequence failed", it)
                 val envelope = smokeEnvelopeBuilder.failure(

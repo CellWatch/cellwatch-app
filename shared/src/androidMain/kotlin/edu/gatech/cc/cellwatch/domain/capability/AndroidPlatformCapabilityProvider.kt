@@ -23,6 +23,8 @@ import android.telephony.CellInfoTdscdma
 import android.telephony.CellInfoWcdma
 import android.telephony.CellSignalStrengthLte
 import android.telephony.CellSignalStrengthNr
+import android.telephony.PhoneStateListener
+import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import edu.gatech.cc.cellwatch.domain.model.Cell
 import edu.gatech.cc.cellwatch.domain.model.Location
@@ -55,6 +57,96 @@ class AndroidPlatformCapabilityProvider(
     }
 
     @SuppressLint("MissingPermission")
+    override fun createObserver(): MeasurementObserver = AndroidMeasurementObserver()
+
+    /**
+     * Watches cells and radio generation for one measurement.
+     *
+     * A single pre-test sample cannot show a handover, and the FCC asks for
+     * cells "measured during the speed test" and fails a test whose generation
+     * changes. Registering for the run is the only way to answer either.
+     *
+     * Never throws: a measurement is worth more than its metadata, so every
+     * failure degrades to a note.
+     */
+    private inner class AndroidMeasurementObserver : MeasurementObserver {
+        private val cells = mutableListOf<Cell>()
+        private val generations = mutableListOf<String>()
+        private val locations = mutableListOf<Location>()
+        private var unregister: (() -> Unit)? = null
+        private var failureNote: String? = null
+
+        override suspend fun start() {
+            runCatching { locations += captureLocation(clock.now()).samples }
+            sampleTelephony()
+            runCatching { registerForCellChanges() }
+                .onFailure { failureNote = "cell monitoring unavailable: ${it.message}" }
+        }
+
+        override suspend fun stop(): MeasurementObservation {
+            runCatching { unregister?.invoke() }
+            unregister = null
+            sampleTelephony()
+            runCatching { locations += captureLocation(clock.now()).samples }
+            return MeasurementObservation(
+                // Order is preserved and duplicates are expected: the same cell
+                // reported twice is evidence it was serving throughout.
+                cells = cells.toList(),
+                generations = generations.toList(),
+                locations = locations.toList(),
+                note = failureNote,
+            )
+        }
+
+        private fun sampleTelephony() {
+            if (!hasPermission(Manifest.permission.READ_PHONE_STATE)) {
+                failureNote = failureNote ?: "missing READ_PHONE_STATE; cells and generation not observed"
+                return
+            }
+            val telephony = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager ?: return
+            val now = clock.now()
+            runCatching { telephony.allCellInfo }.getOrNull()?.let { raw ->
+                cells += raw.map { toDomainCell(it, now) }
+            }
+            runCatching { networkGeneration(telephony.dataNetworkType) }.getOrNull()
+                ?.let { generations += it }
+        }
+
+        @SuppressLint("MissingPermission")
+        private fun registerForCellChanges() {
+            if (!hasPermission(Manifest.permission.READ_PHONE_STATE)) return
+            val telephony = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager ?: return
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val callback = object : TelephonyCallback(), TelephonyCallback.CellInfoListener {
+                    override fun onCellInfoChanged(cellInfo: MutableList<CellInfo>) {
+                        val now = clock.now()
+                        cells += cellInfo.map { toDomainCell(it, now) }
+                        runCatching { networkGeneration(telephony.dataNetworkType) }.getOrNull()
+                            ?.let { generations += it }
+                    }
+                }
+                telephony.registerTelephonyCallback(context.mainExecutor, callback)
+                unregister = { runCatching { telephony.unregisterTelephonyCallback(callback) } }
+            } else {
+                @Suppress("DEPRECATION")
+                val listener = object : PhoneStateListener() {
+                    @Deprecated("Deprecated in Java")
+                    override fun onCellInfoChanged(cellInfo: MutableList<CellInfo>?) {
+                        val now = clock.now()
+                        cellInfo?.let { cells += it.map { info -> toDomainCell(info, now) } }
+                        runCatching { networkGeneration(telephony.dataNetworkType) }.getOrNull()
+                            ?.let { generations += it }
+                    }
+                }
+                @Suppress("DEPRECATION")
+                telephony.listen(listener, PhoneStateListener.LISTEN_CELL_INFO)
+                @Suppress("DEPRECATION")
+                unregister = { runCatching { telephony.listen(listener, PhoneStateListener.LISTEN_NONE) } }
+            }
+        }
+    }
+
     private fun captureTelephony(capturedAt: Instant): TelephonyCapabilitySnapshot {
         if (!hasPermission(Manifest.permission.READ_PHONE_STATE)) {
             return TelephonyCapabilitySnapshot(
