@@ -3233,7 +3233,14 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
                         )
                     )
                 }
-                NSLog("[iosTestApp] Phase3 sequence success diagnostics=%@", self.diagnosticsSummary)
+                NSLog(
+                    "[iosTestApp] Phase3 sequence success measurements=%d submissions=%d submissionCreated=%@ uploadTimeSet=%@ diagnostics=%@",
+                    value.persistedMeasurements,
+                    value.persistedSubmissions,
+                    value.submissionCreated ? "true" : "false",
+                    value.measurementCompleteUploadTimeSet ? "true" : "false",
+                    self.diagnosticsSummary
+                )
             }
         }
     }

@@ -133,6 +133,10 @@ final class LocalMsakPhase3HostedTests: XCTestCase {
         return text.contains("no latency result") ||
             text.contains("authorizefailure") ||
             text.contains("timed out") ||
+            // MSAK 0.4.x phrases its latency run timeout this way, which
+            // "timed out" does not match (MsakException TIMEOUT, thrown by
+            // LatencyRunner when the updates channel never closes).
+            text.contains("did not complete within") ||
             text.contains("connection refused") ||
             text.contains("socket is not connected") ||
             text.contains("cannot connect")

@@ -59,10 +59,21 @@ class IosPlatformCapabilityProvider(
      */
     private suspend fun captureNetworkSnapshot(): NetworkCapabilitySnapshot {
         val path = readIosNetworkPath()
-            ?: return NetworkCapabilitySnapshot(
-                support = CapabilitySupport.UNAVAILABLE,
-                note = "network path unavailable; connection type could not be determined",
-            )
+            ?: run {
+                // Diagnostic: the interface decides whether a measurement is
+                // submittable, and it was previously recorded only in the
+                // persisted note - invisible while field testing.
+                println("[W] IosNetworkPath: network path unavailable; connection type unknown")
+                return NetworkCapabilitySnapshot(
+                    support = CapabilitySupport.UNAVAILABLE,
+                    note = "network path unavailable; connection type could not be determined",
+                )
+            }
+        println(
+            "[D] IosNetworkPath: interface=${path.describedInterface} " +
+                "connectionType=${path.connectionType} satisfied=${path.satisfied} " +
+                "cellular=${path.usesCellular} wifi=${path.usesWifi} wired=${path.usesWired}"
+        )
 
         return NetworkCapabilitySnapshot(
             support = CapabilitySupport.AVAILABLE,
