@@ -183,17 +183,38 @@ cases, so the field is required and is currently absent.
 4. **Submit with the port null and see whether BDC rejects it**, and/or ask FCC -
    the challenge process already requires submitting a methodology description.
 
-### Retire the AWS tuple service?
+### The AWS tuple service: kept, currently unreachable
 
-**Undecided.** `TCP_TUPLE_URL="http://52.55.102.226/"` is an EC2 instance added by
-Jason Cox in Dec 2023 (`d7bb767`), replacing an `api.ipify.org` call, and fetched
-immediately before upload in `frozenApp`'s `tryUploadFccSubmissions()` - so the
-intent was an address contemporaneous with the *submission*, which is the right
-instinct. It supplies a usable IP, but the port necessarily describes the
-connection to the AWS box rather than to Supabase, so it cannot conform however it
-is configured. It is also currently unreachable (`curl --max-time 10` times out).
+**Retained deliberately.** `TCP_TUPLE_URL="http://52.55.102.226/"` is an EC2
+instance added by Jason Cox in Dec 2023 (`d7bb767`), replacing an `api.ipify.org`
+call, and fetched immediately before upload in `frozenApp`'s
+`tryUploadFccSubmissions()` - so the intent was an address contemporaneous with
+the *submission*, which is the right instinct and the best option available while
+the port cannot be read at the edge.
 
-Confirm with Jason whether it is meant to still be running before deciding.
+`HttpTcpTupleProvider` implements the lookup on all three platforms and is wired
+in via `tcpTupleProviderFor`. The switch is the URL itself: blank or absent
+disables the lookup. iOS resolves it from the packaged runtime resource, Android
+from `BuildConfig.CELLWATCH_TCP_TUPLE_URL`.
+
+It is **currently unreachable** (`curl --max-time 10` times out), which costs only
+the request timeout: `MeasurementSyncUseCase` uploads without a tuple rather than
+withholding the measurement, and the Supabase trigger then records the IP it
+observed. To silence it while the service is down, comment out `TCP_TUPLE_URL` in
+`cellwatch.properties`.
+
+Known limitation once it is back up: the **IP** will be right in practice (same
+network, same NAT, seconds before the upload), but the **port** describes the TCP
+connection to the AWS box, not the one to Supabase. Every connection gets a
+different ephemeral port, and carrier NAT assigns a different external port per
+connection, so it cannot satisfy the spec's requirement that all three
+server-measured fields correspond to one transmission. Whether that matters in
+practice - whether BDC ever cross-checks the port against the timestamp - is
+unknown.
+
+Supabase has no option for this. Their documentation covers `X-Forwarded-For` for
+the client IP and says nothing about a source port; it is not a hidden toggle, the
+port simply is not carried through a managed edge.
 
 ### Also unrecorded: which IP family a measurement used
 
