@@ -27,7 +27,7 @@ class PersistentDeviceCredentialLocalSupabaseIntegrationTest {
 
     @Test
     fun insertStampsOwnershipSoRlsAccepts_andTheCredentialSurvivesRestart() = runBlocking {
-        val config = loadLocalSupabaseConfig()
+        val config = loadIntegrationSupabaseConfig()
         val storage = MemoryCredentialStorage()
 
         // --- first launch: registers, uploads, persists the credential ---
@@ -60,7 +60,7 @@ class PersistentDeviceCredentialLocalSupabaseIntegrationTest {
 
     @Test
     fun aCredentialMissingItsSecretIsReplacedRatherThanReRegistered() = runBlocking {
-        val config = loadLocalSupabaseConfig()
+        val config = loadIntegrationSupabaseConfig()
 
         // Register once so the id genuinely exists server-side.
         val storage = MemoryCredentialStorage()
