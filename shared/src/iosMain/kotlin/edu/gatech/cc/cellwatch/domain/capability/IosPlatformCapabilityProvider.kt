@@ -36,10 +36,7 @@ class IosPlatformCapabilityProvider(
         return PlatformCapabilitySnapshot(
             capturedAt = clock.now(),
             telephony = telephonySnapshot,
-            network = NetworkCapabilitySnapshot(
-                support = CapabilitySupport.PARTIAL,
-                note = "iOS network capability adapter currently provides best-effort partial data only",
-            ),
+            network = captureNetworkSnapshot(),
             location = locationSnapshot,
             device = DeviceCapabilitySnapshot(
                 support = CapabilitySupport.AVAILABLE,
@@ -49,6 +46,36 @@ class IosPlatformCapabilityProvider(
                 osVersion = device.systemVersion,
                 note = "best-effort iOS device metadata snapshot",
             ),
+        )
+    }
+
+    /**
+     * Reports the interface the system would actually use, so a measurement
+     * taken over WiFi or USB tethering is not recorded as cellular.
+     *
+     * Leaves connectionType null when the path cannot be read, rather than
+     * guessing: FccSubmissionPolicy requires CELLULAR, so unknown correctly
+     * makes a measurement non-submittable instead of silently passing.
+     */
+    private suspend fun captureNetworkSnapshot(): NetworkCapabilitySnapshot {
+        val path = readIosNetworkPath()
+            ?: return NetworkCapabilitySnapshot(
+                support = CapabilitySupport.UNAVAILABLE,
+                note = "network path unavailable; connection type could not be determined",
+            )
+
+        return NetworkCapabilitySnapshot(
+            support = CapabilitySupport.AVAILABLE,
+            connected = path.satisfied,
+            available = path.satisfied,
+            // iOS exposes no roaming indicator to third-party apps.
+            roaming = null,
+            connectionType = path.connectionType,
+            // Cellular being the active interface proves cellular data is
+            // usable. When it is not active, iOS gives no reliable way to tell
+            // whether it is merely unused or actually disabled, so say nothing.
+            cellularDataEnabled = if (path.usesCellular) true else null,
+            note = "nw_path interface: ${path.describedInterface}",
         )
     }
 

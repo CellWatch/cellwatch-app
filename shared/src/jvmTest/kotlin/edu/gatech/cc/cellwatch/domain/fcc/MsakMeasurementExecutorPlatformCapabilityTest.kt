@@ -42,7 +42,12 @@ class MsakMeasurementExecutorPlatformCapabilityTest {
         assertEquals("480", measurement.netMnc)
         assertEquals("provider-from-capability", measurement.provider)
         assertEquals("test-app", measurement.appVersion)
-        assertEquals(NetworkConnectionType.CELLULAR, measurement.connectionType)
+        // The fake provider reports WIFI. This previously asserted CELLULAR,
+        // because the executor hardcoded it and the enricher could not override a
+        // non-null field - so the test was encoding the bug. The detected value
+        // must now win.
+        assertEquals(NetworkConnectionType.WIFI, measurement.connectionType)
+        assertEquals(false, measurement.cellularDataEnabled)
     }
 }
 

@@ -50,8 +50,21 @@ object FccSubmissionPolicy {
     ): Boolean {
         if (mode != CollectionMode.FCC_CHALLENGE) return false
 
+        // Fail closed: require CELLULAR rather than merely "not WIFI".
+        //
+        // The FCC challenge process only accepts measurements taken over the
+        // cellular network, and `!= WIFI` also passes for null - which is what
+        // an undetermined connection type looks like when capability capture
+        // fails. Treating unknown as acceptable is the wrong default when the
+        // consequence is submitting a measurement that may not have been
+        // cellular at all.
+        //
+        // iOS cannot force traffic onto cellular (see IosNetworkPath), so a
+        // measurement taken with WiFi or tethering active is simply not
+        // submittable. The test still runs and is still stored; only the FCC
+        // submission is withheld, which matches the original app's behaviour.
         return listOf(latencyMeasurement, downloadMeasurement, uploadMeasurement).all { measurement ->
-            measurement.connectionType != NetworkConnectionType.WIFI &&
+            measurement.connectionType == NetworkConnectionType.CELLULAR &&
                 measurement.cellularDataEnabled != false
         }
     }

@@ -59,10 +59,10 @@ class FccSubmissionPolicyTest {
     }
 
     @Test
-    fun `shouldCreateSubmission is true when all are non wifi and cellular is not false`() {
+    fun `shouldCreateSubmission is true when every measurement is cellular`() {
         val latency = measurement("latency", connectionType = NetworkConnectionType.CELLULAR, cellularDataEnabled = null)
         val download = measurement("download", connectionType = NetworkConnectionType.CELLULAR, cellularDataEnabled = true)
-        val upload = measurement("upload", connectionType = NetworkConnectionType.NONE, cellularDataEnabled = true)
+        val upload = measurement("upload", connectionType = NetworkConnectionType.CELLULAR, cellularDataEnabled = true)
 
         val actual = FccSubmissionPolicy.shouldCreateSubmission(
             mode = CollectionMode.FCC_CHALLENGE,
@@ -72,6 +72,40 @@ class FccSubmissionPolicyTest {
         )
 
         assertTrue(actual)
+    }
+
+    @Test
+    fun `shouldCreateSubmission is false when any measurement is not cellular`() {
+        // NONE used to pass, because the check was "!= WIFI".
+        val latency = measurement("latency", connectionType = NetworkConnectionType.CELLULAR, cellularDataEnabled = true)
+        val download = measurement("download", connectionType = NetworkConnectionType.CELLULAR, cellularDataEnabled = true)
+        val upload = measurement("upload", connectionType = NetworkConnectionType.NONE, cellularDataEnabled = true)
+
+        assertFalse(
+            FccSubmissionPolicy.shouldCreateSubmission(
+                mode = CollectionMode.FCC_CHALLENGE,
+                latencyMeasurement = latency,
+                downloadMeasurement = download,
+                uploadMeasurement = upload,
+            )
+        )
+    }
+
+    @Test
+    fun `shouldCreateSubmission is false when the connection type is undetermined`() {
+        // Capability capture can fail; null must not be read as acceptable.
+        val latency = measurement("latency", connectionType = null, cellularDataEnabled = true)
+        val download = measurement("download", connectionType = NetworkConnectionType.CELLULAR, cellularDataEnabled = true)
+        val upload = measurement("upload", connectionType = NetworkConnectionType.CELLULAR, cellularDataEnabled = true)
+
+        assertFalse(
+            FccSubmissionPolicy.shouldCreateSubmission(
+                mode = CollectionMode.FCC_CHALLENGE,
+                latencyMeasurement = latency,
+                downloadMeasurement = download,
+                uploadMeasurement = upload,
+            )
+        )
     }
 
     @Test
@@ -198,7 +232,7 @@ class FccSubmissionPolicyTest {
 
     private fun measurement(
         type: String,
-        connectionType: NetworkConnectionType = NetworkConnectionType.CELLULAR,
+        connectionType: NetworkConnectionType? = NetworkConnectionType.CELLULAR,
         cellularDataEnabled: Boolean? = true,
         deviceId: String? = null,
         deviceManufacturer: String? = null,
