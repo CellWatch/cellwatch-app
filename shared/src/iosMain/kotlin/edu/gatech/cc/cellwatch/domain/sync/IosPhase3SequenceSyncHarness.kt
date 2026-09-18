@@ -2,7 +2,8 @@ package edu.gatech.cc.cellwatch.domain.sync
 
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import com.benasher44.uuid.uuid4
-import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
+import edu.gatech.cc.cellwatch.data.remote.IosDeviceCredentialStorage
+import edu.gatech.cc.cellwatch.data.remote.PersistentDeviceAuthStore
 import edu.gatech.cc.cellwatch.data.sync.DefaultSyncRemoteDataSourceFactory
 import edu.gatech.cc.cellwatch.data.sync.MeasurementSyncServiceFactory
 import edu.gatech.cc.cellwatch.data.sync.SyncRemoteProfile
@@ -101,9 +102,11 @@ class IosPhase3SequenceSyncHarness {
         val now = Clock.System.now()
         val runController = MeasurementRunViewController()
         val runPresenter = MeasurementRunUiPresenter()
-        val deviceAuthStore = SequenceHarnessDeviceAuthStore(
-            id = submissionProfile.deviceId?.takeIf { it.isNotBlank() } ?: uuid4().toString(),
-        )
+        // Persisted, and id+secret kept together. Previously this took the
+        // OS-supplied id from the submission profile (identifierForVendor) and
+        // held the secret in memory, so every launch re-registered an id the
+        // server already knew and sync uploaded nothing.
+        val deviceAuthStore = PersistentDeviceAuthStore(IosDeviceCredentialStorage())
         val driver = NativeSqliteDriver(
             schema = CellwatchDatabase.Schema,
             name = "ios-phase3-sequence-sync-${uuid4()}.db",
@@ -256,16 +259,4 @@ class IosPhase3SequenceSyncHarness {
     }
 }
 
-private class SequenceHarnessDeviceAuthStore(
-    private val id: String = uuid4().toString(),
-) : DeviceAuthStore {
-    private var secret: String? = null
 
-    override suspend fun getDeviceId(): String = id
-
-    override suspend fun getDeviceSecret(): String? = secret
-
-    override suspend fun saveDeviceSecret(secret: String) {
-        this.secret = secret
-    }
-}

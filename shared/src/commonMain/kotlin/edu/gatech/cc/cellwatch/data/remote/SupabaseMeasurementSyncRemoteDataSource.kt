@@ -44,10 +44,18 @@ class SupabaseMeasurementSyncRemoteDataSource(
 
     override suspend fun insertMeasurement(measurement: Measurement): Measurement =
         withErrorHandling {
+            // Stamp ownership here rather than trusting the caller. RLS checks
+            // `verified_device_id() = device_id` on insert (insert_measurement
+            // is SECURITY INVOKER, so the policy applies), and the column is
+            // nullable with no default - a row carrying null device_id compares
+            // as NULL and is silently rejected. Deriving it from the same store
+            // that authenticates the request keeps the two in step by
+            // construction.
+            val owned = measurement.copy(deviceId = deviceAuthStore.getDeviceId())
             getClient().postgrest
-                .rpc("insert_measurement", measurement.toNetworkWithData())
+                .rpc("insert_measurement", owned.toNetworkWithData())
                 .decodeAs<JsonElement>()
-            measurement
+            owned
         }
 
     override suspend fun getMeasurementById(id: String): Measurement =
@@ -59,10 +67,13 @@ class SupabaseMeasurementSyncRemoteDataSource(
 
     override suspend fun insertFccSubmission(submission: FccSubmission): FccSubmission =
         withErrorHandling {
+            // Same ownership rule as measurements: "Allow inserting own FCC
+            // submissions" checks verified_device_id() = device_id.
+            val owned = submission.copy(deviceId = deviceAuthStore.getDeviceId())
             getClient().postgrest["fcc_submissions"]
-                .insert(submission.toNetwork())
+                .insert(owned.toNetwork())
                 .decodeAs<JsonElement>()
-            submission
+            owned
         }
 
     private suspend fun getClient(): SupabaseClient {
