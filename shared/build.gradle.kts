@@ -157,6 +157,10 @@ android {
     }
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        // android.util.Log is not implemented in the unit-test JVM, so any
+        // shared code that logs would throw here rather than in production.
+        // Logging must be a no-op in tests, not a failure.
+        unitTests.isReturnDefaultValues = true
     }
 }
 

@@ -43,6 +43,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.sync.AndroidTestSyncDriverFactory
 import edu.gatech.cc.cellwatch.androidtestapp.sync.FixedSupabaseEnvironmentProvider
 import edu.gatech.cc.cellwatch.androidtestapp.sync.SupabaseTarget
 import edu.gatech.cc.cellwatch.androidtestapp.sync.resolveRuntimeProfileConfigFromProperties
+import edu.gatech.cc.cellwatch.core.util.SecureKeyStore
 import edu.gatech.cc.cellwatch.data.remote.AndroidDeviceCredentialStorage
 import edu.gatech.cc.cellwatch.data.remote.DeviceAuthStore
 import edu.gatech.cc.cellwatch.data.remote.PersistentDeviceAuthStore
@@ -123,6 +124,8 @@ import edu.gatech.cc.cellwatch.domain.sync.renderForStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -280,6 +283,7 @@ class MainActivity : AppCompatActivity() {
     private var lastGroup: MeasurementGroup? = null
     @Volatile private var phase3RunInFlight: Boolean = false
     private var measurementWakeGuardDepth = 0
+    private var activeMeasurementJob: Job? = null
     private var previousDefaultUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
     private val runtimeModeBridge = RuntimeModeUiBridge()
     private var selectedMsakMode: RuntimeMsakMode = runCatching {
@@ -333,6 +337,13 @@ class MainActivity : AppCompatActivity() {
         // re-registered an id the server already knew and sync uploaded
         // nothing - the same fault fixed on iOS.
         PersistentDeviceAuthStore(AndroidDeviceCredentialStorage(applicationContext))
+            .also {
+                // Android's SecureKeyStore needs a Context before the credential
+                // can be encrypted at rest; without it encryption falls back to
+                // plaintext with a warning rather than failing.
+                runCatching { SecureKeyStore.initialize(applicationContext) }
+                    .onFailure { error -> Log.w(LOG_TAG, "secure key store unavailable", error) }
+            }
     }
     private lateinit var settingsModeGroup: RadioGroup
     private lateinit var settingsModeTesting: RadioButton
@@ -415,6 +426,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        // A measurement cannot run reliably once the activity is stopped, and a
+        // half-finished one is worse than none - it would carry real-looking
+        // numbers for a window that was never measured. Cancel it instead.
+        //
+        // A user-cancelled run is deliberately NOT submitted as a failed test:
+        // backgrounding is evidence about the user, not the network, and
+        // submitting it would seed a coverage dataset with behavioural noise
+        // that reads as poor coverage. Genuinely degraded tests are still
+        // recorded with success_flag=false.
+        //
+        // A configuration change is not the user leaving, so it does not count.
+        if (!isChangingConfigurations && activeMeasurementJob?.isActive == true) {
+            Log.i(LOG_TAG, "activity stopped during a measurement; cancelling the run")
+            activeMeasurementJob?.cancel(
+                CancellationException("measurement cancelled: app left the foreground"),
+            )
+        }
         mapHomeMapView?.onStop()
         super.onStop()
     }
@@ -2649,7 +2677,7 @@ class MainActivity : AppCompatActivity() {
         // which keeps the CPU awake but lets the display sleep - and the idle
         // timer is the most common way a measurement gets interrupted.
         beginMeasurementWakeGuard()
-        scope.launch {
+        activeMeasurementJob = scope.launch {
             val runOutcome = withContext(Dispatchers.IO) {
                 runCatching {
                 val localReachabilityIssue = checkLocalMsakReachabilityIssue()

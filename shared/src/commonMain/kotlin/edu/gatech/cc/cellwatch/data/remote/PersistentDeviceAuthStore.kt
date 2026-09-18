@@ -1,6 +1,8 @@
 package edu.gatech.cc.cellwatch.data.remote
 
 import com.benasher44.uuid.uuid4
+import edu.gatech.cc.cellwatch.core.util.SecureEncryptor
+import edu.gatech.cc.cellwatch.core.util.SharedLog
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -48,6 +50,18 @@ internal data class StoredDeviceCredential(
 class PersistentDeviceAuthStore(
     private val storage: DeviceCredentialStorage,
     private val newDeviceId: () -> String = { uuid4().toString() },
+    /**
+     * Encryption at rest, matching what the pre-KMP app did (frozenApp
+     * encrypted the secret before writing it to DataStore). The storage is
+     * already app-private, so this is defence in depth rather than the only
+     * barrier.
+     *
+     * A decryption failure needs no special handling: [loadValid] treats an
+     * unreadable record as absent, which mints a fresh credential - already the
+     * correct recovery, since a secret we cannot read is a secret we have lost.
+     */
+    private val encrypt: (String) -> String = { SecureEncryptor.encrypt(it) },
+    private val decrypt: (String) -> String = { SecureEncryptor.decrypt(it) },
 ) : DeviceAuthStore {
 
     private var pendingDeviceId: String? = null
@@ -61,7 +75,16 @@ class PersistentDeviceAuthStore(
 
     override suspend fun saveDeviceSecret(secret: String) {
         val id = loadValid()?.deviceId ?: pendingDeviceId ?: newDeviceId().also { pendingDeviceId = it }
-        storage.write(json.encodeToString(StoredDeviceCredential.serializer(), StoredDeviceCredential(id, secret)))
+        val plaintext = json.encodeToString(StoredDeviceCredential.serializer(), StoredDeviceCredential(id, secret))
+        // Encryption is defence in depth over already app-private storage, so
+        // losing it must not cost us the credential: a store that throws here
+        // would re-register on every launch, which is the exact failure this
+        // class was written to end.
+        val payload = runCatching { encrypt(plaintext) }.getOrElse { error ->
+            SharedLog.w(LOG_TAG, "credential encryption unavailable; storing unencrypted", error)
+            plaintext
+        }
+        storage.write(payload)
         pendingDeviceId = null
     }
 
@@ -72,7 +95,11 @@ class PersistentDeviceAuthStore(
      */
     private fun loadValid(): StoredDeviceCredential? {
         val raw = storage.read()?.takeIf { it.isNotBlank() } ?: return null
-        val parsed = runCatching { json.decodeFromString<StoredDeviceCredential>(raw) }.getOrNull()
+        // Accept an unencrypted record too: credentials written before
+        // encryption was added must keep working, and a plaintext fallback
+        // above has to be readable afterwards.
+        val parsed = runCatching { json.decodeFromString<StoredDeviceCredential>(decrypt(raw)) }.getOrNull()
+            ?: runCatching { json.decodeFromString<StoredDeviceCredential>(raw) }.getOrNull()
         if (parsed == null || parsed.deviceId.isBlank() || parsed.deviceSecret.isBlank()) {
             storage.clear()
             return null
@@ -81,6 +108,7 @@ class PersistentDeviceAuthStore(
     }
 
     private companion object {
+        const val LOG_TAG = "DeviceAuth"
         val json = Json { ignoreUnknownKeys = true }
     }
 }

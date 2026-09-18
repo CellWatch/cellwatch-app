@@ -26,6 +26,7 @@ import android.telephony.CellSignalStrengthNr
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
+import edu.gatech.cc.cellwatch.core.util.SharedLog
 import edu.gatech.cc.cellwatch.domain.model.Cell
 import edu.gatech.cc.cellwatch.domain.model.Location
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
@@ -80,7 +81,10 @@ class AndroidPlatformCapabilityProvider(
             runCatching { locations += captureLocation(clock.now()).samples }
             sampleTelephony()
             runCatching { registerForCellChanges() }
-                .onFailure { failureNote = "cell monitoring unavailable: ${it.message}" }
+                .onFailure {
+                    failureNote = "cell monitoring unavailable: ${it.message}"
+                    SharedLog.w("AndroidCapability", "cell monitoring unavailable", it)
+                }
         }
 
         override suspend fun stop(): MeasurementObservation {
@@ -88,6 +92,10 @@ class AndroidPlatformCapabilityProvider(
             unregister = null
             sampleTelephony()
             runCatching { locations += captureLocation(clock.now()).samples }
+            SharedLog.d(
+                "AndroidCapability",
+                "observed ${cells.size} cell sample(s), generations=${generations.distinct()}",
+            )
             return MeasurementObservation(
                 // Order is preserved and duplicates are expected: the same cell
                 // reported twice is evidence it was serving throughout.

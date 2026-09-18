@@ -600,6 +600,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
     private let locationPermissionManager = CLLocationManager()
     private let supabaseSyncDisabled = RuntimeConfigSource.shouldDisableSupabaseSync()
     private var measurementWakeGuardDepth = 0
+    private var activeMeasurementRun: MeasurementRunHandle?
+    private var interruptionObserver: NSObjectProtocol?
     private let pendingSyncHarness = IosPendingSyncHarness()
     private var onboardingTopConstraint: NSLayoutConstraint?
     private var onboardingKeyboardObservers: [NSObjectProtocol] = []
@@ -3051,6 +3053,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
         // way a measurement gets interrupted, and iOS has no foreground-service
         // equivalent to fall back on. Released on every completion path below.
         beginMeasurementWakeGuard()
+        startWatchingForInterruption()
 
         let runGroupId = UUID().uuidString
         _ = measurementRunViewController.reset()
@@ -3074,7 +3077,7 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
             localServerHost: runtimeSnapshot.msakLocalServerHost,
             localServerSecure: runtimeSnapshot.msakLocalServerSecure
         )
-        IosPhase3SequenceSyncHarness().runAsync(
+        activeMeasurementRun = IosPhase3SequenceSyncHarness().runAsync(
             msakConfig: config,
             supabaseUrl: runtimeSnapshot.supabaseUrl,
             supabaseApiKey: runtimeSnapshot.supabaseApiKey,
@@ -3264,6 +3267,39 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
     /// Counted rather than a plain flag so overlapping starts cannot leave the
     /// screen pinned awake, which would drain the battery of a phone left in a
     /// pocket. Paired strictly with `endMeasurementWakeGuard`.
+    /// Cancels a running measurement if the app leaves the foreground.
+    ///
+    /// iOS cannot keep a measurement running in the background, and a
+    /// half-finished run is worse than none: it would carry real-looking
+    /// numbers for a window that was never measured. Cancelling discards it
+    /// instead.
+    ///
+    /// A user-cancelled run is deliberately NOT submitted as a failed test.
+    /// Backgrounding the app is evidence about the user, not the network, and
+    /// submitting it would seed a coverage dataset with behavioural noise that
+    /// reads as poor coverage. Tests that genuinely degrade are still recorded
+    /// with success_flag=false.
+    private func startWatchingForInterruption() {
+        stopWatchingForInterruption()
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main,
+        ) { [weak self] _ in
+            guard let self, let run = self.activeMeasurementRun, run.isRunning else { return }
+            NSLog("[iosTestApp] app backgrounded during a measurement; cancelling the run")
+            run.cancel()
+        }
+    }
+
+    private func stopWatchingForInterruption() {
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+        }
+        interruptionObserver = nil
+        activeMeasurementRun = nil
+    }
+
     private func beginMeasurementWakeGuard() {
         measurementWakeGuardDepth += 1
         UIApplication.shared.isIdleTimerDisabled = true
