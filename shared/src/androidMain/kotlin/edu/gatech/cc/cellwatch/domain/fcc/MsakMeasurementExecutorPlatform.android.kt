@@ -42,8 +42,14 @@ actual object MsakMeasurementExecutorPlatform {
                     groupId = groupId,
                     type = "latency",
                     timestamp = now,
-                    duration = config.latencyDurationMs * 1_000,
-                    success = MeasurementResultPolicy.latencyResultSuccess(summary.received),
+                    // Measured window, not the requested one: termination is driven
+                    // by observed server silence, so the real window varies.
+                    duration = summary.measuredDurationMs * 1_000,
+                    success = MeasurementResultPolicy.latencyResultSuccess(
+                        packetsReceived = summary.received,
+                        measuredDurationMs = summary.measuredDurationMs,
+                        requestedDurationMs = config.latencyDurationMs,
+                    ),
                     // Left null deliberately: the real values come from the
                     // capability snapshot via MeasurementCapabilityEnricher,
                     // which fills only absent fields. Hardcoding CELLULAR here
@@ -101,8 +107,12 @@ actual object MsakMeasurementExecutorPlatform {
                     groupId = groupId,
                     type = prefix,
                     timestamp = now,
-                    duration = config.throughputDurationMs * 1_000,
-                    success = MeasurementResultPolicy.throughputResultSuccess(bytesPerSec),
+                    duration = summary.measuredDurationMs * 1_000,
+                    success = MeasurementResultPolicy.throughputResultSuccess(
+                        activeBytesPerSec = bytesPerSec,
+                        measuredDurationMs = summary.measuredDurationMs,
+                        requestedDurationMs = config.throughputDurationMs,
+                    ),
                     // Left null deliberately: the real values come from the
                     // capability snapshot via MeasurementCapabilityEnricher,
                     // which fills only absent fields. Hardcoding CELLULAR here
@@ -117,7 +127,7 @@ actual object MsakMeasurementExecutorPlatform {
                         measurementId = id,
                         warmupDuration = summary.warmupDurationMs * 1_000,
                         warmupBytes = summary.warmupBytesTransferred,
-                        duration = config.throughputDurationMs * 1_000,
+                        duration = summary.measuredDurationMs * 1_000,
                         bytes = summary.appBytesTotal,
                         bytesPerSec = bytesPerSec,
                         servers = listOf(server.machine),
