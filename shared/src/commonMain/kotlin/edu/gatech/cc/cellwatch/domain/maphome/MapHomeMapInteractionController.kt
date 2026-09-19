@@ -22,6 +22,15 @@ data class MapHomeMapInteractionState(
  * - selection semantics
  * consistent across platforms.
  */
+/**
+ * Legacy direct-access controller. **Product screens must not use this** - they
+ * use [MapHomeViewModel], which is the screen's single entry point (Rule 1 in
+ * APP_LAYER_ARCHITECTURE_CONTRACT.md).
+ *
+ * Still public only because the test harnesses construct it directly, and those
+ * are deliberately left alone. It is not duplicated logic: [MapHomeViewModel]
+ * wraps this same instance rather than reimplementing it.
+ */
 class MapHomeMapInteractionController(
     private val minHexGridZoom: Double = 12.0,
 ) {
