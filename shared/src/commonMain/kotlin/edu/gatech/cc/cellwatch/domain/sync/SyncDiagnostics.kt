@@ -97,7 +97,7 @@ private fun Throwable.toSyncErrorSample(
             .mapNotNull { throwable ->
                 val type = throwable::class.qualifiedName ?: throwable::class.simpleName
                 val message = throwable.message
-                if (message.isNullOrBlank()) type else "$type: $message"
+                if (message.isNullOrBlank()) type else "$type: ${message.redactSecrets()}"
             }
             .toList()
     } else {
@@ -107,9 +107,9 @@ private fun Throwable.toSyncErrorSample(
         category = category,
         contextId = contextId,
         exceptionType = this::class.qualifiedName ?: this::class.simpleName.orEmpty(),
-        message = message,
+        message = message.redactSecrets(),
         rootCauseType = root::class.qualifiedName ?: root::class.simpleName,
-        rootCauseMessage = root.message,
+        rootCauseMessage = root.message.redactSecrets(),
         upstreamChain = chain,
     )
 }
@@ -135,3 +135,24 @@ fun SyncErrorSummary.renderForStatus(): String {
     }
     return "$header $renderedSamples"
 }
+
+/**
+ * Strips credentials out of an exception message before it is sampled.
+ *
+ * Supabase's REST exceptions embed the full request, headers included, so an
+ * error message carries the device secret, the bearer token and the api key
+ * verbatim. These samples are logged and shown in status text, so without this
+ * a single failed upload writes the device's credentials to the console.
+ */
+internal fun String?.redactSecrets(): String? {
+    if (this == null) return null
+    // The whole header block goes: it is all credential material plus noise,
+    // and the useful part of these messages is the text before it.
+    val withoutHeaders = HEADER_BLOCK.replace(this, "Headers: [redacted]")
+    return BEARER_OR_JWT.replace(withoutHeaders, "[redacted]")
+}
+
+private val HEADER_BLOCK = Regex("""Headers: \[.*?\](?=\s|$)""", RegexOption.DOT_MATCHES_ALL)
+
+/** Bare JWTs and device secrets that appear outside the header block. */
+private val BEARER_OR_JWT = Regex("""eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+""")

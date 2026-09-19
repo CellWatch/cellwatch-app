@@ -36,6 +36,32 @@ val buildConfigLocalSupabaseApiKey = readCellwatchProperty(
         defaultValue = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0",
     ),
 )
+/**
+ * Which Supabase a debug build talks to. Hosted testing by default, so a debug
+ * build does not need a docker stack running on the developer's machine to
+ * sync, and an emulator or handset reaches it identically. Set
+ * CELLWATCH_DEBUG_SUPABASE_MODE=LOCAL to go back to local docker.
+ */
+val debugSupabaseMode = readCellwatchProperty("CELLWATCH_DEBUG_SUPABASE_MODE", "TESTING").uppercase()
+val debugSupabaseIsLocal = debugSupabaseMode == "LOCAL"
+val debugSupabaseUrl = if (debugSupabaseIsLocal) {
+    buildConfigLocalSupabaseUrl
+} else {
+    readCellwatchProperty("SUPABASE_TESTING_URL")
+}
+val debugSupabaseApiKey = if (debugSupabaseIsLocal) {
+    buildConfigLocalSupabaseApiKey
+} else {
+    readCellwatchProperty("SUPABASE_TESTING_API_KEY")
+}
+// Fails at configuration time rather than baking an empty endpoint into
+// BuildConfig, which previously surfaced only as a runtime sync failure.
+require(debugSupabaseUrl.isNotBlank() && debugSupabaseApiKey.isNotBlank()) {
+    "Debug Supabase mode $debugSupabaseMode needs SUPABASE_TESTING_URL and " +
+        "SUPABASE_TESTING_API_KEY in cellwatch.properties, or set " +
+        "CELLWATCH_DEBUG_SUPABASE_MODE=LOCAL."
+}
+
 val buildConfigSyncDiagnosticsLevel = readCellwatchProperty(
     name = "CELLWATCH_SYNC_DIAGNOSTICS_LEVEL",
     defaultValue = "BASIC",
@@ -92,15 +118,15 @@ android {
     buildTypes {
         getByName("debug") {
             buildConfigField("String", "CELLWATCH_DEFAULT_MSAK_MODE", "\"LOCAL\"")
-            buildConfigField("String", "CELLWATCH_DEFAULT_SUPABASE_MODE", "\"LOCAL\"")
-            buildConfigField("boolean", "CELLWATCH_ALLOW_REMOTE_SUPABASE", "false")
+            buildConfigField("String", "CELLWATCH_DEFAULT_SUPABASE_MODE", toBuildConfigString(debugSupabaseMode))
+            buildConfigField("boolean", "CELLWATCH_ALLOW_REMOTE_SUPABASE", (!debugSupabaseIsLocal).toString())
             buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_URL", toBuildConfigString(buildConfigLocalSupabaseUrl))
             buildConfigField("String", "CELLWATCH_LOCAL_SUPABASE_API_KEY", toBuildConfigString(buildConfigLocalSupabaseApiKey))
             buildConfigField("boolean", "CELLWATCH_ALLOW_LIVE_SUPABASE", "false")
             buildConfigField("String", "CELLWATCH_TCP_TUPLE_URL", toBuildConfigString(readCellwatchProperty("TCP_TUPLE_URL")))
-            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_MODE", "\"LOCAL\"")
-            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_URL", toBuildConfigString(buildConfigLocalSupabaseUrl))
-            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_API_KEY", toBuildConfigString(buildConfigLocalSupabaseApiKey))
+            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_MODE", toBuildConfigString(debugSupabaseMode))
+            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_URL", toBuildConfigString(debugSupabaseUrl))
+            buildConfigField("String", "CELLWATCH_PACKAGED_SUPABASE_API_KEY", toBuildConfigString(debugSupabaseApiKey))
         }
         getByName("release") {
             buildConfigField("String", "CELLWATCH_DEFAULT_MSAK_MODE", "\"PUBLIC\"")

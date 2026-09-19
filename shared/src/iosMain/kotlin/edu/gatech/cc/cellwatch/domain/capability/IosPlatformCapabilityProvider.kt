@@ -7,6 +7,8 @@ import edu.gatech.cc.cellwatch.domain.model.Location
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.toKotlinInstant
 import platform.CoreLocation.CLLocationManager
 import platform.CoreLocation.kCLAuthorizationStatusAuthorizedAlways
 import platform.CoreLocation.kCLAuthorizationStatusAuthorizedWhenInUse
@@ -38,10 +40,11 @@ class IosPlatformCapabilityProvider(
 ) : PlatformCapabilityProvider {
     override suspend fun captureSnapshot(): PlatformCapabilitySnapshot {
         val device = UIDevice.currentDevice
-        val locationSnapshot = captureLocationSnapshot()
+        val capturedAt = clock.now()
+        val locationSnapshot = captureLocationSnapshot(capturedAt)
         val telephonySnapshot = captureTelephonySnapshot()
         return PlatformCapabilitySnapshot(
-            capturedAt = clock.now(),
+            capturedAt = capturedAt,
             telephony = telephonySnapshot,
             network = captureNetworkSnapshot(),
             location = locationSnapshot,
@@ -127,7 +130,7 @@ class IosPlatformCapabilityProvider(
         private var notificationObserver: NSObjectProtocol? = null
 
         override suspend fun start() {
-            runCatching { locations += captureLocationSnapshot().samples }
+            runCatching { locations += captureLocationSnapshot(clock.now()).samples }
             sampleRadio()
             notificationObserver = NSNotificationCenter.defaultCenter.addObserverForName(
                 name = CTServiceRadioAccessTechnologyDidChangeNotification,
@@ -140,7 +143,7 @@ class IosPlatformCapabilityProvider(
             notificationObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
             notificationObserver = null
             sampleRadio()
-            runCatching { locations += captureLocationSnapshot().samples }
+            runCatching { locations += captureLocationSnapshot(clock.now()).samples }
             return MeasurementObservation(
                 cells = cells.toList(),
                 generations = generations.toList(),
@@ -206,7 +209,7 @@ class IosPlatformCapabilityProvider(
         }
     }
 
-    private fun captureLocationSnapshot(): LocationCapabilitySnapshot {
+    private fun captureLocationSnapshot(capturedAt: Instant): LocationCapabilitySnapshot {
         if (!CLLocationManager.locationServicesEnabled()) {
             return LocationCapabilitySnapshot(
                 support = CapabilitySupport.UNAVAILABLE,
@@ -229,7 +232,12 @@ class IosPlatformCapabilityProvider(
                 val location = manager.location
                 val latest = sample ?: location?.coordinate?.useContents {
                     IosLocationSample(
-                        timestamp = null,
+                        // CLLocation's own fix time. This was null, and
+                        // `locations.timestamp` is NOT NULL server-side, so
+                        // every iOS measurement carrying a location was
+                        // rejected by insert_measurement - silently, because a
+                        // failed upload only ever showed as "Pending sync".
+                        timestamp = location.timestamp.toKotlinInstant(),
                         lat = latitude,
                         lon = longitude,
                         accuracy = location.horizontalAccuracy.takeIf { it >= 0.0 },
@@ -248,7 +256,11 @@ class IosPlatformCapabilityProvider(
                         support = CapabilitySupport.PARTIAL,
                         samples = listOf(
                             Location(
-                                timestamp = latest.timestamp,
+                                // Falls back to the capture time rather than
+                                // staying null: a location row the server will
+                                // reject is worse than one with an approximate
+                                // time, and the bridge sample may not carry one.
+                                timestamp = latest.timestamp ?: capturedAt,
                                 lat = latest.lat,
                                 lon = latest.lon,
                                 accuracy = latest.accuracy,

@@ -32,10 +32,14 @@ targets:
         TARGETED_DEVICE_FAMILY: 1
       configs:
         Debug:
+          # Hosted testing Supabase, not local docker: a debug build should not
+          # need a container stack running on the developer's Mac to sync, and
+          # a simulator or tethered device reaches the hosted one identically.
+          # Override per build with CELLWATCH_DEFAULT_SUPABASE_MODE=LOCAL.
           CELLWATCH_DISABLE_SUPABASE_SYNC: NO
-          CELLWATCH_ALLOW_REMOTE_SUPABASE: NO
+          CELLWATCH_ALLOW_REMOTE_SUPABASE: YES
           CELLWATCH_DEFAULT_MSAK_MODE: LOCAL
-          CELLWATCH_DEFAULT_SUPABASE_MODE: LOCAL
+          CELLWATCH_DEFAULT_SUPABASE_MODE: TESTING
         Release:
           CELLWATCH_DISABLE_SUPABASE_SYNC: NO
           CELLWATCH_ALLOW_REMOTE_SUPABASE: YES
