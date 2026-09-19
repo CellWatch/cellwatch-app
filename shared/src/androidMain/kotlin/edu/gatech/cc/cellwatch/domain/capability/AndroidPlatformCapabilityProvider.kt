@@ -4,7 +4,11 @@ import android.annotation.SuppressLint
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Location as AndroidLocation
+import android.location.LocationListener
 import android.location.LocationManager
+import android.os.CancellationSignal
+import android.os.Looper
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
@@ -27,6 +31,10 @@ import android.telephony.PhoneStateListener
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import edu.gatech.cc.cellwatch.core.util.SharedLog
+import java.util.concurrent.Executors
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import edu.gatech.cc.cellwatch.domain.model.Cell
 import edu.gatech.cc.cellwatch.domain.model.Location
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
@@ -226,7 +234,7 @@ class AndroidPlatformCapabilityProvider(
     }
 
     @SuppressLint("MissingPermission")
-    private fun captureLocation(capturedAt: Instant): LocationCapabilitySnapshot {
+    private suspend fun captureLocation(capturedAt: Instant): LocationCapabilitySnapshot {
         val hasFine = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
         val hasCoarse = hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
         if (!hasFine && !hasCoarse) {
@@ -272,7 +280,18 @@ class AndroidPlatformCapabilityProvider(
             )
         }
 
-        val sample = providers
+        // Ask for a fix rather than only reading the cache.
+        //
+        // This used to call getLastKnownLocation alone, which returns whatever
+        // fix the system happens to be holding - on a device that has not
+        // located itself recently that is stale by hours and kilometres, or
+        // null. Every measurement was then stamped with it. It also meant
+        // nothing in the process ever subscribed to location, so on an emulator
+        // an injected `geo fix` was discarded and the boot-time fix persisted,
+        // which is how simulated GPS appeared not to work at all.
+        val freshSample = requestCurrentLocation(locationManager, providers)
+
+        val sample = freshSample ?: providers
             .asSequence()
             .mapNotNull { provider ->
                 runCatching { locationManager.getLastKnownLocation(provider) }.getOrNull()
@@ -282,15 +301,22 @@ class AndroidPlatformCapabilityProvider(
         if (sample == null) {
             return LocationCapabilitySnapshot(
                 support = CapabilitySupport.PARTIAL,
-                note = "location permission granted but no last known location sample available",
+                note = "location permission granted but no location fix available",
             )
         }
+
+        // The fix's own time, not the capture time. Stamping a six-hour-old fix
+        // with "now" made a stale location indistinguishable from a current
+        // one, which for challenge data is the difference between a valid
+        // measurement and one attributed to the wrong place.
+        val fixedAt = Instant.fromEpochMilliseconds(sample.time)
+        val ageMs = capturedAt.toEpochMilliseconds() - sample.time
 
         return LocationCapabilitySnapshot(
             support = CapabilitySupport.PARTIAL,
             samples = listOf(
                 Location(
-                    timestamp = capturedAt,
+                    timestamp = fixedAt,
                     lat = sample.latitude,
                     lon = sample.longitude,
                     accuracy = sample.accuracy.toDouble(),
@@ -305,8 +331,66 @@ class AndroidPlatformCapabilityProvider(
                     updatedOn = capturedAt,
                 ),
             ),
-            note = "best-effort Android last known location snapshot",
+            note = if (freshSample != null) {
+                "Android location fix requested at capture time"
+            } else {
+                "Android last known location, ${ageMs}ms old at capture"
+            },
         )
+    }
+
+    /**
+     * A current fix, or null if none arrives within [LOCATION_FIX_TIMEOUT_MS].
+     *
+     * Bounded because a measurement must not stall waiting for GPS indoors; the
+     * caller falls back to the last known fix and records how old it was.
+     */
+    @SuppressLint("MissingPermission")
+    private suspend fun requestCurrentLocation(
+        locationManager: LocationManager,
+        providers: List<String>,
+    ): AndroidLocation? {
+        val provider = providers.firstOrNull { provider ->
+            runCatching { locationManager.isProviderEnabled(provider) }.getOrDefault(false)
+        } ?: return null
+
+        return withTimeoutOrNull(LOCATION_FIX_TIMEOUT_MS) {
+            suspendCancellableCoroutine { continuation ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val signal = CancellationSignal()
+                    continuation.invokeOnCancellation { signal.cancel() }
+                    runCatching {
+                        locationManager.getCurrentLocation(
+                            provider,
+                            signal,
+                            Executors.newSingleThreadExecutor(),
+                        ) { location -> if (continuation.isActive) continuation.resume(location) }
+                    }.onFailure { if (continuation.isActive) continuation.resume(null) }
+                } else {
+                    val listener = object : LocationListener {
+                        override fun onLocationChanged(location: AndroidLocation) {
+                            locationManager.removeUpdates(this)
+                            if (continuation.isActive) continuation.resume(location)
+                        }
+
+                        // Required on API 26-28; omitting them throws there.
+                        override fun onStatusChanged(p: String?, s: Int, e: android.os.Bundle?) = Unit
+                        override fun onProviderEnabled(p: String) = Unit
+                        override fun onProviderDisabled(p: String) = Unit
+                    }
+                    continuation.invokeOnCancellation { locationManager.removeUpdates(listener) }
+                    runCatching {
+                        locationManager.requestLocationUpdates(
+                            provider,
+                            0L,
+                            0f,
+                            listener,
+                            Looper.getMainLooper(),
+                        )
+                    }.onFailure { if (continuation.isActive) continuation.resume(null) }
+                }
+            }
+        }
     }
 
     private fun hasPermission(permission: String): Boolean {
@@ -445,6 +529,14 @@ class AndroidPlatformCapabilityProvider(
             createdOn = capturedAt,
             updatedOn = capturedAt,
         )
+    }
+
+    private companion object {
+        /**
+         * Short enough that a measurement is not held up indoors, long enough
+         * for a warm GPS or network fix.
+         */
+        const val LOCATION_FIX_TIMEOUT_MS = 4_000L
     }
 }
 
