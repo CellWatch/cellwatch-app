@@ -55,7 +55,7 @@ No screen work until these land; they are what makes screen work reusable.
 | Task | Detail | Status |
 |---|---|---|
 | 0.1 | Record the reconciliation above | done |
-| 0.2 | Shared `Destination` + router, extending `AppLaunchRoutingUseCase` to the full graph (Rule 2) | todo |
+| 0.2 | Shared `Destination` + `Navigator`, extending `AppLaunchRoutingUseCase` to the full graph (Rule 2) | **done** — 8 destinations, back stack, 7 tests; not yet adopted by either platform (that lands with each screen in Phase 1) |
 | 0.3 | Component inventory, iOS: 9 baseline components + screen template + spacing scale (Rule 3) | todo |
 | 0.4 | Component inventory, Android: same 9, same template | todo |
 | 0.5 | Collapse presentation roles to `ViewModel` + `UiState` (Rule 1): `measurementstart` 5→1, `maphome` 3→1, rename `*ViewController` | todo |
@@ -96,15 +96,22 @@ Every screen in Phases 1 and 2 follows the same loop. This is the part that was 
 3. **Compose the view from inventory components** on each platform; extend the inventory rather
    than inlining (Rule 3).
 4. **Wire into the navigation graph** so it is reachable from launch (Rule 4.5).
-5. **Run on the iOS 17.5 simulator** (iPhone 15 Pro, `B2875856-6CE2-40C6-896D-134FAA277283`):
-   screenshot, review against the screen template, drive at least one interaction end to end
-   (Rule 4.7).
+5. **Run on both emulators**: iOS 17.5 simulator (iPhone 15 Pro,
+   `B2875856-6CE2-40C6-896D-134FAA277283`) and the Android AVD `Medium_Phone_API_36`, chosen
+   because API 36 exercises the `TelephonyCallback` path rather than the deprecated
+   `PhoneStateListener` fallback. Screenshot each, review against the screen template, and drive
+   at least one interaction end to end (Rule 4.7).
 6. **Run the suites** — `:shared:verifyLightweightPlatforms` and `:androidTestApp:testDebugUnitTest`.
 7. **Update the status table** in this document and commit.
 
-Android has no simulator loop here by choice: it has never run on hardware either
-(`OUTSTANDING_WORK.md` item 2), so Android verification is batched into a device session rather
-than pretended at.
+Android runs the same loop on an emulator. There is no physical Android device available, so
+the emulator is the verification surface rather than a stand-in for one. Step 5 therefore runs
+twice per screen, once per platform.
+
+What an emulator cannot show still stands unverified and is tracked in `OUTSTANDING_WORK.md`:
+no radio means no cells, no generation change, and no cellular gate. That limits *measurement*
+verification, not UI verification - layout, navigation and interaction are fully testable on
+both.
 
 ## Layout decisions — how they get made
 
