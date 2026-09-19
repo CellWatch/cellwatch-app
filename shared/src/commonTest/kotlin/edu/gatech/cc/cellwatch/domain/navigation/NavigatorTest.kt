@@ -24,9 +24,9 @@ class NavigatorTest {
         val nav = Navigator(Destination.MapHome)
 
         nav.goTo(Destination.MeasurementStart)
-        nav.goTo(Destination.MeasurementRun)
+        nav.goTo(Destination.MeasurementRun())
         assertEquals(
-            listOf(Destination.MapHome, Destination.MeasurementStart, Destination.MeasurementRun),
+            listOf(Destination.MapHome, Destination.MeasurementStart, Destination.MeasurementRun()),
             nav.backStack,
         )
 

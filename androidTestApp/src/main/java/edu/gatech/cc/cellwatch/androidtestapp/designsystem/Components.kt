@@ -82,24 +82,34 @@ object Components {
 
     /** Label left, value right. Results and history are mostly these. */
     fun metricRow(context: Context, label: String, value: String): View =
-        LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+        MetricRowView(context, label).apply { update(value) }
 
+    /**
+     * Stateful [metricRow]: latency, download and upload each land at a
+     * different point in a run, so the values are filled in as they arrive.
+     */
+    class MetricRowView(context: Context, label: String) : LinearLayout(context) {
+        private val value = TextView(context).apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, Theme.TextSize.METRIC)
+            setTextColor(Theme.Palette.TEXT_PRIMARY)
+            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+            gravity = Gravity.END
+        }
+
+        init {
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
             addView(
                 bodyText(context, label, muted = true),
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+                LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
             )
-            addView(
-                TextView(context).apply {
-                    text = value
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, Theme.TextSize.METRIC)
-                    setTextColor(Theme.Palette.TEXT_PRIMARY)
-                    typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-                    gravity = Gravity.END
-                },
-            )
+            addView(value)
         }
+
+        fun update(text: String) {
+            value.text = text
+        }
+    }
 
     enum class StatusTone(val accent: Int) {
         NEUTRAL(Theme.Palette.BLUE_LIGHT),
@@ -109,31 +119,44 @@ object Components {
 
     /** Boxed message: sync state, validation results, warnings. */
     fun statusCard(context: Context, text: String, tone: StatusTone = StatusTone.NEUTRAL): View =
-        LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
+        StatusCardView(context).apply { update(text, tone) }
+
+    /**
+     * Stateful [statusCard]. A measurement run rewrites both its message and
+     * its tone as the run progresses, so the card has to be updatable in place.
+     */
+    class StatusCardView(context: Context) : LinearLayout(context) {
+        private val accent = View(context)
+        private val message = bodyText(context, "")
+
+        init {
+            orientation = HORIZONTAL
             background = GradientDrawable().apply {
                 setColor(Theme.Palette.SURFACE)
                 cornerRadius = context.dp(Theme.Radius.CARD).toFloat()
                 setStroke(context.dp(1), Theme.Palette.BORDER)
             }
             setPadding(context.dp(Theme.Space.M), context.dp(Theme.Space.M), context.dp(Theme.Space.M), context.dp(Theme.Space.M))
-
             addView(
-                View(context).apply {
-                    background = GradientDrawable().apply {
-                        setColor(tone.accent)
-                        cornerRadius = context.dp(2).toFloat()
-                    }
-                },
-                LinearLayout.LayoutParams(context.dp(Theme.Space.XS), ViewGroup.LayoutParams.MATCH_PARENT),
+                accent,
+                LayoutParams(context.dp(Theme.Space.XS), ViewGroup.LayoutParams.MATCH_PARENT),
             )
             addView(
-                bodyText(context, text),
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                message,
+                LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
                     marginStart = context.dp(Theme.Space.M)
                 },
             )
         }
+
+        fun update(text: String, tone: StatusTone) {
+            message.text = text
+            accent.background = GradientDrawable().apply {
+                setColor(tone.accent)
+                cornerRadius = context.dp(2).toFloat()
+            }
+        }
+    }
 
     // MARK: Input
 
@@ -156,21 +179,40 @@ object Components {
     // MARK: State
 
     fun progressHeader(context: Context, title: String, progressPercent: Int): View =
-        LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(sectionHeader(context, title))
+        ProgressHeaderView(context).apply { update(title, progressPercent) }
+
+    /**
+     * Title over a determinate bar.
+     *
+     * A view rather than a build-once function because a measurement run
+     * updates both on every stage. The alternative - rebuilding the component
+     * per state - would either flicker or tempt the screen into hand-rolling
+     * its own header, which is how the inventory gets bypassed.
+     */
+    class ProgressHeaderView(context: Context) : LinearLayout(context) {
+        private val title = sectionHeader(context, "")
+        private val bar = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            progressTintList = android.content.res.ColorStateList.valueOf(Theme.Palette.PRIMARY)
+        }
+
+        init {
+            orientation = VERTICAL
+            addView(title)
             addView(
-                ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
-                    max = 100
-                    progress = progressPercent
-                    progressTintList = android.content.res.ColorStateList.valueOf(Theme.Palette.PRIMARY)
-                },
-                LinearLayout.LayoutParams(
+                bar,
+                LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 ).apply { topMargin = context.dp(Theme.Space.S) },
             )
         }
+
+        fun update(text: String, progressPercent: Int) {
+            title.text = text
+            bar.progress = progressPercent
+        }
+    }
 
     /** Shown instead of an empty list; a blank screen reads as a bug. */
     fun emptyState(context: Context, message: String): View =

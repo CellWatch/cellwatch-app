@@ -19,7 +19,14 @@ sealed interface Destination {
     data object Onboarding : Destination
     data object MapHome : Destination
     data object MeasurementStart : Destination
-    data object MeasurementRun : Destination
+    /**
+     * Carries the in-vehicle answer collected on [MeasurementStart].
+     *
+     * On the destination rather than in a shared mutable holder: the flag is
+     * part of the measurement being started, and a holder would let a second
+     * run inherit the first one's answer.
+     */
+    data class MeasurementRun(val inVehicle: Boolean = false) : Destination
     data object History : Destination
     data object Settings : Destination
     data object Export : Destination

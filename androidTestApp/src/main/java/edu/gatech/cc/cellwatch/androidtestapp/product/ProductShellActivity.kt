@@ -10,6 +10,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.onboarding.AndroidOnboardingProfil
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingInput
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingUseCase
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunViewModel
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartViewModel
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeViewModel
@@ -38,6 +39,14 @@ class ProductShellActivity : AppCompatActivity() {
     private lateinit var navigator: Navigator
     private val mapHomeViewModel = MapHomeViewModel(minHexGridZoom = 0.0)
     private var mapHomeScreen: MapHomeScreen? = null
+    private var measurementRunScreen: MeasurementRunScreen? = null
+
+    /**
+     * Resolved once. A failure here means the build has no usable runtime
+     * configuration, which is a blocking error rather than something a screen
+     * can retry past.
+     */
+    private val container by lazy { AndroidProductContainer.resolve(applicationContext) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,7 +55,10 @@ class ProductShellActivity : AppCompatActivity() {
         val decision = AppLaunchRoutingUseCase().resolve(
             AppLaunchRoutingInput(
                 onboardingComplete = store.loadProfile()?.onboardingComplete == true,
-                runtimeProfileReady = true,
+                // Previously hardcoded true, which meant a build with no usable
+                // runtime configuration still offered a Measure button that
+                // could only fail once a measurement was under way.
+                runtimeProfileReady = container.isSuccess,
             ),
         )
         navigator = Navigator(decision.toDestination())
@@ -81,6 +93,8 @@ class ProductShellActivity : AppCompatActivity() {
     override fun onDestroy() {
         mapHomeScreen?.onDestroy()
         mapHomeScreen = null
+        measurementRunScreen?.onDestroy()
+        measurementRunScreen = null
         super.onDestroy()
     }
 
@@ -90,6 +104,13 @@ class ProductShellActivity : AppCompatActivity() {
             // The map view holds native resources; drop it when leaving.
             mapHomeScreen?.onDestroy()
             mapHomeScreen = null
+        }
+        if (destination !is Destination.MeasurementRun) {
+            // Leaving the run screen cancels the run: there is no foreground
+            // service, so a measurement the user navigated away from would
+            // produce partial data at best.
+            measurementRunScreen?.onDestroy()
+            measurementRunScreen = null
         }
         title = label(destination)
         supportActionBar?.setDisplayHomeAsUpEnabled(navigator.canGoBack)
@@ -131,8 +152,29 @@ class ProductShellActivity : AppCompatActivity() {
         is Destination.MeasurementStart -> MeasurementStartScreen(
             context = this,
             viewModel = MeasurementStartViewModel(CollectionMode.FCC_CHALLENGE),
-            onReadyToRun = { goTo(Destination.MeasurementRun) },
+            onReadyToRun = { inVehicle -> goTo(Destination.MeasurementRun(inVehicle)) },
         ).view
+
+        is Destination.MeasurementRun -> container.fold(
+            onSuccess = { productContainer ->
+                MeasurementRunScreen(
+                    context = this,
+                    viewModel = MeasurementRunViewModel(
+                        container = productContainer,
+                        mode = CollectionMode.FCC_CHALLENGE,
+                        inVehicle = destination.inVehicle,
+                    ),
+                    onDone = { resetTo(Destination.MapHome) },
+                    onMeasureAgain = { resetTo(Destination.MeasurementStart) },
+                ).also { measurementRunScreen = it }.view
+            },
+            onFailure = { error ->
+                placeholder(
+                    "Measurement is unavailable: ${error.message}",
+                    Components.StatusTone.WARNING,
+                )
+            },
+        )
 
         is Destination.BlockingError -> placeholder(destination.reason, Components.StatusTone.WARNING)
 
