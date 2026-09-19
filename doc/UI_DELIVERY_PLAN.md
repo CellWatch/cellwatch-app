@@ -90,10 +90,45 @@ before the next begins. No parallel screens — that is how duplication got in.
 | Task | Screen | Story | Status |
 |---|---|---|---|
 | 1.1 | Onboarding / profile | 1 | **done both platforms** — shared VM adopted unchanged, composed from inventory, reachable at launch, interaction driven on iOS 17.5 sim and `Medium_Phone_API_36` |
-| 1.2 | Map home (shell entry) | 2, 12 | todo |
+| 1.2a | Map home shell — map as base layer, actions, sync status, `maphome` 3→1, pin fix | 2 | todo |
+| 1.2b | Hex grid overlay — needs an approach decision, see below | 12 | **blocked on a decision** |
 | 1.3 | Start measurement | 3 | todo |
 | 1.4 | Measurement run progress | 4 | todo |
 | 1.5 | Results | 5, 6 | todo |
+
+### Why the map overlays never rendered
+
+Investigated 2026-09-19, because the hex grid and pins were reported as never having worked.
+They are two separate problems of very different size.
+
+**Pins — a small fix.** The annotations are built and handed to a `PointAnnotationManager`
+correctly, but they set `iconImage = "marker-15"` (and `"circle-15"` for hex). Those are Maki
+icon names, and in Mapbox Maps v11 an `iconImage` must name an image registered **in the style**.
+The app makes **zero `addImage` calls** and sets no explicit style URI, so it gets v11's default
+Standard style, which does not expose Maki icons as addressable images. The icon resolves to
+nothing and the annotation draws nothing — a base map with no pins, exactly as observed. The fix
+is to register an image and reference its id, or use v11's `annotation.image`. Folded into 1.2a.
+
+**Hex grid — considerable, and needs a decision.** Three things compound:
+
+1. `MapHomeHexCellFeature` carries only `id`, `centerLatitude`, `centerLongitude` and
+   `measurementCount`. There is **no boundary geometry**, so nothing downstream can draw a
+   hexagon.
+2. Both platforms render hex cells as *point* annotations with a circle icon. Even with the icon
+   fixed, that yields dots, not a grid.
+3. frozenApp computed boundaries with `com.uber.h3core.H3Core`. That library is **JVM-only** and
+   declared in `libs.versions.toml` for `frozenApp` alone; it cannot be used from Kotlin/Native,
+   so there is no cross-platform H3 today.
+
+Options, in ascending cost:
+
+| | Approach | Consequence |
+|---|---|---|
+| A | **Mapbox native clustering** instead of H3 | No H3 at all; Mapbox aggregates points into counted clusters natively on both platforms. Achieves the user-facing goal — "how many measurements around here" — with a different visual language from frozenApp. |
+| B | H3 on Android, degrade iOS to clustering or points | Keeps frozenApp's look where it is cheap, but the platforms then show different maps, which cuts against the comparability argument made for item 4. |
+| C | Cross-platform H3 in `commonMain` | Matches frozenApp exactly on both. Means porting or binding H3 for Kotlin/Native — the largest piece of work in this plan by some margin. |
+
+Not decided. 1.2a does not depend on it.
 
 ## Phase 2 — Remaining stories
 
