@@ -18,6 +18,7 @@ final class ScreenScaffold: UIView {
     private let contentStack = UIStackView()
     private let actionStack = UIStackView()
     private let scrollView = UIScrollView()
+    private var scrollBottomWithoutActions: NSLayoutConstraint?
 
     init() {
         super.init(frame: .zero)
@@ -34,6 +35,14 @@ final class ScreenScaffold: UIView {
         actionStack.layoutMargins = UIEdgeInsets(
             top: Theme.Space.m, left: Theme.Space.l, bottom: Theme.Space.m, right: Theme.Space.l
         )
+        // The action area is installed lazily, in addActions. An EMPTY
+        // UIStackView has no intrinsic content size, so with it always present
+        // the layout was under-constrained - nothing forced a height on either
+        // view - and on an actionless screen the solver handed the empty stack
+        // the full 818pt and crushed the scroll view to zero. That rendered a
+        // completely blank screen; screens with buttons hid it, because their
+        // buttons gave the stack a height. Content-hugging does not fix it:
+        // hugging needs an intrinsic size to hug.
 
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.alwaysBounceVertical = true
@@ -44,22 +53,19 @@ final class ScreenScaffold: UIView {
         scrollView.addSubview(contentStack)
 
         addSubview(scrollView)
-        addSubview(actionStack)
+
+        scrollBottomWithoutActions = scrollView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor)
+        scrollBottomWithoutActions?.isActive = true
 
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: actionStack.topAnchor),
 
             contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: Theme.Space.l),
             contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -Theme.Space.l),
             contentStack.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor, constant: Theme.Space.l),
             contentStack.trailingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.trailingAnchor, constant: -Theme.Space.l),
-
-            actionStack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            actionStack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            actionStack.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
         ])
     }
 
@@ -73,7 +79,20 @@ final class ScreenScaffold: UIView {
 
     /// Adds to the pinned action region. Primary action first.
     func addActions(_ views: UIView...) {
+        installActionAreaIfNeeded()
         views.forEach { actionStack.addArrangedSubview($0) }
+    }
+
+    private func installActionAreaIfNeeded() {
+        guard actionStack.superview == nil else { return }
+        addSubview(actionStack)
+        scrollBottomWithoutActions?.isActive = false
+        NSLayoutConstraint.activate([
+            actionStack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            actionStack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            actionStack.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: actionStack.topAnchor),
+        ])
     }
 
     /// Extra gap between content groups, in scale units rather than raw points.
