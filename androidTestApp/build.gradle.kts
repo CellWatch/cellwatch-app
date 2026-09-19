@@ -73,7 +73,7 @@ val releaseSupabaseApiKey = readCellwatchProperty(releaseSupabaseApiKeyKey)
 
 android {
     namespace = "edu.gatech.cc.cellwatch.androidtestapp"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "edu.gatech.cc.cellwatch.androidtestapp"
@@ -123,9 +123,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     testOptions {
@@ -204,4 +201,12 @@ dependencies {
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.espresso.core)
+}
+
+// Kotlin 2.3 removed the `kotlinOptions { jvmTarget = "17" }` shorthand; this is
+// the compilerOptions DSL replacement.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
