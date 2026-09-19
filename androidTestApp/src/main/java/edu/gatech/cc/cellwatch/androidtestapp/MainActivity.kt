@@ -102,7 +102,9 @@ import edu.gatech.cc.cellwatch.domain.settings.SettingsProfileSubmission
 import edu.gatech.cc.cellwatch.domain.settings.SettingsProfileUiState
 import edu.gatech.cc.cellwatch.domain.settings.SettingsProfileViewModel
 import edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryStatusInput
+import edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryRunSnapshot
 import edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryStatusUseCase
+import edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryViewController
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeModeUiBridge
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeOnboardingContract
@@ -315,6 +317,9 @@ class MainActivity : AppCompatActivity() {
     private val measurementRunUiPresenter = MeasurementRunUiPresenter()
     private val measurementResultReadModelUseCase = MeasurementResultReadModelUseCase()
     private val measurementHistoryStatusUseCase = MeasurementHistoryStatusUseCase()
+    private val measurementHistoryViewController = MeasurementHistoryViewController(
+        statusUseCase = measurementHistoryStatusUseCase,
+    )
     private val mapHomeViewController = MapHomeViewController()
     private val mapHomeMapInteractionController = MapHomeMapInteractionController(minHexGridZoom = 0.0)
     private val mapHomeFeatureViewController = MapHomeFeatureViewController()
@@ -2485,9 +2490,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderHistoryEntries(entries: List<HistorySnapshotEntry>, fallbackDetail: String) {
+        // Ordering, the five-row cap, the summary wording and which run is
+        // selected all come from the shared controller now. This method used to
+        // reimplement every one of them beside it, identically enough that the
+        // two were a copy - and the product History screen would have been a
+        // third. Only view construction is left here.
+        val state = measurementHistoryViewController.loadSnapshots(entries.map { it.toRunSnapshot() })
+
         measurementHistoryRunsContainer.removeAllViews()
-        val sorted = entries.sortedByDescending { it.timestampMs }.take(5)
-        if (sorted.isEmpty()) {
+        if (state.runRows.isEmpty()) {
             measurementHistoryTitle.text = "Measurement details"
             measurementRunResults.text = fallbackDetail
             measurementHistoryRunsContainer.addView(
@@ -2500,32 +2511,29 @@ class MainActivity : AppCompatActivity() {
             )
             return
         }
-        val preferredTimestamp = selectedHistoryTimestampMs ?: sorted.first().timestampMs
-        selectedHistoryTimestampMs = preferredTimestamp
-        sorted.forEachIndexed { index, entry ->
+
+        state.runRows.forEachIndexed { index, row ->
             val rowId = when (index) {
                 0 -> MEASUREMENT_HISTORY_RUN_1_ID
                 1 -> MEASUREMENT_HISTORY_RUN_2_ID
                 2 -> MEASUREMENT_HISTORY_RUN_3_ID
                 else -> View.generateViewId()
             }
-            val summary =
-                "Run ${index + 1}: ${entry.latency} latency, ${entry.download} download, ${entry.upload} upload"
-            val isSelected = entry.timestampMs == selectedHistoryTimestampMs
-            val row = Button(this).apply {
+            val button = Button(this).apply {
                 id = rowId
-                text = summary
+                text = row.summary
                 setAllCaps(false)
                 textAlignment = View.TEXT_ALIGNMENT_TEXT_START
                 textSize = 13f
                 setPadding(14, 12, 14, 12)
                 setTextColor(Color.parseColor("#0A2A43"))
                 background = roundedCard(
-                    fillColor = if (isSelected) Color.parseColor("#E8F2FC") else Color.parseColor("#FFFFFF"),
+                    fillColor = if (row.selected) Color.parseColor("#E8F2FC") else Color.parseColor("#FFFFFF"),
                     strokeColor = Color.parseColor("#C8DCEE"),
                 )
                 setOnClickListener {
-                    selectedHistoryTimestampMs = entry.timestampMs
+                    measurementHistoryViewController.selectRun(row.timestampMs)
+                    selectedHistoryTimestampMs = row.timestampMs
                     renderHistoryEntries(entries, fallbackDetail)
                 }
             }
@@ -2535,9 +2543,11 @@ class MainActivity : AppCompatActivity() {
             ).apply {
                 bottomMargin = 8
             }
-            measurementHistoryRunsContainer.addView(row, layoutParams)
+            measurementHistoryRunsContainer.addView(button, layoutParams)
         }
-        val selected = sorted.firstOrNull { it.timestampMs == selectedHistoryTimestampMs } ?: sorted.first()
+
+        val selected = state.selectedRun ?: return
+        selectedHistoryTimestampMs = selected.timestampMs
         measurementHistoryTitle.text = "Selected run"
         measurementRunResults.text =
             "Captured: ${formatHistoryTimestamp(selected.timestampMs)}\n" +
@@ -2547,6 +2557,15 @@ class MainActivity : AppCompatActivity() {
                 "Status: ${selected.uploaded}\n\n" +
                 selected.detail
     }
+
+    private fun HistorySnapshotEntry.toRunSnapshot() = MeasurementHistoryRunSnapshot(
+        timestampMs = timestampMs,
+        latency = latency,
+        download = download,
+        upload = upload,
+        uploaded = uploaded,
+        detail = detail,
+    )
 
     private fun formatHistoryTimestamp(timestampMs: Long): String {
         return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(timestampMs))

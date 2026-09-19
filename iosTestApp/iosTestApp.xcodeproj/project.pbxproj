@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		04007DC233A000135FB340F6 /* HistoryScreenViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB9A153688887E8E766B727E /* HistoryScreenViewController.swift */; };
 		0A4BFDFEE0739CD6758CFA2D /* KeychainIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CB69DDD6F009793C304363 /* KeychainIntegrationTests.swift */; };
 		1C3A365CD8DD93B859389C34 /* ComponentGalleryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7235E6B95B6E13A80186856 /* ComponentGalleryViewController.swift */; };
 		276A194FAB9B4C58802259B4 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6928C5C59275F28B9FA849D3 /* Components.swift */; };
@@ -109,6 +110,7 @@
 		D7235E6B95B6E13A80186856 /* ComponentGalleryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentGalleryViewController.swift; sourceTree = "<group>"; };
 		E7484BFCC67094A1E0163165 /* iosTestAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = iosTestAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EF61CDEBFB7F6D32D7D78061 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		FB9A153688887E8E766B727E /* HistoryScreenViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryScreenViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -176,6 +178,7 @@
 		4B7A114EDDBC67B9DABC4F71 /* Screens */ = {
 			isa = PBXGroup;
 			children = (
+				FB9A153688887E8E766B727E /* HistoryScreenViewController.swift */,
 				081DAB4987BE6AFE5AF1561B /* MapHomeScreenViewController.swift */,
 				3D8B391FB51DB81071895DB0 /* MeasurementRunScreenViewController.swift */,
 				782E33907E65E3B549EEC742 /* MeasurementStartScreenViewController.swift */,
@@ -379,6 +382,7 @@
 				481BF9FFC6A1058F6725DBF3 /* AppDelegate.swift in Sources */,
 				1C3A365CD8DD93B859389C34 /* ComponentGalleryViewController.swift in Sources */,
 				276A194FAB9B4C58802259B4 /* Components.swift in Sources */,
+				04007DC233A000135FB340F6 /* HistoryScreenViewController.swift in Sources */,
 				D7195C00C496BBE2DB7212C5 /* MapHomeScreenViewController.swift in Sources */,
 				39AA3BA9C3A12CC39DC53C9F /* MapScreenScaffold.swift in Sources */,
 				C0BA213AE78E430951A30DCA /* MeasurementRunScreenViewController.swift in Sources */,

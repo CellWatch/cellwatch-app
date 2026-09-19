@@ -86,7 +86,7 @@ Per-screen collapses owed:
 | `measurementstart` | 5 classes | `MeasurementStartViewModel` + a correctly-named preflight use case (the current `MeasurementStartPreflightViewModel` holds domain types and policy, not presentation) | 1.3 |
 | `maphome` | 3 classes | `MapHomeViewModel` wrapping them; they stay public for the harness | **done** |
 | `measurementrun` | `MeasurementRunViewController` + `MeasurementRunUiPresenter` | `MeasurementRunViewModel` | **done** |
-| `measurementhistory` | `MeasurementHistoryViewController` (orphaned) | `MeasurementHistoryViewModel`, adopted | 2.1 |
+| `measurementhistory` | `MeasurementHistoryViewController` (orphaned) | `MeasurementHistoryViewModel`, adopted | **done** |
 
 ## Phase 1 — Vertical slice
 
@@ -181,7 +181,7 @@ on both platforms, and 1.2b is now rendering work rather than a research problem
 
 | Task | Screen | Story | Status |
 |---|---|---|---|
-| 2.1 | History + sync status — delete the inline duplicate, adopt the shared class | 7, 9 | todo |
+| 2.1 | History + sync status — delete the inline duplicate, adopt the shared class | 7, 9 | **done both platforms** — product screen on the shared `MeasurementHistoryViewModel`; `MainActivity` now sources ordering, the row cap, the summary wording and selection from `MeasurementHistoryViewController` instead of reimplementing them. Run selection driven on iOS 17.5 sim and `Medium_Phone_API_36`; the harness `MeasurementHistoryFlowUiSmokeTest` still passes. |
 | 2.2 | Retry unsynced | 8 | todo |
 | 2.3 | Settings | 10 | todo |
 | 2.4 | Export | 11 | todo |

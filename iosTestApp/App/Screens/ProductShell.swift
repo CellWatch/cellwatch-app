@@ -163,6 +163,31 @@ final class ProductShell: NSObject {
                 onMeasureAgain: { [weak self] in self?.reset(to: DestinationMeasurementStart.shared) }
             )
 
+        case is DestinationHistory:
+            guard case .success(let container) = Container.result else {
+                return PlaceholderScreenViewController(
+                    titleText: "History",
+                    message: "History is unavailable: \(Container.errorText ?? "runtime configuration missing").",
+                    tone: .warning
+                )
+            }
+            return HistoryScreenViewController(
+                viewModel: MeasurementHistoryViewModel(),
+                snapshotProvider: { completion in
+                    container.historySnapshot { snapshot, _ in
+                        guard let snapshot else { return }
+                        DispatchQueue.main.async { completion(snapshot) }
+                    }
+                },
+                onRetry: { completion in
+                    container.retryPendingUploads { snapshot, _ in
+                        guard let snapshot else { return }
+                        DispatchQueue.main.async { completion(snapshot) }
+                    }
+                },
+                onBack: { [weak self] in self?.reset(to: DestinationMapHome.shared) }
+            )
+
         case let blocking as DestinationBlockingError:
             return PlaceholderScreenViewController(
                 titleText: "Cannot start",
