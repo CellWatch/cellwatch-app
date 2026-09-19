@@ -9,6 +9,8 @@ import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.onboarding.AndroidOnboardingProfileStore
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingInput
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingUseCase
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeViewModel
 import edu.gatech.cc.cellwatch.domain.navigation.Destination
 import edu.gatech.cc.cellwatch.domain.navigation.Navigator
 import edu.gatech.cc.cellwatch.domain.navigation.toDestination
@@ -32,6 +34,8 @@ import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingValidationUseCase
 class ProductShellActivity : AppCompatActivity() {
 
     private lateinit var navigator: Navigator
+    private val mapHomeViewModel = MapHomeViewModel(minHexGridZoom = 0.0)
+    private var mapHomeScreen: MapHomeScreen? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,8 +76,19 @@ class ProductShellActivity : AppCompatActivity() {
         render()
     }
 
+    override fun onDestroy() {
+        mapHomeScreen?.onDestroy()
+        mapHomeScreen = null
+        super.onDestroy()
+    }
+
     private fun render() {
         val destination = navigator.current
+        if (destination !is Destination.MapHome) {
+            // The map view holds native resources; drop it when leaving.
+            mapHomeScreen?.onDestroy()
+            mapHomeScreen = null
+        }
         title = label(destination)
         supportActionBar?.setDisplayHomeAsUpEnabled(navigator.canGoBack)
         setContentView(screen(destination))
@@ -90,6 +105,26 @@ class ProductShellActivity : AppCompatActivity() {
             // profile is saved.
             onComplete = { resetTo(Destination.MapHome) },
         ).view
+
+        is Destination.MapHome -> MapHomeScreen(
+            context = this,
+            viewModel = mapHomeViewModel,
+            inputProvider = {
+                // Counts stay zero until history is wired (task 2.1); what
+                // matters here is that a saved profile enables Measure.
+                MapHomeInput(
+                    onboardingComplete = AndroidOnboardingProfileStore(applicationContext)
+                        .loadProfile()?.onboardingComplete == true,
+                    recentRunCount = 0,
+                    pendingCountsKnown = false,
+                    pendingMeasurements = 0,
+                    pendingSubmissions = 0,
+                )
+            },
+            onMeasure = { goTo(Destination.MeasurementStart) },
+            onHistory = { goTo(Destination.History) },
+            onSettings = { goTo(Destination.Settings) },
+        ).also { mapHomeScreen = it }.view
 
         is Destination.BlockingError -> placeholder(destination.reason, Components.StatusTone.WARNING)
 

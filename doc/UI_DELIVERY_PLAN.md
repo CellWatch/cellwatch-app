@@ -97,7 +97,7 @@ before the next begins. No parallel screens — that is how duplication got in.
 | Task | Screen | Story | Status |
 |---|---|---|---|
 | 1.1 | Onboarding / profile | 1 | **done both platforms** — shared VM adopted unchanged, composed from inventory, reachable at launch, interaction driven on iOS 17.5 sim and `Medium_Phone_API_36` |
-| 1.2a | Map home shell — map as base layer, actions, sync status, `maphome` 3→1, pin fix | 2 | todo |
+| 1.2a | Map home shell — map as base layer, actions, sync status, `maphome` 3→1, pin fix | 2 | **done both platforms** — verified on iOS 17.5 sim and `Medium_Phone_API_36` |
 | 1.2b | Hex grid overlay — H3 now available via `h3-kmp`; geometry is computable, rendering is not built | 12 | unblocked, not started |
 | 1.3 | Start measurement | 3 | todo |
 | 1.4 | Measurement run progress | 4 | todo |
@@ -254,6 +254,15 @@ Taken in 0.4:
 
 Reference: frozenApp's layouts are the product intent. Where its arrangement is good, copy it;
 where it is not, record why.
+
+Taken in 1.2a:
+
+- **A second template, `MapScreenScaffold`**: full-bleed map with a pinned panel. A map is not
+  content in a scroll view, and boxing it into a fixed-height block would make the screen users
+  spend most of their time on the worst one in the app; frozenApp made the same call. The panel
+  uses the same components and spacing scale, so only the arrangement differs.
+- **Default camera is the project's home campus** at zoom 12.5, not the world view Mapbox opens
+  with. Once measurements exist the camera should follow the most recent - not yet wired.
 
 Taken in 1.1:
 
