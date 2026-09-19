@@ -12,12 +12,12 @@ import sharedKit
 /// rather than being omitted: the graph is then walkable end to end from the
 /// first screen onward, and unfinished work is visible instead of looking like
 /// a dead button.
-final class ProductShell {
+final class ProductShell: NSObject {
 
     private let navigator: Navigator
     private let navigationController = UINavigationController()
 
-    init() {
+    override init() {
         let decision = AppLaunchRoutingUseCase().resolve(
             input: AppLaunchRoutingInput(
                 onboardingComplete: OnboardingUserDefaultsStore().loadProfile()?.onboardingComplete == true,
@@ -25,7 +25,9 @@ final class ProductShell {
             )
         )
         navigator = Navigator(start: decision.toDestination())
+        super.init()
         navigationController.navigationBar.prefersLargeTitles = true
+        navigationController.delegate = self
         navigationController.setViewControllers([screen(for: navigator.current)], animated: false)
     }
 
@@ -64,6 +66,25 @@ final class ProductShell {
                     self?.reset(to: DestinationMapHome.shared)
                 }
             )
+        case is DestinationMapHome:
+            return MapHomeScreenViewController(
+                viewModel: MapHomeViewModel(minHexGridZoom: 0.0),
+                inputProvider: {
+                    // Counts stay zero until history is wired (task 2.1); what
+                    // matters here is that a saved profile enables Measure.
+                    MapHomeInput(
+                        onboardingComplete: OnboardingUserDefaultsStore().loadProfile()?.onboardingComplete == true,
+                        recentRunCount: 0,
+                        pendingCountsKnown: false,
+                        pendingMeasurements: 0,
+                        pendingSubmissions: 0
+                    )
+                },
+                onMeasure: { [weak self] in self?.go(to: DestinationMeasurementStart.shared) },
+                onHistory: { [weak self] in self?.go(to: DestinationHistory.shared) },
+                onSettings: { [weak self] in self?.go(to: DestinationSettings.shared) }
+            )
+
         case let blocking as DestinationBlockingError:
             return PlaceholderScreenViewController(
                 titleText: "Cannot start",
@@ -120,4 +141,24 @@ final class PlaceholderScreenViewController: UIViewController {
         title = titleText
     }
 
+}
+
+extension ProductShell: UINavigationControllerDelegate {
+
+    /// Keeps the shared navigator in step when UIKit pops on its own.
+    ///
+    /// The back button and the interactive swipe pop UIKit's stack directly;
+    /// nothing routes through `Navigator`, so without this its `current` goes
+    /// stale the moment a user presses Back. The symptom is quiet - navigating
+    /// to the screen you just left is ignored, because the navigator still
+    /// believes it is there - which is exactly the platform-owns-its-own-stack
+    /// drift the shared graph exists to prevent.
+    func navigationController(
+        _ navigationController: UINavigationController,
+        didShow viewController: UIViewController,
+        animated: Bool
+    ) {
+        while navigationController.viewControllers.count < navigator.backStack.count,
+              navigator.back() {}
+    }
 }
