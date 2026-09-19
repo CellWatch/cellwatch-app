@@ -56,7 +56,7 @@ No screen work until these land; they are what makes screen work reusable.
 |---|---|---|
 | 0.1 | Record the reconciliation above | done |
 | 0.2 | Shared `Destination` + `Navigator`, extending `AppLaunchRoutingUseCase` to the full graph (Rule 2) | **done** — 8 destinations, back stack, 7 tests; not yet adopted by either platform (that lands with each screen in Phase 1) |
-| 0.3 | Component inventory, iOS: 9 baseline components + screen template + spacing scale (Rule 3) | todo |
+| 0.3 | Component inventory, iOS: 9 baseline components + screen template + spacing scale (Rule 3) | **done** — reviewed on the simulator; see Layout decisions |
 | 0.4 | Component inventory, Android: same 9, same template | todo |
 | 0.5 | Collapse presentation roles to `ViewModel` + `UiState` (Rule 1): `measurementstart` 5→1, `maphome` 3→1, rename `*ViewController` | todo |
 
@@ -118,10 +118,26 @@ both.
 Visual incoherence came from every screen inventing its own arrangement. Decisions are made once
 and recorded here as they are taken:
 
-- **Screen template**: header, scrollable content, pinned actions.
-- **Spacing scale**: to be fixed in task 0.3, then used everywhere.
-- **Reference**: frozenApp's layouts are the product intent. Where its arrangement is good, copy
-  it; where it is not, record why.
+Taken in 0.3, reviewed on the simulator:
+
+- **Spacing scale 4 / 8 / 12 / 16 / 24 / 32.** Derived from frozenApp's layouts rather than
+  invented: across its 21 files, 16dp appears 58 times, 8dp 47, 4dp 17, 12dp 15, 24dp 7. Values
+  off that scale (2, 5, 6, 10dp) were the drift. frozenApp's own `dimens.xml` was empty, so
+  spacing had been decided per layout.
+- **Palette** is frozenApp's `colors.xml` verbatim, exposed through roles (`primary`, `success`,
+  `warning`, `surface`, `border`, `textPrimary`…) so screens never touch raw hues.
+- **Screen template**: navigation bar, scrollable content, pinned actions. Actions are pinned
+  because the primary action on a long form should not have to be scrolled to.
+- **The navigation bar owns the title, not the scaffold.** The first build had the scaffold
+  render its own title too, which produced two headers and about 150pt of dead space, with the
+  first form field sliced by the translucent bar. Screens set `navigationItem.title`.
+- **Dynamic Type everywhere**, and a 44pt minimum tap target; several harness buttons are
+  smaller.
+- **Stacks, not per-screen constraints.** `NSLayoutConstraint` blocks are what made harness
+  layouts unrepeatable, so spacing flows from the scale through stack views.
+
+Reference: frozenApp's layouts are the product intent. Where its arrangement is good, copy it;
+where it is not, record why.
 
 Open layout questions are listed here as they arise rather than decided ad hoc mid-screen.
 
