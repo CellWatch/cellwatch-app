@@ -20,6 +20,9 @@ import edu.gatech.cc.cellwatch.domain.fcc.RepositoryBackedMeasurementResultStore
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeMeasurementLocationSnapshot
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSequenceSyncOrchestrator
+import edu.gatech.cc.cellwatch.domain.sync.SyncStatusPresenter
+import edu.gatech.cc.cellwatch.domain.sync.SyncStatusStore
+import edu.gatech.cc.cellwatch.domain.sync.SyncStatusSummary
 import edu.gatech.cc.cellwatch.domain.sync.tcpTupleProviderFor
 import kotlinx.datetime.Clock
 import kotlin.coroutines.EmptyCoroutineContext
@@ -67,6 +70,9 @@ interface ProductPlatformServices {
 
     val tcpTupleUrl: String?
     val appSource: String
+
+    /** Persists what the last upload attempt did, so status survives a launch. */
+    val syncStatusStore: SyncStatusStore
 }
 
 /**
@@ -146,6 +152,44 @@ class ProductContainer(
      * screen's run, and reusing an orchestrator would report a second run's
      * progress to the first screen.
      */
+    /**
+     * How many stored records have not reached the server.
+     */
+    suspend fun pendingRecordCount(): Int =
+        measurementRepository.getUnsynced().size + submissionRepository.getUnsynced().size
+
+    /**
+     * The sync story for a screen to render.
+     */
+    suspend fun syncStatus(inProgress: Boolean = false): SyncStatusSummary = SyncStatusPresenter.present(
+        record = services.syncStatusStore.load(),
+        pendingRecords = if (inProgress) 0 else pendingRecordCount(),
+        inProgress = inProgress,
+        now = clock.now(),
+    )
+
+    /**
+     * Records the result of an upload attempt.
+     *
+     * Kept here rather than in the run screen because every future sync
+     * trigger - a retry, a background attempt - has to update the same record,
+     * and one that only the run screen maintained would go stale.
+     */
+    fun recordSyncAttempt(uploadedCount: Int, failed: Boolean) {
+        val store = services.syncStatusStore
+        val previous = store.load()
+        val now = clock.now()
+        store.save(
+            previous.copy(
+                lastAttemptAt = now,
+                lastAttemptFailed = failed,
+                lastSuccessAt = if (uploadedCount > 0) now else previous.lastSuccessAt,
+                lastUploadedCount = if (uploadedCount > 0) uploadedCount else previous.lastUploadedCount,
+                totalUploadedCount = previous.totalUploadedCount + uploadedCount,
+            ),
+        )
+    }
+
     /**
      * Measurement locations for the map, most recent first.
      *

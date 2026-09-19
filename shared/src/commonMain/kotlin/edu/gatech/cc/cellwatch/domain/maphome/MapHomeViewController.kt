@@ -1,11 +1,23 @@
 package edu.gatech.cc.cellwatch.domain.maphome
 
+import edu.gatech.cc.cellwatch.domain.sync.SyncStatusSummary
+import edu.gatech.cc.cellwatch.domain.sync.SyncStatusTone
+
 data class MapHomeInput(
     val onboardingComplete: Boolean,
     val recentRunCount: Int,
     val pendingCountsKnown: Boolean,
     val pendingMeasurements: Int,
     val pendingSubmissions: Int,
+    /**
+     * The full sync story, when the caller has it.
+     *
+     * Optional so the harness paths that only know queue counts keep working.
+     * When present it wins: one presenter owning every sync sentence is what
+     * stops the map and the results screen describing the same upload
+     * differently.
+     */
+    val syncStatus: SyncStatusSummary? = null,
 )
 
 enum class MapHomeSyncStateKey {
@@ -53,12 +65,25 @@ class MapHomeViewController {
             else -> MapHomeSyncStateKey.PENDING
         }
 
-        val syncSummary = when (syncState) {
-            MapHomeSyncStateKey.UNKNOWN -> "Sync status unknown. Open History to refresh."
-            MapHomeSyncStateKey.SYNCED -> "All records are synced."
-            MapHomeSyncStateKey.PENDING ->
-                "Pending sync queue: $pendingMeasurements measurement record(s), " +
-                    "$pendingSubmissions submission record(s)."
+        val status = input.syncStatus
+        val syncSummary = if (status != null) {
+            listOfNotNull(status.headline, status.detail).joinToString(" ")
+        } else {
+            when (syncState) {
+                // Retained for the harness, which has counts but no status
+                // record. The product shell always supplies the status.
+                MapHomeSyncStateKey.UNKNOWN -> "Sync status unknown."
+                MapHomeSyncStateKey.SYNCED -> "All records are synced."
+                MapHomeSyncStateKey.PENDING ->
+                    "Pending sync queue: $pendingMeasurements measurement record(s), " +
+                        "$pendingSubmissions submission record(s)."
+            }
+        }
+        val resolvedSyncState = when (status?.tone) {
+            SyncStatusTone.SUCCESS -> MapHomeSyncStateKey.SYNCED
+            SyncStatusTone.WARNING -> MapHomeSyncStateKey.PENDING
+            SyncStatusTone.NEUTRAL -> MapHomeSyncStateKey.UNKNOWN
+            null -> syncState
         }
 
         val mapPanelBody = when {
@@ -82,7 +107,7 @@ class MapHomeViewController {
             mapPanelBody = mapPanelBody,
             statusText = statusText,
             syncSummary = syncSummary,
-            syncStateKey = syncState,
+            syncStateKey = resolvedSyncState,
             canStartMeasurement = input.onboardingComplete,
         )
     }

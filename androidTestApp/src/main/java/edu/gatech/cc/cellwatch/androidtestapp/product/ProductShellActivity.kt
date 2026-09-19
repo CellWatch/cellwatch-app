@@ -135,8 +135,8 @@ class ProductShellActivity : AppCompatActivity() {
             context = this,
             viewModel = mapHomeViewModel,
             inputProvider = {
-                // Counts stay zero until history is wired (task 2.1); what
-                // matters here is that a saved profile enables Measure.
+                // Counts are filled in asynchronously by mapHomeSyncProvider;
+                // this is the synchronous part the screen needs immediately.
                 MapHomeInput(
                     onboardingComplete = AndroidOnboardingProfileStore(applicationContext)
                         .loadProfile()?.onboardingComplete == true,
@@ -145,6 +145,14 @@ class ProductShellActivity : AppCompatActivity() {
                     pendingMeasurements = 0,
                     pendingSubmissions = 0,
                 )
+            },
+            syncStatusProvider = { deliver ->
+                val productContainer = container.getOrNull()
+                if (productContainer == null) {
+                    deliver(null)
+                } else {
+                    lifecycleScope.launch { deliver(productContainer.syncStatus()) }
+                }
             },
             measurementLocationProvider = { deliver ->
                 val productContainer = container.getOrNull()

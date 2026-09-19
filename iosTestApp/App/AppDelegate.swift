@@ -1293,7 +1293,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
                 recentRunCount: Int32(historyEntries.count),
                 pendingCountsKnown: pendingKnown,
                 pendingMeasurements: Int32(historyPendingMeasurements ?? 0),
-                pendingSubmissions: Int32(historyPendingSubmissions ?? 0)
+                pendingSubmissions: Int32(historyPendingSubmissions ?? 0),
+                // The harness has queue counts but no persisted status record,
+                // so it keeps the count-only wording.
+                syncStatus: nil
             )
         )
 
@@ -1569,7 +1572,10 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
                 recentRunCount: Int32(historyEntries.count),
                 pendingCountsKnown: pendingKnown,
                 pendingMeasurements: Int32(historyPendingMeasurements ?? 0),
-                pendingSubmissions: Int32(historyPendingSubmissions ?? 0)
+                pendingSubmissions: Int32(historyPendingSubmissions ?? 0),
+                // The harness has queue counts but no persisted status record,
+                // so it keeps the count-only wording.
+                syncStatus: nil
             )
         )
 

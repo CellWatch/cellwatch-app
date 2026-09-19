@@ -20,6 +20,7 @@ final class MeasurementRunScreenViewController: UIViewController {
     private let scaffold = ScreenScaffold()
     private let progressHeader = Components.ProgressHeaderView()
     private let statusCard = Components.StatusCardView()
+    private let syncCard = Components.StatusCardView()
     private let fccCard = Components.StatusCardView()
     private let latencyRow = Components.MetricRowView(label: "Latency")
     private let downloadRow = Components.MetricRowView(label: "Download")
@@ -65,6 +66,7 @@ final class MeasurementRunScreenViewController: UIViewController {
             syncRow,
             Components.divider(),
             statusCard,
+            syncCard,
             fccCard
         )
         scaffold.addActions(cancelButton, doneButton, againButton)
@@ -103,6 +105,12 @@ final class MeasurementRunScreenViewController: UIViewController {
         uploadRow.update(state.uploadText)
         syncRow.update(state.uploadedText)
         statusCard.update(state.summaryText, tone: tone(for: state))
+
+        // Same reason as the FCC card: there is no sync story until the run
+        // finishes, and "Sync: Pending" on its own never said when anything
+        // last reached the server, or whether uploads were failing.
+        syncCard.isHidden = state.syncDetailText.isEmpty
+        syncCard.update(state.syncDetailText, tone: .neutral)
 
         // Hidden mid-run: whether a measurement reaches the FCC is not known
         // until it finishes, and guessing early would be worse than silence.

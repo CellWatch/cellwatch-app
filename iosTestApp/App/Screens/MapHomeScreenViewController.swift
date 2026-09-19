@@ -15,6 +15,8 @@ final class MapHomeScreenViewController: UIViewController {
     private let inputProvider: () -> MapHomeInput
     /// Asynchronous: the points come from the database, off the main thread.
     private let measurementLocationProvider: (@escaping ([MapHomeMeasurementLocationSnapshot]) -> Void) -> Void
+    /// Asynchronous for the same reason: it counts rows in the database.
+    private let syncStatusProvider: (@escaping (SyncStatusSummary?) -> Void) -> Void
     private let onMeasure: () -> Void
     private let onHistory: () -> Void
     private let onSettings: () -> Void
@@ -33,6 +35,7 @@ final class MapHomeScreenViewController: UIViewController {
         viewModel: MapHomeViewModel,
         inputProvider: @escaping () -> MapHomeInput,
         measurementLocationProvider: @escaping (@escaping ([MapHomeMeasurementLocationSnapshot]) -> Void) -> Void,
+        syncStatusProvider: @escaping (@escaping (SyncStatusSummary?) -> Void) -> Void,
         onMeasure: @escaping () -> Void,
         onHistory: @escaping () -> Void,
         onSettings: @escaping () -> Void
@@ -40,6 +43,7 @@ final class MapHomeScreenViewController: UIViewController {
         self.viewModel = viewModel
         self.inputProvider = inputProvider
         self.measurementLocationProvider = measurementLocationProvider
+        self.syncStatusProvider = syncStatusProvider
         self.onMeasure = onMeasure
         self.onHistory = onHistory
         self.onSettings = onSettings
@@ -87,6 +91,21 @@ final class MapHomeScreenViewController: UIViewController {
         measurementLocationProvider { [weak self] snapshots in
             guard let self else { return }
             self.render(self.viewModel.onMeasurementsLoaded(snapshots: snapshots))
+        }
+        syncStatusProvider { [weak self] status in
+            guard let self, let status else { return }
+            // Rebuilt rather than copied: Kotlin's generated doCopy takes every
+            // parameter from Swift, so it is no shorter than this.
+            let base = self.inputProvider()
+            let input = MapHomeInput(
+                onboardingComplete: base.onboardingComplete,
+                recentRunCount: base.recentRunCount,
+                pendingCountsKnown: base.pendingCountsKnown,
+                pendingMeasurements: base.pendingMeasurements,
+                pendingSubmissions: base.pendingSubmissions,
+                syncStatus: status
+            )
+            self.render(self.viewModel.onInputChanged(input: input))
         }
     }
 

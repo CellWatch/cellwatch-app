@@ -25,7 +25,7 @@ class MapHomeViewControllerTest {
         assertEquals("No saved measurements yet. Take a measurement to populate the map.", state.mapPanelBody)
         assertEquals("Complete your profile before taking a measurement.", state.statusText)
         assertEquals(MapHomeSyncStateKey.UNKNOWN, state.syncStateKey)
-        assertEquals("Sync status unknown. Open History to refresh.", state.syncSummary)
+        assertEquals("Sync status unknown.", state.syncSummary)
         assertFalse(state.canStartMeasurement)
     }
 

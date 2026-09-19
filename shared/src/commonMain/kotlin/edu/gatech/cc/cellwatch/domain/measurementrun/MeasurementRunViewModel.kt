@@ -35,6 +35,8 @@ data class MeasurementRunUiState(
     val downloadText: String,
     val uploadText: String,
     val uploadedText: String,
+    /** Full sync story for the results screen: what uploaded, when, and what is queued. */
+    val syncDetailText: String,
     val summaryText: String,
     /**
      * Whether this measurement reaches the FCC, and if not, why. Empty until
@@ -81,6 +83,7 @@ class MeasurementRunViewModel(
     private val readModel = MeasurementResultReadModelUseCase()
     private var handle: MeasurementRunHandle? = null
     private var fccOutcomeText: String = ""
+    private var syncDetailText: String = ""
 
     init {
         controller.setInVehicle(inVehicle)
@@ -134,6 +137,18 @@ class MeasurementRunViewModel(
                     "sync measurementComplete: uploadTime=${outcome.measurementCompleteUploadTime} " +
                         outcome.measurementCompleteReport.renderForStatus(),
                 )
+                val uploaded = outcome.mapStartReport.measurements.uploaded +
+                    outcome.measurementCompleteReport.measurements.uploaded +
+                    outcome.mapStartReport.submissions.uploaded +
+                    outcome.measurementCompleteReport.submissions.uploaded
+                val failed = outcome.measurementCompleteReport.measurements.let { report ->
+                    report.networkErrors + report.unexpectedErrors > 0
+                } || outcome.measurementCompleteUploadTime == null
+                container.recordSyncAttempt(uploadedCount = uploaded, failed = failed)
+                syncDetailText = container.syncStatus().let { summary ->
+                    listOfNotNull(summary.headline, summary.detail).joinToString(" ")
+                }
+
                 fccOutcomeText = FccSubmissionOutcomeMessage.forOutcome(
                     submissionCreated = outcome.sequenceOutcome.group.submission != null,
                     validation = outcome.sequenceOutcome.submissionValidation,
@@ -180,6 +195,7 @@ class MeasurementRunViewModel(
             downloadText = result.downloadText,
             uploadText = result.uploadText,
             uploadedText = result.uploadedText,
+            syncDetailText = syncDetailText,
             summaryText = result.summaryText,
             fccOutcomeText = fccOutcomeText,
             groupId = state.results?.id,

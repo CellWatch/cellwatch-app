@@ -15,6 +15,7 @@ import edu.gatech.cc.cellwatch.domain.app.ProductSubmissionIdentity
 import edu.gatech.cc.cellwatch.domain.capability.AndroidPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.capability.PlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
+import edu.gatech.cc.cellwatch.domain.sync.SyncStatusStore
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileResolver
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
@@ -52,6 +53,8 @@ class AndroidProductServices(
     override val tcpTupleUrl: String? = BuildConfig.CELLWATCH_TCP_TUPLE_URL.takeIf { it.isNotBlank() }
 
     override val appSource: String = APP_SOURCE
+
+    override val syncStatusStore: SyncStatusStore = AndroidSyncStatusStore(appContext)
 
     override fun submissionIdentity(): ProductSubmissionIdentity {
         val profile = AndroidOnboardingProfileStore(appContext).loadProfile()

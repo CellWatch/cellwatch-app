@@ -22,6 +22,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.designsystem.MapScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeMeasurementLocationSnapshot
+import edu.gatech.cc.cellwatch.domain.sync.SyncStatusSummary
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeSyncStateKey
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeUiState
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeViewModel
@@ -42,6 +43,8 @@ class MapHomeScreen(
      * the icon defect fixed in 1.2a.
      */
     private val measurementLocationProvider: ((List<MapHomeMeasurementLocationSnapshot>) -> Unit) -> Unit,
+    /** Asynchronous for the same reason: it counts rows in the database. */
+    private val syncStatusProvider: ((SyncStatusSummary?) -> Unit) -> Unit,
     onMeasure: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
@@ -84,6 +87,11 @@ class MapHomeScreen(
         render(viewModel.onInputChanged(inputProvider()))
         measurementLocationProvider { snapshots ->
             render(viewModel.onMeasurementsLoaded(snapshots))
+        }
+        syncStatusProvider { status ->
+            if (status != null) {
+                render(viewModel.onInputChanged(inputProvider().copy(syncStatus = status)))
+            }
         }
     }
 

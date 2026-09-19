@@ -109,7 +109,8 @@ final class ProductShell: NSObject {
                         recentRunCount: 0,
                         pendingCountsKnown: false,
                         pendingMeasurements: 0,
-                        pendingSubmissions: 0
+                        pendingSubmissions: 0,
+                        syncStatus: nil
                     )
                 },
                 measurementLocationProvider: { completion in
@@ -119,6 +120,15 @@ final class ProductShell: NSObject {
                     }
                     container.recentMeasurementLocations(limit: 500) { snapshots, _ in
                         DispatchQueue.main.async { completion(snapshots ?? []) }
+                    }
+                },
+                syncStatusProvider: { completion in
+                    guard case .success(let container) = Container.result else {
+                        completion(nil)
+                        return
+                    }
+                    container.syncStatus(inProgress: false) { summary, _ in
+                        DispatchQueue.main.async { completion(summary) }
                     }
                 },
                 onMeasure: { [weak self] in self?.go(to: DestinationMeasurementStart.shared) },
