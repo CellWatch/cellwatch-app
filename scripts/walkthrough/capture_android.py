@@ -32,6 +32,24 @@ class Device:
         return subprocess.run([self.adb, *args], capture_output=True, text=True,
                               timeout=timeout).stdout
 
+    def wait_for_foreground(self, timeout: float = 90.0) -> bool:
+        """Block until the app owns the focused window.
+
+        A fixed sleep was not enough: a cold start behind Mapbox can take most
+        of a minute, and a tap that lands early goes to the launcher, exits the
+        app and leaves every later step documenting the wrong thing.
+        """
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            focus = self.sh("shell", "dumpsys", "window")
+            for line in focus.splitlines():
+                if "mCurrentFocus" in line and PKG in line:
+                    # Focused is not the same as drawn; give the first frame a moment.
+                    time.sleep(2)
+                    return True
+            time.sleep(1)
+        return False
+
     def dump(self, attempts: int = 8) -> str:
         """The window tree, or '' if the screen never goes idle.
 
@@ -86,9 +104,16 @@ class Device:
         in the manifest rather than hidden: a coordinate tap is weaker evidence
         than a resolved one and the report should say so.
         """
-        xml = self.dump(attempts=3)
-        point = self.find(xml, needle) if xml else None
-        located = "text"
+        # Retried over a window rather than once: a dump taken while a control
+        # is still animating comes back empty, and a single miss then looks
+        # like the element does not exist.
+        deadline = time.time() + 12
+        point, located = None, "text"
+        while point is None and time.time() < deadline:
+            xml = self.dump(attempts=2)
+            point = self.find(xml, needle) if xml else None
+            if point is None:
+                time.sleep(1)
         if point is None:
             if fallback is None:
                 return None
@@ -178,7 +203,9 @@ def main() -> int:
 
     dev.sh("shell", "am", "force-stop", PKG)
     dev.sh("shell", "am", "start", "-n", ACTIVITY)
-    time.sleep(14)
+    if not dev.wait_for_foreground():
+        print(f"{PKG} never came to the foreground", file=sys.stderr)
+        return 2
 
     step(dev, steps, "01-map-home",
          "Launch — map home",
@@ -243,9 +270,19 @@ def main() -> int:
              "carries the same wording as the results screen — one presenter owns both.",
              ["Measure"])
 
+        # History & sync is the left button of the secondary row; map home
+        # cannot be introspected, so this is a coordinate like the Measure tap.
+        if dev.tap_text("History & sync", settle=5, fallback=(283, 2230)):
+            step(dev, steps, "07-history",
+                 "History and sync",
+                 "Saved runs, newest first, with the same sync wording as the map and the "
+                 "results screen. Selecting a run shows its detail. Retry appears only when "
+                 "something is actually queued.",
+                 ["Selected run", "Back to map"])
+
     manifest = {
         "title": "CellWatch — measurement walkthrough",
-        "subtitle": "Android product shell, vertical slice: launch → pre-flight → run → results",
+        "subtitle": "Android product shell: launch → pre-flight → run → results → history",
         "environment": {
             "Platform": args.device_label,
             "Package": PKG,

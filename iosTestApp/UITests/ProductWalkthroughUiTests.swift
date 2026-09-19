@@ -68,6 +68,12 @@ final class ProductWalkthroughUiTests: XCTestCase {
         done.tap()
         XCTAssertTrue(measure.waitForExistence(timeout: 20), "did not return to map home")
         capture("07-map-home-after")
+
+        let history = app.buttons["History & sync"]
+        XCTAssertTrue(history.waitForExistence(timeout: 10))
+        history.tap()
+        XCTAssertTrue(app.buttons["Back to map"].waitForExistence(timeout: 15), "history never appeared")
+        capture("08-history")
     }
 
     private func capture(_ name: String) {
