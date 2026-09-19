@@ -85,6 +85,14 @@ final class ProductShell: NSObject {
                 onSettings: { [weak self] in self?.go(to: DestinationSettings.shared) }
             )
 
+        case is DestinationMeasurementStart:
+            return MeasurementStartScreenViewController(
+                viewModel: MeasurementStartViewModel(collectionMode: CollectionMode.fccChallenge),
+                onReadyToRun: { [weak self] _ in
+                    self?.go(to: DestinationMeasurementRun.shared)
+                }
+            )
+
         case let blocking as DestinationBlockingError:
             return PlaceholderScreenViewController(
                 titleText: "Cannot start",
