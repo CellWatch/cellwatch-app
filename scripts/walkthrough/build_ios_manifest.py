@@ -50,6 +50,10 @@ STEPS = [
      "The new measurement appears as a pin at the captured location, and the sync panel carries "
      "the same wording as the results screen — one presenter owns both.",
      ["returned to map home"]),
+    ("08-history", "History and sync",
+     "Saved runs, newest first, with the same sync wording as the map and the results screen. "
+     "Selecting a run shows its detail. Retry appears only when something is actually queued.",
+     ["run list rendered", "'Back to map' offered"]),
 ]
 
 
@@ -85,7 +89,7 @@ def main() -> int:
 
     manifest = {
         "title": "CellWatch — measurement walkthrough",
-        "subtitle": "iOS product shell, vertical slice: launch → pre-flight → run → results",
+        "subtitle": "iOS product shell: launch → pre-flight → run → results → history",
         "environment": {
             "Platform": args.device_label,
             "Bundle": "edu.gatech.cc.cellwatch",
