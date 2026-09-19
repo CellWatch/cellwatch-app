@@ -12,24 +12,40 @@ Carried forward so it is not lost between sessions. Updated 2026-09-19.
    device credential, telephony observer, wake guard, cancel-on-stop) is verified by compile
    and unit tests only. iOS at least has real cellular runs behind it.
 
+## Known defects, not yet fixed
+
+3. **A permanently-rejected record retries forever.** Sync has no notion of a row the server
+   will never accept. When iOS was writing null location timestamps, twelve measurements failed
+   on every attempt indefinitely; the rows were purged on 2026-09-19, but nothing stops it
+   recurring. Needs a failure count or a `rejected` state so the queue can drain.
+4. **Per-test results only appear when a run finishes.** `MeasurementSequenceProgressListener`
+   emits stage transitions, not results, so latency sits at `--` on the run screen until the
+   whole sequence completes even though it finished seconds earlier.
+
 ## Deferred by decision
 
-3. **Mapbox `sk.` secret token** ships in the app bundle. High severity, extractable from any
+5. **Mapbox `sk.` secret token** ships in the app bundle. High severity, extractable from any
    build. Deferred until nearer deployment; full detail in `PRE_DEPLOYMENT_CHECKLIST.md` item 1.
-4. **`server_source_port`** — blocked on the AWS tuple service decision and external
+6. **`server_source_port`** — blocked on the AWS tuple service decision and external
    stakeholders. `PRE_DEPLOYMENT_CHECKLIST.md` item 5.
-5. **Crashlytics** — low priority. The shared logger landed without it; reinstating it is a
+7. **Crashlytics** — low priority. The shared logger landed without it; reinstating it is a
    data-governance question, not a technical one.
+
+## Verification gaps introduced 2026-09-19
+
+8. **Sync failure and in-progress messaging is unit-tested only.** The empty and success states
+    were driven live on both platforms; the failure wording was not, because the hosted testing
+    endpoint now works and there is no cheap way to force a real upload failure.
 
 ## External action
 
-6. **Send `FCC_IOS_DISCREPANCIES.md`** to the FCC and ask for guidance. Ready and pushed. The
+9. **Send `FCC_IOS_DISCREPANCIES.md`** to the FCC and ask for guidance. Ready and pushed. The
    standing strategy is not to block development on the reply, but the clock only starts once
    it goes.
 
 ## Build fragility
 
-7. **msak-client-kmp 0.6.0 exists only in this machine's `~/.m2`.** cellwatch pins it and
+10. **msak-client-kmp 0.6.0 exists only in this machine's `~/.m2`.** cellwatch pins it and
    resolves via `mavenLocal()`, so a fresh clone or another machine cannot build until someone
    runs `publishToMavenLocal` in msak — and nothing says so. Either set
    `cellwatch.useLocalMsak=true` to resolve from source through the existing `includeBuild`, or

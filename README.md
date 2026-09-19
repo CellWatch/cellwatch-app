@@ -302,6 +302,27 @@ Use this sequence to bootstrap both harnesses before running interactive buttons
 ./gradlew :shared:verifyIosTestAppHosted
 ```
 
+### Product Walkthrough PDFs (Android + iOS)
+
+Screenshot-backed PDF walkthroughs of the product vertical slice — launch, pre-flight, run,
+results — with each step's expectations asserted before its screenshot is taken:
+
+```bash
+./scripts/generate-walkthrough.sh          # both platforms
+./scripts/generate-walkthrough.sh ios      # one platform
+```
+
+Outputs:
+- `build/reports/walkthrough/CellWatch-Walkthrough-Android.pdf`
+- `build/reports/walkthrough/CellWatch-Walkthrough-iOS.pdf`
+- Manifests and screenshots alongside, under `android/` and `ios/`
+
+Requires a running emulator / booted simulator with onboarding already completed. Android is
+driven over adb by resolving elements from a `uiautomator` dump; iOS is driven by
+`ProductWalkthroughUiTests`, because the simulator has no scriptable tap. The renderer exits
+non-zero if any expectation was unmet or a screenshot is missing, so a walkthrough of a broken
+flow does not look like a pass.
+
 ### Automated UI Flow Evidence (Android + iOS)
 
 For product-like onboarding UI smoke plus screenshot-backed markdown evidence:
