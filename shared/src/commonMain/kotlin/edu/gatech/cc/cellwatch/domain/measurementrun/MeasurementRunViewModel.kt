@@ -9,6 +9,7 @@ import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceRequest
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceStage
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementRunHandle
+import edu.gatech.cc.cellwatch.domain.sync.renderForStatus
 import com.benasher44.uuid.uuid4
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -123,6 +124,16 @@ class MeasurementRunViewModel(
                 val outcome = container
                     .createSequenceSyncOrchestrator(submissionProfile, orchestratorProgress)
                     .run(request)
+                // Sync outcomes were completely silent: a failed upload showed
+                // only as "Pending sync" with no reason anywhere, on either
+                // platform. The report is the only thing that says what
+                // happened, so it belongs in the log at minimum.
+                SharedLog.i(TAG, "sync mapStart: ${outcome.mapStartReport.renderForStatus()}")
+                SharedLog.i(
+                    TAG,
+                    "sync measurementComplete: uploadTime=${outcome.measurementCompleteUploadTime} " +
+                        outcome.measurementCompleteReport.renderForStatus(),
+                )
                 fccOutcomeText = FccSubmissionOutcomeMessage.forOutcome(
                     submissionCreated = outcome.sequenceOutcome.group.submission != null,
                     validation = outcome.sequenceOutcome.submissionValidation,

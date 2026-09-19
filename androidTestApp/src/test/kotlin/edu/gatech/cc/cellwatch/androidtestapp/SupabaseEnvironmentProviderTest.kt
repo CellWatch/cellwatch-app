@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
 import java.nio.file.Files
 
 class SupabaseEnvironmentProviderTest {
@@ -85,6 +86,7 @@ class SupabaseEnvironmentProviderTest {
             workingDir = tmp,
             allowRemote = true,
             env = emptyMap(),
+            packagedMode = RuntimeSupabaseMode.LIVE,
         )
 
         val env = provider.resolve(SupabaseTarget.REMOTE)
@@ -109,6 +111,7 @@ class SupabaseEnvironmentProviderTest {
             workingDir = tmp,
             allowRemote = true,
             env = emptyMap(),
+            packagedMode = RuntimeSupabaseMode.LIVE,
         )
 
         val message = try {

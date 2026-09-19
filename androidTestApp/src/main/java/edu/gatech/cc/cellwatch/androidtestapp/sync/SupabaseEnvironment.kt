@@ -35,6 +35,13 @@ class CellwatchPropertiesSupabaseEnvironmentProvider(
     private val allowRemote: Boolean = System.getenv("CELLWATCH_ALLOW_REMOTE_SUPABASE")?.toBooleanStrictOrNull()
         ?: BuildConfig.CELLWATCH_ALLOW_REMOTE_SUPABASE,
     private val env: Map<String, String> = System.getenv(),
+    /**
+     * Which non-local Supabase REMOTE means. Injectable so a test can state the
+     * case it is about instead of inheriting whatever the debug BuildConfig
+     * happens to package - that coupling made these tests fail the moment debug
+     * builds moved from local docker to hosted testing.
+     */
+    private val packagedMode: RuntimeSupabaseMode = packagedSupabaseMode(),
 ) : SupabaseEnvironmentProvider {
 
     override fun resolve(target: SupabaseTarget): SupabaseEnvironment {
@@ -77,7 +84,7 @@ class CellwatchPropertiesSupabaseEnvironmentProvider(
     private fun runtimeConfig() = run {
         val props = loadProperties()
         if (allowRemote) {
-            val remoteMode = packagedSupabaseMode().takeIf { it != RuntimeSupabaseMode.LOCAL }
+            val remoteMode = packagedMode.takeIf { it != RuntimeSupabaseMode.LOCAL }
                 ?: RuntimeSupabaseMode.LIVE
             resolveRuntimeProfileFromProperties(
                 workingDir = workingDir,
