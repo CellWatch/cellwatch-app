@@ -33,18 +33,18 @@ mockwebserver = "4.11.0"
 mockk = "1.13.8"
 supabase = "1.0.3"
 ktor = "2.3.0"
-kotlinVersion = "1.9.24"
+kotlinVersion = "2.3.10"
 agpVersion = "8.9.2"
-kotlinStdlib = "1.9.24"
-kotlinTest = "1.9.24"
+kotlinStdlib = "2.3.10"
+kotlinTest = "2.3.10"
 runner = "1.7.0"
 core = "1.7.0"
 datetime = "0.6.1"
-sqldelight = "2.0.2"
+sqldelight = "2.4.0"
 robolectric = "4.11.1" # keep all versions in one place
 androidx-test-core = "1.5.0"
 benasherUuid = "0.8.4"
-msakClientKmp = "0.5.1"
+msakClientKmp = "0.6.0"
 
 [libraries]
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }

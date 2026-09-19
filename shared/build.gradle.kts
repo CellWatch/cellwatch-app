@@ -69,7 +69,12 @@ kotlin {
                 implementation(libs.sqldelight.coroutines)
                 implementation(libs.benasher.uuid)
                 implementation(libs.cryptography.core)
-                implementation(libs.msak.client.kmp)
+                // msak is deliberately NOT declared here. It publishes android and
+                // ios variants only, and this module also has a jvm() target, so a
+                // commonMain declaration asks every target for a variant that does
+                // not exist. Kotlin 1.9 tolerated that; 2.x does not. Nothing in
+                // commonMain uses msak anyway - the one file that referenced it,
+                // core/util/Log.kt, is commented out in its entirety.
             }
         }
 
@@ -87,6 +92,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.android)
                 implementation(libs.sqldelight.android.driver)
                 implementation(libs.cryptography.provider.jdk)
+                implementation(libs.msak.client.kmp)
             }
         }
 
@@ -118,6 +124,7 @@ kotlin {
                 // KMP dependencies declared in commonMain.
                 implementation(libs.sqldelight.native.driver)
                 implementation(libs.cryptography.provider.openssl3.prebuilt)
+                implementation(libs.msak.client.kmp)
             }
         }
         iosTest {
