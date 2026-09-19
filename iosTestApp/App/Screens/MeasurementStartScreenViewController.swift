@@ -10,6 +10,9 @@ import sharedKit
 final class MeasurementStartScreenViewController: UIViewController {
 
     private let viewModel: MeasurementStartViewModel
+    /// Supplied by the shell, which owns container resolution. Hardcoding true
+    /// here let the screen clear a gate it cannot actually see.
+    private let hasRuntimeProfile: Bool
     private let networkPathProbe = IosMeasurementNetworkPathProbe()
     private let onReadyToRun: (Bool) -> Void
 
@@ -17,8 +20,13 @@ final class MeasurementStartScreenViewController: UIViewController {
     private let statusLabel = Components.bodyText("", muted: true)
     private let startButton = Components.primaryButton("Start measurement")
 
-    init(viewModel: MeasurementStartViewModel, onReadyToRun: @escaping (Bool) -> Void) {
+    init(
+        viewModel: MeasurementStartViewModel,
+        hasRuntimeProfile: Bool,
+        onReadyToRun: @escaping (Bool) -> Void
+    ) {
         self.viewModel = viewModel
+        self.hasRuntimeProfile = hasRuntimeProfile
         self.onReadyToRun = onReadyToRun
         super.init(nibName: nil, bundle: nil)
     }
@@ -76,7 +84,7 @@ final class MeasurementStartScreenViewController: UIViewController {
     private func observedCapabilities() -> MeasurementStartCapabilitySnapshot {
         let status = CLLocationManager.authorizationStatus()
         return MeasurementStartCapabilitySnapshot(
-            hasRuntimeProfile: true,
+            hasRuntimeProfile: hasRuntimeProfile,
             hasLocationPermission: (status == .authorizedAlways || status == .authorizedWhenInUse),
             networkPath: networkPathProbe.currentPath()
         )

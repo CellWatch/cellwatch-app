@@ -68,28 +68,45 @@ enum Components {
     /// Label on the left, value on the right. The measurement results and
     /// history screens are mostly these.
     static func metricRow(label: String, value: String) -> UIView {
-        let name = UILabel()
-        name.text = label
-        name.font = Theme.Font.body
-        name.textColor = Theme.Color.textSecondary
-        name.adjustsFontForContentSizeCategory = true
-
-        let reading = UILabel()
-        reading.text = value
-        reading.font = Theme.Font.metric
-        reading.textColor = Theme.Color.textPrimary
-        reading.textAlignment = .right
-        reading.adjustsFontForContentSizeCategory = true
-        // The value must never be truncated in favour of its label: a clipped
-        // number is worse than a wrapped word.
-        reading.setContentCompressionResistancePriority(.required, for: .horizontal)
-        reading.setContentHuggingPriority(.required, for: .horizontal)
-
-        let row = UIStackView(arrangedSubviews: [name, reading])
-        row.axis = .horizontal
-        row.alignment = .firstBaseline
-        row.spacing = Theme.Space.m
+        let row = MetricRowView(label: label)
+        row.update(value)
         return row
+    }
+
+    /// Stateful ``metricRow``: latency, download and upload each land at a
+    /// different point in a run, so the values are filled in as they arrive.
+    final class MetricRowView: UIStackView {
+        private let reading = UILabel()
+
+        init(label: String) {
+            let name = UILabel()
+            name.text = label
+            name.font = Theme.Font.body
+            name.textColor = Theme.Color.textSecondary
+            name.adjustsFontForContentSizeCategory = true
+
+            reading.font = Theme.Font.metric
+            reading.textColor = Theme.Color.textPrimary
+            reading.textAlignment = .right
+            reading.adjustsFontForContentSizeCategory = true
+            // The value must never be truncated in favour of its label: a
+            // clipped number is worse than a wrapped word.
+            reading.setContentCompressionResistancePriority(.required, for: .horizontal)
+            reading.setContentHuggingPriority(.required, for: .horizontal)
+
+            super.init(frame: .zero)
+            addArrangedSubview(name)
+            addArrangedSubview(reading)
+            axis = .horizontal
+            alignment = .firstBaseline
+            spacing = Theme.Space.m
+        }
+
+        required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        func update(_ value: String) {
+            reading.text = value
+        }
     }
 
     enum StatusTone {
@@ -106,37 +123,53 @@ enum Components {
 
     /// Boxed message. Used for sync state, validation results, empty warnings.
     static func statusCard(_ text: String, tone: StatusTone = .neutral) -> UIView {
-        let container = UIView()
-        container.backgroundColor = Theme.Color.surface
-        container.layer.cornerRadius = Theme.Radius.card
-        container.layer.borderWidth = 1
-        container.layer.borderColor = Theme.Color.border.cgColor
+        let card = StatusCardView()
+        card.update(text, tone: tone)
+        return card
+    }
 
-        let accent = UIView()
-        accent.backgroundColor = tone.accent
-        accent.layer.cornerRadius = 2
-        accent.translatesAutoresizingMaskIntoConstraints = false
-        accent.widthAnchor.constraint(equalToConstant: Theme.Space.xs).isActive = true
+    /// Stateful ``statusCard``. A measurement run rewrites both its message and
+    /// its tone as the run progresses, so it has to be updatable in place.
+    final class StatusCardView: UIView {
+        private let accent = UIView()
+        private let label = bodyText("")
 
-        let label = bodyText(text)
-        let row = UIStackView(arrangedSubviews: [accent, label])
-        row.axis = .horizontal
-        row.alignment = .fill
-        row.spacing = Theme.Space.m
-        row.translatesAutoresizingMaskIntoConstraints = false
-        row.isLayoutMarginsRelativeArrangement = true
-        row.layoutMargins = UIEdgeInsets(
-            top: Theme.Space.m, left: Theme.Space.m, bottom: Theme.Space.m, right: Theme.Space.m
-        )
+        init() {
+            super.init(frame: .zero)
+            backgroundColor = Theme.Color.surface
+            layer.cornerRadius = Theme.Radius.card
+            layer.borderWidth = 1
+            layer.borderColor = Theme.Color.border.cgColor
 
-        container.addSubview(row)
-        NSLayoutConstraint.activate([
-            row.topAnchor.constraint(equalTo: container.topAnchor),
-            row.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            row.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            row.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-        ])
-        return container
+            accent.layer.cornerRadius = 2
+            accent.translatesAutoresizingMaskIntoConstraints = false
+            accent.widthAnchor.constraint(equalToConstant: Theme.Space.xs).isActive = true
+
+            let row = UIStackView(arrangedSubviews: [accent, label])
+            row.axis = .horizontal
+            row.alignment = .fill
+            row.spacing = Theme.Space.m
+            row.translatesAutoresizingMaskIntoConstraints = false
+            row.isLayoutMarginsRelativeArrangement = true
+            row.layoutMargins = UIEdgeInsets(
+                top: Theme.Space.m, left: Theme.Space.m, bottom: Theme.Space.m, right: Theme.Space.m
+            )
+
+            addSubview(row)
+            NSLayoutConstraint.activate([
+                row.topAnchor.constraint(equalTo: topAnchor),
+                row.bottomAnchor.constraint(equalTo: bottomAnchor),
+                row.leadingAnchor.constraint(equalTo: leadingAnchor),
+                row.trailingAnchor.constraint(equalTo: trailingAnchor),
+            ])
+        }
+
+        required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        func update(_ text: String, tone: StatusTone) {
+            label.text = text
+            accent.backgroundColor = tone.accent
+        }
     }
 
     // MARK: - Input
@@ -178,16 +211,32 @@ enum Components {
 
     /// Title plus progress bar, for a running measurement.
     static func progressHeader(title: String, progress: Float) -> UIView {
-        let heading = sectionHeader(title)
-        let bar = UIProgressView(progressViewStyle: .default)
-        bar.progressTintColor = Theme.Color.primary
-        bar.trackTintColor = Theme.Color.greyExtraLight
-        bar.setProgress(progress, animated: false)
+        let header = ProgressHeaderView()
+        header.update(title, progress: progress)
+        return header
+    }
 
-        let stack = UIStackView(arrangedSubviews: [heading, bar])
-        stack.axis = .vertical
-        stack.spacing = Theme.Space.s
-        return stack
+    /// Stateful ``progressHeader``: a run updates title and bar on every stage.
+    final class ProgressHeaderView: UIStackView {
+        private let heading = sectionHeader("")
+        private let bar = UIProgressView(progressViewStyle: .default)
+
+        init() {
+            super.init(frame: .zero)
+            bar.progressTintColor = Theme.Color.primary
+            bar.trackTintColor = Theme.Color.greyExtraLight
+            addArrangedSubview(heading)
+            addArrangedSubview(bar)
+            axis = .vertical
+            spacing = Theme.Space.s
+        }
+
+        required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        func update(_ title: String, progress: Float) {
+            heading.text = title
+            bar.setProgress(progress, animated: false)
+        }
     }
 
     /// Shown instead of an empty list. An empty screen with no explanation

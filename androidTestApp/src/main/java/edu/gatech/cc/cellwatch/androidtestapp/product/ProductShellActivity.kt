@@ -152,6 +152,7 @@ class ProductShellActivity : AppCompatActivity() {
         is Destination.MeasurementStart -> MeasurementStartScreen(
             context = this,
             viewModel = MeasurementStartViewModel(CollectionMode.FCC_CHALLENGE),
+            hasRuntimeProfile = container.isSuccess,
             onReadyToRun = { inVehicle -> goTo(Destination.MeasurementRun(inVehicle)) },
         ).view
 
