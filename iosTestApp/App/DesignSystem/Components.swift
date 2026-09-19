@@ -147,6 +147,22 @@ enum Components {
         field.font = Theme.Font.body
         field.adjustsFontForContentSizeCategory = true
         field.keyboardType = keyboard
+        // Capitalisation follows the keyboard, because the default does the
+        // wrong thing: typing an address into an email field produced
+        // "Jw199@gatech.edu" on the first run of the onboarding screen.
+        switch keyboard {
+        case .emailAddress:
+            field.autocapitalizationType = .none
+            field.autocorrectionType = .no
+            field.textContentType = .emailAddress
+        case .phonePad, .numberPad:
+            field.autocapitalizationType = .none
+            field.autocorrectionType = .no
+            field.textContentType = .telephoneNumber
+        default:
+            field.autocapitalizationType = .words
+            field.textContentType = .name
+        }
         field.borderStyle = .none
         field.backgroundColor = Theme.Color.surface
         field.layer.cornerRadius = Theme.Radius.control

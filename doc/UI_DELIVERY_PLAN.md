@@ -58,7 +58,28 @@ No screen work until these land; they are what makes screen work reusable.
 | 0.2 | Shared `Destination` + `Navigator`, extending `AppLaunchRoutingUseCase` to the full graph (Rule 2) | **done** — 8 destinations, back stack, 7 tests; not yet adopted by either platform (that lands with each screen in Phase 1) |
 | 0.3 | Component inventory, iOS: 9 baseline components + screen template + spacing scale (Rule 3) | **done** — reviewed on the simulator; see Layout decisions |
 | 0.4 | Component inventory, Android: same 9, same template | **done** — reviewed on `Medium_Phone_API_36`; matches iOS |
-| 0.5 | Collapse presentation roles to `ViewModel` + `UiState` (Rule 1): `measurementstart` 5→1, `maphome` 3→1, rename `*ViewController` | todo |
+| 0.5 | Collapse presentation roles to `ViewModel` + `UiState` (Rule 1) | **folded into Phase 1/2** — see below |
+
+### Why 0.5 is not a standalone task
+
+Collapsing the roles up front would touch every class twice: once to rename, once again when the
+screen is rebuilt. The surface is not small — `MeasurementRunViewController` alone spans 11 files
+and sits on the measurement path verified on real cellular hardware — and a pure rename produces
+no user-visible change while destabilising something that works.
+
+So each screen task below **collapses its own package as part of the rebuild**: one ViewModel and
+one UiState, with `FlowController`/`UiPresenter`/`*ViewController` folded in, verified on both
+emulators as part of that screen. Rule 1 still governs; it is applied per screen rather than in
+one sweep.
+
+Per-screen collapses owed:
+
+| Package | Today | Becomes | Lands in |
+|---|---|---|---|
+| `measurementstart` | 5 classes | `MeasurementStartViewModel` + a correctly-named preflight use case (the current `MeasurementStartPreflightViewModel` holds domain types and policy, not presentation) | 1.3 |
+| `maphome` | 3 classes | `MapHomeViewModel` | 1.2 |
+| `measurementrun` | `MeasurementRunViewController` + `MeasurementRunUiPresenter` | `MeasurementRunViewModel` | 1.4 |
+| `measurementhistory` | `MeasurementHistoryViewController` (orphaned) | `MeasurementHistoryViewModel`, adopted | 2.1 |
 
 ## Phase 1 — Vertical slice
 
@@ -68,7 +89,7 @@ before the next begins. No parallel screens — that is how duplication got in.
 
 | Task | Screen | Story | Status |
 |---|---|---|---|
-| 1.1 | Onboarding / profile | 1 | todo |
+| 1.1 | Onboarding / profile | 1 | **iOS done** — shared VM adopted, composed from inventory, reachable at launch, interaction verified. **Android owed** (Rule 4.5 needs both) |
 | 1.2 | Map home (shell entry) | 2, 12 | todo |
 | 1.3 | Start measurement | 3 | todo |
 | 1.4 | Measurement run progress | 4 | todo |
@@ -153,7 +174,25 @@ Taken in 0.4:
 Reference: frozenApp's layouts are the product intent. Where its arrangement is good, copy it;
 where it is not, record why.
 
-Open layout questions are listed here as they arise rather than decided ad hoc mid-screen.
+Taken in 1.1:
+
+- **The action area is installed only when a screen has actions.** An empty `UIStackView` has no
+  intrinsic content size, so keeping it always present left the layout under-constrained: on a
+  screen with no actions the solver gave the empty stack all 818pt and crushed the scroll view to
+  zero height, rendering a completely blank screen. Screens with buttons hid it. Content-hugging
+  does not fix this — hugging needs an intrinsic size to hug.
+- **Form-field capitalisation follows the keyboard type.** The default capitalised an address
+  into `Jw199@gatech.edu`. Fixed in the component, so every screen inherits it.
+
+## Open product questions
+
+- **How much of frozenApp's onboarding should return?** frozenApp onboarded through six
+  fragments: welcome, read more, FCC information, data use, collection mode, permissions. The KMP
+  app captures only the contact details the FCC submission requires. Collection mode moving to
+  settings was a deliberate, recorded decision; the informational steps - **particularly data
+  use**, which is a consent disclosure for an app collecting location traces - were not decided,
+  they simply were not carried over. The navigation graph takes extra destinations without
+  rework, so this can be answered at any point.
 
 ## What this plan will not do
 

@@ -11,6 +11,7 @@
 		1C3A365CD8DD93B859389C34 /* ComponentGalleryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7235E6B95B6E13A80186856 /* ComponentGalleryViewController.swift */; };
 		276A194FAB9B4C58802259B4 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6928C5C59275F28B9FA849D3 /* Components.swift */; };
 		4158C032D5276D4B0A8DFF82 /* OnboardingUiScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = 472086868B28DBFF7BA40D28 /* OnboardingUiScenario.swift */; };
+		42D7BA0DAC927DE18C0753E8 /* ProductShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B50B6F1371F5F189B8C522 /* ProductShell.swift */; };
 		48084938226EE915C7B28B28 /* LocalMsakPhase3HostedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FBA4A19DB0AC3D964EE15F0 /* LocalMsakPhase3HostedTests.swift */; };
 		481BF9FFC6A1058F6725DBF3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC15C20A199EC74B63FE7D9C /* AppDelegate.swift */; };
 		4A8F9BC776AB61478207AC3B /* sharedKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C5FBB840AFCBCA7D65A6631A /* sharedKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -25,6 +26,7 @@
 		B74097565DC6F8AFBBEA8B1B /* sharedKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C5FBB840AFCBCA7D65A6631A /* sharedKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BBFE433611933E659EE92DF2 /* TestingSupabaseHostedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69722339826D742BBE4CDC6A /* TestingSupabaseHostedTests.swift */; };
 		C66D1D25719233C9CB8632DB /* HarnessUiSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E3DA5BB69E65B14EE5CCFFF /* HarnessUiSmokeTests.swift */; };
+		CCC0A5221A96C30B3026E926 /* OnboardingScreenViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB126610B2F72E4D396DC9D5 /* OnboardingScreenViewController.swift */; };
 		D571874DE5967BFA3F325EB5 /* SyncHarnessParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5631CFB68FC8008FCBA205FD /* SyncHarnessParityTests.swift */; };
 		E72C272326E1B2EB895B61F3 /* sharedKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5FBB840AFCBCA7D65A6631A /* sharedKit.framework */; };
 		E90622B9B31A903466DD888F /* OnboardingFlowUiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5CBFF2A8F77785E88BDD6E7 /* OnboardingFlowUiTests.swift */; };
@@ -88,7 +90,9 @@
 		8299095BF8160B417290B09F /* ScreenScaffold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenScaffold.swift; sourceTree = "<group>"; };
 		855C37415555A2CF3EB2445A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9E6C60504253D7266EA7634E /* PublicMsakLocalSupabaseHostedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicMsakLocalSupabaseHostedTests.swift; sourceTree = "<group>"; };
+		A7B50B6F1371F5F189B8C522 /* ProductShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductShell.swift; sourceTree = "<group>"; };
 		AC15C20A199EC74B63FE7D9C /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		BB126610B2F72E4D396DC9D5 /* OnboardingScreenViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingScreenViewController.swift; sourceTree = "<group>"; };
 		C5FBB840AFCBCA7D65A6631A /* sharedKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = sharedKit.framework; path = ../shared/build/bin/Current/sharedKit.framework; sourceTree = "<group>"; };
 		D3BD851B5AC03638135A8070 /* OnboardingRuntimeHostedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingRuntimeHostedTests.swift; sourceTree = "<group>"; };
 		D5CBFF2A8F77785E88BDD6E7 /* OnboardingFlowUiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowUiTests.swift; sourceTree = "<group>"; };
@@ -157,6 +161,15 @@
 			path = DesignSystem;
 			sourceTree = "<group>";
 		};
+		4B7A114EDDBC67B9DABC4F71 /* Screens */ = {
+			isa = PBXGroup;
+			children = (
+				BB126610B2F72E4D396DC9D5 /* OnboardingScreenViewController.swift */,
+				A7B50B6F1371F5F189B8C522 /* ProductShell.swift */,
+			);
+			path = Screens;
+			sourceTree = "<group>";
+		};
 		B3CB022555C8561742E76B33 /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -165,6 +178,7 @@
 				1DC3BDAACA408D93F1038CF1 /* Info.plist */,
 				2719041E3CF0FFB3362AD23B /* SceneDelegate.swift */,
 				3073BD707BBE7D5AEA97FFD9 /* DesignSystem */,
+				4B7A114EDDBC67B9DABC4F71 /* Screens */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -350,6 +364,8 @@
 				481BF9FFC6A1058F6725DBF3 /* AppDelegate.swift in Sources */,
 				1C3A365CD8DD93B859389C34 /* ComponentGalleryViewController.swift in Sources */,
 				276A194FAB9B4C58802259B4 /* Components.swift in Sources */,
+				CCC0A5221A96C30B3026E926 /* OnboardingScreenViewController.swift in Sources */,
+				42D7BA0DAC927DE18C0753E8 /* ProductShell.swift in Sources */,
 				4FEEB5A1AA5CCE04BCF14372 /* SceneDelegate.swift in Sources */,
 				EBDD3A6DCF4CAA5D194407E7 /* ScreenScaffold.swift in Sources */,
 				977E9231D468416122AC68B8 /* Theme.swift in Sources */,
