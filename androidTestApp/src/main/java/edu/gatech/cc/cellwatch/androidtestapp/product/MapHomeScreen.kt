@@ -21,6 +21,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.MapScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeMeasurementLocationSnapshot
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeSyncStateKey
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeUiState
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeViewModel
@@ -35,6 +36,12 @@ class MapHomeScreen(
     private val context: Context,
     private val viewModel: MapHomeViewModel,
     private val inputProvider: () -> MapHomeInput,
+    /**
+     * Asynchronous: the points come from the database. Nothing supplied these
+     * before, so the map had no points at all - separate from, and upstream of,
+     * the icon defect fixed in 1.2a.
+     */
+    private val measurementLocationProvider: ((List<MapHomeMeasurementLocationSnapshot>) -> Unit) -> Unit,
     onMeasure: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
@@ -72,8 +79,13 @@ class MapHomeScreen(
         refresh()
     }
 
-    /** Re-read on every appearance, so returning shows new counts. */
-    fun refresh() = render(viewModel.onInputChanged(inputProvider()))
+    /** Re-read on every appearance, so returning shows new counts and points. */
+    fun refresh() {
+        render(viewModel.onInputChanged(inputProvider()))
+        measurementLocationProvider { snapshots ->
+            render(viewModel.onMeasurementsLoaded(snapshots))
+        }
+    }
 
     fun onDestroy() {
         mapView?.onDestroy()

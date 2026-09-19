@@ -17,6 +17,7 @@ import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestr
 import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionProfile
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceProgressListener
 import edu.gatech.cc.cellwatch.domain.fcc.RepositoryBackedMeasurementResultStore
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeMeasurementLocationSnapshot
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSequenceSyncOrchestrator
 import edu.gatech.cc.cellwatch.domain.sync.tcpTupleProviderFor
@@ -101,7 +102,7 @@ class ProductContainer(
     val submissionRepository by lazy {
         FccSubmissionRepositoryImpl(queries = database.fccSubmissionQueries, io = EmptyCoroutineContext)
     }
-    private val locationRepository by lazy {
+    val locationRepository by lazy {
         LocationRepositoryImpl(queries = database.locationQueries, io = EmptyCoroutineContext)
     }
     private val cellRepository by lazy {
@@ -145,6 +146,32 @@ class ProductContainer(
      * screen's run, and reusing an orchestrator would report a second run's
      * progress to the first screen.
      */
+    /**
+     * Measurement locations for the map, most recent first.
+     *
+     * Nothing supplied these before: the product map homes built a
+     * `MapHomeViewModel` and never called `onMeasurementsLoaded`, so the map
+     * had no points at all. That is worth separating from the icon defect
+     * fixed in 1.2a - with no data, correcting the icon could not have made a
+     * pin appear either.
+     *
+     * One point per measurement, taken from its first recorded location. A
+     * measurement records a location at start and end; drawing both would put
+     * two pins on top of each other for a stationary user.
+     */
+    suspend fun recentMeasurementLocations(limit: Long = 500): List<MapHomeMeasurementLocationSnapshot> =
+        measurementRepository.getRecent(limit).mapNotNull { measurement ->
+            val location = locationRepository.getByMeasurementId(measurement.id).firstOrNull()
+                ?: return@mapNotNull null
+            MapHomeMeasurementLocationSnapshot(
+                id = measurement.id,
+                title = measurement.type,
+                timestampMs = measurement.timestamp?.toEpochMilliseconds() ?: 0L,
+                latitude = location.lat,
+                longitude = location.lon,
+            )
+        }
+
     /**
      * The submission profile for a run, with the persisted device id attached.
      */

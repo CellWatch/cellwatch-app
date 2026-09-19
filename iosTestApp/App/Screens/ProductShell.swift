@@ -112,6 +112,15 @@ final class ProductShell: NSObject {
                         pendingSubmissions: 0
                     )
                 },
+                measurementLocationProvider: { completion in
+                    guard case .success(let container) = Container.result else {
+                        completion([])
+                        return
+                    }
+                    container.recentMeasurementLocations(limit: 500) { snapshots, _ in
+                        DispatchQueue.main.async { completion(snapshots ?? []) }
+                    }
+                },
                 onMeasure: { [weak self] in self?.go(to: DestinationMeasurementStart.shared) },
                 onHistory: { [weak self] in self?.go(to: DestinationHistory.shared) },
                 onSettings: { [weak self] in self?.go(to: DestinationSettings.shared) }
