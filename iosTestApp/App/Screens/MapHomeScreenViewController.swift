@@ -13,6 +13,8 @@ final class MapHomeScreenViewController: UIViewController {
 
     private let viewModel: MapHomeViewModel
     private let inputProvider: () -> MapHomeInput
+    /// Asynchronous: the points come from the database, off the main thread.
+    private let measurementLocationProvider: (@escaping ([MapHomeMeasurementLocationSnapshot]) -> Void) -> Void
     private let onMeasure: () -> Void
     private let onHistory: () -> Void
     private let onSettings: () -> Void
@@ -30,12 +32,14 @@ final class MapHomeScreenViewController: UIViewController {
     init(
         viewModel: MapHomeViewModel,
         inputProvider: @escaping () -> MapHomeInput,
+        measurementLocationProvider: @escaping (@escaping ([MapHomeMeasurementLocationSnapshot]) -> Void) -> Void,
         onMeasure: @escaping () -> Void,
         onHistory: @escaping () -> Void,
         onSettings: @escaping () -> Void
     ) {
         self.viewModel = viewModel
         self.inputProvider = inputProvider
+        self.measurementLocationProvider = measurementLocationProvider
         self.onMeasure = onMeasure
         self.onHistory = onHistory
         self.onSettings = onSettings
@@ -78,6 +82,12 @@ final class MapHomeScreenViewController: UIViewController {
 
     private func refresh() {
         render(viewModel.onInputChanged(input: inputProvider()))
+        // Reloaded on every appearance rather than once: returning from a run
+        // is exactly when there is a new point to draw.
+        measurementLocationProvider { [weak self] snapshots in
+            guard let self else { return }
+            self.render(self.viewModel.onMeasurementsLoaded(snapshots: snapshots))
+        }
     }
 
     // MARK: - Events

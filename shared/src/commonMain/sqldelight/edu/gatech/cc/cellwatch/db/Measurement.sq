@@ -62,6 +62,9 @@ SELECT * FROM MeasurementEntity WHERE id = ?;
 selectMeasurementsByGroupId:
 SELECT * FROM MeasurementEntity WHERE groupId = ? ORDER BY timestamp DESC;
 
+selectRecentMeasurements:
+SELECT * FROM MeasurementEntity ORDER BY timestamp DESC LIMIT :limit;
+
 selectUnsyncedMeasurements:
 SELECT * FROM MeasurementEntity
 WHERE uploadTime IS NULL

@@ -69,6 +69,9 @@ class MeasurementRepositoryImpl(
     override suspend fun getByGroupId(groupId: String): List<Measurement> =
         queries.selectMeasurementsByGroupId(groupId).executeAsList().map { it.toDomain() }
 
+    override suspend fun getRecent(limit: Long): List<Measurement> =
+        queries.selectRecentMeasurements(limit).executeAsList().map { it.toDomain() }
+
     override suspend fun getUnsynced(): List<Measurement> =
         queries.selectUnsyncedMeasurements().executeAsList().map { it.toDomain() }
 

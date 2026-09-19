@@ -90,6 +90,8 @@ private class NoOpMeasurementRepository : MeasurementRepository {
     override suspend fun delete(id: String) = Unit
     override suspend fun getById(id: String): Measurement? = null
     override suspend fun getByGroupId(groupId: String): List<Measurement> = emptyList()
+    // Not exercised: this double backs a failure-status test, not the map.
+    override suspend fun getRecent(limit: Long): List<Measurement> = emptyList()
     override suspend fun getUnsynced(): List<Measurement> = emptyList()
     override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
     override fun observeByGroupId(groupId: String): Flow<List<Measurement>> = emptyFlow()

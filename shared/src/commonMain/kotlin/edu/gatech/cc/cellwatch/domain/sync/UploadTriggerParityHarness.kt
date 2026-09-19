@@ -135,6 +135,8 @@ private class InMemoryMeasurementRepository(
     override suspend fun getByGroupId(groupId: String): List<Measurement> =
         if (measurement.groupId == groupId) listOf(measurement) else emptyList()
 
+    // Not exercised: these doubles back sync tests, which never read the map window.
+    override suspend fun getRecent(limit: Long): List<Measurement> = emptyList()
     override suspend fun getUnsynced(): List<Measurement> = emptyList()
     override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
     override fun observeByGroupId(groupId: String): Flow<List<Measurement>> = emptyFlow()

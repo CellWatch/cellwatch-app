@@ -4,6 +4,8 @@ import android.os.Bundle
 import android.view.View
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.onboarding.AndroidOnboardingProfileStore
@@ -143,6 +145,16 @@ class ProductShellActivity : AppCompatActivity() {
                     pendingMeasurements = 0,
                     pendingSubmissions = 0,
                 )
+            },
+            measurementLocationProvider = { deliver ->
+                val productContainer = container.getOrNull()
+                if (productContainer == null) {
+                    deliver(emptyList())
+                } else {
+                    lifecycleScope.launch {
+                        deliver(productContainer.recentMeasurementLocations(500L))
+                    }
+                }
             },
             onMeasure = { goTo(Destination.MeasurementStart) },
             onHistory = { goTo(Destination.History) },

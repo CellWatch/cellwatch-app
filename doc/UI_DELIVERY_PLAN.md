@@ -85,7 +85,7 @@ Per-screen collapses owed:
 |---|---|---|---|
 | `measurementstart` | 5 classes | `MeasurementStartViewModel` + a correctly-named preflight use case (the current `MeasurementStartPreflightViewModel` holds domain types and policy, not presentation) | 1.3 |
 | `maphome` | 3 classes | `MapHomeViewModel` wrapping them; they stay public for the harness | **done** |
-| `measurementrun` | `MeasurementRunViewController` + `MeasurementRunUiPresenter` | `MeasurementRunViewModel` | 1.4 |
+| `measurementrun` | `MeasurementRunViewController` + `MeasurementRunUiPresenter` | `MeasurementRunViewModel` | **done** |
 | `measurementhistory` | `MeasurementHistoryViewController` (orphaned) | `MeasurementHistoryViewModel`, adopted | 2.1 |
 
 ## Phase 1 — Vertical slice
@@ -98,10 +98,11 @@ before the next begins. No parallel screens — that is how duplication got in.
 |---|---|---|---|
 | 1.1 | Onboarding / profile | 1 | **done both platforms** — shared VM adopted unchanged, composed from inventory, reachable at launch, interaction driven on iOS 17.5 sim and `Medium_Phone_API_36` |
 | 1.2a | Map home shell — map as base layer, actions, sync status, `maphome` 3→1, pin fix | 2 | **done both platforms** — verified on iOS 17.5 sim and `Medium_Phone_API_36` |
+| 1.2a-followup | Map points wired to the database — the shells built a `MapHomeViewModel` and never called `onMeasurementsLoaded`, so the map had no points at all, upstream of the icon defect | 2 | **done** — pin observed on the iOS simulator at the simulated coordinates. Not visually confirmed on Android: the emulator records its default Mountain View location, outside the map's Atlanta camera, and `adb emu geo fix` does not reach the app's location source. Same shared data path and the same `addImage` fix. |
 | 1.2b | Hex grid overlay — H3 now available via `h3-kmp`; geometry is computable, rendering is not built | 12 | unblocked, not started |
-| 1.3 | Start measurement | 3 | todo |
-| 1.4 | Measurement run progress | 4 | todo |
-| 1.5 | Results | 5, 6 | todo |
+| 1.3 | Start measurement | 3 | **done both platforms** — all three policy branches driven (permission denied, cellular proceeds, Wi-Fi confirmation with cancel and proceed) on iOS 17.5 sim and `Medium_Phone_API_36` |
+| 1.4 | Measurement run progress | 4 | **done both platforms** — real measurements end to end against the local MSAK server, cancel path verified |
+| 1.5 | Results | 5, 6 | **done both platforms** — metrics, sync state and a new FCC submission-outcome card; results persist to a shared, persistent product database |
 
 ### Why the map overlays never rendered
 

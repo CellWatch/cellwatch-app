@@ -177,6 +177,8 @@ private class FakeMeasurementRepository(
 
     override suspend fun getByGroupId(groupId: String): List<Measurement> = emptyList()
 
+    // Not exercised: these doubles back sync tests, which never read the map window.
+    override suspend fun getRecent(limit: Long): List<Measurement> = emptyList()
     override suspend fun getUnsynced(): List<Measurement> = emptyList()
 
     override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
