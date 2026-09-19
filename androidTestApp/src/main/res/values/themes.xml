@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Product screen theme.
+
+  Applied per-activity rather than to the whole application, so the existing
+  harness keeps the stock NoActionBar theme it was built against and nothing
+  currently verified shifts underneath it.
+
+  Two deliberate choices:
+
+  - An action bar, so the title has an owner. iOS gives the navigation bar the
+    title and the scaffold renders none; without an action bar here the Android
+    title would simply vanish, and the platforms would diverge on the first
+    screen.
+  - A Light parent, not DayNight. The component inventory hardcodes light
+    surfaces and dark text, so DayNight would produce a half-dark UI in dark
+    mode - white cards with unreadable text. Dark mode is a deliberate
+    not-yet, not an accident.
+-->
+<resources>
+    <style name="Theme.CellWatch" parent="Theme.MaterialComponents.Light.DarkActionBar">
+        <item name="colorPrimary">@color/cw_blue</item>
+        <item name="colorPrimaryVariant">@color/cw_blue_dark</item>
+        <item name="colorSecondary">@color/cw_green</item>
+        <item name="colorError">@color/cw_orange</item>
+        <item name="android:statusBarColor">@color/cw_blue_dark</item>
+        <item name="android:windowBackground">@color/cw_grey_ultra_light</item>
+    </style>
+</resources>
