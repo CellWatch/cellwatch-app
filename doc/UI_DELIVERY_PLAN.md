@@ -57,7 +57,7 @@ No screen work until these land; they are what makes screen work reusable.
 | 0.1 | Record the reconciliation above | done |
 | 0.2 | Shared `Destination` + `Navigator`, extending `AppLaunchRoutingUseCase` to the full graph (Rule 2) | **done** — 8 destinations, back stack, 7 tests; not yet adopted by either platform (that lands with each screen in Phase 1) |
 | 0.3 | Component inventory, iOS: 9 baseline components + screen template + spacing scale (Rule 3) | **done** — reviewed on the simulator; see Layout decisions |
-| 0.4 | Component inventory, Android: same 9, same template | todo |
+| 0.4 | Component inventory, Android: same 9, same template | **done** — reviewed on `Medium_Phone_API_36`; matches iOS |
 | 0.5 | Collapse presentation roles to `ViewModel` + `UiState` (Rule 1): `measurementstart` 5→1, `maphome` 3→1, rename `*ViewController` | todo |
 
 ## Phase 1 — Vertical slice
@@ -135,6 +135,20 @@ Taken in 0.3, reviewed on the simulator:
   smaller.
 - **Stacks, not per-screen constraints.** `NSLayoutConstraint` blocks are what made harness
   layouts unrepeatable, so spacing flows from the scale through stack views.
+
+Taken in 0.4:
+
+- **Android components are built in code, not XML.** A deliberate divergence from frozenApp's 21
+  layouts: androidTestApp already has zero XML so this adds no second paradigm, and mirroring the
+  iOS factories keeps screen code structurally similar across platforms. Revisit if screens grow
+  complex enough that layout previews pay for themselves.
+- **A `Theme.CellWatch` applied per-activity**, not application-wide, so the harness keeps the
+  stock theme it was built against. Without it the gallery showed Material's purple status bar
+  and, being `NoActionBar`, had nowhere to put the title — the Android title would simply have
+  vanished while iOS showed one.
+- **Light parent, not DayNight.** The inventory hardcodes light surfaces and dark text, so
+  DayNight would render white cards with unreadable text in dark mode. Dark mode is a deliberate
+  not-yet.
 
 Reference: frozenApp's layouts are the product intent. Where its arrangement is good, copy it;
 where it is not, record why.

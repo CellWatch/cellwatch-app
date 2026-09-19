@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CellWatch palette, carried over from frozenApp res/values/colors.xml so the
+  product keeps its identity. Kotlin's Theme.Palette mirrors these for code that
+  builds views programmatically; this file exists for the values the platform
+  theme needs (status bar, action bar), which cannot be set from Kotlin alone.
+-->
+<resources>
+    <color name="cw_blue">#07416B</color>
+    <color name="cw_blue_dark">#052F4D</color>
+    <color name="cw_green">#1E5638</color>
+    <color name="cw_orange">#B44D0D</color>
+    <color name="cw_white">#FFFFFF</color>
+    <color name="cw_grey_ultra_light">#F2F2F2</color>
+</resources>
