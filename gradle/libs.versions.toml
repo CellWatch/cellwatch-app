@@ -41,6 +41,7 @@ runner = "1.7.0"
 core = "1.7.0"
 datetime = "0.6.1"
 sqldelight = "2.4.0"
+h3kmp = "0.0.8"
 robolectric = "4.11.1" # keep all versions in one place
 androidx-test-core = "1.5.0"
 benasherUuid = "0.8.4"
@@ -86,6 +87,7 @@ espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref =
 
 datastore = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 h3 = { module = "com.uber:h3", version = "3.7.2" }
+h3-kmp = { module = "io.github.phansier.h3:library", version.ref = "h3kmp" }
 commons-validator = { module = "commons-validator:commons-validator", version.ref = "commonsValidator" }
 oss-licenses = { module = "com.google.android.gms:play-services-oss-licenses", version.ref = "ossLicenses" }
 flexbox = { module = "com.google.android.flexbox:flexbox", version.ref = "flexbox" }

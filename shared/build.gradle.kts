@@ -93,6 +93,8 @@ kotlin {
                 implementation(libs.sqldelight.android.driver)
                 implementation(libs.cryptography.provider.jdk)
                 implementation(libs.msak.client.kmp)
+                // Same variant constraint as msak: android and ios only, no jvm.
+                implementation(libs.h3.kmp)
             }
         }
 
@@ -125,6 +127,7 @@ kotlin {
                 implementation(libs.sqldelight.native.driver)
                 implementation(libs.cryptography.provider.openssl3.prebuilt)
                 implementation(libs.msak.client.kmp)
+                implementation(libs.h3.kmp)
             }
         }
         iosTest {
@@ -153,9 +156,9 @@ kotlin {
 
 android {
     namespace = "edu.gatech.cc.cellwatch"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
-        minSdk = 24
+        minSdk = 26
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {

@@ -73,11 +73,11 @@ val releaseSupabaseApiKey = readCellwatchProperty(releaseSupabaseApiKeyKey)
 
 android {
     namespace = "edu.gatech.cc.cellwatch.androidtestapp"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "edu.gatech.cc.cellwatch.androidtestapp"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
