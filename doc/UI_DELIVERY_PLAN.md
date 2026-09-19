@@ -120,15 +120,47 @@ is to register an image and reference its id, or use v11's `annotation.image`. F
    declared in `libs.versions.toml` for `frozenApp` alone; it cannot be used from Kotlin/Native,
    so there is no cross-platform H3 today.
 
+**What the rest of the system already assumes.** The published schema stores `center_hex9`,
+`start_hex9` and `end_hex9` (resolution 9), indexes `center_hex9`, and exposes
+`published.measurements_in_hex(hex, ...)` which selects measurements by
+`hex_ancestor(center_hex9, hex_res(hex)) = hex`. So hexagons are part of the data model, not
+just the map — and `hex_ancestor` is **pure bit manipulation** (clear the resolution bits, set
+new ones, fill the lower digits), needing no H3 library.
+
+That narrows what a client actually needs from H3 to two operations:
+
+| Operation | Needs H3 math? |
+|---|---|
+| parent / child of a cell | **No** — bit masking, as `hex_ancestor` proves |
+| latitude/longitude → cell | Yes |
+| cell → boundary (6 vertices) | Yes |
+
+Note the KMP app populates none of the hex columns today; whatever calls `publish_data` supplies
+them. For the app, H3 is currently display-only.
+
 Options, in ascending cost:
 
 | | Approach | Consequence |
 |---|---|---|
 | A | **Mapbox native clustering** instead of H3 | No H3 at all; Mapbox aggregates points into counted clusters natively on both platforms. Achieves the user-facing goal — "how many measurements around here" — with a different visual language from frozenApp. |
 | B | H3 on Android, degrade iOS to clustering or points | Keeps frozenApp's look where it is cheap, but the platforms then show different maps, which cuts against the comparability argument made for item 4. |
-| C | Cross-platform H3 in `commonMain` | Matches frozenApp exactly on both. Means porting or binding H3 for Kotlin/Native — the largest piece of work in this plan by some margin. |
+| C | Cross-platform H3 in `commonMain` | Matches frozenApp exactly on both. Means porting or binding H3 for Kotlin/Native. |
 
-Not decided. 1.2a does not depend on it.
+Option C is cheaper than first assumed, and splits into two viable routes:
+
+| | Route | Trade-off |
+|---|---|---|
+| **C1** | **Native bindings behind `expect`/`actual`.** Android keeps `com.uber:h3` (already in the version catalog for frozenApp); iOS uses cinterop, since **H3 is a C library** and that is exactly what cinterop is for. | No maths to port, exact on both. The work is building H3 for iOS device and simulator architectures and writing the `.def`. |
+| **C2** | **Port the two needed functions to `commonMain`.** Only `latLngToCell` and `cellToBoundary`; parent/child is bit masking. | No native build complexity, runs on every target, and testable in `commonTest` against H3's published test vectors. Roughly a few hundred lines of icosahedral projection maths, so correctness risk is real but checkable. |
+| **C3** | **Server supplies the geometry.** The database already indexes and aggregates by hex; returning boundaries as GeoJSON would leave the client with no H3 at all. | Cheapest client-side, but needs a Supabase change and makes the map network-dependent. |
+
+There is also a free partial step available now: because parent/child is bit masking, measurements
+can be grouped into resolution-8 buckets and counted **without any H3 library**. That gives correct
+aggregation semantics — "this area has N measurements" — short of drawing the hexagon itself.
+
+Not decided, and worth confirming the FCC linkage first: if resolution 8 is the challenge unit,
+clustering (A) is not equivalent, because clusters are screen-space groupings with no relationship
+to challenge units. 1.2a does not depend on any of this.
 
 ## Phase 2 — Remaining stories
 
