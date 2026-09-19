@@ -11,6 +11,7 @@ import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileConfig
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileResolver
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSupabaseMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
+import edu.gatech.cc.cellwatch.domain.sync.SyncStatusStore
 import edu.gatech.cc.cellwatch.domain.sync.readPackagedRuntimeProperty
 import platform.Foundation.NSBundle
 
@@ -43,6 +44,8 @@ class IosProductServices(
     override val tcpTupleUrl: String? = readPackagedRuntimeProperty("TCP_TUPLE_URL")
 
     override val appSource: String = APP_SOURCE
+
+    override val syncStatusStore: SyncStatusStore = IosSyncStatusStore()
 
     override fun submissionIdentity(): ProductSubmissionIdentity = contact()
 

@@ -33,6 +33,7 @@ class MeasurementRunScreen(
     private val scaffold = ScreenScaffold(context)
     private val progressHeader = Components.ProgressHeaderView(context)
     private val statusCard = Components.StatusCardView(context)
+    private val syncCard = Components.StatusCardView(context)
     private val fccCard = Components.StatusCardView(context)
     private val latencyRow = Components.MetricRowView(context, "Latency")
     private val downloadRow = Components.MetricRowView(context, "Download")
@@ -61,6 +62,7 @@ class MeasurementRunScreen(
             uploadedRow,
             Components.divider(context),
             statusCard,
+            syncCard,
             fccCard,
         )
         scaffold.addActions(cancelButton, doneButton, againButton)
@@ -94,6 +96,12 @@ class MeasurementRunScreen(
         uploadRow.update(state.uploadText)
         uploadedRow.update(state.uploadedText)
         statusCard.update(state.summaryText, toneFor(state))
+
+        // Same reason as the FCC card: there is no sync story until the run
+        // finishes, and "Sync: Pending" on its own never said when anything
+        // last reached the server, or whether uploads were failing.
+        syncCard.visibility = if (state.syncDetailText.isBlank()) View.GONE else View.VISIBLE
+        syncCard.update(state.syncDetailText, Components.StatusTone.NEUTRAL)
 
         // Hidden mid-run: whether a measurement reaches the FCC is not known
         // until it finishes, and guessing early would be worse than silence.
