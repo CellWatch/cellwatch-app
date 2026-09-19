@@ -22,6 +22,11 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".product.ProductShellActivity"
+            android:exported="true"
+            android:label="CellWatch"
+            android:theme="@style/Theme.CellWatch" />
+        <activity
             android:name=".designsystem.ComponentGalleryActivity"
             android:exported="true"
             android:label="Component inventory"
