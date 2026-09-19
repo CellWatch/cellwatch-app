@@ -89,7 +89,7 @@ before the next begins. No parallel screens — that is how duplication got in.
 
 | Task | Screen | Story | Status |
 |---|---|---|---|
-| 1.1 | Onboarding / profile | 1 | **iOS done** — shared VM adopted, composed from inventory, reachable at launch, interaction verified. **Android owed** (Rule 4.5 needs both) |
+| 1.1 | Onboarding / profile | 1 | **done both platforms** — shared VM adopted unchanged, composed from inventory, reachable at launch, interaction driven on iOS 17.5 sim and `Medium_Phone_API_36` |
 | 1.2 | Map home (shell entry) | 2, 12 | todo |
 | 1.3 | Start measurement | 3 | todo |
 | 1.4 | Measurement run progress | 4 | todo |
