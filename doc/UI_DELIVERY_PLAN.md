@@ -91,7 +91,7 @@ before the next begins. No parallel screens — that is how duplication got in.
 |---|---|---|---|
 | 1.1 | Onboarding / profile | 1 | **done both platforms** — shared VM adopted unchanged, composed from inventory, reachable at launch, interaction driven on iOS 17.5 sim and `Medium_Phone_API_36` |
 | 1.2a | Map home shell — map as base layer, actions, sync status, `maphome` 3→1, pin fix | 2 | todo |
-| 1.2b | Hex grid overlay — needs an approach decision, see below | 12 | **blocked on a decision** |
+| 1.2b | Hex grid overlay — H3 now available via `h3-kmp`; geometry is computable, rendering is not built | 12 | unblocked, not started |
 | 1.3 | Start measurement | 3 | todo |
 | 1.4 | Measurement run progress | 4 | todo |
 | 1.5 | Results | 5, 6 | todo |
@@ -158,9 +158,16 @@ There is also a free partial step available now: because parent/child is bit mas
 can be grouped into resolution-8 buckets and counted **without any H3 library**. That gives correct
 aggregation semantics — "this area has N measurements" — short of drawing the hexagon itself.
 
-Not decided, and worth confirming the FCC linkage first: if resolution 8 is the challenge unit,
-clustering (A) is not equivalent, because clusters are screen-space groupings with no relationship
-to challenge units. 1.2a does not depend on any of this.
+**Resolved 2026-09-19: route C1.** `io.github.phansier.h3:library` does exactly what we would
+have built - vendored H3 v4.2.1 C sources, JNI on Android, cinterop on iOS, Apache 2.0 - so no
+maths was ported. Taking it required moving both repos to Kotlin 2.3.10, since it is not
+consumable from 1.9.24, and cost `compileSdk` 36 and `minSdk` 26 (dropping Android 7.x, agreed).
+
+`H3AvailabilityTest` proves it works from Kotlin/Native: a point indexes at resolutions 8 and 9, a
+cell yields six vertices near the point that generated it, and indexing is deterministic.
+
+Still worth confirming the FCC linkage, but it no longer gates anything: hexagons are computable
+on both platforms, and 1.2b is now rendering work rather than a research problem.
 
 ## Phase 2 — Remaining stories
 

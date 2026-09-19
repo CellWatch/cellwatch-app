@@ -29,7 +29,7 @@ Carried forward so it is not lost between sessions. Updated 2026-09-19.
 
 ## Build fragility
 
-7. **msak-client-kmp 0.5.1 exists only in this machine's `~/.m2`.** cellwatch pins it and
+7. **msak-client-kmp 0.6.0 exists only in this machine's `~/.m2`.** cellwatch pins it and
    resolves via `mavenLocal()`, so a fresh clone or another machine cannot build until someone
    runs `publishToMavenLocal` in msak — and nothing says so. Either set
    `cellwatch.useLocalMsak=true` to resolve from source through the existing `includeBuild`, or

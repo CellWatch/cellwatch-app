@@ -198,3 +198,31 @@ All must be green:
   - https://docs.mapbox.com/ios/maps/guides/swift-ui/
 - MapLibre Compose status/feature matrix:
   - https://maplibre.org/maplibre-compose/
+
+---
+
+## Update 2026-09-19: the Kotlin blocker is gone
+
+Blocker 1 ("project is on Kotlin `1.9.24`") no longer holds. Both repos are on **Kotlin 2.3.10**,
+with **SQLDelight 2.4.0**, AGP 8.13 and Gradle 8.13.
+
+The February rollback was made because Kotlin 2.x appeared to conflict with SQLDelight. It did
+not. The real fault was `shared` declaring `msak-client-kmp` in `commonMain` while having a
+`jvm()` target that msak publishes no variant for; Kotlin 1.9 tolerated the mismatch and 2.x does
+not, and it surfaces as a resolution error on the test compile classpath - which is why
+SQLDelight looked responsible. SQLDelight moved four releases with no code changes.
+
+Against the decision gate at the end of this document:
+
+| Gate | Status |
+|---|---|
+| 1. Kotlin baseline migration tested | **green** - 2.3.10, both repos |
+| 2. `msak-client-kmp` validated on the new baseline | **green** - released as 0.6.0 |
+| 3. SQLDelight validated in this repo, not inferred | **green** - 2.4.0, tests plus a measurement run persisting 3 rows through the native driver |
+| 4. Map strategy chosen and prototyped | **partly** - H3 is now available cross-platform via `h3-kmp`, so hexagons are computable; nothing renders them yet |
+| 5. Tier1 + Tier2 regression suites pass | **green** |
+
+**This does not reopen the shared-UI decision.** Option B (shared logic, native platform UI)
+remains the active strategy, and the UI delivery plan is built on it. What has changed is that
+the decision is no longer forced by the toolchain: if shared UI is ever revisited, four of the
+five gates are already met.
