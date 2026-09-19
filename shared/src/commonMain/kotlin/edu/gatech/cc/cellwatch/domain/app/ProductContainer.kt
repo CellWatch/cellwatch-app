@@ -18,6 +18,12 @@ import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionProfile
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceProgressListener
 import edu.gatech.cc.cellwatch.domain.fcc.RepositoryBackedMeasurementResultStore
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeMeasurementLocationSnapshot
+import edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryRunSnapshot
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementResultReadModelUseCase
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunState
+import edu.gatech.cc.cellwatch.domain.model.Measurement
+import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSequenceSyncOrchestrator
 import edu.gatech.cc.cellwatch.domain.sync.SyncStatusPresenter
@@ -88,6 +94,21 @@ data class ProductSubmissionIdentity(
 )
 
 /**
+ * Everything the history screen needs, fetched together.
+ *
+ * One call rather than three: the run list, the pending counts and the sync
+ * summary are read from the same database moments apart, and fetching them
+ * separately let the screen show a run as pending while the summary already
+ * counted it as uploaded.
+ */
+data class ProductHistorySnapshot(
+    val runs: List<MeasurementHistoryRunSnapshot>,
+    val syncSummary: SyncStatusSummary,
+    val pendingMeasurements: Int,
+    val pendingSubmissions: Int,
+)
+
+/**
  * Composition root for the product app. One per process; screens receive it.
  */
 class ProductContainer(
@@ -152,6 +173,109 @@ class ProductContainer(
      * screen's run, and reusing an orchestrator would report a second run's
      * progress to the first screen.
      */
+    /**
+     * Stored runs, newest first, as history rows.
+     *
+     * Formatting goes through [MeasurementResultReadModelUseCase] - the same
+     * one the results screen uses - so a run cannot read "17.2 Mbps" when it
+     * finishes and something else in history.
+     */
+    suspend fun recentRuns(limit: Long = 200): List<MeasurementHistoryRunSnapshot> {
+        // Measurements without a group are dropped: history lists runs, and a
+        // measurement with no run to belong to cannot be presented as one.
+        val byGroup = measurementRepository.getRecent(limit)
+            .filter { it.groupId != null }
+            .groupBy { it.groupId!! }
+        return byGroup.mapNotNull { (groupId, measurements) ->
+            val timestamp = measurements.mapNotNull { it.timestamp }.maxOrNull() ?: return@mapNotNull null
+            // Hydrated from the data tables before grouping. getRecent returns
+            // bare measurement rows - latency and throughput figures live in
+            // their own tables - and MeasurementGroup rejects a measurement
+            // whose data is absent, so grouping the raw rows threw outright.
+            val group = runCatching {
+                MeasurementGroup(
+                    latency = hydrate(measurements.firstOrNull { it.type == "latency" }),
+                    download = hydrate(measurements.firstOrNull { it.type == "download" }),
+                    upload = hydrate(measurements.firstOrNull { it.type == "upload" }),
+                    submission = null,
+                    id = groupId,
+                )
+            }.getOrElse { return@mapNotNull null }
+            val uploadedAt = measurements.mapNotNull { it.uploadTime }.maxOrNull()
+            val read = MeasurementResultReadModelUseCase().present(
+                MeasurementRunState(
+                    progress = MeasurementRunProgress.END,
+                    results = group,
+                    // A run counts as uploaded only when every one of its
+                    // measurements has: a partial upload is still pending.
+                    uploadTime = uploadedAt.takeIf {
+                        measurements.isNotEmpty() && measurements.all { m -> m.uploadTime != null }
+                    },
+                ),
+            )
+            MeasurementHistoryRunSnapshot(
+                timestampMs = timestamp.toEpochMilliseconds(),
+                latency = read.latencyText,
+                download = read.downloadText,
+                upload = read.uploadText,
+                uploaded = read.uploadedText,
+                detail = read.summaryText,
+            )
+        }.sortedByDescending { it.timestampMs }
+    }
+
+    suspend fun historySnapshot(): ProductHistorySnapshot {
+        val (pendingMeasurements, pendingSubmissions) = pendingCounts()
+        return ProductHistorySnapshot(
+            runs = recentRuns(),
+            syncSummary = SyncStatusPresenter.present(
+                record = services.syncStatusStore.load(),
+                pendingRecords = pendingMeasurements + pendingSubmissions,
+                inProgress = false,
+                now = clock.now(),
+            ),
+            pendingMeasurements = pendingMeasurements,
+            pendingSubmissions = pendingSubmissions,
+        )
+    }
+
+    /**
+     * Uploads whatever is still pending, outside a measurement run.
+     *
+     * The upload trigger's map-start entry point is reused deliberately: a
+     * second upload path would be a second set of rules about what is eligible.
+     */
+    suspend fun retryPendingUploads(): ProductHistorySnapshot {
+        val report = runCatching { uploadTriggerUseCase.onMapStart() }
+        val uploaded = report.getOrNull()
+            ?.let { it.measurements.uploaded + it.submissions.uploaded }
+            ?: 0
+        recordSyncAttempt(uploadedCount = uploaded, failed = report.isFailure || uploaded == 0)
+        return historySnapshot()
+    }
+
+    /**
+     * Attaches a measurement's own latency or throughput row.
+     *
+     * Returns null when the data is missing rather than substituting an empty
+     * record: an incomplete run should drop out of history, not appear with
+     * invented zeroes.
+     */
+    private suspend fun hydrate(measurement: Measurement?): Measurement? {
+        if (measurement == null) return null
+        return when (measurement.type) {
+            "latency" -> latencyRepository.getByMeasurementId(measurement.id).firstOrNull()
+                ?.let { measurement.copy(latencyData = it) }
+            "download", "upload" -> uploadDownloadRepository.getByMeasurementId(measurement.id)
+                .firstOrNull()?.let { measurement.copy(uploadDownloadData = it) }
+            else -> null
+        }
+    }
+
+    /** Unsynced counts, split the way the history screen reports them. */
+    suspend fun pendingCounts(): Pair<Int, Int> =
+        measurementRepository.getUnsynced().size to submissionRepository.getUnsynced().size
+
     /**
      * How many stored records have not reached the server.
      */

@@ -12,6 +12,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.onboarding.AndroidOnboardingProfil
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingInput
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingUseCase
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
+import edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryViewModel
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunViewModel
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartViewModel
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
@@ -194,6 +195,24 @@ class ProductShellActivity : AppCompatActivity() {
                     "Measurement is unavailable: ${error.message}",
                     Components.StatusTone.WARNING,
                 )
+            },
+        )
+
+        is Destination.History -> container.fold(
+            onSuccess = { productContainer ->
+                HistoryScreen(
+                    context = this,
+                    viewModel = MeasurementHistoryViewModel(),
+                    snapshotProvider = { deliver ->
+                        lifecycleScope.launch { deliver(productContainer.historySnapshot()) }
+                    },
+                    onRetry = { deliver ->
+                        lifecycleScope.launch { deliver(productContainer.retryPendingUploads()) }
+                    },
+                ).also { it.setOnBack { resetTo(Destination.MapHome) } }.view
+            },
+            onFailure = { error ->
+                placeholder("History is unavailable: ${error.message}", Components.StatusTone.WARNING)
             },
         )
 
