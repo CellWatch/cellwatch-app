@@ -72,12 +72,19 @@ one UiState, with `FlowController`/`UiPresenter`/`*ViewController` folded in, ve
 emulators as part of that screen. Rule 1 still governs; it is applied per screen rather than in
 one sweep.
 
+How the collapse is done, decided in 1.2a: the ViewModel **wraps** the existing classes rather
+than absorbing them, and becomes the only entry point product screens use. Making the old classes
+`internal` was tried first and does enforce Rule 1 mechanically - but it breaks the harnesses,
+which reach past them at roughly 35 call sites, and those are code we agreed not to touch. There
+is no duplicated logic either way: the ViewModel holds the same instances. The old classes carry
+KDoc saying product screens must not use them.
+
 Per-screen collapses owed:
 
 | Package | Today | Becomes | Lands in |
 |---|---|---|---|
 | `measurementstart` | 5 classes | `MeasurementStartViewModel` + a correctly-named preflight use case (the current `MeasurementStartPreflightViewModel` holds domain types and policy, not presentation) | 1.3 |
-| `maphome` | 3 classes | `MapHomeViewModel` | 1.2 |
+| `maphome` | 3 classes | `MapHomeViewModel` wrapping them; they stay public for the harness | **done** |
 | `measurementrun` | `MeasurementRunViewController` + `MeasurementRunUiPresenter` | `MeasurementRunViewModel` | 1.4 |
 | `measurementhistory` | `MeasurementHistoryViewController` (orphaned) | `MeasurementHistoryViewModel`, adopted | 2.1 |
 
