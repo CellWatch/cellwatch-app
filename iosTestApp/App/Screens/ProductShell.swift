@@ -88,8 +88,8 @@ final class ProductShell: NSObject {
         case is DestinationMeasurementStart:
             return MeasurementStartScreenViewController(
                 viewModel: MeasurementStartViewModel(collectionMode: CollectionMode.fccChallenge),
-                onReadyToRun: { [weak self] _ in
-                    self?.go(to: DestinationMeasurementRun.shared)
+                onReadyToRun: { [weak self] inVehicle in
+                    self?.go(to: DestinationMeasurementRun(inVehicle: inVehicle))
                 }
             )
 

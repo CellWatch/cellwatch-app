@@ -61,22 +61,6 @@ data class IosPhase3SequenceSyncResult(
     val centerLongitude: Double,
 )
 
-/**
- * Handle on a running measurement, so a caller can stop it.
- *
- * Exists because a measurement interrupted by the user backgrounding the app
- * must be cancelled outright rather than left to produce partial data. iOS has
- * no foreground-service equivalent, so the app cannot keep running; abandoning
- * the run cleanly is the honest alternative.
- */
-class MeasurementRunHandle internal constructor(private val job: Job) {
-    val isRunning: Boolean get() = job.isActive
-
-    fun cancel() {
-        job.cancel(CancellationException("measurement cancelled: app left the foreground"))
-    }
-}
-
 class IosPhase3SequenceSyncHarness {
     fun runAsync(
         msakConfig: MsakLocateConfig,
