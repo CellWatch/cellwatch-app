@@ -3,7 +3,10 @@ package edu.gatech.cc.cellwatch.domain.measurementstart
 data class MeasurementStartPreflightFlowUiState(
     val inVehicle: Boolean = false,
     val latestResult: MeasurementPreflightResult? = null,
-    val statusMessage: String = "Tap Go to check readiness.",
+    // Deliberately does not name a button: the harness and the product screen
+    // label theirs differently, and copy that names a control it cannot see is
+    // how UI text goes stale.
+    val statusMessage: String = "Conditions are checked when you start.",
     val statusIsError: Boolean = false,
     val debugSummary: String = "",
     val shouldPromptConfirmation: Boolean = false,
