@@ -10,6 +10,8 @@ import edu.gatech.cc.cellwatch.androidtestapp.onboarding.AndroidOnboardingProfil
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingInput
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingUseCase
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartViewModel
+import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeViewModel
 import edu.gatech.cc.cellwatch.domain.navigation.Destination
 import edu.gatech.cc.cellwatch.domain.navigation.Navigator
@@ -125,6 +127,12 @@ class ProductShellActivity : AppCompatActivity() {
             onHistory = { goTo(Destination.History) },
             onSettings = { goTo(Destination.Settings) },
         ).also { mapHomeScreen = it }.view
+
+        is Destination.MeasurementStart -> MeasurementStartScreen(
+            context = this,
+            viewModel = MeasurementStartViewModel(CollectionMode.FCC_CHALLENGE),
+            onReadyToRun = { goTo(Destination.MeasurementRun) },
+        ).view
 
         is Destination.BlockingError -> placeholder(destination.reason, Components.StatusTone.WARNING)
 

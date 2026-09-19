@@ -59,31 +59,32 @@ class ScreenScaffold(context: Context) : LinearLayout(context) {
 
     /** Adds to the scrollable region, in order, with scale spacing between entries. */
     fun addContent(vararg views: View) {
-        views.forEach { view ->
-            contentColumn.addView(
-                view,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ).apply {
-                    if (contentColumn.childCount > 0) topMargin = context.dp(Theme.Space.L)
-                },
-            )
-        }
+        views.forEach { contentColumn.append(it, Theme.Space.L) }
     }
 
     /** Adds to the pinned action region. Primary action first. */
     fun addActions(vararg views: View) {
-        views.forEach { view ->
-            actionColumn.addView(
-                view,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ).apply {
-                    if (actionColumn.childCount > 0) topMargin = context.dp(Theme.Space.S)
-                },
+        views.forEach { actionColumn.append(it, Theme.Space.S) }
+    }
+
+    /**
+     * Keeps whatever size the component asked for and only adds the spacing.
+     *
+     * This used to build fresh `WRAP_CONTENT` params, which silently threw away
+     * the size a component had set on itself. That is not a small loss: a bare
+     * `View` measures via `getDefaultSize`, which returns the *spec* size for
+     * both `AT_MOST` and `EXACTLY`, so `WRAP_CONTENT` behaves as fill. A 1dp
+     * divider therefore became either 0px (content taller than the viewport,
+     * spec `UNSPECIFIED`) or a block swallowing every remaining pixel and
+     * starving the views after it (`isFillViewport` re-measure, spec `AT_MOST`).
+     */
+    private fun LinearLayout.append(view: View, spacingDp: Int) {
+        val params = view.layoutParams as? LinearLayout.LayoutParams
+            ?: LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
             )
-        }
+        if (childCount > 0) params.topMargin = context.dp(spacingDp)
+        addView(view, params)
     }
 }
