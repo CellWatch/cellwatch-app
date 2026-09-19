@@ -67,8 +67,14 @@ class MeasurementRunViewModel(
     private val container: ProductContainer,
     private val mode: CollectionMode,
     private val inVehicle: Boolean,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
+    /**
+     * Owned rather than injected: Kotlin default arguments do not bridge to
+     * Swift, so a defaulted scope parameter would force every Swift call site
+     * to construct one, and they would not agree.
+     */
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     private val controller = MeasurementRunViewController()
     private val presenter = MeasurementRunUiPresenter()
     private val readModel = MeasurementResultReadModelUseCase()

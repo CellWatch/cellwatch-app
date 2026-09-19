@@ -27,6 +27,7 @@
 		A7D28BB638F32ABC40E53916 /* OnboardingUiScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = 472086868B28DBFF7BA40D28 /* OnboardingUiScenario.swift */; };
 		B74097565DC6F8AFBBEA8B1B /* sharedKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C5FBB840AFCBCA7D65A6631A /* sharedKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BBFE433611933E659EE92DF2 /* TestingSupabaseHostedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69722339826D742BBE4CDC6A /* TestingSupabaseHostedTests.swift */; };
+		C0BA213AE78E430951A30DCA /* MeasurementRunScreenViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8B391FB51DB81071895DB0 /* MeasurementRunScreenViewController.swift */; };
 		C66D1D25719233C9CB8632DB /* HarnessUiSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E3DA5BB69E65B14EE5CCFFF /* HarnessUiSmokeTests.swift */; };
 		CCC0A5221A96C30B3026E926 /* OnboardingScreenViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB126610B2F72E4D396DC9D5 /* OnboardingScreenViewController.swift */; };
 		D571874DE5967BFA3F325EB5 /* SyncHarnessParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5631CFB68FC8008FCBA205FD /* SyncHarnessParityTests.swift */; };
@@ -85,6 +86,7 @@
 		146D813614CC5B868480EDA0 /* iosTestApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iosTestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1DC3BDAACA408D93F1038CF1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		2719041E3CF0FFB3362AD23B /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		3D8B391FB51DB81071895DB0 /* MeasurementRunScreenViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementRunScreenViewController.swift; sourceTree = "<group>"; };
 		472086868B28DBFF7BA40D28 /* OnboardingUiScenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingUiScenario.swift; sourceTree = "<group>"; };
 		55B17F2FD10979151ADC54EF /* MapScreenScaffold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapScreenScaffold.swift; sourceTree = "<group>"; };
 		5631CFB68FC8008FCBA205FD /* SyncHarnessParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncHarnessParityTests.swift; sourceTree = "<group>"; };
@@ -172,6 +174,7 @@
 			isa = PBXGroup;
 			children = (
 				081DAB4987BE6AFE5AF1561B /* MapHomeScreenViewController.swift */,
+				3D8B391FB51DB81071895DB0 /* MeasurementRunScreenViewController.swift */,
 				782E33907E65E3B549EEC742 /* MeasurementStartScreenViewController.swift */,
 				BB126610B2F72E4D396DC9D5 /* OnboardingScreenViewController.swift */,
 				A7B50B6F1371F5F189B8C522 /* ProductShell.swift */,
@@ -375,6 +378,7 @@
 				276A194FAB9B4C58802259B4 /* Components.swift in Sources */,
 				D7195C00C496BBE2DB7212C5 /* MapHomeScreenViewController.swift in Sources */,
 				39AA3BA9C3A12CC39DC53C9F /* MapScreenScaffold.swift in Sources */,
+				C0BA213AE78E430951A30DCA /* MeasurementRunScreenViewController.swift in Sources */,
 				860267AAF566B2DEE348E34A /* MeasurementStartScreenViewController.swift in Sources */,
 				CCC0A5221A96C30B3026E926 /* OnboardingScreenViewController.swift in Sources */,
 				42D7BA0DAC927DE18C0753E8 /* ProductShell.swift in Sources */,

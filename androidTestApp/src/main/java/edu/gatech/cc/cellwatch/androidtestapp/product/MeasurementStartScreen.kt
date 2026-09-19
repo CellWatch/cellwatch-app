@@ -31,6 +31,11 @@ import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartViewModel
 class MeasurementStartScreen(
     private val context: Context,
     private val viewModel: MeasurementStartViewModel,
+    /**
+     * Supplied by the shell, which owns container resolution. Hardcoding true
+     * here let the screen clear a gate it cannot actually see.
+     */
+    private val hasRuntimeProfile: Boolean,
     private val onReadyToRun: (Boolean) -> Unit,
 ) {
 
@@ -79,7 +84,7 @@ class MeasurementStartScreen(
      * change while the screen is open.
      */
     private fun observedCapabilities() = MeasurementStartCapabilitySnapshot(
-        hasRuntimeProfile = true,
+        hasRuntimeProfile = hasRuntimeProfile,
         hasLocationPermission = listOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION,

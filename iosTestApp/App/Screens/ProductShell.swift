@@ -14,6 +14,35 @@ import sharedKit
 /// a dead button.
 final class ProductShell: NSObject {
 
+    /// Resolved once, from the packaged runtime resource.
+    ///
+    /// A failure means the build has no usable runtime configuration, which is
+    /// a blocking error rather than something a screen can retry past.
+    private enum Container {
+        static let result: Result<ProductContainer, Error> = {
+            do {
+                return .success(try IosProductContainerFactory.shared.create(contact: {
+                    let profile = OnboardingUserDefaultsStore().loadProfile()
+                    return ProductSubmissionIdentity(
+                        appName: IosProductServices.companion.appName(),
+                        appVersion: IosProductServices.companion.appVersion(),
+                        provider: nil,
+                        contactName: profile?.name,
+                        contactEmail: profile?.email,
+                        contactPhone: profile?.phone
+                    )
+                }))
+            } catch {
+                return .failure(error)
+            }
+        }()
+
+        static var errorText: String? {
+            if case .failure(let error) = result { return error.localizedDescription }
+            return nil
+        }
+    }
+
     private let navigator: Navigator
     private let navigationController = UINavigationController()
 
@@ -21,7 +50,10 @@ final class ProductShell: NSObject {
         let decision = AppLaunchRoutingUseCase().resolve(
             input: AppLaunchRoutingInput(
                 onboardingComplete: OnboardingUserDefaultsStore().loadProfile()?.onboardingComplete == true,
-                runtimeProfileReady: true
+                // Previously hardcoded true, which meant a build with no usable
+                // runtime configuration still offered a Measure button that
+                // could only fail once a measurement was under way.
+                runtimeProfileReady: (try? Container.result.get()) != nil
             )
         )
         navigator = Navigator(start: decision.toDestination())
@@ -88,9 +120,28 @@ final class ProductShell: NSObject {
         case is DestinationMeasurementStart:
             return MeasurementStartScreenViewController(
                 viewModel: MeasurementStartViewModel(collectionMode: CollectionMode.fccChallenge),
+                hasRuntimeProfile: (try? Container.result.get()) != nil,
                 onReadyToRun: { [weak self] inVehicle in
                     self?.go(to: DestinationMeasurementRun(inVehicle: inVehicle))
                 }
+            )
+
+        case let run as DestinationMeasurementRun:
+            guard case .success(let container) = Container.result else {
+                return PlaceholderScreenViewController(
+                    titleText: "Cannot start",
+                    message: "Measurement is unavailable: \(Container.errorText ?? "runtime configuration missing").",
+                    tone: .warning
+                )
+            }
+            return MeasurementRunScreenViewController(
+                viewModel: MeasurementRunViewModel(
+                    container: container,
+                    mode: CollectionMode.fccChallenge,
+                    inVehicle: run.inVehicle
+                ),
+                onDone: { [weak self] in self?.reset(to: DestinationMapHome.shared) },
+                onMeasureAgain: { [weak self] in self?.reset(to: DestinationMeasurementStart.shared) }
             )
 
         case let blocking as DestinationBlockingError:
