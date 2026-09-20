@@ -30,6 +30,7 @@ final class MapHomeScreenViewController: UIViewController {
     private var mapView: MapView?
     private var pointAnnotations: PointAnnotationManager?
     private var polygonAnnotations: PolygonAnnotationManager?
+    private var countAnnotations: PointAnnotationManager?
     private var mapEventTokens: [AnyCancelable] = []
 #endif
 
@@ -225,11 +226,27 @@ final class MapHomeScreenViewController: UIViewController {
     /// so the annotation drew nothing - no error, just an empty map.
     private func registerMarkerImage() {
         guard let map = mapView else { return }
+        if (try? map.mapboxMap.image(withId: Self.countImageId)) == nil {
+            try? map.mapboxMap.addImage(Self.countBadgeImage(), id: Self.countImageId)
+        }
         guard (try? map.mapboxMap.image(withId: Self.markerImageId)) == nil else { return }
         try? map.mapboxMap.addImage(Self.markerImage(), id: Self.markerImageId)
     }
 
     private static let markerImageId = "cellwatch-measurement-pin"
+    private static let countImageId = "cellwatch-hex-count"
+
+    /// The badge behind a cell's count. Opaque green; only the cell fill is
+    /// translucent.
+    private static func countBadgeImage() -> UIImage {
+        let diameter: CGFloat = 26
+        let size = CGSize(width: diameter, height: diameter)
+        return UIGraphicsImageRenderer(size: size).image { _ in
+            let rect = CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
+            UIColor(red: 0x2E / 255.0, green: 0x7D / 255.0, blue: 0x32 / 255.0, alpha: 1.0).setFill()
+            UIBezierPath(ovalIn: rect).fill()
+        }
+    }
 
     /// Drawn rather than shipped as an asset, so it follows the palette and
     /// there is no image to keep in sync with the theme.
@@ -266,6 +283,15 @@ final class MapHomeScreenViewController: UIViewController {
         if pointAnnotations == nil {
             pointAnnotations = map.annotations.makePointAnnotationManager(id: "mapHomeProductPoints")
         }
+        // Made last so the badges sit above both the fills and the pins.
+        if countAnnotations == nil {
+            let manager = map.annotations.makePointAnnotationManager(id: "mapHomeProductCounts")
+            // Overlap allowed: suppressing a badge because a neighbour is
+            // close would silently hide data.
+            manager.iconAllowOverlap = true
+            manager.textAllowOverlap = true
+            countAnnotations = manager
+        }
 
         let hexMode = state.overlayMode == MapHomeOverlayMode.hexGrid
         polygonAnnotations?.annotations = hexMode ? state.hexCells.compactMap { cell in
@@ -285,6 +311,23 @@ final class MapHomeScreenViewController: UIViewController {
             // stops drawing - so the grid vanished and only occupied cells
             // showed. Transparency belongs in the colour, not the opacity.
             annotation.fillOutlineColor = StyleColor(Theme.Color.primary)
+            return annotation
+        } : []
+
+        // The count on the cell, as frozenApp showed it: a filled green badge
+        // with the number in white. Without it the fill says only "something
+        // happened here", the least useful half of what the overlay knows.
+        countAnnotations?.annotations = hexMode ? state.hexCells.filter { $0.hasMeasurements }.map { cell in
+            var annotation = PointAnnotation(
+                coordinate: CLLocationCoordinate2D(
+                    latitude: cell.centerLatitude,
+                    longitude: cell.centerLongitude
+                )
+            )
+            annotation.iconImage = Self.countImageId
+            annotation.textField = "\(cell.measurementCount)"
+            annotation.textColor = StyleColor(.white)
+            annotation.textSize = 12
             return annotation
         } : []
 
