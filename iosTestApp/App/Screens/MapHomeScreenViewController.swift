@@ -198,6 +198,18 @@ final class MapHomeScreenViewController: UIViewController {
             map.mapboxMap.onMapIdle.observeNext { [weak self] _ in
                 guard let self, let map = self.mapView else { return }
                 self.render(self.viewModel.onZoomChanged(zoomLevel: map.mapboxMap.cameraState.zoom))
+                // Reported after idle rather than every frame: the grid is
+                // recomputed from these, and doing that mid-gesture would
+                // resample the lattice on every pan tick.
+                let bounds = map.mapboxMap.coordinateBounds(
+                    for: CameraOptions(cameraState: map.mapboxMap.cameraState)
+                )
+                self.render(self.viewModel.onBoundsChanged(
+                    north: bounds.northeast.latitude,
+                    south: bounds.southwest.latitude,
+                    east: bounds.northeast.longitude,
+                    west: bounds.southwest.longitude
+                ))
             }
         )
 #endif
@@ -264,10 +276,14 @@ final class MapHomeScreenViewController: UIViewController {
             // Turf closes the ring itself, but only when the first and last
             // coordinates match, which H3 does not supply.
             var annotation = PolygonAnnotation(polygon: Polygon([ring + [ring[0]]]))
-            annotation.fillColor = StyleColor(Theme.Color.primary)
-            // Denser cells read darker, so the overlay conveys count rather
-            // than mere presence.
-            annotation.fillOpacity = Self.fillOpacity(for: Int(cell.measurementCount))
+            // frozenApp's semantics: the outline draws the grid, the fill
+            // marks which cells hold data. Clear rather than absent, so an
+            // empty cell is still a visible part of the tiling.
+            annotation.fillColor = StyleColor(cell.hasMeasurements ? Self.hexFill : .clear)
+            // fillOpacity is deliberately left alone. Setting it to 0 for an
+            // empty cell suppressed the outline as well - the whole fill layer
+            // stops drawing - so the grid vanished and only occupied cells
+            // showed. Transparency belongs in the colour, not the opacity.
             annotation.fillOutlineColor = StyleColor(Theme.Color.primary)
             return annotation
         } : []
@@ -285,8 +301,7 @@ final class MapHomeScreenViewController: UIViewController {
 #endif
     }
 
-    /// Caps out quickly: the useful distinction is one versus several.
-    private static func fillOpacity(for count: Int) -> Double {
-        min(0.18 + (Double(min(count, 6)) * 0.07), 0.6)
-    }
+    /// Translucent green, as frozenApp used: `cw_green_light` with its alpha
+    /// halved so the basemap stays readable underneath.
+    private static let hexFill = UIColor(red: 0x4C / 255.0, green: 0xAF / 255.0, blue: 0x50 / 255.0, alpha: 0.5)
 }

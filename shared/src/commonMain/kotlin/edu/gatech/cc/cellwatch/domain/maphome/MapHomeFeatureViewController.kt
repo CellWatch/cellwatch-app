@@ -33,6 +33,15 @@ data class MapHomeHexCellFeature(
     val boundary: List<H3Vertex> = emptyList(),
 ) {
     val hasBoundary: Boolean get() = boundary.size >= 3
+
+    /**
+     * Whether this cell holds any measurement.
+     *
+     * frozenApp drew the whole visible grid and used fill to distinguish:
+     * an empty cell is outline only, an occupied one is filled. Without the
+     * empty cells there is no grid to read a filled one against.
+     */
+    val hasMeasurements: Boolean get() = measurementCount > 0
 }
 
 data class MapHomeFeatureState(
@@ -73,6 +82,7 @@ class MapHomeFeatureViewController(
 ) {
     private var snapshots: List<MapHomeMeasurementLocationSnapshot> = emptyList()
     private var zoomLevel: Double = 13.0
+    private var bounds: H3Bounds? = null
 
     fun reset(): MapHomeFeatureState {
         snapshots = emptyList()
@@ -89,6 +99,18 @@ class MapHomeFeatureViewController(
 
     fun onZoomChanged(zoomLevel: Double): MapHomeFeatureState {
         this.zoomLevel = zoomLevel.coerceAtLeast(0.0)
+        return currentState()
+    }
+
+    /**
+     * The visible rectangle, so the grid can cover it.
+     *
+     * Needed because the overlay tiles the viewport rather than only the
+     * cells that happen to contain data; without bounds there is nothing to
+     * tile against.
+     */
+    fun onBoundsChanged(north: Double, south: Double, east: Double, west: Double): MapHomeFeatureState {
+        bounds = H3Bounds(north = north, south = south, east = east, west = west)
         return currentState()
     }
 
@@ -165,6 +187,9 @@ class MapHomeFeatureViewController(
         val grouped = points.groupBy { point ->
             H3Grid.cellAt(point.latitude, point.longitude, resolution)
         }
+        // Every cell on screen, not only those holding data: the grid is the
+        // point of the overlay, and a lone filled hexagon reads as a marker.
+        val tiled = bounds?.let { h3CellsCovering(it, resolution) }.orEmpty()
         // A null key means H3 declined this point; those fall back rather than
         // being silently dropped off the map.
         val unindexed = grouped[null].orEmpty()
@@ -183,7 +208,26 @@ class MapHomeFeatureViewController(
                 boundary = boundary,
             )
         }
-        return (indexed + squareBuckets(unindexed)).sortedByDescending { it.measurementCount }
+        val occupied = indexed.associateBy { it.id }
+        val empty = tiled
+            .filter { it !in occupied }
+            .mapNotNull { cell ->
+                val boundary = H3Grid.boundaryOf(cell)
+                if (boundary.isEmpty()) {
+                    null
+                } else {
+                    MapHomeHexCellFeature(
+                        id = cell,
+                        centerLatitude = boundary.map { it.latitude }.average(),
+                        centerLongitude = boundary.map { it.longitude }.average(),
+                        measurementCount = 0,
+                        boundary = boundary,
+                    )
+                }
+            }
+
+        return (indexed + empty + squareBuckets(unindexed))
+            .sortedByDescending { it.measurementCount }
     }
 
     private fun squareBuckets(points: List<MapHomePointFeature>): List<MapHomeHexCellFeature> {

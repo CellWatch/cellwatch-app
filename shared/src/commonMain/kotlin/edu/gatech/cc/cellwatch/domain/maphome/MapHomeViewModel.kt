@@ -68,6 +68,12 @@ class MapHomeViewModel(
         return combine()
     }
 
+    /** The visible rectangle, so the overlay can tile it. */
+    fun onBoundsChanged(north: Double, south: Double, east: Double, west: Double): MapHomeUiState {
+        features.onBoundsChanged(north = north, south = south, east = east, west = west)
+        return combine()
+    }
+
     fun onZoomChanged(zoomLevel: Double): MapHomeUiState {
         interaction.onZoomChanged(zoomLevel)
         // Features are zoom-dependent too: which overlay is meaningful changes
