@@ -317,7 +317,9 @@ Outputs:
 - `build/reports/walkthrough/CellWatch-Walkthrough-iOS.pdf`
 - Manifests and screenshots alongside, under `android/` and `ios/`
 
-Requires a running emulator / booted simulator with onboarding already completed. Android is
+Each run starts from a cleared profile, so the walkthrough always opens where a new user does;
+pass `--keep-profile` to the Android capture to start from an existing one. Requires a running
+emulator / booted simulator with location permission granted. Android is
 driven over adb by resolving elements from a `uiautomator` dump; iOS is driven by
 `ProductWalkthroughUiTests`, because the simulator has no scriptable tap. The renderer exits
 non-zero if any expectation was unmet or a screenshot is missing, so a walkthrough of a broken
