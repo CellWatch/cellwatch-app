@@ -150,6 +150,29 @@ class Device:
             return True
         return False
 
+    def text_fields(self) -> list[tuple[int, int]]:
+        """Centres of the EditTexts, in tree order.
+
+        Resolved rather than hardcoded: the onboarding fields carry no text to
+        match on until they are filled, and their positions shift as soon as
+        the keyboard resizes the window.
+        """
+        out = []
+        for node in self.dump(attempts=3).split(">"):
+            if 'class="android.widget.EditText"' not in node:
+                continue
+            m = BOUNDS.search(node)
+            if m:
+                x1, y1, x2, y2 = map(int, m.groups())
+                out.append(((x1 + x2) // 2, (y1 + y2) // 2))
+        return out
+
+    def type_into(self, point: tuple[int, int], text: str, settle: float = 1.0) -> None:
+        self.sh("shell", "input", "tap", str(point[0]), str(point[1]))
+        time.sleep(0.5)
+        self.sh("shell", "input", "text", text.replace(" ", "%s"))
+        time.sleep(settle)
+
     def tap_xy(self, x: int, y: int, settle: float = 2.0) -> None:
         self.sh("shell", "input", "tap", str(x), str(y))
         time.sleep(settle)
@@ -196,21 +219,56 @@ def main() -> int:
     ap.add_argument("--adb", default=str(pathlib.Path.home() / "Library/Android/sdk/platform-tools/adb"))
     ap.add_argument("--out", type=pathlib.Path, required=True)
     ap.add_argument("--device-label", default="Android emulator")
+    ap.add_argument("--keep-profile", dest="reset_profile", action="store_false",
+                    help="start from the existing profile instead of onboarding")
     args = ap.parse_args()
 
     dev = Device(args.adb, args.out / "screenshots")
     steps: list = []
 
     dev.sh("shell", "am", "force-stop", PKG)
+    if args.reset_profile:
+        # Cleared so the walkthrough always starts where a new user does.
+        # Otherwise the first page documents whatever state the last run left.
+        dev.sh("shell", f"run-as {PKG} rm -f shared_prefs/cellwatch_onboarding_profile.xml")
     dev.sh("shell", "am", "start", "-n", ACTIVITY)
     if not dev.wait_for_foreground():
         print(f"{PKG} never came to the foreground", file=sys.stderr)
         return 2
 
-    step(dev, steps, "01-map-home",
-         "Launch — map home",
-         "The app opens on the map. Saved measurements are drawn as pins, and the panel "
-         "reports what sync has done rather than a bare queue count.",
+    if args.reset_profile:
+        fields = dev.text_fields()
+        if len(fields) < 3:
+            print(f"expected three onboarding fields, found {len(fields)}", file=sys.stderr)
+            return 2
+        step(dev, steps, "01-onboarding-empty",
+             "First launch — profile",
+             "A new install lands on onboarding, not the map. The FCC requires contact details "
+             "with every submission, so a measurement taken before they exist could not be "
+             "submitted.",
+             ["Full name", "Save profile"])
+
+        dev.type_into(fields[0], "Jeff Wilson")
+        dev.type_into(dev.text_fields()[1], "404-555-0142")
+        dev.type_into(dev.text_fields()[2], "jw199@gatech.edu")
+        dev.sh("shell", "input", "keyevent", "KEYCODE_BACK")
+        time.sleep(1)
+        dev.tap_switch()
+        step(dev, steps, "02-onboarding-complete",
+             "Contact details and terms",
+             "Name, phone and email are validated as they are typed, and the terms "
+             "acknowledgement is explicit. Save is only offered once all four are satisfied.",
+             ["Looks good. Tap Save Profile."])
+
+        if not dev.tap_text("Save profile", settle=6):
+            print("could not find Save profile", file=sys.stderr)
+            return 2
+
+    step(dev, steps, "03-map-home",
+         "Map home",
+         "Saving routes to the map and resets the back stack, so back cannot return to "
+         "onboarding once a profile exists. Saved measurements are drawn as pins, and the "
+         "panel reports what sync has done rather than a bare queue count.",
          ["Measure", "History & sync"])
 
     # Map home cannot be introspected, so this one tap is by coordinate.
@@ -218,7 +276,7 @@ def main() -> int:
         print("could not find Measure", file=sys.stderr)
         return 2
 
-    step(dev, steps, "02-start-measurement",
+    step(dev, steps, "04-start-measurement",
          "Tap Measure — pre-flight",
          "The pre-flight screen states what a run involves and asks the one question the FCC "
          "needs that the device cannot detect: whether the user is in a moving vehicle. "
@@ -229,7 +287,7 @@ def main() -> int:
         print("could not find the in-vehicle switch", file=sys.stderr)
         return 2
     toggled_on = dev.switch_state() is True
-    step(dev, steps, "03-in-vehicle",
+    step(dev, steps, "05-in-vehicle",
          "Toggle in-vehicle",
          "The answer is carried with the measurement rather than held in shared state, so a "
          "later run cannot inherit it.",
@@ -242,7 +300,7 @@ def main() -> int:
         print("could not find Start measurement", file=sys.stderr)
         return 2
 
-    step(dev, steps, "04-run-in-progress",
+    step(dev, steps, "06-run-in-progress",
          "Run in progress",
          "Three tests run in sequence — latency, download, upload. The screen stays awake for "
          "the duration and offers Stop, because there is no foreground service and a run the "
@@ -256,7 +314,7 @@ def main() -> int:
             break
         time.sleep(3)
 
-    step(dev, steps, "05-results",
+    step(dev, steps, "07-results",
          "Results",
          "Metrics, then two statements the app previously left unsaid: what sync did and when, "
          "and whether this measurement reaches the FCC. Both were silent before — a measurement "
@@ -264,7 +322,7 @@ def main() -> int:
          ["Measurement complete", "Latency", "Download", "Upload"])
 
     if dev.tap_text("Done", settle=8, fallback=(540, 2098)):
-        step(dev, steps, "06-map-home-after",
+        step(dev, steps, "08-map-home-after",
              "Back to the map",
              "The new measurement appears as a pin at the captured location, and the sync panel "
              "carries the same wording as the results screen — one presenter owns both.",
@@ -273,7 +331,7 @@ def main() -> int:
         # History & sync is the left button of the secondary row; map home
         # cannot be introspected, so this is a coordinate like the Measure tap.
         if dev.tap_text("History & sync", settle=5, fallback=(283, 2230)):
-            step(dev, steps, "07-history",
+            step(dev, steps, "09-history",
                  "History and sync",
                  "Saved runs, newest first, with the same sync wording as the map and the "
                  "results screen. Selecting a run shows its detail. Retry appears only when "
@@ -282,7 +340,7 @@ def main() -> int:
 
     manifest = {
         "title": "CellWatch — measurement walkthrough",
-        "subtitle": "Android product shell: launch → pre-flight → run → results → history",
+        "subtitle": "Android product shell, full vertical slice: profile → map → pre-flight → run → results → history",
         "environment": {
             "Platform": args.device_label,
             "Package": PKG,
