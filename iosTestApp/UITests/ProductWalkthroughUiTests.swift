@@ -25,7 +25,9 @@ final class ProductWalkthroughUiTests: XCTestCase {
 
     func testVerticalSlice_launchToResults() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-CellWatchProductShell"]
+        // No argument needed - the product graph is the default entry point.
+        // Kept explicit anyway so this test states which app it is driving.
+        app.launchArguments = []
         // Cleared so the walkthrough always starts where a new user does.
         // Without it the run begins wherever the last one left the simulator,
         // and the first page documents a different app depending on the day.

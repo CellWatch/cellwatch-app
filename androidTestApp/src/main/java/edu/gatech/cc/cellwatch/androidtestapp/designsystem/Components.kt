@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.androidtestapp.designsystem
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.text.InputType
@@ -10,6 +11,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -38,6 +41,29 @@ object Components {
 
     fun secondaryButton(context: Context, title: String): Button =
         filledButton(context, title, Theme.Palette.SURFACE, Theme.Palette.PRIMARY, outlined = true)
+
+    /**
+     * A round icon button that sits on top of the map.
+     *
+     * Not a [secondaryButton]: those are full-width blocks in the panel
+     * below, and a control floating over the map has to be small, circular
+     * and readable against whatever is under it.
+     */
+    fun mapOverlayButton(context: Context, iconRes: Int): ImageButton =
+        ImageButton(context).apply {
+            setImageResource(iconRes)
+            imageTintList = ColorStateList.valueOf(Theme.Palette.PRIMARY)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Theme.Palette.SURFACE)
+                setStroke(context.dp(1), Theme.Palette.PRIMARY and 0x4DFFFFFF.toInt())
+            }
+            // A shadow rather than a heavier border: the button has to read
+            // against both pale streets and dark water.
+            elevation = context.dp(3).toFloat()
+            contentDescription = null
+        }
 
     private fun filledButton(
         context: Context,

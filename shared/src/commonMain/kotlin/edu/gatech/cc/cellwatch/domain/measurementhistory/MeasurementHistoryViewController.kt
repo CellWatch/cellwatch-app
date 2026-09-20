@@ -3,6 +3,8 @@ package edu.gatech.cc.cellwatch.domain.measurementhistory
 data class MeasurementHistoryRunSnapshot(
     val timestampMs: Long,
     val latency: String,
+    val jitter: String,
+    val packetLoss: String,
     val download: String,
     val upload: String,
     val uploaded: String,

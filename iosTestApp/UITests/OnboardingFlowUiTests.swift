@@ -123,7 +123,7 @@ final class OnboardingFlowUiTests: XCTestCase {
     }
 
     func testMeasurementStartPreflight_flowShowsConfirmGateForUnknownPath() throws {
-        let app = XCUIApplication()
+        let app = harnessApp()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "measurement-start-flow"
         app.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_COLLECTION_MODE"] = "fcc_challenge"
         app.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION"] = "1"
@@ -149,7 +149,7 @@ final class OnboardingFlowUiTests: XCTestCase {
 
         app.terminate()
 
-        let unknown = XCUIApplication()
+        let unknown = harnessApp()
         unknown.launchEnvironment["CELLWATCH_UI_MODE"] = "measurement-start-flow"
         unknown.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_COLLECTION_MODE"] = "fcc_challenge"
         unknown.launchEnvironment["CELLWATCH_MEASUREMENT_PREFLIGHT_OVERRIDE_LOCATION_PERMISSION"] = "1"
@@ -168,7 +168,7 @@ final class OnboardingFlowUiTests: XCTestCase {
     }
 
     func testPhase3SequenceButton_flowRunsWithTrueUiTap() throws {
-        let app = XCUIApplication()
+        let app = harnessApp()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "full-harness"
         app.launchEnvironment["CELLWATCH_CLEAR_ONBOARDING"] = "1"
         assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: app)
@@ -211,7 +211,7 @@ final class OnboardingFlowUiTests: XCTestCase {
     }
 
     func testPendingSyncRetry_flowShowsCountsAndRetryStatus() throws {
-        let app = XCUIApplication()
+        let app = harnessApp()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "pending-sync-flow"
         app.launchEnvironment["CELLWATCH_CLEAR_ONBOARDING"] = "1"
         assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: app)
@@ -257,7 +257,7 @@ final class OnboardingFlowUiTests: XCTestCase {
     }
 
     func testMeasurementRunFlow_showsLiveProgressAndCompletionState() throws {
-        let app = XCUIApplication()
+        let app = harnessApp()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "measurement-run-flow"
         app.launchEnvironment["CELLWATCH_CLEAR_ONBOARDING"] = "1"
         assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: app)
@@ -346,7 +346,7 @@ final class OnboardingFlowUiTests: XCTestCase {
         try seedMeasurementRunForHistoryEvidence()
         _ = try drainPendingSyncForHistoryEvidence()
 
-        let historyApp = XCUIApplication()
+        let historyApp = harnessApp()
         historyApp.launchEnvironment["CELLWATCH_UI_MODE"] = "measurement-history-flow"
         assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: historyApp)
         assignOptionalRuntimeValue("SUPABASE_LOCAL_SERVICE_KEY", to: historyApp)
@@ -396,7 +396,7 @@ final class OnboardingFlowUiTests: XCTestCase {
     }
 
     private func seedMeasurementRunForHistoryEvidence() throws {
-        let app = XCUIApplication()
+        let app = harnessApp()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "measurement-run-flow"
         assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: app)
         assignOptionalRuntimeValue("SUPABASE_LOCAL_SERVICE_KEY", to: app)
@@ -415,7 +415,7 @@ final class OnboardingFlowUiTests: XCTestCase {
     }
 
     private func drainPendingSyncForHistoryEvidence() throws -> Bool {
-        let app = XCUIApplication()
+        let app = harnessApp()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "pending-sync-flow"
         assignOptionalRuntimeValue("SUPABASE_LOCAL_URL", to: app)
         assignOptionalRuntimeValue("SUPABASE_LOCAL_SERVICE_KEY", to: app)
@@ -454,7 +454,7 @@ final class OnboardingFlowUiTests: XCTestCase {
     }
 
     func testSettingsProfileFlow_roundTripModeAndProfilePersistence() throws {
-        let first = XCUIApplication()
+        let first = harnessApp()
         first.launchEnvironment["CELLWATCH_UI_MODE"] = "settings-profile-flow"
         first.launchEnvironment["CELLWATCH_CLEAR_ONBOARDING"] = "1"
         first.launch()
@@ -505,7 +505,7 @@ final class OnboardingFlowUiTests: XCTestCase {
         captureSettingsProfileScreenshot(named: "05-after-save")
         first.terminate()
 
-        let reopened = XCUIApplication()
+        let reopened = harnessApp()
         reopened.launchEnvironment["CELLWATCH_UI_MODE"] = "settings-profile-flow"
         reopened.launch()
         let reopenedMode = reopened.segmentedControls["harness.settings.mode"]
@@ -522,7 +522,7 @@ final class OnboardingFlowUiTests: XCTestCase {
     }
 
     func testMapHomeRenderFlow_loadsMapboxStyle() throws {
-        let app = XCUIApplication()
+        let app = harnessApp()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "map-home"
         if let token = resolveMapboxTokenForUiTest() {
             app.launchEnvironment["MAPBOX_ACCESS_TOKEN"] = token
@@ -573,7 +573,7 @@ final class OnboardingFlowUiTests: XCTestCase {
     }
 
     private func launchOnboarding(clearProfile: Bool) -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = harnessApp()
         app.launchEnvironment["CELLWATCH_UI_MODE"] = "onboarding-flow"
         if clearProfile {
             app.launchEnvironment["CELLWATCH_CLEAR_ONBOARDING"] = "1"
@@ -600,7 +600,7 @@ final class OnboardingFlowUiTests: XCTestCase {
                   !current.lowercased().contains("phone"),
                   !current.lowercased().contains("email") {
             field.press(forDuration: 0.8)
-            let selectAll = XCUIApplication().menuItems["Select All"]
+            let selectAll = harnessApp().menuItems["Select All"]
             if selectAll.waitForExistence(timeout: 1) {
                 selectAll.tap()
                 field.typeText(XCUIKeyboardKey.delete.rawValue)
@@ -765,4 +765,15 @@ final class OnboardingFlowUiTests: XCTestCase {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
     }
 
+}
+
+/// An app configured to start in the harness.
+///
+/// The product navigation graph is the default entry point now - tapping the
+/// icon on a phone passes no arguments, and landing in the harness there was
+/// useless. These are the harness's own tests, so they ask for it by name.
+private func harnessApp() -> XCUIApplication {
+    let app = XCUIApplication()
+    app.launchArguments.append("-CellWatchHarness")
+    return app
 }

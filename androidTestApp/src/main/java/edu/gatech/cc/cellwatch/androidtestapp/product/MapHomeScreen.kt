@@ -21,6 +21,11 @@ import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
 import com.mapbox.maps.plugin.gestures.gestures
+import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
+import com.mapbox.maps.plugin.locationcomponent.location
+import com.mapbox.maps.plugin.viewport.data.FollowPuckViewportStateOptions
+import com.mapbox.maps.plugin.viewport.viewport
+import edu.gatech.cc.cellwatch.androidtestapp.R
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.MapScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
@@ -64,6 +69,15 @@ class MapHomeScreen(
     private val statusHolder = FrameLayout(context)
     private val measureButton = Components.primaryButton(context, MapHomeCopy.MEASURE)
     private val overlayButton = Components.secondaryButton(context, "")
+    /// Circular, on the map rather than in the button column. The filled
+    /// arrow is the convention every maps app uses for "put me back where I
+    /// am", which is worth more here than a label would be.
+    private val recenterButton = Components.mapOverlayButton(
+        context,
+        R.drawable.ic_recenter,
+    ).apply {
+        setOnClickListener { followPuck() }
+    }
     private var mapView: MapView? = null
     private var pointAnnotations: PointAnnotationManager? = null
     private var polygonAnnotations: PolygonAnnotationManager? = null
@@ -121,6 +135,32 @@ class MapHomeScreen(
         mapView = null
     }
 
+    /**
+     * Moves the camera to the device's own position and keeps it there until
+     * the user pans away.
+     *
+     * The viewport plugin rather than a one-shot `setCamera`: the first fix
+     * on a cold start can be seconds away, and a one-shot call made before
+     * it arrives silently does nothing. Following waits for the puck.
+     */
+    private fun followPuck() {
+        val map = mapView ?: return
+        val viewport = map.viewport
+        viewport.transitionTo(
+            viewport.makeFollowPuckViewportState(
+                FollowPuckViewportStateOptions.Builder()
+                    // 13, not the 14 a navigation app would use. The overlay
+                    // is drawn at H3 resolution 8, whose cells are about a
+                    // kilometre across; at zoom 14 the screen fits inside a
+                    // single hexagon and the grid is invisible - it looks
+                    // broken rather than close up.
+                    .zoom(13.0)
+                    .bearing(null)
+                    .build(),
+            ),
+        )
+    }
+
     private fun render(state: MapHomeUiState) {
         // Labelled with the destination rather than the current mode: a
         // button reading MapHomeCopy.HEX_GRID while showing the hex grid is ambiguous.
@@ -156,6 +196,18 @@ class MapHomeScreen(
             FrameLayout.LayoutParams.MATCH_PARENT,
         )
         scaffold.mapContainer.addView(map)
+        scaffold.mapContainer.addView(
+            recenterButton,
+            FrameLayout.LayoutParams(
+                with(Theme) { context.dp(44) },
+                with(Theme) { context.dp(44) },
+                Gravity.BOTTOM or Gravity.END,
+            ).apply {
+                val inset = with(Theme) { context.dp(Theme.Space.M) }
+                marginEnd = inset
+                bottomMargin = with(Theme) { context.dp(Theme.Space.L) }
+            },
+        )
         mapView = map
 
         map.mapboxMap.loadStyle(Style.STANDARD) { style ->
@@ -168,12 +220,24 @@ class MapHomeScreen(
             style.addImage(COUNT_IMAGE_ID, countBadgeBitmap())
             renderFeatures(viewModel.currentState())
         }
+        // The blue dot. Without it there is no way to tell where the map is
+        // relative to where you are standing, which is the question this
+        // screen exists to answer.
+        map.location.updateSettings {
+            enabled = true
+            locationPuck = createDefault2DPuck(withBearing = false)
+        }
+        // Georgia Tech is the starting frame only until the device reports a
+        // fix; the camera follows the puck as soon as one arrives. Before
+        // this it stayed on campus forever unless a measurement had already
+        // been taken somewhere else.
         map.mapboxMap.setCamera(
             CameraOptions.Builder()
                 .center(Point.fromLngLat(-84.3963, 33.7756))
                 .zoom(12.5)
                 .build(),
         )
+        followPuck()
         // Which cell was tapped is computed from the coordinate rather than
         // hit-tested against the annotations. H3 is a spatial index, so the
         // cell is a pure function of the point - and the annotation click

@@ -84,7 +84,14 @@ class MeasurementHistoryViewModel {
                 HistoryCopy.SELECTED_RUN
             },
             selectedDetail = selected?.let { run ->
-                HistoryCopy.detailBlock(run.latency, run.download, run.upload, run.uploaded)
+                HistoryCopy.detailBlock(
+                    latency = run.latency,
+                    jitter = run.jitter,
+                    packetLoss = run.packetLoss,
+                    download = run.download,
+                    upload = run.upload,
+                    sync = run.uploaded,
+                )
             } ?: state.status.detail,
             syncHeadline = syncSummary?.headline ?: state.status.syncSummary,
             syncDetail = syncSummary?.detail,

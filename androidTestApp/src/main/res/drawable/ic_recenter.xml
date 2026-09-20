@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The filled navigation arrow, matching iOS's `location.fill`.
+
+  Android ships `ic_menu_mylocation`, but that is a crosshair - a different
+  convention, and the two platforms would not have looked like the same app.
+  This is Material's `navigation` glyph, which is the arrow every maps app
+  uses for "put me back where I am".
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,2L4.5,20.29l0.71,0.71L12,18l6.79,3 0.71,-0.71z" />
+</vector>

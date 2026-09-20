@@ -89,12 +89,26 @@ object HistoryCopy {
         es = "Sesión $index: $latency de latencia, $download de descarga, $upload de subida",
     )
 
-    /** frozenApp `latency`, `download`, `upload`. */
-    fun detailBlock(latency: String, download: String, upload: String, sync: String): String =
-        localized(
-            en = "Latency: $latency\nDownload: $download\nUpload: $upload\nSync: $sync",
-            es = "Latencia: $latency\nDescarga: $download\nSubida: $upload\nSincronización: $sync",
-        )
+    /**
+     * The selected run's numbers.
+     *
+     * Jitter and loss are here as well as on the run screen: a single reading
+     * says little, and history is where you would go to see whether a spot is
+     * consistently bad. frozenApp showed neither.
+     */
+    fun detailBlock(
+        latency: String,
+        jitter: String,
+        packetLoss: String,
+        download: String,
+        upload: String,
+        sync: String,
+    ): String = localized(
+        en = "Latency: $latency\nJitter: $jitter\nPacket loss: $packetLoss\n" +
+            "Download: $download\nUpload: $upload\nSync: $sync",
+        es = "Latencia: $latency\nJitter: $jitter\nPérdida de paquetes: $packetLoss\n" +
+            "Descarga: $download\nSubida: $upload\nSincronización: $sync",
+    )
 
     /** frozenApp `measurement_history`, shortened for the navigation bar. */
     val NAV_TITLE: String get() = localized(en = "History", es = "Historial")

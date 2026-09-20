@@ -47,8 +47,16 @@ data class H3Bounds(
  *
  * Capped, because a low zoom over a wide area would otherwise ask for
  * hundreds of thousands of cells and stall the map.
+ *
+ * The cap used to be 400 and used to truncate mid-scan, returning whatever
+ * had been collected so far - which is a band across the bottom of the
+ * viewport, since the lattice is walked south to north. On a phone that looks
+ * exactly like a grid that has stopped generating. Over the cap the whole
+ * covering is dropped instead: no grid is honest, half a grid is not. 1500
+ * covers a phone screen at the zooms the overlay is legible at; beyond that
+ * an individual cell is a few pixels across.
  */
-fun h3CellsCovering(bounds: H3Bounds, resolution: Int, maxCells: Int = 400): List<String> {
+fun h3CellsCovering(bounds: H3Bounds, resolution: Int, maxCells: Int = 1_500): List<String> {
     if (!H3Grid.isSupported) return emptyList()
 
     // Approximate edge-to-edge span of one cell in degrees of latitude.
@@ -78,7 +86,7 @@ fun h3CellsCovering(bounds: H3Bounds, resolution: Int, maxCells: Int = 400): Lis
         while (column < columns) {
             val longitude = west + (column * step)
             H3Grid.cellAt(latitude, longitude, resolution)?.let(cells::add)
-            if (cells.size > maxCells) return cells.toList()
+            if (cells.size > maxCells) return emptyList()
             column++
         }
         row++

@@ -273,6 +273,8 @@ class ProductContainer(
             MeasurementHistoryRunSnapshot(
                 timestampMs = timestamp.toEpochMilliseconds(),
                 latency = read.latencyText,
+                jitter = read.jitterText,
+                packetLoss = read.packetLossText,
                 download = read.downloadText,
                 upload = read.uploadText,
                 uploaded = read.uploadedText,

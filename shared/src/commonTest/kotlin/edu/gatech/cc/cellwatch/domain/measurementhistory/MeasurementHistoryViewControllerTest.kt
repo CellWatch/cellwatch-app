@@ -198,6 +198,8 @@ class MeasurementHistoryViewControllerTest {
     private fun snapshot(
         timestampMs: Long,
         latency: String = "30 ms",
+        jitter: String = "3 ms",
+        packetLoss: String = "0% (0 of 120 lost)",
         download: String = "90 Mbps",
         upload: String = "20 Mbps",
         uploaded: String = "Pending sync",
@@ -206,6 +208,8 @@ class MeasurementHistoryViewControllerTest {
         return MeasurementHistoryRunSnapshot(
             timestampMs = timestampMs,
             latency = latency,
+            jitter = jitter,
+            packetLoss = packetLoss,
             download = download,
             upload = upload,
             uploaded = uploaded,

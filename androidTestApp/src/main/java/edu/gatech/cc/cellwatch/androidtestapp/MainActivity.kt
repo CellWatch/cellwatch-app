@@ -1,5 +1,6 @@
 package edu.gatech.cc.cellwatch.androidtestapp
 
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunCopy
 import android.Manifest
 import android.content.Intent
 import android.content.ClipData
@@ -2561,6 +2562,10 @@ class MainActivity : AppCompatActivity() {
     private fun HistorySnapshotEntry.toRunSnapshot() = MeasurementHistoryRunSnapshot(
         timestampMs = timestampMs,
         latency = latency,
+        // The harness fixture predates these fields and has no source for
+        // them; the product path fills them from the measurement itself.
+        jitter = MeasurementRunCopy.NO_VALUE,
+        packetLoss = MeasurementRunCopy.NO_VALUE,
         download = download,
         upload = upload,
         uploaded = uploaded,

@@ -28,6 +28,33 @@ enum Components {
         return button
     }
 
+    /// A round icon button that sits on top of the map.
+    ///
+    /// Not a `secondaryButton`: those are full-width blocks in the panel
+    /// below, and a control that floats over the map has to be small,
+    /// circular and readable against whatever is under it.
+    static func mapOverlayButton(systemImage: String) -> UIButton {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setImage(UIImage(systemName: systemImage), for: .normal)
+        button.tintColor = Theme.Color.primary
+        button.backgroundColor = Theme.Color.surface
+        button.layer.cornerRadius = Theme.minimumTapTarget / 2
+        button.layer.borderWidth = 1
+        button.layer.borderColor = Theme.Color.primary.withAlphaComponent(0.3).cgColor
+        // A shadow rather than a heavier border: the button has to read
+        // against both pale streets and dark water.
+        button.layer.shadowColor = UIColor.black.cgColor
+        button.layer.shadowOpacity = 0.2
+        button.layer.shadowRadius = 3
+        button.layer.shadowOffset = CGSize(width: 0, height: 1)
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: Theme.minimumTapTarget),
+            button.heightAnchor.constraint(equalToConstant: Theme.minimumTapTarget),
+        ])
+        return button
+    }
+
     private static func filledButton(_ title: String, background: UIColor, foreground: UIColor) -> UIButton {
         let button = UIButton(type: .system)
         button.setTitle(title, for: .normal)

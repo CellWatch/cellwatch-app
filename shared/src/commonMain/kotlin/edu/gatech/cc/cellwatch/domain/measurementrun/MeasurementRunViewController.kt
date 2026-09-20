@@ -53,6 +53,16 @@ data class MeasurementRunUiModel(
 
 data class MeasurementResultReadModel(
     val latencyText: String,
+    /**
+     * Variation in round-trip time, and how many probes never came back.
+     *
+     * MSAK reports both and the app has always stored them; nothing showed
+     * them. On cellular they are often the interesting part - a 40 ms mean
+     * with 15% loss is a worse connection than a steady 90 ms, and the mean
+     * alone cannot say so. frozenApp did not surface these either.
+     */
+    val jitterText: String,
+    val packetLossText: String,
     val downloadText: String,
     val uploadText: String,
     val uploadedText: String,
@@ -84,6 +94,8 @@ class MeasurementResultReadModelUseCase {
         }
         return MeasurementResultReadModel(
             latencyText = latencyText,
+            jitterText = formatJitter(state.results?.latency),
+            packetLossText = formatPacketLoss(state.results?.latency),
             downloadText = downloadText,
             uploadText = uploadText,
             uploadedText = uploadedText,
@@ -96,6 +108,31 @@ class MeasurementResultReadModelUseCase {
         val milliseconds = rttMicros / 1_000.0
         if (milliseconds < 1.0) return MeasurementRunCopy.SUB_MILLISECOND
         return "${milliseconds.roundToInt()} ms"
+    }
+
+    private fun formatJitter(measurement: Measurement?): String {
+        val micros = measurement?.latencyData?.jitter ?: return MeasurementRunCopy.NO_VALUE
+        val milliseconds = micros / 1_000.0
+        if (milliseconds < 1.0) return MeasurementRunCopy.SUB_MILLISECOND
+        return "${milliseconds.roundToInt()} ms"
+    }
+
+    /**
+     * Loss as a percentage, with the counts behind it.
+     *
+     * The counts are shown because the percentage alone hides sample size:
+     * "50%" reads as a catastrophe when it is one probe of two, and as a fact
+     * when it is 66 of 132.
+     */
+    private fun formatPacketLoss(measurement: Measurement?): String {
+        val latency = measurement?.latencyData ?: return MeasurementRunCopy.NO_VALUE
+        val sent = latency.sent ?: return MeasurementRunCopy.NO_VALUE
+        val received = latency.received ?: return MeasurementRunCopy.NO_VALUE
+        if (sent <= 0) return MeasurementRunCopy.NO_VALUE
+        val lost = (sent - received).coerceAtLeast(0)
+        val percent = (lost * 1_000.0 / sent).roundToInt() / 10.0
+        val percentText = if (percent % 1.0 == 0.0) "${percent.toInt()}" else "$percent"
+        return MeasurementRunCopy.packetLoss(percentText, lost, sent)
     }
 
     private fun formatThroughput(measurement: Measurement?): String {

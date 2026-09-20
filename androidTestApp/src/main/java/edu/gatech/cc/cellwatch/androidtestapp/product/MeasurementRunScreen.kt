@@ -39,6 +39,11 @@ class MeasurementRunScreen(
     private val syncCard = Components.StatusCardView(context)
     private val fccCard = Components.StatusCardView(context)
     private val latencyRow = Components.MetricRowView(context, MeasurementRunCopy.LATENCY)
+    // Next to latency rather than tucked away: on cellular the variation and
+    // the losses are often what distinguishes a usable connection from one
+    // that only looks fast on the mean.
+    private val jitterRow = Components.MetricRowView(context, MeasurementRunCopy.JITTER)
+    private val packetLossRow = Components.MetricRowView(context, MeasurementRunCopy.PACKET_LOSS)
     private val downloadRow = Components.MetricRowView(context, MeasurementRunCopy.DOWNLOAD)
     private val uploadRow = Components.MetricRowView(context, MeasurementRunCopy.UPLOAD)
     private val uploadedRow = Components.MetricRowView(context, MeasurementRunCopy.SYNC)
@@ -60,6 +65,8 @@ class MeasurementRunScreen(
             progressHeader,
             Components.divider(context),
             latencyRow,
+            jitterRow,
+            packetLossRow,
             downloadRow,
             uploadRow,
             uploadedRow,
@@ -95,6 +102,8 @@ class MeasurementRunScreen(
     private fun render(state: MeasurementRunUiState) {
         progressHeader.update(state.headerText, state.progressPercent)
         latencyRow.update(state.latencyText)
+        jitterRow.update(state.jitterText)
+        packetLossRow.update(state.packetLossText)
         downloadRow.update(state.downloadText)
         uploadRow.update(state.uploadText)
         uploadedRow.update(state.uploadedText)
