@@ -33,6 +33,19 @@ object FccSubmissionOutcomeMessage {
     const val DEVICE_INCOMPLETE =
         "Not submitted to the FCC: this device did not report the information the FCC requires."
 
+    /**
+     * For records written after the fact.
+     *
+     * The validation result exists only while a run is in flight and is not
+     * stored, so an export cannot always say why a submission was withheld.
+     * Saying so is better than reusing a run-time message that asserts a
+     * specific cause - an export may end up in front of the FCC, and a
+     * confident wrong reason is worse there than an admitted gap.
+     */
+    const val REASON_UNRECORDED =
+        "No FCC submission was created for this run. The specific reason was not recorded " +
+            "with the measurement."
+
     const val INCOMPLETE_TESTS =
         "Not submitted to the FCC: one of the three tests did not produce a result."
 

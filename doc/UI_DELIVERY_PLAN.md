@@ -184,7 +184,7 @@ on both platforms, and 1.2b is now rendering work rather than a research problem
 | 2.1 | History + sync status — delete the inline duplicate, adopt the shared class | 7, 9 | **done both platforms** — product screen on the shared `MeasurementHistoryViewModel`; `MainActivity` now sources ordering, the row cap, the summary wording and selection from `MeasurementHistoryViewController` instead of reimplementing them. Run selection driven on iOS 17.5 sim and `Medium_Phone_API_36`; the harness `MeasurementHistoryFlowUiSmokeTest` still passes. |
 | 2.2 | Retry unsynced | 8 | **done both platforms** — retry drains the queue from History and disappears when nothing is pending. Verified by building against an unreachable Supabase to create a genuine backlog, confirming a failing retry reports honestly, then restoring the endpoint: 3 pending → 0 on `Medium_Phone_API_36` and on iOS 17.5 sim. |
 | 2.3 | Settings | 10 | **done both platforms** — profile editing on the shared `SettingsProfileViewModel`, an FCC-challenge opt-out that now actually takes effect, and a read-only "About this install" block (app version, device id, MSAK endpoint, upload target). Save and persistence driven on `Medium_Phone_API_36`; opt-out driven end to end on iOS 17.5 sim. |
-| 2.4 | Export | 11 | todo |
+| 2.4 | Export | 11 | **done both platforms** — two formats: the FCC bulk-submission document ported unchanged from frozenApp, and an extended export carrying everything the FCC form cannot. Android writes through the Storage Access Framework, iOS through the share sheet. Verified on `Medium_Phone_API_36` (19.6 KB file written and read back) and iOS 17.5 sim. |
 
 ---
 

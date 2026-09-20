@@ -200,6 +200,7 @@ final class ProductShell: NSObject {
                         DispatchQueue.main.async { completion(snapshot) }
                     }
                 },
+                onExport: { [weak self] in self?.go(to: DestinationExport.shared) },
                 onBack: { [weak self] in self?.reset(to: DestinationMapHome.shared) }
             )
 
@@ -223,6 +224,30 @@ final class ProductShell: NSObject {
                     }
                 },
                 onSaved: { [weak self] in self?.reset(to: DestinationMapHome.shared) },
+                onBack: { [weak self] in self?.reset(to: DestinationMapHome.shared) }
+            )
+
+        case is DestinationExport:
+            guard case .success(let container) = Container.result else {
+                return PlaceholderScreenViewController(
+                    titleText: "Export",
+                    message: "Export is unavailable: \(Container.errorText ?? "runtime configuration missing").",
+                    tone: .warning
+                )
+            }
+            return ExportScreenViewController(
+                buildFcc: { completion in
+                    container.exportFccJson { document, _ in
+                        guard let document else { return }
+                        DispatchQueue.main.async { completion(document) }
+                    }
+                },
+                buildExtended: { completion in
+                    container.exportExtendedJson { document, _ in
+                        guard let document else { return }
+                        DispatchQueue.main.async { completion(document) }
+                    }
+                },
                 onBack: { [weak self] in self?.reset(to: DestinationMapHome.shared) }
             )
 

@@ -3,12 +3,14 @@ package edu.gatech.cc.cellwatch.androidtestapp.product
 import android.os.Bundle
 import android.view.View
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.onboarding.AndroidOnboardingProfileStore
+import edu.gatech.cc.cellwatch.domain.app.ExportDocument
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingInput
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingUseCase
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
@@ -44,6 +46,32 @@ class ProductShellActivity : AppCompatActivity() {
     private val mapHomeViewModel = MapHomeViewModel(minHexGridZoom = 0.0)
     private var mapHomeScreen: MapHomeScreen? = null
     private var measurementRunScreen: MeasurementRunScreen? = null
+    private var exportScreen: ExportScreen? = null
+    private var pendingExport: ExportDocument? = null
+
+    /**
+     * Registered here because a Storage Access Framework launcher must exist
+     * before the Activity finishes creating; a screen constructed later cannot
+     * register its own.
+     */
+    private val createExportFile = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        val document = pendingExport
+        pendingExport = null
+        if (uri == null || document == null) {
+            exportScreen?.onSaveFailed("no location chosen")
+            return@registerForActivityResult
+        }
+        runCatching {
+            contentResolver.openOutputStream(uri)?.use { it.write(document.json.encodeToByteArray()) }
+                ?: error("could not open the chosen file")
+        }.onSuccess {
+            exportScreen?.onSaved(document.fileName)
+        }.onFailure { error ->
+            exportScreen?.onSaveFailed(error.message ?: "unknown error")
+        }
+    }
 
     /**
      * Resolved once. A failure here means the build has no usable runtime
@@ -118,6 +146,7 @@ class ProductShellActivity : AppCompatActivity() {
             mapHomeScreen?.onDestroy()
             mapHomeScreen = null
         }
+        if (destination !is Destination.Export) exportScreen = null
         if (destination !is Destination.MeasurementRun) {
             // Leaving the run screen cancels the run: there is no foreground
             // service, so a measurement the user navigated away from would
@@ -224,7 +253,10 @@ class ProductShellActivity : AppCompatActivity() {
                     onRetry = { deliver ->
                         lifecycleScope.launch { deliver(productContainer.retryPendingUploads()) }
                     },
-                ).also { it.setOnBack { resetTo(Destination.MapHome) } }.view
+                ).also {
+                    it.setOnBack { resetTo(Destination.MapHome) }
+                    it.setOnExport { goTo(Destination.Export) }
+                }.view
             },
             onFailure = { error ->
                 placeholder("History is unavailable: ${error.message}", Components.StatusTone.WARNING)
@@ -248,6 +280,28 @@ class ProductShellActivity : AppCompatActivity() {
             },
             onFailure = { error ->
                 placeholder("Settings are unavailable: ${error.message}", Components.StatusTone.WARNING)
+            },
+        )
+
+        is Destination.Export -> container.fold(
+            onSuccess = { productContainer ->
+                ExportScreen(
+                    context = this,
+                    buildFcc = { deliver ->
+                        lifecycleScope.launch { deliver(productContainer.exportFccJson()) }
+                    },
+                    buildExtended = { deliver ->
+                        lifecycleScope.launch { deliver(productContainer.exportExtendedJson()) }
+                    },
+                    save = { document ->
+                        pendingExport = document
+                        createExportFile.launch(document.fileName)
+                    },
+                    onBack = { resetTo(Destination.MapHome) },
+                ).also { exportScreen = it }.view
+            },
+            onFailure = { error ->
+                placeholder("Export is unavailable: ${error.message}", Components.StatusTone.WARNING)
             },
         )
 
