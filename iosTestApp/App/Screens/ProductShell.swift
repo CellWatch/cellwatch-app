@@ -254,6 +254,11 @@ final class ProductShell: NSObject {
                     }
                 },
                 onSaved: { [weak self] in self?.reset(to: DestinationMapHome.shared) },
+                onPurge: { completion in
+                    container.purgeLocalMeasurements { removed, _ in
+                        DispatchQueue.main.async { completion(removed?.int32Value ?? 0) }
+                    }
+                },
                 onBack: { [weak self] in self?.reset(to: DestinationMapHome.shared) }
             )
 

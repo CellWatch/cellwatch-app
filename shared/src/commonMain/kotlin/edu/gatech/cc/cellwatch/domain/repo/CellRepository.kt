@@ -16,4 +16,6 @@ interface CellRepository {
 
     /** Optional streaming API if you want UI to observe changes. */
     fun observeByMeasurement(measurementId: String): Flow<List<Cell>>
+    /** Wipes the table. Used only by the Settings purge, never by sync. */
+    suspend fun deleteAll()
 }

@@ -74,3 +74,6 @@ markMeasurementUploaded:
 UPDATE MeasurementEntity
 SET uploadTime = ?
 WHERE id = ?;
+
+deleteAllMeasurements:
+DELETE FROM MeasurementEntity;

@@ -36,3 +36,6 @@ SELECT * FROM UploadDownloadDataEntity WHERE id = ?;
 
 selectUploadDownloadDataByMeasurement:
 SELECT * FROM UploadDownloadDataEntity WHERE measurementId = ? ORDER BY createdOn DESC;
+
+deleteAllUploadDownloadData:
+DELETE FROM UploadDownloadDataEntity;

@@ -311,6 +311,11 @@ class ProductShellActivity : AppCompatActivity() {
                         lifecycleScope.launch { deliver(productContainer.diagnostics()) }
                     },
                     onSaved = { resetTo(Destination.MapHome) },
+                    onPurge = { deliver ->
+                        lifecycleScope.launch {
+                            deliver(productContainer.purgeLocalMeasurements())
+                        }
+                    },
                     onBack = { resetTo(Destination.MapHome) },
                 ).view
             },

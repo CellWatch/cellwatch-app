@@ -80,4 +80,48 @@ object SettingsCopy {
         en = "Upload target: $mode",
         es = "Destino de subida: $mode",
     )
+
+    // Purging local measurements.
+
+    val DELETE_DATA_TITLE: String get() = localized(
+        en = "Delete measurements",
+        es = "Eliminar las mediciones",
+    )
+
+    val DELETE_DATA_BUTTON: String get() = localized(
+        en = "Delete all measurements on this device",
+        es = "Eliminar todas las mediciones de este dispositivo",
+    )
+
+    /**
+     * Says plainly what the button cannot do.
+     *
+     * There is no API to recall an upload, so a user who deletes locally to
+     * "take back" a submission would be misled by anything vaguer. Export is
+     * named because it is the only way to keep a copy.
+     */
+    val DELETE_DATA_EXPLANATION: String get() = localized(
+        en = "Removes every saved measurement from this phone. Anything already uploaded stays " +
+            "on the CellWatch server, and anything already submitted stays with the FCC - " +
+            "deleting here cannot take those back. Export your data first if you want to keep " +
+            "a copy.",
+        es = "Elimina de este teléfono todas las mediciones guardadas. Lo que ya se subió " +
+            "permanece en el servidor de CellWatch, y lo que ya se envió permanece con la FCC: " +
+            "eliminarlas aquí no las puede recuperar. Exporte sus datos primero si desea " +
+            "guardar una copia.",
+    )
+
+    val DELETE_DATA_CONFIRM_TITLE: String get() = localized(
+        en = "Delete all measurements?",
+        es = "¿Eliminar todas las mediciones?",
+    )
+
+    val DELETE_DATA_CONFIRM: String get() = localized(en = "Delete", es = "Eliminar")
+
+    val DELETE_DATA_CANCEL: String get() = localized(en = "Cancel", es = "Cancelar")
+
+    fun deleteDataDone(removed: Int): String = localized(
+        en = "Deleted $removed measurement${if (removed == 1) "" else "s"} from this device.",
+        es = "Se eliminaron $removed medici${if (removed == 1) "ón" else "ones"} de este dispositivo.",
+    )
 }

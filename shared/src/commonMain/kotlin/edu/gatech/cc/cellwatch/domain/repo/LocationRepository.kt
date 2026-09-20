@@ -9,4 +9,6 @@ interface LocationRepository {
     suspend fun deleteByMeasurementId(measurementId: String)
     suspend fun getByMeasurementId(measurementId: String): List<Location>
     fun observeByMeasurementId(measurementId: String): Flow<List<Location>>
+    /** Wipes the table. Used only by the Settings purge, never by sync. */
+    suspend fun deleteAll()
 }

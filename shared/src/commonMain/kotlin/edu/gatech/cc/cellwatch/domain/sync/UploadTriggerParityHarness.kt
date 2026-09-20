@@ -137,6 +137,7 @@ private class InMemoryMeasurementRepository(
 
     // Not exercised: these doubles back sync tests, which never read the map window.
     override suspend fun getRecent(limit: Long): List<Measurement> = emptyList()
+    override suspend fun deleteAll() = Unit
     override suspend fun getUnsynced(): List<Measurement> = emptyList()
     override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
     override fun observeByGroupId(groupId: String): Flow<List<Measurement>> = emptyFlow()
@@ -151,5 +152,6 @@ private class InMemorySubmissionRepository(
     override suspend fun getUnsubmitted(): List<FccSubmission> = listOf(submission)
     override suspend fun getUnsynced(): List<FccSubmission> = emptyList()
     override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
+    override suspend fun deleteAll() = Unit
     override fun observeUnsubmitted(): Flow<List<FccSubmission>> = emptyFlow()
 }

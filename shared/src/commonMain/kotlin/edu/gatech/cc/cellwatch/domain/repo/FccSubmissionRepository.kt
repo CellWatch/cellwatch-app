@@ -12,4 +12,6 @@ interface FccSubmissionRepository {
     suspend fun getUnsynced(): List<FccSubmission>
     suspend fun markUploaded(id: String, uploadedAt: Instant)
     fun observeUnsubmitted(): Flow<List<FccSubmission>>
+    /** Wipes the table. Used only by the Settings purge, never by sync. */
+    suspend fun deleteAll()
 }

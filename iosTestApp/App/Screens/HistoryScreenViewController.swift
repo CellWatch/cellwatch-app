@@ -11,10 +11,9 @@ final class HistoryScreenViewController: UIViewController {
     private let onExport: () -> Void
     private let onBack: () -> Void
 
-    private let scaffold = ScreenScaffold()
+    private let scaffold = ListScreenScaffold()
     private let header = Components.sectionHeader("")
     private let syncCard = Components.StatusCardView()
-    private let runsStack = UIStackView()
     private let detailHeader = Components.sectionHeader("")
     private let detailText = Components.bodyText("")
     /// Always present, never hidden. It used to disappear whenever the queue
@@ -49,21 +48,20 @@ final class HistoryScreenViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        runsStack.axis = .vertical
-        runsStack.spacing = Theme.Space.s
 
         syncButton.addTarget(self, action: #selector(retryTapped), for: .touchUpInside)
         exportButton.addTarget(self, action: #selector(exportTapped), for: .touchUpInside)
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
 
-        scaffold.addContent(
+        // Selected run above the list, not below it. Below, choosing a row
+        // scrolled its own detail off the bottom, and the more history a user
+        // had the further away the answer moved.
+        scaffold.addHeader(
             header,
             syncCard,
-            Components.divider(),
-            runsStack,
-            Components.divider(),
             detailHeader,
-            detailText
+            detailText,
+            Components.divider()
         )
         scaffold.addActions(syncButton, exportButton, backButton)
         render(viewModel.currentState())
@@ -98,13 +96,13 @@ final class HistoryScreenViewController: UIViewController {
         syncButton.isEnabled = true
         syncButton.setTitle(HistoryCopy.shared.SYNC_NOW, for: .normal)
 
-        runsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         rowTimestamps.removeAll()
 
         if state.isEmpty {
-            runsStack.addArrangedSubview(Components.emptyState(message: state.emptyText ?? ""))
+            scaffold.setListItems([Components.emptyState(message: state.emptyText ?? "")])
             return
         }
+        var rows: [UIView] = []
         for row in state.runRows {
             let button = Components.secondaryButton(row.summary)
             button.titleLabel?.numberOfLines = 0
@@ -116,8 +114,9 @@ final class HistoryScreenViewController: UIViewController {
             }
             button.addTarget(self, action: #selector(rowTapped(_:)), for: .touchUpInside)
             rowTimestamps[button] = row.timestampMs
-            runsStack.addArrangedSubview(button)
+            rows.append(button)
         }
+        scaffold.setListItems(rows)
     }
 
     @objc private func rowTapped(_ sender: UIButton) {

@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.Switch
+import androidx.appcompat.app.AlertDialog
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
@@ -33,10 +34,25 @@ class SettingsScreen(
     private val viewModel: SettingsProfileViewModel,
     private val diagnosticsProvider: ((ProductDiagnostics) -> Unit) -> Unit,
     private val onSaved: () -> Unit,
+    /** Runs the purge and reports how many runs were removed. */
+    private val onPurge: ((Int) -> Unit) -> Unit,
     private val onBack: () -> Unit,
 ) {
 
     private val scaffold = ScreenScaffold(context)
+    private val deleteFeedback = Components.bodyText(context, "", muted = true).apply {
+        visibility = View.GONE
+    }
+    /**
+     * Destructive, so it asks first.
+     *
+     * In the content column rather than the pinned action row: the actions
+     * are what a user reaches for repeatedly, and "delete everything" should
+     * not sit where "Save settings" is muscle memory.
+     */
+    private val deleteButton = Components.secondaryButton(context, SettingsCopy.DELETE_DATA_BUTTON).apply {
+        setOnClickListener { confirmPurge() }
+    }
     private val nameField = Components.formField(context, OnboardingCopy.FULL_NAME)
     private val phoneField = Components.formField(context, OnboardingCopy.PHONE_HINT, InputType.TYPE_CLASS_PHONE)
     private val emailField = Components.formField(context, OnboardingCopy.EMAIL, InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
@@ -96,6 +112,11 @@ class SettingsScreen(
             ),
             feedback,
             Components.divider(context),
+            Components.sectionHeader(context, SettingsCopy.DELETE_DATA_TITLE),
+            Components.bodyText(context, SettingsCopy.DELETE_DATA_EXPLANATION, muted = true),
+            deleteButton,
+            deleteFeedback,
+            Components.divider(context),
             Components.sectionHeader(context, SettingsCopy.ABOUT_THIS_INSTALL),
             diagnosticsText,
         )
@@ -114,6 +135,22 @@ class SettingsScreen(
             LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
         )
         addView(control)
+    }
+
+    private fun confirmPurge() {
+        AlertDialog.Builder(context)
+            .setTitle(SettingsCopy.DELETE_DATA_CONFIRM_TITLE)
+            .setMessage(SettingsCopy.DELETE_DATA_EXPLANATION)
+            .setNegativeButton(SettingsCopy.DELETE_DATA_CANCEL, null)
+            .setPositiveButton(SettingsCopy.DELETE_DATA_CONFIRM) { _, _ ->
+                deleteButton.isEnabled = false
+                onPurge { removed ->
+                    deleteButton.isEnabled = true
+                    deleteFeedback.text = SettingsCopy.deleteDataDone(removed)
+                    deleteFeedback.visibility = View.VISIBLE
+                }
+            }
+            .show()
     }
 
     private fun render(state: SettingsProfileUiState) {

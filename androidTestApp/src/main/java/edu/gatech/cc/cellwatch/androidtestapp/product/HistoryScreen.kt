@@ -4,7 +4,7 @@ import android.content.Context
 import android.view.View
 import android.widget.LinearLayout
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
-import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
+import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ListScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme.dp
 import edu.gatech.cc.cellwatch.domain.app.ProductHistorySnapshot
@@ -27,10 +27,9 @@ class HistoryScreen(
     private val onRetry: ((ProductHistorySnapshot) -> Unit) -> Unit,
 ) {
 
-    private val scaffold = ScreenScaffold(context)
+    private val scaffold = ListScreenScaffold(context)
     private val header = Components.sectionHeader(context, "")
     private val syncCard = Components.StatusCardView(context)
-    private val runsColumn = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     private val detailHeader = Components.sectionHeader(context, "")
     private val detailText = Components.bodyText(context, "")
     /**
@@ -59,14 +58,15 @@ class HistoryScreen(
     val view: View get() = scaffold
 
     init {
-        scaffold.addContent(
+        // Selected run above the list, not below it. Below, choosing a row
+        // scrolled its own detail off the bottom, and the more history a user
+        // had the further away the answer moved.
+        scaffold.addHeader(
             header,
             syncCard,
-            Components.divider(context),
-            runsColumn,
-            Components.divider(context),
             detailHeader,
             detailText,
+            Components.divider(context),
         )
         scaffold.addActions(syncButton, exportButton, backButton)
         render(viewModel.currentState())
@@ -110,26 +110,21 @@ class HistoryScreen(
         syncButton.isEnabled = true
         syncButton.text = HistoryCopy.SYNC_NOW
 
-        runsColumn.removeAllViews()
         if (state.isEmpty) {
-            runsColumn.addView(Components.emptyState(context, state.emptyText.orEmpty()))
+            scaffold.setListItems(listOf(Components.emptyState(context, state.emptyText.orEmpty())))
             return
         }
-        state.runRows.forEach { row ->
-            val listRow = Components.listRow(
-                context = context,
-                title = row.summary,
-                subtitle = null,
-                accessory = if (row.selected) HistoryCopy.SELECTED else null,
-            )
-            listRow.setOnClickListener { render(viewModel.onRunSelected(row.timestampMs)) }
-            runsColumn.addView(
-                listRow,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                ).apply { topMargin = context.dp(Theme.Space.S) },
-            )
-        }
+        scaffold.setListItems(
+            state.runRows.map { row ->
+                Components.listRow(
+                    context = context,
+                    title = row.summary,
+                    subtitle = null,
+                    accessory = if (row.selected) HistoryCopy.SELECTED else null,
+                ).apply {
+                    setOnClickListener { render(viewModel.onRunSelected(row.timestampMs)) }
+                }
+            },
+        )
     }
 }

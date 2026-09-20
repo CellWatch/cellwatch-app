@@ -95,6 +95,8 @@ private class NoOpMeasurementRepository : MeasurementRepository {
     override suspend fun getUnsynced(): List<Measurement> = emptyList()
     override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
     override fun observeByGroupId(groupId: String): Flow<List<Measurement>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }
 
 private class NoOpSubmissionRepository : FccSubmissionRepository {
@@ -105,4 +107,6 @@ private class NoOpSubmissionRepository : FccSubmissionRepository {
     override suspend fun getUnsynced(): List<FccSubmission> = emptyList()
     override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
     override fun observeUnsubmitted(): Flow<List<FccSubmission>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }
