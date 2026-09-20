@@ -10,6 +10,22 @@ Recorded 2026-09-17.
 
 ## 1. A Mapbox **secret** token ships inside the app bundle
 
+> **RESOLVED 2026-09-20.** `cellwatch.properties` now defines a `pk.` public
+> token as `MAPBOX_ACCESS_TOKEN`, and
+> `scripts/generate-ios-runtime-properties.sh` refuses the
+> `MAPBOX_DOWNLOADS_TOKEN` fallback for any configuration other than Debug -
+> a Release or AppStore build fails rather than packaging a secret. It also
+> rejects a token without a `pk.` prefix. Verified: Release archive packages
+> `<pk.… 89 chars>`.
+>
+> Two notes carried forward. The `sk.` downloads token was exposed in internal
+> builds only and is still worth rotating - nothing shipped depends on it.
+> The `pk.` token is the *same* one compiled into the publicly released
+> frozenApp (`values/strings.xml`), so revoking it would break the map for
+> existing Android users; add a second public token rather than replacing it.
+>
+> Android still has the same fallback at `androidTestApp/build.gradle.kts:81`.
+
 **Severity: high.** Extractable from any distributed build (TestFlight or App Store).
 
 ### What is wrong

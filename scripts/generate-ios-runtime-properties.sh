@@ -258,12 +258,42 @@ write_property "CELLWATCH_DEFAULT_MSAK_MODE" "$MSAK_MODE"
 write_property "CELLWATCH_ALLOW_REMOTE_SUPABASE" "$ALLOW_REMOTE_SUPABASE"
 
 # --- Mapbox ----------------------------------------------------------------
-# NOTE: the MAPBOX_DOWNLOADS_TOKEN fallback packages a SECRET ("sk.") token into
-# the app bundle. Deliberately left as-is for now; see
-# doc/PRE_DEPLOYMENT_CHECKLIST.md item 1, which must be resolved before release.
+# ---------------------------------------------------------------------------
+# Mapbox token
+#
+# A client app must carry a PUBLIC ("pk.") token. MAPBOX_DOWNLOADS_TOKEN is the
+# SECRET ("sk.") credential Gradle and SPM use to download the SDK, and falling
+# back to it packaged that secret into the bundle where any user of a
+# distributed build could read it - doc/PRE_DEPLOYMENT_CHECKLIST.md item 1.
+#
+# The fallback survives for Debug only, so local work keeps rendering a map
+# before a public token exists. Anything archivable refuses: a TestFlight or
+# App Store build is exactly the case where the secret escapes, and failing
+# the build is the only refusal a developer cannot skim past.
+# ---------------------------------------------------------------------------
+case "${CONFIGURATION:-Debug}" in
+  Debug) MAPBOX_DISTRIBUTABLE=0 ;;
+  *) MAPBOX_DISTRIBUTABLE=1 ;;
+esac
+
 MAPBOX_TOKEN="$(resolve_value "MAPBOX_ACCESS_TOKEN" || true)"
+if [[ -n "$MAPBOX_TOKEN" && "$MAPBOX_TOKEN" != pk.* ]]; then
+  echo "MAPBOX_ACCESS_TOKEN is set but is not a public token (expected a \"pk.\" prefix)." >&2
+  exit 1
+fi
 if [[ -z "$MAPBOX_TOKEN" ]]; then
+  if [[ "$MAPBOX_DISTRIBUTABLE" == "1" ]]; then
+    echo "MAPBOX_ACCESS_TOKEN is not set." >&2
+    echo "A ${CONFIGURATION:-Release} build will not fall back to MAPBOX_DOWNLOADS_TOKEN: that is" >&2
+    echo "a secret \"sk.\" credential and would ship inside the app bundle." >&2
+    echo "Add a public token to cellwatch.properties:  MAPBOX_ACCESS_TOKEN=pk.…" >&2
+    exit 1
+  fi
   MAPBOX_TOKEN="$(resolve_value "MAPBOX_DOWNLOADS_TOKEN" || true)"
+  if [[ -n "$MAPBOX_TOKEN" ]]; then
+    echo "warning: packaging MAPBOX_DOWNLOADS_TOKEN (a secret) because MAPBOX_ACCESS_TOKEN is" >&2
+    echo "warning: unset. Debug only - Release and AppStore builds fail instead." >&2
+  fi
 fi
 if [[ -n "$MAPBOX_TOKEN" ]]; then
   write_property "MAPBOX_ACCESS_TOKEN" "$MAPBOX_TOKEN"

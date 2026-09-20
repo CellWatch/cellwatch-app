@@ -31,7 +31,11 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
-	<string>2</string>
+	<string>3</string>
+	<!-- No encryption beyond what iOS itself provides (HTTPS). Declared here
+	     so TestFlight does not ask about export compliance on every upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>MAPBOX_ACCESS_TOKEN</key>
 	<string>$(MAPBOX_ACCESS_TOKEN)</string>
 	<key>CELLWATCH_DISABLE_SUPABASE_SYNC</key>
