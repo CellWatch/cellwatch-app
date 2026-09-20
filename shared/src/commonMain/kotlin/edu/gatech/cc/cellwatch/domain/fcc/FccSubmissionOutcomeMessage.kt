@@ -15,6 +15,10 @@ object FccSubmissionOutcomeMessage {
 
     const val SUBMITTED = "This measurement will be submitted to the FCC."
 
+    const val OPTED_OUT =
+        "Not submitted to the FCC: FCC submission is turned off in Settings. This measurement " +
+            "is still saved and uploaded to the CellWatch server."
+
     const val NOT_ELIGIBLE =
         "Not submitted to the FCC: the FCC only accepts measurements taken over a cellular " +
             "connection. Turn off Wi-Fi and measure again."
@@ -40,8 +44,13 @@ object FccSubmissionOutcomeMessage {
     fun forOutcome(
         submissionCreated: Boolean,
         validation: FccSubmissionValidationResult?,
+        challengeMode: Boolean = true,
     ): String {
         if (submissionCreated) return SUBMITTED
+        // Checked before the eligibility branches: a user who turned
+        // submission off would otherwise be told their connection was the
+        // problem, which is both wrong and unactionable.
+        if (!challengeMode) return OPTED_OUT
         val codes = validation?.codes ?: return NOT_ELIGIBLE
         return when {
             codes.any { it in MEASUREMENT_CODES } -> INCOMPLETE_TESTS

@@ -152,6 +152,7 @@ class MeasurementRunViewModel(
                 fccOutcomeText = FccSubmissionOutcomeMessage.forOutcome(
                     submissionCreated = outcome.sequenceOutcome.group.submission != null,
                     validation = outcome.sequenceOutcome.submissionValidation,
+                    challengeMode = mode == CollectionMode.FCC_CHALLENGE,
                 )
                 controller.onCompleted(outcome.sequenceOutcome.group, null, null)
                 controller.onUploadTimeResolved(outcome.measurementCompleteUploadTime)

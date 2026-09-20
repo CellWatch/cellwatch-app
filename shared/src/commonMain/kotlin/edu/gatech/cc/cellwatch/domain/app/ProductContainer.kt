@@ -22,8 +22,10 @@ import edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryRunSn
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementResultReadModelUseCase
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunState
+import edu.gatech.cc.cellwatch.domain.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileStore
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeSyncMsakProfile
 import edu.gatech.cc.cellwatch.domain.sync.MeasurementSequenceSyncOrchestrator
 import edu.gatech.cc.cellwatch.domain.sync.SyncStatusPresenter
@@ -77,6 +79,9 @@ interface ProductPlatformServices {
     val tcpTupleUrl: String?
     val appSource: String
 
+    /** The saved profile, which carries the user's collection-mode choice. */
+    val onboardingStore: OnboardingProfileStore
+
     /** Persists what the last upload attempt did, so status survives a launch. */
     val syncStatusStore: SyncStatusStore
 }
@@ -106,6 +111,24 @@ data class ProductHistorySnapshot(
     val syncSummary: SyncStatusSummary,
     val pendingMeasurements: Int,
     val pendingSubmissions: Int,
+)
+
+/**
+ * Read-only facts the settings screen reports.
+ *
+ * Exists because the answers to "which server am I talking to" and "what is my
+ * device id" were previously only obtainable from the harness, which a real
+ * user does not have. They are the first things anyone asks for when a
+ * measurement does not arrive.
+ */
+data class ProductDiagnostics(
+    val appName: String,
+    val appVersion: String,
+    val deviceId: String,
+    val msakMode: String,
+    val msakEndpoint: String,
+    val supabaseMode: String,
+    val collectionMode: CollectionMode,
 )
 
 /**
@@ -253,6 +276,32 @@ class ProductContainer(
         recordSyncAttempt(uploadedCount = uploaded, failed = report.isFailure || uploaded == 0)
         return historySnapshot()
     }
+
+    suspend fun diagnostics(): ProductDiagnostics {
+        val identity = services.submissionIdentity()
+        val profile = services.runtimeProfile
+        return ProductDiagnostics(
+            appName = identity.appName,
+            appVersion = identity.appVersion,
+            deviceId = deviceAuthStore.getDeviceId(),
+            msakMode = profile.msakMode.name,
+            // The local host when there is one, otherwise the public locate
+            // service - saying "PUBLIC" twice tells the reader nothing.
+            msakEndpoint = profile.msakConfig.localServerHost ?: "M-Lab Locate",
+            supabaseMode = profile.supabaseMode.name,
+            collectionMode = collectionMode(),
+        )
+    }
+
+    /**
+     * The mode measurements run in, from the saved profile.
+     *
+     * The shells hardcoded FCC_CHALLENGE. Collection mode decides whether a
+     * submission is created at all, so a user who chose TESTING in settings
+     * was still having submissions built for them - the setting did nothing.
+     */
+    fun collectionMode(): CollectionMode =
+        services.onboardingStore.loadProfile()?.collectionMode ?: CollectionMode.FCC_CHALLENGE
 
     /**
      * Attaches a measurement's own latency or throughput row.
