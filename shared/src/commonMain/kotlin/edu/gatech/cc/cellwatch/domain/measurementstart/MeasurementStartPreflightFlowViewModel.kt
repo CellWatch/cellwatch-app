@@ -6,7 +6,7 @@ data class MeasurementStartPreflightFlowUiState(
     // Deliberately does not name a button: the harness and the product screen
     // label theirs differently, and copy that names a control it cannot see is
     // how UI text goes stale.
-    val statusMessage: String = "Conditions are checked when you start.",
+    val statusMessage: String = MeasurementStartCopy.CONDITIONS_CHECKED,
     val statusIsError: Boolean = false,
     val debugSummary: String = "",
     val shouldPromptConfirmation: Boolean = false,

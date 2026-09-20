@@ -68,7 +68,7 @@ class RetryPendingSyncUseCase(
                     measurements = SyncReport(),
                     submissions = SyncReport(),
                 ),
-                userMessage = "No pending uploads.",
+                userMessage = SyncCopy.NO_PENDING_UPLOADS,
             )
         }
 
@@ -115,12 +115,16 @@ class RetryPendingSyncUseCase(
         val unexpectedErrors = report.measurements.unexpectedErrors + report.submissions.unexpectedErrors
         val core = "pending before=${before.total}, after=${after.total}, uploaded=$uploaded, marked=$marked, networkErrors=$networkErrors, unexpectedErrors=$unexpectedErrors"
         return when (status) {
-            SyncRunStatus.IDLE -> "No pending uploads."
-            SyncRunStatus.SUCCEEDED -> "Sync complete. $core"
-            SyncRunStatus.PARTIAL_FAILURE -> "Sync partially completed. $core"
-            SyncRunStatus.FAILED -> "Sync failed. $core"
-            SyncRunStatus.PENDING -> "Sync still pending. $core"
-            SyncRunStatus.IN_PROGRESS -> "Sync in progress."
+            // Only the leading sentence is translated. `core` is key=value
+            // telemetry, read by whoever is debugging a sync rather than by
+            // the user, and translating `uploaded=` would make it harder to
+            // grep, not easier to read.
+            SyncRunStatus.IDLE -> SyncCopy.NO_PENDING_UPLOADS
+            SyncRunStatus.SUCCEEDED -> "${SyncCopy.SYNC_COMPLETE} $core"
+            SyncRunStatus.PARTIAL_FAILURE -> "${SyncCopy.SYNC_PARTIAL} $core"
+            SyncRunStatus.FAILED -> "${SyncCopy.SYNC_FAILED} $core"
+            SyncRunStatus.PENDING -> "${SyncCopy.SYNC_STILL_PENDING} $core"
+            SyncRunStatus.IN_PROGRESS -> SyncCopy.SYNC_IN_PROGRESS
         }
     }
 }

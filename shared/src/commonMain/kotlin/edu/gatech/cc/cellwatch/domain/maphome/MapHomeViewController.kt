@@ -72,11 +72,10 @@ class MapHomeViewController {
             when (syncState) {
                 // Retained for the harness, which has counts but no status
                 // record. The product shell always supplies the status.
-                MapHomeSyncStateKey.UNKNOWN -> "Sync status unknown."
-                MapHomeSyncStateKey.SYNCED -> "All records are synced."
+                MapHomeSyncStateKey.UNKNOWN -> MapHomeCopy.SYNC_UNKNOWN
+                MapHomeSyncStateKey.SYNCED -> MapHomeCopy.ALL_SYNCED
                 MapHomeSyncStateKey.PENDING ->
-                    "Pending sync queue: $pendingMeasurements measurement record(s), " +
-                        "$pendingSubmissions submission record(s)."
+                    MapHomeCopy.pendingQueue(pendingMeasurements, pendingSubmissions)
             }
         }
         val resolvedSyncState = when (status?.tone) {
@@ -87,23 +86,22 @@ class MapHomeViewController {
         }
 
         val mapPanelBody = when {
-            recentRunCount <= 0 -> "No saved measurements yet. Take a measurement to populate the map."
-            recentRunCount == 1 -> "Showing 1 saved run on the map."
-            else -> "Showing $recentRunCount saved runs on the map (newest first)."
+            recentRunCount <= 0 -> MapHomeCopy.NO_SAVED_MEASUREMENTS
+            else -> MapHomeCopy.showingRuns(recentRunCount)
         }
 
         val statusText = when {
-            !input.onboardingComplete -> "Complete your profile before taking a measurement."
-            recentRunCount <= 0 -> "Profile saved. Start a measurement when ready."
-            syncState == MapHomeSyncStateKey.PENDING -> "Recent measurements available. Some uploads are pending."
-            syncState == MapHomeSyncStateKey.SYNCED -> "Recent measurements available and synced."
-            else -> "Recent measurements available."
+            !input.onboardingComplete -> MapHomeCopy.COMPLETE_PROFILE_FIRST
+            recentRunCount <= 0 -> MapHomeCopy.PROFILE_SAVED
+            syncState == MapHomeSyncStateKey.PENDING -> MapHomeCopy.RECENT_PENDING
+            syncState == MapHomeSyncStateKey.SYNCED -> MapHomeCopy.RECENT_SYNCED
+            else -> MapHomeCopy.RECENT_AVAILABLE
         }
 
         return MapHomeViewState(
-            title = "CellWatch",
-            subtitle = "Map home",
-            mapPanelTitle = "Measurement map",
+            title = MapHomeCopy.TITLE,
+            subtitle = MapHomeCopy.SUBTITLE,
+            mapPanelTitle = MapHomeCopy.MAP_PANEL_TITLE,
             mapPanelBody = mapPanelBody,
             statusText = statusText,
             syncSummary = syncSummary,

@@ -1,8 +1,8 @@
 package edu.gatech.cc.cellwatch.domain.measurementhistory
 
-import kotlinx.datetime.Clock
 import java.io.File
 import kotlin.test.Test
+import kotlinx.datetime.Clock
 
 class MeasurementHistoryFixtureCaptureJvmTest {
     @Test
@@ -65,7 +65,7 @@ class MeasurementHistoryFixtureCaptureJvmTest {
                 expectedDownloadText = "100 Mbps",
                 expectedUploadText = "30 Mbps",
                 expectedUploadedText = "Pending sync",
-                expectedSyncSummary = "Pending sync queue: 2 measurement record(s), 1 submission record(s).",
+                expectedSyncSummary = "Pending sync queue: 2 measurement records, 1 submission record.",
             ),
             MeasurementHistoryFixtureScenario(
                 name = "empty_unknown_sync",
@@ -94,7 +94,7 @@ class MeasurementHistoryFixtureCaptureJvmTest {
                 expectedDownloadText = "88 Mbps",
                 expectedUploadText = "22 Mbps",
                 expectedUploadedText = "Pending sync",
-                expectedSyncSummary = "Pending sync queue: 1 measurement record(s), 0 submission record(s).",
+                expectedSyncSummary = "Pending sync queue: 1 measurement record, 0 submission records.",
             ),
         )
     }

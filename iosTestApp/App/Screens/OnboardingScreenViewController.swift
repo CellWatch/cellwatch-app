@@ -21,11 +21,11 @@ final class OnboardingScreenViewController: UIViewController {
     private let acknowledged: Bool
     private let onComplete: () -> Void
 
-    private let nameField = Components.formField(placeholder: "Full name")
-    private let phoneField = Components.formField(placeholder: "Phone (###-###-####)", keyboard: .phonePad)
-    private let emailField = Components.formField(placeholder: "Email", keyboard: .emailAddress)
+    private let nameField = Components.formField(placeholder: OnboardingCopy.shared.FULL_NAME)
+    private let phoneField = Components.formField(placeholder: OnboardingCopy.shared.PHONE_HINT, keyboard: .phonePad)
+    private let emailField = Components.formField(placeholder: OnboardingCopy.shared.EMAIL, keyboard: .emailAddress)
     private let feedbackLabel = Components.bodyText("", muted: true)
-    private let saveButton = Components.primaryButton("Save profile")
+    private let saveButton = Components.primaryButton(OnboardingCopy.shared.SAVE_PROFILE)
 
     init(
         viewModel: OnboardingProfileViewModel,
@@ -50,7 +50,7 @@ final class OnboardingScreenViewController: UIViewController {
         // what gets published.
 
         scaffold.addContent(
-            Components.bodyText("Tell us who you are before starting measurements. These details accompany every submission.", muted: true),
+            Components.bodyText(OnboardingCopy.shared.PROMPT, muted: true),
             nameField,
             phoneField,
             emailField,
@@ -62,7 +62,7 @@ final class OnboardingScreenViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "Your profile"
+        title = OnboardingCopy.shared.TITLE
         navigationController?.navigationBar.prefersLargeTitles = true
 
         [nameField, phoneField, emailField].forEach {

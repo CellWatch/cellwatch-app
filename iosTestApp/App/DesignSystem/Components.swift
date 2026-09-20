@@ -34,6 +34,14 @@ enum Components {
         button.setTitleColor(foreground, for: .normal)
         button.titleLabel?.font = Theme.Font.heading
         button.titleLabel?.adjustsFontForContentSizeCategory = true
+        // Wrap rather than truncate. A single-line button is fine until the
+        // label gets longer - "Historial y sincronización" came back as
+        // "Historia...nización" - and a button whose own name is elided is
+        // unreadable. Android's equivalent already wraps, so this is parity
+        // as well as a fix.
+        button.titleLabel?.numberOfLines = 0
+        button.titleLabel?.lineBreakMode = .byWordWrapping
+        button.titleLabel?.textAlignment = .center
         button.backgroundColor = background
         button.layer.cornerRadius = Theme.Radius.control
         button.contentEdgeInsets = UIEdgeInsets(

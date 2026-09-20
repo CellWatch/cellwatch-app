@@ -21,13 +21,21 @@ Carried forward so it is not lost between sessions. Updated 2026-09-20.
 4. **Per-test results only appear when a run finishes.** `MeasurementSequenceProgressListener`
    emits stage transitions, not results, so latency sits at `--` on the run screen until the
    whole sequence completes even though it finished seconds earlier.
-5. **Localisation stops at the consent flow.** The data-use and collection-mode screens now
-   render in Spanish, using frozenApp's own `values-es` wording, via `ConsentCopy` and the
-   `currentLanguageCode()` expect/actual. Everything else - Map home, the run screen, History,
-   Settings, Export, all sync status lines - is still English only, and there is no
-   translator-facing resource format: the two languages sit adjacent in Kotlin source. Three
-   strings (`ACKNOWLEDGEMENT_REQUIRED`, `CHANGE_LATER`, `TESTING_SUMMARY`) have no frozenApp
-   equivalent, so their Spanish is mine and unreviewed.
+5. **Most of the Spanish is unreviewed.** The whole product app now renders in Spanish - Map
+   home, the run screen, History, Settings, Export, consent, and every sync status line - but
+   only about thirty of the strings are frozenApp's reviewed `values-es` wording. The rest,
+   roughly 140, were translated by Claude and have had no native-speaker or subject-matter
+   review. frozenApp's translator worked from the FCC's own bilingual challenge-process pages;
+   the FCC vocabulary here follows that glossary ("impugnación", "medición", "proveedor"), but
+   the sentences around it do not carry the same authority. Each copy object says in its KDoc
+   which of the two it is. Worth a review pass before anything ships publicly, starting with
+   `FccSubmissionOutcomeMessage`, which tells a user why their measurement will not reach
+   the FCC.
+
+   There is also no translator-facing resource format: the two languages sit adjacent in Kotlin
+   source under `domain/**/*Copy.kt`. That is deliberate - it keeps one source of truth for both
+   platforms and puts the two languages where a reviewer sees them together - but a real
+   translator would want an export.
 
 6. **The privacy policy is not versioned or recorded.** The app links to
    `sites.gatech.edu/cellwatch/android-app/app-privacy-policy/` but does not record which

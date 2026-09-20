@@ -6,10 +6,13 @@ import android.view.View
 import android.view.WindowManager
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
+import edu.gatech.cc.cellwatch.domain.app.ShellCopy
 import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionOutcomeMessage
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunCopy
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunUiState
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunViewModel
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartCopy
 
 /**
  * The run and its results, in one screen. Android counterpart of
@@ -35,18 +38,18 @@ class MeasurementRunScreen(
     private val statusCard = Components.StatusCardView(context)
     private val syncCard = Components.StatusCardView(context)
     private val fccCard = Components.StatusCardView(context)
-    private val latencyRow = Components.MetricRowView(context, "Latency")
-    private val downloadRow = Components.MetricRowView(context, "Download")
-    private val uploadRow = Components.MetricRowView(context, "Upload")
-    private val uploadedRow = Components.MetricRowView(context, "Sync")
+    private val latencyRow = Components.MetricRowView(context, MeasurementRunCopy.LATENCY)
+    private val downloadRow = Components.MetricRowView(context, MeasurementRunCopy.DOWNLOAD)
+    private val uploadRow = Components.MetricRowView(context, MeasurementRunCopy.UPLOAD)
+    private val uploadedRow = Components.MetricRowView(context, MeasurementRunCopy.SYNC)
 
-    private val cancelButton = Components.secondaryButton(context, "Stop measurement").apply {
+    private val cancelButton = Components.secondaryButton(context, MeasurementStartCopy.STOP_MEASUREMENT).apply {
         setOnClickListener { viewModel.cancel() }
     }
-    private val doneButton = Components.primaryButton(context, "Done").apply {
+    private val doneButton = Components.primaryButton(context, ShellCopy.DONE).apply {
         setOnClickListener { onDone() }
     }
-    private val againButton = Components.secondaryButton(context, "Measure again").apply {
+    private val againButton = Components.secondaryButton(context, MeasurementRunCopy.MEASURE_AGAIN).apply {
         setOnClickListener { onMeasureAgain() }
     }
 
@@ -98,7 +101,7 @@ class MeasurementRunScreen(
         statusCard.update(state.summaryText, toneFor(state))
 
         // Same reason as the FCC card: there is no sync story until the run
-        // finishes, and "Sync: Pending" on its own never said when anything
+        // finishes, and MeasurementRunCopy.syncLabel(MeasurementRunCopy.PENDING) on its own never said when anything
         // last reached the server, or whether uploads were failing.
         syncCard.visibility = if (state.syncDetailText.isBlank()) View.GONE else View.VISIBLE
         syncCard.update(state.syncDetailText, Components.StatusTone.NEUTRAL)

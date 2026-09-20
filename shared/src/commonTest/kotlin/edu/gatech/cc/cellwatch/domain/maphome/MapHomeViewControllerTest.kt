@@ -78,7 +78,7 @@ class MapHomeViewControllerTest {
 
         assertEquals(MapHomeSyncStateKey.PENDING, state.syncStateKey)
         assertEquals(
-            "Pending sync queue: 1 measurement record(s), 2 submission record(s).",
+            "Pending sync queue: 1 measurement record, 2 submission records.",
             state.syncSummary,
         )
         assertEquals("Recent measurements available. Some uploads are pending.", state.statusText)

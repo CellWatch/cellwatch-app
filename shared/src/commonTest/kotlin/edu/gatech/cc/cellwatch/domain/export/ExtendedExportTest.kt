@@ -1,15 +1,16 @@
 package edu.gatech.cc.cellwatch.domain.export
 
 import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionOutcomeMessage
+import edu.gatech.cc.cellwatch.domain.localization.ENGLISH
 import edu.gatech.cc.cellwatch.domain.model.FccSubmission
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.model.UploadDownloadData
-import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.datetime.Instant
 
 /**
  * The export may end up in front of the FCC, so what it claims about a run
@@ -58,19 +59,19 @@ class ExtendedExportTest {
     @Test
     fun `a submitted run says so`() {
         val outcome = group(submission = FccSubmission(id = "g1")).deriveFccOutcome(challengeMode = true)
-        assertEquals(FccSubmissionOutcomeMessage.SUBMITTED, outcome)
+        assertEquals(FccSubmissionOutcomeMessage.submitted(ENGLISH), outcome)
     }
 
     @Test
     fun `opting out wins over any eligibility reason`() {
         val outcome = group(connection = NetworkConnectionType.WIFI).deriveFccOutcome(challengeMode = false)
-        assertEquals(FccSubmissionOutcomeMessage.OPTED_OUT, outcome)
+        assertEquals(FccSubmissionOutcomeMessage.optedOut(ENGLISH), outcome)
     }
 
     @Test
     fun `a non-cellular run names the connection`() {
         val outcome = group(connection = NetworkConnectionType.WIFI).deriveFccOutcome(challengeMode = true)
-        assertEquals(FccSubmissionOutcomeMessage.NOT_ELIGIBLE, outcome)
+        assertEquals(FccSubmissionOutcomeMessage.notEligible(ENGLISH), outcome)
     }
 
     @Test
@@ -78,12 +79,12 @@ class ExtendedExportTest {
         // The case an emulator produces, and the one that was previously
         // mislabelled as a connection problem.
         val outcome = group(provider = null).deriveFccOutcome(challengeMode = true)
-        assertEquals(FccSubmissionOutcomeMessage.CARRIER_UNKNOWN, outcome)
+        assertEquals(FccSubmissionOutcomeMessage.carrierUnknown(ENGLISH), outcome)
     }
 
     @Test
     fun `an otherwise-eligible run admits the reason is unrecorded`() {
         val outcome = group().deriveFccOutcome(challengeMode = true)
-        assertEquals(FccSubmissionOutcomeMessage.REASON_UNRECORDED, outcome)
+        assertEquals(FccSubmissionOutcomeMessage.reasonUnrecorded(ENGLISH), outcome)
     }
 }

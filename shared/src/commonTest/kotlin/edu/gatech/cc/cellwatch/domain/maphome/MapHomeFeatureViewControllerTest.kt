@@ -63,7 +63,7 @@ class MapHomeFeatureViewControllerTest {
         // every platform is that aggregation loses nothing.
         assertEquals(3, state.hexCells.sumOf { it.measurementCount })
         assertTrue(state.hexCells.isNotEmpty())
-        assertTrue(state.summary.contains("3 point(s)"))
+        assertTrue(state.summary.contains("3 points"), state.summary)
     }
 
     @Test

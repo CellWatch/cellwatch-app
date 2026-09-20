@@ -15,9 +15,9 @@ final class ExportScreenViewController: UIViewController {
 
     private let scaffold = ScreenScaffold()
     private let status = Components.StatusCardView()
-    private lazy var fccButton = Components.primaryButton("Export FCC submission file")
-    private lazy var extendedButton = Components.secondaryButton("Export full data")
-    private lazy var backButton = Components.secondaryButton("Back to map")
+    private lazy var fccButton = Components.primaryButton(ExportCopy.shared.EXPORT_FCC_FILE)
+    private lazy var extendedButton = Components.secondaryButton(ExportCopy.shared.EXPORT_FULL_DATA)
+    private lazy var backButton = Components.secondaryButton(MapHomeCopy.shared.BACK_TO_MAP)
 
     init(
         buildFcc: @escaping (@escaping (ExportDocument) -> Void) -> Void,
@@ -41,7 +41,7 @@ final class ExportScreenViewController: UIViewController {
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
 
         scaffold.addContent(
-            Components.sectionHeader("FCC submission file"),
+            Components.sectionHeader(ExportCopy.shared.FCC_FILE_TITLE),
             Components.bodyText(
                 "The format the FCC accepts for a challenge submission. It contains only "
                     + "measurements that qualified: taken over cellular, complete, and with "
@@ -49,7 +49,7 @@ final class ExportScreenViewController: UIViewController {
                 muted: true
             ),
             Components.divider(),
-            Components.sectionHeader("Full export"),
+            Components.sectionHeader(ExportCopy.shared.FULL_EXPORT_TITLE),
             Components.bodyText(
                 "Everything this device recorded, including measurements the FCC file leaves "
                     + "out and the reason each one was left out. Also records what the device "
@@ -60,17 +60,17 @@ final class ExportScreenViewController: UIViewController {
             status
         )
         scaffold.addActions(fccButton, extendedButton, backButton)
-        status.update("Choose a format to export.", tone: .neutral)
+        status.update(ExportCopy.shared.CHOOSE_FORMAT, tone: .neutral)
     }
 
     @objc private func fccTapped() {
-        status.update("Preparing FCC file…", tone: .neutral)
-        buildFcc { [weak self] document in self?.share(document, label: "FCC submission file") }
+        status.update(ExportCopy.shared.PREPARING_FCC_FILE, tone: .neutral)
+        buildFcc { [weak self] document in self?.share(document, label: ExportCopy.shared.FCC_FILE_TITLE) }
     }
 
     @objc private func extendedTapped() {
-        status.update("Preparing full export…", tone: .neutral)
-        buildExtended { [weak self] document in self?.share(document, label: "Full export") }
+        status.update(ExportCopy.shared.PREPARING_FULL_EXPORT, tone: .neutral)
+        buildExtended { [weak self] document in self?.share(document, label: ExportCopy.shared.FULL_EXPORT_TITLE) }
     }
 
     @objc private func backTapped() { onBack() }
@@ -79,7 +79,7 @@ final class ExportScreenViewController: UIViewController {
         // An empty FCC file is a legitimate outcome, not an error, but saying
         // so up front is kinder than handing over a file with nothing in it.
         status.update(
-            "\(label) ready: \(document.recordCount) record(s).",
+            ExportCopy.shared.ready(label: label, recordCount: document.recordCount),
             tone: document.recordCount == 0 ? .warning : .success
         )
 
@@ -87,7 +87,7 @@ final class ExportScreenViewController: UIViewController {
         do {
             try document.json.write(to: url, atomically: true, encoding: .utf8)
         } catch {
-            status.update("Export not saved: \(error.localizedDescription)", tone: .warning)
+            status.update(ExportCopy.shared.notSaved(reason: error.localizedDescription), tone: .warning)
             return
         }
 

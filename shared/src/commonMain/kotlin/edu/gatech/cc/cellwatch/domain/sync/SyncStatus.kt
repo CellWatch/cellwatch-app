@@ -2,7 +2,6 @@ package edu.gatech.cc.cellwatch.domain.sync
 
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 /**
  * What the last upload attempt did, kept across launches.
@@ -62,7 +61,8 @@ data class SyncStatusSummary(
  */
 object SyncStatusPresenter {
 
-    const val FCC_NOTE = "Submission to the FCC happens separately, later."
+    /** Kept on the presenter because callers and tests already reach for it here. */
+    val FCC_NOTE: String get() = SyncCopy.FCC_NOTE
 
     fun present(
         record: SyncStatusRecord,
@@ -73,8 +73,8 @@ object SyncStatusPresenter {
     ): SyncStatusSummary {
         if (inProgress) {
             return SyncStatusSummary(
-                headline = "Uploading to the CellWatch server…",
-                detail = FCC_NOTE,
+                headline = SyncCopy.UPLOADING,
+                detail = SyncCopy.FCC_NOTE,
                 tone = SyncStatusTone.NEUTRAL,
             )
         }
@@ -82,21 +82,21 @@ object SyncStatusPresenter {
         val neverAttempted = record.lastAttemptAt == null
         if (neverAttempted && pendingRecords == 0) {
             return SyncStatusSummary(
-                headline = "Nothing to upload yet.",
-                detail = "Take a measurement to get started.",
+                headline = SyncCopy.NOTHING_TO_UPLOAD,
+                detail = SyncCopy.TAKE_A_MEASUREMENT,
                 tone = SyncStatusTone.NEUTRAL,
             )
         }
 
         if (record.lastAttemptFailed) {
-            val failedAt = record.lastAttemptAt?.let { describe(it, now, timeZone) }
+            val failedAt = record.lastAttemptAt?.let { SyncCopy.describe(it, now, timeZone) }
             return SyncStatusSummary(
-                headline = "Last upload attempt failed${failedAt?.let { " $it" }.orEmpty()}.",
+                headline = SyncCopy.lastAttemptFailed(failedAt),
                 detail = buildString {
-                    append(pendingPhrase(pendingRecords))
-                    append(" They are saved on this device and will be retried. ")
+                    append(SyncCopy.pendingPhrase(pendingRecords))
+                    append(SyncCopy.WILL_BE_RETRIED)
                     append(lastSuccessPhrase(record, now, timeZone))
-                    append(FCC_NOTE)
+                    append(SyncCopy.FCC_NOTE)
                 },
                 tone = SyncStatusTone.WARNING,
             )
@@ -105,69 +105,27 @@ object SyncStatusPresenter {
         val successAt = record.lastSuccessAt
         if (successAt == null) {
             return SyncStatusSummary(
-                headline = "Not uploaded yet.",
-                detail = "${pendingPhrase(pendingRecords)} $FCC_NOTE",
+                headline = SyncCopy.NOT_UPLOADED_YET,
+                detail = "${SyncCopy.pendingPhrase(pendingRecords)} ${SyncCopy.FCC_NOTE}",
                 tone = SyncStatusTone.NEUTRAL,
             )
         }
 
         return SyncStatusSummary(
-            headline = "Last uploaded ${describe(successAt, now, timeZone)}.",
+            headline = SyncCopy.lastUploaded(SyncCopy.describe(successAt, now, timeZone)),
             detail = buildString {
-                append(
-                    "${record.totalUploadedCount} record${plural(record.totalUploadedCount)} " +
-                        "uploaded to the CellWatch server. ",
-                )
+                append(SyncCopy.totalUploaded(record.totalUploadedCount))
                 if (pendingRecords > 0) {
-                    append("${pendingPhrase(pendingRecords)} ")
+                    append("${SyncCopy.pendingPhrase(pendingRecords)} ")
                 }
-                append(FCC_NOTE)
+                append(SyncCopy.FCC_NOTE)
             },
             tone = if (pendingRecords > 0) SyncStatusTone.NEUTRAL else SyncStatusTone.SUCCESS,
         )
     }
 
-    private fun pendingPhrase(pendingRecords: Int): String = when (pendingRecords) {
-        0 -> "Nothing is waiting to upload."
-        1 -> "1 record is waiting to upload."
-        else -> "$pendingRecords records are waiting to upload."
-    }
-
     private fun lastSuccessPhrase(record: SyncStatusRecord, now: Instant, timeZone: TimeZone): String {
-        val at = record.lastSuccessAt ?: return "Nothing has uploaded successfully yet. "
-        return "Last successful upload was ${describe(at, now, timeZone)}. "
+        val at = record.lastSuccessAt ?: return SyncCopy.NOTHING_UPLOADED_SUCCESSFULLY
+        return SyncCopy.lastSuccessfulUpload(SyncCopy.describe(at, now, timeZone))
     }
-
-    private fun plural(count: Int): String = if (count == 1) "" else "s"
-
-    /**
-     * Relative for anything recent, absolute beyond that.
-     *
-     * A bare timestamp for something a minute old reads as stale, and a
-     * relative one for something four days old is useless for deciding whether
-     * to worry.
-     */
-    private fun describe(at: Instant, now: Instant, timeZone: TimeZone): String {
-        val seconds = (now - at).inWholeSeconds
-        return when {
-            seconds < 0 -> "just now"
-            seconds < 60 -> "just now"
-            seconds < 3_600 -> "${seconds / 60} minute${plural((seconds / 60).toInt())} ago"
-            seconds < 86_400 -> "${seconds / 3_600} hour${plural((seconds / 3_600).toInt())} ago"
-            else -> "on ${formatDate(at, timeZone)}"
-        }
-    }
-
-    private fun formatDate(at: Instant, timeZone: TimeZone): String {
-        val local = at.toLocalDateTime(timeZone)
-        val month = MONTHS[local.monthNumber - 1]
-        val hour = local.hour.toString().padStart(2, '0')
-        val minute = local.minute.toString().padStart(2, '0')
-        return "${local.dayOfMonth} $month ${local.year} at $hour:$minute"
-    }
-
-    private val MONTHS = listOf(
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    )
 }

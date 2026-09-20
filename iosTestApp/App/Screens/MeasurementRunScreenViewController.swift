@@ -22,14 +22,14 @@ final class MeasurementRunScreenViewController: UIViewController {
     private let statusCard = Components.StatusCardView()
     private let syncCard = Components.StatusCardView()
     private let fccCard = Components.StatusCardView()
-    private let latencyRow = Components.MetricRowView(label: "Latency")
-    private let downloadRow = Components.MetricRowView(label: "Download")
-    private let uploadRow = Components.MetricRowView(label: "Upload")
-    private let syncRow = Components.MetricRowView(label: "Sync")
+    private let latencyRow = Components.MetricRowView(label: MeasurementRunCopy.shared.LATENCY)
+    private let downloadRow = Components.MetricRowView(label: MeasurementRunCopy.shared.DOWNLOAD)
+    private let uploadRow = Components.MetricRowView(label: MeasurementRunCopy.shared.UPLOAD)
+    private let syncRow = Components.MetricRowView(label: MeasurementRunCopy.shared.SYNC)
 
-    private lazy var cancelButton = Components.secondaryButton("Stop measurement")
-    private lazy var doneButton = Components.primaryButton("Done")
-    private lazy var againButton = Components.secondaryButton("Measure again")
+    private lazy var cancelButton = Components.secondaryButton(MeasurementStartCopy.shared.STOP_MEASUREMENT)
+    private lazy var doneButton = Components.primaryButton(ShellCopy.shared.DONE)
+    private lazy var againButton = Components.secondaryButton(MeasurementRunCopy.shared.MEASURE_AGAIN)
 
     private var didStart = false
 
@@ -107,7 +107,7 @@ final class MeasurementRunScreenViewController: UIViewController {
         statusCard.update(state.summaryText, tone: tone(for: state))
 
         // Same reason as the FCC card: there is no sync story until the run
-        // finishes, and "Sync: Pending" on its own never said when anything
+        // finishes, and MeasurementRunCopy.shared.syncLabel(value: MeasurementRunCopy.shared.PENDING) on its own never said when anything
         // last reached the server, or whether uploads were failing.
         syncCard.isHidden = state.syncDetailText.isEmpty
         syncCard.update(state.syncDetailText, tone: .neutral)

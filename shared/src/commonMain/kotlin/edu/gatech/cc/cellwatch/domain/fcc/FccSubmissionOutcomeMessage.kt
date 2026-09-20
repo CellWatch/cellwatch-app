@@ -1,5 +1,8 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
+import edu.gatech.cc.cellwatch.domain.localization.currentLanguageCode
+import edu.gatech.cc.cellwatch.domain.localization.localized
+
 /**
  * Why a completed measurement will or will not reach the FCC.
  *
@@ -10,28 +13,69 @@ package edu.gatech.cc.cellwatch.domain.fcc
  * believing they were contributing to a challenge and submit none of them.
  *
  * Phrased as what to do about it where there is something to do.
+ *
+ * Each message comes in two forms: a property that follows the device
+ * language, for screens, and a function taking an explicit language, for the
+ * extended export - a file that may be read by the FCC or the research team
+ * and must not change language with the phone that produced it.
  */
 object FccSubmissionOutcomeMessage {
 
-    const val SUBMITTED = "This measurement will be submitted to the FCC."
+    val SUBMITTED: String get() = submitted()
 
-    const val OPTED_OUT =
-        "Not submitted to the FCC: FCC submission is turned off in Settings. This measurement " +
-            "is still saved and uploaded to the CellWatch server."
+    fun submitted(language: String = currentLanguageCode()): String = localized(
+        language = language,
+        en = "This measurement will be submitted to the FCC.",
+        es = "Esta medición se enviará a la FCC.",
+    )
 
-    const val NOT_ELIGIBLE =
-        "Not submitted to the FCC: the FCC only accepts measurements taken over a cellular " +
-            "connection. Turn off Wi-Fi and measure again."
+    val OPTED_OUT: String get() = optedOut()
 
-    const val CONTACT_INCOMPLETE =
-        "Not submitted to the FCC: your contact details are incomplete. Add your name, email " +
-            "and phone in your profile, then measure again."
+    fun optedOut(language: String = currentLanguageCode()): String = localized(
+        language = language,
+        en = "Not submitted to the FCC: FCC submission is turned off in Settings. This " +
+            "measurement is still saved and uploaded to the CellWatch server.",
+        es = "No se envió a la FCC: el envío a la FCC está desactivado en los ajustes. Esta " +
+            "medición igual se guarda y se sube al servidor de CellWatch.",
+    )
 
-    const val CARRIER_UNKNOWN =
-        "Not submitted to the FCC: no mobile carrier was detected for this measurement."
+    val NOT_ELIGIBLE: String get() = notEligible()
 
-    const val DEVICE_INCOMPLETE =
-        "Not submitted to the FCC: this device did not report the information the FCC requires."
+    fun notEligible(language: String = currentLanguageCode()): String = localized(
+        language = language,
+        en = "Not submitted to the FCC: the FCC only accepts measurements taken over a " +
+            "cellular connection. Turn off Wi-Fi and measure again.",
+        es = "No se envió a la FCC: la FCC solo acepta mediciones tomadas por una conexión " +
+            "celular. Apague el WiFi y mida otra vez.",
+    )
+
+    val CONTACT_INCOMPLETE: String get() = contactIncomplete()
+
+    fun contactIncomplete(language: String = currentLanguageCode()): String = localized(
+        language = language,
+        en = "Not submitted to the FCC: your contact details are incomplete. Add your name, " +
+            "email and phone in your profile, then measure again.",
+        es = "No se envió a la FCC: sus datos de contacto están incompletos. Anote su nombre, " +
+            "correo electrónico y número de teléfono en su perfil, y mida otra vez.",
+    )
+
+    val CARRIER_UNKNOWN: String get() = carrierUnknown()
+
+    fun carrierUnknown(language: String = currentLanguageCode()): String = localized(
+        language = language,
+        en = "Not submitted to the FCC: no mobile carrier was detected for this measurement.",
+        es = "No se envió a la FCC: no se detectó ningún proveedor móvil para esta medición.",
+    )
+
+    val DEVICE_INCOMPLETE: String get() = deviceIncomplete()
+
+    fun deviceIncomplete(language: String = currentLanguageCode()): String = localized(
+        language = language,
+        en = "Not submitted to the FCC: this device did not report the information the FCC " +
+            "requires.",
+        es = "No se envió a la FCC: este dispositivo no reportó la información que requiere " +
+            "la FCC.",
+    )
 
     /**
      * For records written after the fact.
@@ -42,12 +86,23 @@ object FccSubmissionOutcomeMessage {
      * specific cause - an export may end up in front of the FCC, and a
      * confident wrong reason is worse there than an admitted gap.
      */
-    const val REASON_UNRECORDED =
-        "No FCC submission was created for this run. The specific reason was not recorded " +
-            "with the measurement."
+    val REASON_UNRECORDED: String get() = reasonUnrecorded()
 
-    const val INCOMPLETE_TESTS =
-        "Not submitted to the FCC: one of the three tests did not produce a result."
+    fun reasonUnrecorded(language: String = currentLanguageCode()): String = localized(
+        language = language,
+        en = "No FCC submission was created for this run. The specific reason was not " +
+            "recorded with the measurement.",
+        es = "No se creó ningún envío a la FCC para esta sesión. No se registró el motivo " +
+            "específico junto con la medición.",
+    )
+
+    val INCOMPLETE_TESTS: String get() = incompleteTests()
+
+    fun incompleteTests(language: String = currentLanguageCode()): String = localized(
+        language = language,
+        en = "Not submitted to the FCC: one of the three tests did not produce a result.",
+        es = "No se envió a la FCC: una de las tres pruebas no produjo un resultado.",
+    )
 
     /**
      * [validation] is null when no submission was attempted at all, which the

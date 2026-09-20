@@ -9,14 +9,14 @@ data class MeasurementStartPreflightUiPresentation(
 class MeasurementStartPreflightUiPresenter {
     fun present(result: MeasurementPreflightResult): MeasurementStartPreflightUiPresentation {
         val status = when {
-            result.allowed -> "Preflight passed. You can start measuring."
+            result.allowed -> MeasurementStartCopy.PREFLIGHT_PASSED
             result.reasonCode == MeasurementPreflightReasonCode.MISSING_LOCATION_PERMISSION ->
-                "Location permission is required before starting measurement."
+                MeasurementStartCopy.LOCATION_REQUIRED
             result.reasonCode == MeasurementPreflightReasonCode.MISSING_RUNTIME_PROFILE ->
-                "Complete profile setup before starting measurement."
+                MeasurementStartCopy.COMPLETE_PROFILE
             result.reasonCode == MeasurementPreflightReasonCode.CHALLENGE_NON_CELLULAR_CONFIRM_REQUIRED ->
-                "Wi-Fi detected. Choose Measure anyway or Cancel."
-            else -> "Preflight blocked. Review requirements and try again."
+                MeasurementStartCopy.WIFI_DETECTED
+            else -> MeasurementStartCopy.PREFLIGHT_BLOCKED
         }
         return MeasurementStartPreflightUiPresentation(
             statusMessage = status,
@@ -26,8 +26,7 @@ class MeasurementStartPreflightUiPresenter {
     }
 
     fun challengePathConfirmMessage(): String {
-        return "It looks like you are connected to Wi-Fi or network path is unknown. " +
-            "If you proceed, your measurement may not be submitted to the FCC."
+        return MeasurementStartCopy.WIFI_WARNING
     }
 
     fun debugSummary(

@@ -1,13 +1,14 @@
 package edu.gatech.cc.cellwatch.domain.onboarding
 
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
+import edu.gatech.cc.cellwatch.domain.profile.ProfileCopy
 
 data class OnboardingProfileUiState(
     val name: String = "",
     val phone: String = "",
     val email: String = "",
     val fccAcknowledged: Boolean = false,
-    val feedbackMessage: String = "Complete the form and save your profile.",
+    val feedbackMessage: String = OnboardingCopy.COMPLETE_THE_FORM,
     val feedbackIsError: Boolean = false,
     val fieldErrors: Map<OnboardingField, String> = emptyMap(),
 )
@@ -46,7 +47,7 @@ class OnboardingProfileViewModel(
                 phone = formatPhoneDisplay(persisted.phone),
                 email = persisted.email,
                 fccAcknowledged = persisted.fccAcknowledged,
-                feedbackMessage = "Saved profile loaded. You can edit and save again.",
+                feedbackMessage = OnboardingCopy.SAVED_PROFILE_LOADED,
                 feedbackIsError = false,
             )
         }
@@ -90,7 +91,7 @@ class OnboardingProfileViewModel(
                 phone = persisted.phone,
                 email = persisted.email,
                 fccAcknowledged = persisted.fccAcknowledged,
-                feedbackMessage = "Profile saved.",
+                feedbackMessage = OnboardingCopy.PROFILE_SAVED,
                 feedbackIsError = false,
             )
             OnboardingProfileSubmission(
@@ -101,7 +102,7 @@ class OnboardingProfileViewModel(
         } else {
             val errors = result.fieldErrors.entries.joinToString(separator = "; ") { "${it.key}:${it.value}" }
             uiState = uiState.copy(
-                feedbackMessage = "Fix validation errors and try again.",
+                feedbackMessage = OnboardingCopy.FIX_ERRORS,
                 feedbackIsError = true,
                 fieldErrors = result.fieldErrors,
             )
@@ -117,20 +118,25 @@ class OnboardingProfileViewModel(
         val name = uiState.name.trim()
         val phoneDigits = uiState.phone.filter(Char::isDigit)
         val email = uiState.email.trim()
-        val feedback = when {
-            phoneDigits.isNotEmpty() && phoneDigits.length < 10 ->
-                "Phone should be 10 digits."
-            email.isNotEmpty() && !email.contains("@") ->
-                "Email appears incomplete."
-            name.isEmpty() || phoneDigits.isEmpty() || email.isEmpty() ->
-                "Complete the form and save your profile."
-            !uiState.fccAcknowledged ->
-                "Please acknowledge FCC challenge sharing terms."
-            else ->
-                "Looks good. Tap Save Profile."
+        // Which case it is, rather than which sentence came out. The error
+        // flag used to be derived by comparing the message against two
+        // literals, which silently stops working the moment those sentences
+        // are translated.
+        val problem = when {
+            phoneDigits.isNotEmpty() && phoneDigits.length < 10 -> ProfileCopy.PHONE_TOO_SHORT
+            email.isNotEmpty() && !email.contains("@") -> ProfileCopy.EMAIL_INCOMPLETE
+            !uiState.fccAcknowledged &&
+                name.isNotEmpty() && phoneDigits.isNotEmpty() && email.isNotEmpty() ->
+                ProfileCopy.ACKNOWLEDGE_TERMS
+            else -> null
         }
-        val isError = feedback != "Complete the form and save your profile." &&
-            feedback != "Looks good. Tap Save Profile."
+        val feedback = problem
+            ?: if (name.isEmpty() || phoneDigits.isEmpty() || email.isEmpty()) {
+                OnboardingCopy.COMPLETE_THE_FORM
+            } else {
+                OnboardingCopy.LOOKS_GOOD
+            }
+        val isError = problem != null
         uiState = uiState.copy(
             feedbackMessage = feedback,
             feedbackIsError = isError,

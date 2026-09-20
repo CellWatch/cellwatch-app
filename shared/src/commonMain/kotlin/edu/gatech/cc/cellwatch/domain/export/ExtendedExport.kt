@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.export
 
 import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionOutcomeMessage
+import edu.gatech.cc.cellwatch.domain.localization.ENGLISH
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.model.NetworkConnectionType
@@ -98,19 +99,23 @@ data class ExtendedExportMeasurement(
  * measurements themselves record - the connection type and the carrier - is
  * enough to name the two commonest causes accurately, and anything else is
  * reported as unrecorded rather than guessed.
+ *
+ * English regardless of the device language. This string lands in a file, not
+ * on a screen: whoever reads the export should not have to know what language
+ * the phone was set to, and two exports of the same run should not differ.
  */
 fun MeasurementGroup.deriveFccOutcome(challengeMode: Boolean): String {
-    if (submission != null) return FccSubmissionOutcomeMessage.SUBMITTED
-    if (!challengeMode) return FccSubmissionOutcomeMessage.OPTED_OUT
+    if (submission != null) return FccSubmissionOutcomeMessage.submitted(ENGLISH)
+    if (!challengeMode) return FccSubmissionOutcomeMessage.optedOut(ENGLISH)
     val measurements = listOfNotNull(latency, download, upload)
-    if (measurements.isEmpty()) return FccSubmissionOutcomeMessage.INCOMPLETE_TESTS
+    if (measurements.isEmpty()) return FccSubmissionOutcomeMessage.incompleteTests(ENGLISH)
     if (measurements.any { it.connectionType != NetworkConnectionType.CELLULAR }) {
-        return FccSubmissionOutcomeMessage.NOT_ELIGIBLE
+        return FccSubmissionOutcomeMessage.notEligible(ENGLISH)
     }
     if (measurements.all { it.provider.isNullOrBlank() }) {
-        return FccSubmissionOutcomeMessage.CARRIER_UNKNOWN
+        return FccSubmissionOutcomeMessage.carrierUnknown(ENGLISH)
     }
-    return FccSubmissionOutcomeMessage.REASON_UNRECORDED
+    return FccSubmissionOutcomeMessage.reasonUnrecorded(ENGLISH)
 }
 
 fun MeasurementGroup.toExtendedExportRun(fccOutcome: String?): ExtendedExportRun =

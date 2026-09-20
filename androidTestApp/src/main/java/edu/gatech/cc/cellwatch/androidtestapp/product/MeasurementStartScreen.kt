@@ -18,6 +18,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme.dp
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementNetworkPath
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartCapabilitySnapshot
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartCopy
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartUiState
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartViewModel
 
@@ -51,7 +52,7 @@ class MeasurementStartScreen(
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = context.dp(Theme.MIN_TAP_TARGET_DP)
             addView(
-                Components.bodyText(context, "I am in a moving vehicle"),
+                Components.bodyText(context, MeasurementStartCopy.IN_MOVING_VEHICLE),
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
             )
             addView(inVehicleSwitch)
@@ -60,14 +61,14 @@ class MeasurementStartScreen(
             render(viewModel.setInVehicle(checked))
         }
 
-        val startButton = Components.primaryButton(context, "Start measurement").apply {
+        val startButton = Components.primaryButton(context, MeasurementStartCopy.TITLE).apply {
             setOnClickListener { render(viewModel.onStartPressed(observedCapabilities())) }
         }
 
         scaffold.addContent(
             Components.bodyText(
                 context,
-                "A measurement runs three tests and takes about half a minute. Keep the app open until it finishes.",
+                MeasurementStartCopy.WHAT_HAPPENS,
                 muted = true,
             ),
             Components.divider(context),
@@ -114,12 +115,12 @@ class MeasurementStartScreen(
         val confirmation = state.confirmationMessage
         if (state.shouldPromptConfirmation && confirmation != null) {
             AlertDialog.Builder(context)
-                .setTitle("Before you start")
+                .setTitle(MeasurementStartCopy.BEFORE_YOU_START)
                 .setMessage(confirmation)
                 .setCancelable(false)
-                // "Measure anyway" rather than "Continue": the shared status
+                // MeasurementStartCopy.MEASURE_ANYWAY rather than "Continue": the shared status
                 // copy names that action, so the two must agree.
-                .setPositiveButton("Measure anyway") { _, _ -> render(viewModel.onConfirmProceed()) }
+                .setPositiveButton(MeasurementStartCopy.MEASURE_ANYWAY) { _, _ -> render(viewModel.onConfirmProceed()) }
                 .setNegativeButton("Cancel") { _, _ -> render(viewModel.onConfirmCancel()) }
                 .show()
             return

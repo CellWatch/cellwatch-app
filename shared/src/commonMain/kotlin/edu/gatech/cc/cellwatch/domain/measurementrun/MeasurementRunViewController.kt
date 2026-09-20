@@ -3,8 +3,8 @@ package edu.gatech.cc.cellwatch.domain.measurementrun
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementFailureMessage
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.MeasurementGroup
-import kotlinx.datetime.Instant
 import kotlin.math.roundToInt
+import kotlinx.datetime.Instant
 
 enum class MeasurementRunProgress {
     PRE,
@@ -65,21 +65,22 @@ class MeasurementResultReadModelUseCase {
         val downloadText = formatThroughput(state.results?.download)
         val uploadText = formatThroughput(state.results?.upload)
         val uploadedText = when (state.progress) {
-            MeasurementRunProgress.END -> if (state.uploadTime != null) "Uploaded" else "Pending sync"
-            MeasurementRunProgress.ERROR -> "Not uploaded"
-            else -> "In progress"
+            MeasurementRunProgress.END ->
+                if (state.uploadTime != null) MeasurementRunCopy.UPLOADED else MeasurementRunCopy.PENDING_SYNC
+            MeasurementRunProgress.ERROR -> MeasurementRunCopy.NOT_UPLOADED
+            else -> MeasurementRunCopy.IN_PROGRESS
         }
         val summaryText = when (state.progress) {
             MeasurementRunProgress.END -> {
                 if (state.uploadTime != null) {
-                    "Measurement complete. Results saved and synced."
+                    MeasurementRunCopy.COMPLETE_AND_SYNCED
                 } else {
-                    "Measurement complete. Results saved and sync attempted."
+                    MeasurementRunCopy.COMPLETE_SYNC_ATTEMPTED
                 }
             }
 
-            MeasurementRunProgress.ERROR -> state.errorMessage ?: "Measurement failed. Please try again."
-            else -> "Measurement in progress."
+            MeasurementRunProgress.ERROR -> state.errorMessage ?: MeasurementRunCopy.FAILED_TRY_AGAIN
+            else -> MeasurementRunCopy.IN_PROGRESS_SENTENCE
         }
         return MeasurementResultReadModel(
             latencyText = latencyText,
@@ -91,24 +92,24 @@ class MeasurementResultReadModelUseCase {
     }
 
     private fun formatLatency(measurement: Measurement?): String {
-        val rttMicros = measurement?.latencyData?.rtt ?: return "--"
+        val rttMicros = measurement?.latencyData?.rtt ?: return MeasurementRunCopy.NO_VALUE
         val milliseconds = rttMicros / 1_000.0
-        if (milliseconds < 1.0) return "<1 ms"
+        if (milliseconds < 1.0) return MeasurementRunCopy.SUB_MILLISECOND
         return "${milliseconds.roundToInt()} ms"
     }
 
     private fun formatThroughput(measurement: Measurement?): String {
-        val data = measurement?.uploadDownloadData ?: return "--"
+        val data = measurement?.uploadDownloadData ?: return MeasurementRunCopy.NO_VALUE
         val bytesPerSec = data.bytesPerSec ?: run {
             val bytes = data.bytes
             val durationMicros = data.duration
             if (bytes == null || durationMicros == null || durationMicros <= 0L) {
-                return "--"
+                return MeasurementRunCopy.NO_VALUE
             }
             bytes.toDouble() / (durationMicros.toDouble() / 1_000_000.0)
         }
         val mbps = (bytesPerSec * 8.0) / 1_000_000.0
-        if (mbps < 0.1) return "<0.1 Mbps"
+        if (mbps < 0.1) return MeasurementRunCopy.SUB_TENTH_MBPS
         val rounded = (mbps * 10.0).roundToInt() / 10.0
         return if ((rounded % 1.0) == 0.0) {
             "${rounded.toInt()} Mbps"
@@ -123,21 +124,21 @@ class MeasurementRunUiPresenter {
         val complete = state.progress == MeasurementRunProgress.END || state.progress == MeasurementRunProgress.ERROR
         val header = when (state.progress) {
             MeasurementRunProgress.PRE,
-            MeasurementRunProgress.START -> "Measuring"
-            MeasurementRunProgress.LOCATE -> "Finding server"
-            MeasurementRunProgress.LATENCY -> "Measuring latency"
-            MeasurementRunProgress.DOWNLOAD -> "Measuring download speed"
-            MeasurementRunProgress.UPLOAD -> "Measuring upload speed"
-            MeasurementRunProgress.END -> "Measurement complete"
+            MeasurementRunProgress.START -> MeasurementRunCopy.MEASURING
+            MeasurementRunProgress.LOCATE -> MeasurementRunCopy.FINDING_SERVER
+            MeasurementRunProgress.LATENCY -> MeasurementRunCopy.MEASURING_LATENCY
+            MeasurementRunProgress.DOWNLOAD -> MeasurementRunCopy.MEASURING_DOWNLOAD
+            MeasurementRunProgress.UPLOAD -> MeasurementRunCopy.MEASURING_UPLOAD
+            MeasurementRunProgress.END -> MeasurementRunCopy.MEASUREMENT_COMPLETE
             MeasurementRunProgress.ERROR -> {
                 val msg = state.errorMessage
                 when {
-                    msg.isNullOrBlank() -> "Measurement failed"
+                    msg.isNullOrBlank() -> MeasurementRunCopy.MEASUREMENT_FAILED
                     // A run the user stopped is not a failure, and reading
                     // "Measurement failed: The measurement was cancelled" back
                     // to them is both redundant and wrong.
-                    MeasurementFailureMessage.isCancellation(msg) -> "Measurement cancelled"
-                    else -> "Measurement failed: $msg"
+                    MeasurementFailureMessage.isCancellation(msg) -> MeasurementRunCopy.MEASUREMENT_CANCELLED
+                    else -> MeasurementRunCopy.measurementFailed(msg)
                 }
             }
         }

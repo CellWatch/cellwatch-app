@@ -6,28 +6,33 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.onboarding.AndroidOnboardingProfileStore
 import edu.gatech.cc.cellwatch.domain.app.ExportDocument
+import edu.gatech.cc.cellwatch.domain.app.ShellCopy
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingInput
+import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingUseCase
 import edu.gatech.cc.cellwatch.domain.consent.ConsentCopy
 import edu.gatech.cc.cellwatch.domain.consent.ConsentViewModel
-import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingUseCase
+import edu.gatech.cc.cellwatch.domain.export.ExportCopy
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeCopy
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeViewModel
 import edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryViewModel
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunViewModel
+import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartCopy
 import edu.gatech.cc.cellwatch.domain.measurementstart.MeasurementStartViewModel
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
-import edu.gatech.cc.cellwatch.domain.maphome.MapHomeViewModel
 import edu.gatech.cc.cellwatch.domain.navigation.Destination
 import edu.gatech.cc.cellwatch.domain.navigation.Navigator
 import edu.gatech.cc.cellwatch.domain.navigation.toDestination
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingCopy
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingPersistenceUseCase
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileViewModel
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingValidationUseCase
 import edu.gatech.cc.cellwatch.domain.settings.SettingsProfileViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Hosts the product navigation graph. Android counterpart of `ProductShell`.
@@ -72,16 +77,16 @@ class ProductShellActivity : AppCompatActivity() {
         val document = pendingExport
         pendingExport = null
         if (uri == null || document == null) {
-            exportScreen?.onSaveFailed("no location chosen")
+            exportScreen?.onSaveFailed(ExportCopy.NO_LOCATION_CHOSEN)
             return@registerForActivityResult
         }
         runCatching {
             contentResolver.openOutputStream(uri)?.use { it.write(document.json.encodeToByteArray()) }
-                ?: error("could not open the chosen file")
+                ?: error(ExportCopy.COULD_NOT_OPEN_FILE)
         }.onSuccess {
             exportScreen?.onSaved(document.fileName)
         }.onFailure { error ->
-            exportScreen?.onSaveFailed(error.message ?: "unknown error")
+            exportScreen?.onSaveFailed(error.message ?: ExportCopy.UNKNOWN_ERROR)
         }
     }
 
@@ -263,7 +268,7 @@ class ProductShellActivity : AppCompatActivity() {
             },
             onFailure = { error ->
                 placeholder(
-                    "Measurement is unavailable: ${error.message}",
+                    ShellCopy.measurementUnavailable(error.message.orEmpty()),
                     Components.StatusTone.WARNING,
                 )
             },
@@ -286,7 +291,7 @@ class ProductShellActivity : AppCompatActivity() {
                 }.view
             },
             onFailure = { error ->
-                placeholder("History is unavailable: ${error.message}", Components.StatusTone.WARNING)
+                placeholder(ShellCopy.historyUnavailable(error.message.orEmpty()), Components.StatusTone.WARNING)
             },
         )
 
@@ -306,7 +311,7 @@ class ProductShellActivity : AppCompatActivity() {
                 ).view
             },
             onFailure = { error ->
-                placeholder("Settings are unavailable: ${error.message}", Components.StatusTone.WARNING)
+                placeholder(ShellCopy.settingsUnavailable(error.message.orEmpty()), Components.StatusTone.WARNING)
             },
         )
 
@@ -328,14 +333,14 @@ class ProductShellActivity : AppCompatActivity() {
                 ).also { exportScreen = it }.view
             },
             onFailure = { error ->
-                placeholder("Export is unavailable: ${error.message}", Components.StatusTone.WARNING)
+                placeholder(ShellCopy.exportUnavailable(error.message.orEmpty()), Components.StatusTone.WARNING)
             },
         )
 
         is Destination.BlockingError -> placeholder(destination.reason, Components.StatusTone.WARNING)
 
         else -> placeholder(
-            "This screen is not built yet. See UI_DELIVERY_PLAN.md for where it lands.",
+            ShellCopy.NOT_BUILT_YET,
             Components.StatusTone.NEUTRAL,
         )
     }
@@ -345,17 +350,5 @@ class ProductShellActivity : AppCompatActivity() {
             addContent(Components.statusCard(this@ProductShellActivity, message, tone))
         }
 
-    private fun label(destination: Destination): String = when (destination) {
-        // Localised, so the bar does not sit in English above Spanish copy.
-        is Destination.DataUse -> ConsentCopy.DATA_USE_TITLE
-        is Destination.CollectionChoice -> ConsentCopy.COLLECTION_MODE_TITLE
-        is Destination.Onboarding -> "Your profile"
-        is Destination.MapHome -> "Map home"
-        is Destination.MeasurementStart -> "Start measurement"
-        is Destination.MeasurementRun -> "Measurement"
-        is Destination.History -> "History"
-        is Destination.Settings -> "Settings"
-        is Destination.Export -> "Export"
-        is Destination.BlockingError -> "Cannot start"
-    }
+    private fun label(destination: Destination): String = ShellCopy.title(destination)
 }

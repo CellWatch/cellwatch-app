@@ -8,6 +8,8 @@ import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme.dp
 import edu.gatech.cc.cellwatch.domain.app.ProductHistorySnapshot
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeCopy
+import edu.gatech.cc.cellwatch.domain.measurementhistory.HistoryCopy
 import edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryUiState
 import edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryViewModel
 
@@ -31,15 +33,15 @@ class HistoryScreen(
     private val runsColumn = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     private val detailHeader = Components.sectionHeader(context, "")
     private val detailText = Components.bodyText(context, "")
-    private val retryButton = Components.primaryButton(context, "Retry upload").apply {
+    private val retryButton = Components.primaryButton(context, HistoryCopy.RETRY_UPLOAD).apply {
         setOnClickListener {
             isEnabled = false
-            text = "Retrying…"
+            text = HistoryCopy.RETRYING
             onRetry { snapshot -> apply(snapshot) }
         }
     }
-    private val exportButton = Components.secondaryButton(context, "Export data")
-    private val backButton = Components.secondaryButton(context, "Back to map")
+    private val exportButton = Components.secondaryButton(context, HistoryCopy.EXPORT_DATA)
+    private val backButton = Components.secondaryButton(context, MapHomeCopy.BACK_TO_MAP)
 
     val view: View get() = scaffold
 
@@ -93,7 +95,7 @@ class HistoryScreen(
 
         retryButton.visibility = if (state.showRetry) View.VISIBLE else View.GONE
         retryButton.isEnabled = true
-        retryButton.text = "Retry upload"
+        retryButton.text = HistoryCopy.RETRY_UPLOAD
 
         runsColumn.removeAllViews()
         if (state.isEmpty) {
@@ -105,7 +107,7 @@ class HistoryScreen(
                 context = context,
                 title = row.summary,
                 subtitle = null,
-                accessory = if (row.selected) "Selected" else null,
+                accessory = if (row.selected) HistoryCopy.SELECTED else null,
             )
             listRow.setOnClickListener { render(viewModel.onRunSelected(row.timestampMs)) }
             runsColumn.addView(

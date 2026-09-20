@@ -92,7 +92,7 @@ class MeasurementHistoryViewController(
             .mapIndexed { index, run ->
                 MeasurementHistoryRunRow(
                     timestampMs = run.timestampMs,
-                    summary = "Run ${index + 1}: ${run.latency} latency, ${run.download} download, ${run.upload} upload",
+                    summary = HistoryCopy.runSummary(index + 1, run.latency, run.download, run.upload),
                     selected = run.timestampMs == selected?.timestampMs,
                 )
             }

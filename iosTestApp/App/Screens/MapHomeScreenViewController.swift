@@ -23,7 +23,7 @@ final class MapHomeScreenViewController: UIViewController {
 
     private let scaffold = MapScreenScaffold()
     private let statusCardHolder = UIView()
-    private let measureButton = Components.primaryButton("Measure")
+    private let measureButton = Components.primaryButton(MapHomeCopy.shared.MEASURE)
     private let overlayButton = Components.secondaryButton("")
 
 #if canImport(MapboxMaps)
@@ -57,8 +57,8 @@ final class MapHomeScreenViewController: UIViewController {
     required init?(coder: NSCoder) { fatalError("created in code") }
 
     override func loadView() {
-        let historyButton = Components.secondaryButton("History & sync")
-        let settingsButton = Components.secondaryButton("Settings")
+        let historyButton = Components.secondaryButton(HistoryCopy.shared.TITLE)
+        let settingsButton = Components.secondaryButton(SettingsCopy.shared.TITLE)
         historyButton.addTarget(self, action: #selector(historyTapped), for: .touchUpInside)
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
         measureButton.addTarget(self, action: #selector(measureTapped), for: .touchUpInside)
@@ -123,9 +123,9 @@ final class MapHomeScreenViewController: UIViewController {
 
     private func render(_ state: MapHomeUiState) {
         // Labelled with the destination rather than the current mode: a button
-        // reading "Hex grid" while showing the hex grid is ambiguous.
+        // reading MapHomeCopy.shared.HEX_GRID while showing the hex grid is ambiguous.
         overlayButton.setTitle(
-            state.overlayMode == MapHomeOverlayMode.hexGrid ? "Show points only" : "Show coverage grid",
+            state.overlayMode == MapHomeOverlayMode.hexGrid ? MapHomeCopy.shared.SHOW_POINTS_ONLY : MapHomeCopy.shared.SHOW_COVERAGE_GRID,
             for: .normal
         )
         measureButton.isEnabled = state.canStartMeasurement

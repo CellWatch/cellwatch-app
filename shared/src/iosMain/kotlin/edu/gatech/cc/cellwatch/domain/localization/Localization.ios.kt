@@ -1,4 +1,4 @@
-package edu.gatech.cc.cellwatch.domain.consent
+package edu.gatech.cc.cellwatch.domain.localization
 
 import platform.Foundation.NSLocale
 import platform.Foundation.preferredLanguages

@@ -1,5 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
+import edu.gatech.cc.cellwatch.domain.localization.localized
+
 /**
  * Turns a measurement failure into something a person can act on.
  *
@@ -19,14 +21,23 @@ package edu.gatech.cc.cellwatch.domain.fcc
  */
 object MeasurementFailureMessage {
 
-    const val UNREACHABLE =
-        "The measurement service can't be reached right now. Your cellular signal may be " +
-            "too weak to run a test here. Please try again later, or move to a different location."
+    val UNREACHABLE: String get() = localized(
+        en = "The measurement service can't be reached right now. Your cellular signal may be " +
+            "too weak to run a test here. Please try again later, or move to a different location.",
+        es = "No se puede comunicar con el servicio de medición en este momento. Puede que su " +
+            "señal celular sea demasiado débil para hacer una prueba aquí. Por favor inténtelo " +
+            "más tarde, o muévase a otro lugar.",
+    )
 
-    const val CANCELLED = "The measurement was cancelled."
+    val CANCELLED: String get() = localized(
+        en = "The measurement was cancelled.",
+        es = "Se canceló la medición.",
+    )
 
-    const val GENERIC =
-        "The measurement couldn't be completed. Please try again."
+    val GENERIC: String get() = localized(
+        en = "The measurement couldn't be completed. Please try again.",
+        es = "No se pudo completar la medición. Por favor inténtelo de nuevo.",
+    )
 
     fun forFailure(raw: String?): String {
         val text = raw?.lowercase().orEmpty()
@@ -45,7 +56,16 @@ object MeasurementFailureMessage {
     fun isCancellation(raw: String?): Boolean = matchesCancellation(raw?.lowercase().orEmpty())
 
     private fun matchesCancellation(text: String): Boolean =
-        text.contains("cancellationexception") || text.contains("was cancelled")
+        text.contains("cancellationexception") ||
+            text.contains("was cancelled") ||
+            // MeasurementRunViewModel hands our own CANCELLED sentence back
+            // as the error message, and the run presenter then asks whether
+            // it was a cancellation. Once that sentence is translated,
+            // "was cancelled" no longer appears in it, and a stopped run
+            // would be reported as "Medición fallida: Se canceló la
+            // medición." Matching the string we produced covers any language
+            // without listing markers for each one.
+            text == CANCELLED.lowercase()
 
     private fun isUnreachable(text: String): Boolean =
         UNREACHABLE_SIGNALS.any { text.contains(it) }

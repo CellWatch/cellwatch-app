@@ -12,15 +12,15 @@ final class SettingsScreenViewController: UIViewController {
     private let onBack: () -> Void
 
     private let scaffold = ScreenScaffold()
-    private let nameField = Components.formField(placeholder: "Full name")
-    private let phoneField = Components.formField(placeholder: "Phone (###-###-####)", keyboard: .phonePad)
-    private let emailField = Components.formField(placeholder: "Email", keyboard: .emailAddress)
+    private let nameField = Components.formField(placeholder: OnboardingCopy.shared.FULL_NAME)
+    private let phoneField = Components.formField(placeholder: OnboardingCopy.shared.PHONE_HINT, keyboard: .phonePad)
+    private let emailField = Components.formField(placeholder: OnboardingCopy.shared.EMAIL, keyboard: .emailAddress)
     private let acknowledgeSwitch = UISwitch()
     private let challengeSwitch = UISwitch()
     private let feedback = Components.bodyText("", muted: true)
-    private let diagnostics = Components.bodyText("Loading…", muted: true)
-    private lazy var saveButton = Components.primaryButton("Save settings")
-    private lazy var backButton = Components.secondaryButton("Back to map")
+    private let diagnostics = Components.bodyText(SettingsCopy.shared.LOADING, muted: true)
+    private lazy var saveButton = Components.primaryButton(SettingsCopy.shared.SAVE_SETTINGS)
+    private lazy var backButton = Components.secondaryButton(MapHomeCopy.shared.BACK_TO_MAP)
 
     /// Guards the editing callbacks while render writes values back.
     private var rendering = false
@@ -55,24 +55,22 @@ final class SettingsScreenViewController: UIViewController {
 
         scaffold.addContent(
             Components.bodyText(
-                "These details accompany every submission. Changing them affects future "
-                    + "measurements, not ones already uploaded.",
+                SettingsCopy.shared.DETAILS_NOTE,
                 muted: true
             ),
             nameField,
             phoneField,
             emailField,
-            switchRow("I acknowledge the FCC challenge sharing terms.", acknowledgeSwitch),
+            switchRow(ProfileCopy.shared.FCC_ACK_LABEL, acknowledgeSwitch),
             Components.divider(),
-            switchRow("Submit measurements to the FCC challenge", challengeSwitch),
+            switchRow(SettingsCopy.shared.SUBMIT_TO_CHALLENGE, challengeSwitch),
             Components.bodyText(
-                "With this off, measurements are still taken and saved, but no FCC submission "
-                    + "is created for them.",
+                SettingsCopy.shared.SUBMIT_NOTE,
                 muted: true
             ),
             feedback,
             Components.divider(),
-            Components.sectionHeader("About this install"),
+            Components.sectionHeader(SettingsCopy.shared.ABOUT_THIS_INSTALL),
             diagnostics
         )
         scaffold.addActions(saveButton, backButton)

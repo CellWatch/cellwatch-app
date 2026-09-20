@@ -18,7 +18,7 @@ final class MeasurementStartScreenViewController: UIViewController {
 
     private let inVehicleSwitch = UISwitch()
     private let statusLabel = Components.bodyText("", muted: true)
-    private let startButton = Components.primaryButton("Start measurement")
+    private let startButton = Components.primaryButton(MeasurementStartCopy.shared.TITLE)
 
     init(
         viewModel: MeasurementStartViewModel,
@@ -38,7 +38,7 @@ final class MeasurementStartScreenViewController: UIViewController {
         let scaffold = ScreenScaffold()
 
         let inVehicleRow = UIStackView(arrangedSubviews: [
-            Components.bodyText("I am in a moving vehicle"),
+            Components.bodyText(MeasurementStartCopy.shared.IN_MOVING_VEHICLE),
             inVehicleSwitch,
         ])
         inVehicleRow.axis = .horizontal
@@ -47,7 +47,7 @@ final class MeasurementStartScreenViewController: UIViewController {
 
         scaffold.addContent(
             Components.bodyText(
-                "A measurement runs three tests and takes about half a minute. Keep the app open until it finishes.",
+                MeasurementStartCopy.shared.WHAT_HAPPENS,
                 muted: true
             ),
             Components.divider(),
@@ -61,7 +61,7 @@ final class MeasurementStartScreenViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "Start measurement"
+        title = MeasurementStartCopy.shared.TITLE
         navigationController?.navigationBar.prefersLargeTitles = false
         inVehicleSwitch.addTarget(self, action: #selector(inVehicleChanged), for: .valueChanged)
         startButton.addTarget(self, action: #selector(startTapped), for: .touchUpInside)
@@ -109,14 +109,14 @@ final class MeasurementStartScreenViewController: UIViewController {
     /// The warning path - measuring off cellular, for instance. Answering it is
     /// the user's decision, so nothing proceeds until they do.
     private func presentConfirmation(_ message: String) {
-        let alert = UIAlertController(title: "Before you start", message: message, preferredStyle: .alert)
+        let alert = UIAlertController(title: MeasurementStartCopy.shared.BEFORE_YOU_START, message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
             guard let self else { return }
             self.render(self.viewModel.onConfirmCancel())
         })
-        // "Measure anyway" rather than "Continue": the shared status copy names
+        // MeasurementStartCopy.shared.MEASURE_ANYWAY rather than "Continue": the shared status copy names
         // this action, so the two must agree.
-        alert.addAction(UIAlertAction(title: "Measure anyway", style: .default) { [weak self] _ in
+        alert.addAction(UIAlertAction(title: MeasurementStartCopy.shared.MEASURE_ANYWAY, style: .default) { [weak self] _ in
             guard let self else { return }
             self.render(self.viewModel.onConfirmProceed())
         })
