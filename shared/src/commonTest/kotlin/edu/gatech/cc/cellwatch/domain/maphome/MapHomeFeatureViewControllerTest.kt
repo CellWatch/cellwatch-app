@@ -56,7 +56,13 @@ class MapHomeFeatureViewControllerTest {
 
         assertTrue(state.hasAnyLocationData)
         assertEquals(3, state.points.size)
-        assertEquals(3, state.hexCells.size)
+        // Cell *count* is deliberately not asserted: it depends on the
+        // tessellation, and since 1.2b that is real H3 on device and square
+        // buckets on the jvm, where h3-kmp has no artifact. Asserting a number
+        // here made one test mean two different things. What must hold on
+        // every platform is that aggregation loses nothing.
+        assertEquals(3, state.hexCells.sumOf { it.measurementCount })
+        assertTrue(state.hexCells.isNotEmpty())
         assertTrue(state.summary.contains("3 point(s)"))
     }
 
@@ -104,7 +110,13 @@ class MapHomeFeatureViewControllerTest {
         val coarse = controller.onZoomChanged(10.0)
         val fine = controller.onZoomChanged(13.0)
 
-        assertEquals(1, coarse.hexCells.size)
-        assertEquals(2, fine.hexCells.size)
+        // The invariant, rather than an exact count: zooming out must never
+        // split one cell into more. Exact H3 counts are asserted in
+        // MapHomeHexAggregationTest, which runs where H3 actually exists.
+        assertTrue(
+            coarse.hexCells.size <= fine.hexCells.size,
+            "zooming out produced more cells (${coarse.hexCells.size}) than in (${fine.hexCells.size})",
+        )
+        assertEquals(2, fine.hexCells.sumOf { it.measurementCount })
     }
 }

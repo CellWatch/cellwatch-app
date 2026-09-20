@@ -23,7 +23,17 @@ data class MapHomeHexCellFeature(
     val centerLatitude: Double,
     val centerLongitude: Double,
     val measurementCount: Int,
-)
+    /**
+     * The cell outline, in order, or empty when H3 is unavailable.
+     *
+     * Absent until now, which is why no platform could draw a hexagon however
+     * the icon was configured: there was no geometry to draw. Callers that
+     * find this empty should fall back to plotting the centre.
+     */
+    val boundary: List<H3Vertex> = emptyList(),
+) {
+    val hasBoundary: Boolean get() = boundary.size >= 3
+}
 
 data class MapHomeFeatureState(
     val points: List<MapHomePointFeature>,
@@ -114,23 +124,7 @@ class MapHomeFeatureViewController(
 
         val centerLatitude = points.map { it.latitude }.average()
         val centerLongitude = points.map { it.longitude }.average()
-        val gridSize = if (zoomLevel >= fineGridZoomThreshold) fineGridDegrees else coarseGridDegrees
-        val hexCells = points
-            .groupBy { point ->
-                Pair(
-                    centerForBucket(point.latitude, gridSize),
-                    centerForBucket(point.longitude, gridSize),
-                )
-            }
-            .map { (bucketCenter, grouped) ->
-                MapHomeHexCellFeature(
-                    id = "cell:${bucketCenter.first}:${bucketCenter.second}",
-                    centerLatitude = bucketCenter.first,
-                    centerLongitude = bucketCenter.second,
-                    measurementCount = grouped.size,
-                )
-            }
-            .sortedByDescending { it.measurementCount }
+        val hexCells = aggregateCells(points)
 
         val summary = if (hexCells.size == 1) {
             "Showing ${points.size} point(s) in 1 grid cell."
@@ -146,6 +140,68 @@ class MapHomeFeatureViewController(
             centerLongitude = centerLongitude,
             summary = summary,
         )
+    }
+
+    /**
+     * Groups points into H3 cells, with the geometry needed to draw them.
+     *
+     * Zoom picks the resolution rather than a bucket size in degrees: a
+     * degree-sized square is not a hexagon and does not line up with the
+     * `center_hex9` values the database already stores, so the old buckets
+     * could never have agreed with the server's aggregation.
+     *
+     * Falls back to the previous square buckets where H3 is unavailable, so
+     * the jvm target and any future platform still produce something sane
+     * rather than an empty map.
+     */
+    private fun aggregateCells(points: List<MapHomePointFeature>): List<MapHomeHexCellFeature> {
+        if (!H3Grid.isSupported) return squareBuckets(points)
+
+        val resolution = if (zoomLevel >= fineGridZoomThreshold) {
+            H3Resolution.STORED
+        } else {
+            H3Resolution.OVERLAY
+        }
+        val grouped = points.groupBy { point ->
+            H3Grid.cellAt(point.latitude, point.longitude, resolution)
+        }
+        // A null key means H3 declined this point; those fall back rather than
+        // being silently dropped off the map.
+        val unindexed = grouped[null].orEmpty()
+        val indexed = grouped.filterKeys { it != null }.map { (cell, members) ->
+            val boundary = H3Grid.boundaryOf(cell!!)
+            MapHomeHexCellFeature(
+                id = cell,
+                // The centroid of the boundary, not of the members: a cell
+                // drawn around its members' average would sit off its own
+                // outline wherever the points cluster to one side.
+                centerLatitude = boundary.takeIf { it.isNotEmpty() }?.map { it.latitude }?.average()
+                    ?: members.map { it.latitude }.average(),
+                centerLongitude = boundary.takeIf { it.isNotEmpty() }?.map { it.longitude }?.average()
+                    ?: members.map { it.longitude }.average(),
+                measurementCount = members.size,
+                boundary = boundary,
+            )
+        }
+        return (indexed + squareBuckets(unindexed)).sortedByDescending { it.measurementCount }
+    }
+
+    private fun squareBuckets(points: List<MapHomePointFeature>): List<MapHomeHexCellFeature> {
+        if (points.isEmpty()) return emptyList()
+        val gridSize = if (zoomLevel >= fineGridZoomThreshold) fineGridDegrees else coarseGridDegrees
+        return points
+            .groupBy {
+                Pair(centerForBucket(it.latitude, gridSize), centerForBucket(it.longitude, gridSize))
+            }
+            .map { (bucketCenter, grouped) ->
+                MapHomeHexCellFeature(
+                    id = "cell:${bucketCenter.first}:${bucketCenter.second}",
+                    centerLatitude = bucketCenter.first,
+                    centerLongitude = bucketCenter.second,
+                    measurementCount = grouped.size,
+                )
+            }
+            .sortedByDescending { it.measurementCount }
     }
 
     private fun centerForBucket(value: Double, gridSize: Double): Double {

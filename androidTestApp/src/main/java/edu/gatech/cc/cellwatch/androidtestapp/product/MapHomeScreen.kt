@@ -16,11 +16,15 @@ import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.MapScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeOverlayMode
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeMeasurementLocationSnapshot
 import edu.gatech.cc.cellwatch.domain.sync.SyncStatusSummary
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeSyncStateKey
@@ -53,13 +57,23 @@ class MapHomeScreen(
     private val scaffold = MapScreenScaffold(context)
     private val statusHolder = FrameLayout(context)
     private val measureButton = Components.primaryButton(context, "Measure")
+    private val overlayButton = Components.secondaryButton(context, "")
     private var mapView: MapView? = null
     private var pointAnnotations: PointAnnotationManager? = null
+    private var polygonAnnotations: PolygonAnnotationManager? = null
 
     val view: View get() = scaffold
 
     init {
         measureButton.setOnClickListener { onMeasure() }
+        overlayButton.setOnClickListener {
+            val next = if (viewModel.currentState().overlayMode == MapHomeOverlayMode.HEX_GRID) {
+                MapHomeOverlayMode.POINTS
+            } else {
+                MapHomeOverlayMode.HEX_GRID
+            }
+            render(viewModel.setOverlayMode(next))
+        }
         val historyButton = Components.secondaryButton(context, "History & sync").apply {
             setOnClickListener { onHistory() }
         }
@@ -77,7 +91,7 @@ class MapHomeScreen(
             )
         }
 
-        scaffold.addToPanel(statusHolder, measureButton, secondaryRow)
+        scaffold.addToPanel(statusHolder, overlayButton, measureButton, secondaryRow)
         installMap()
         refresh()
     }
@@ -101,6 +115,13 @@ class MapHomeScreen(
     }
 
     private fun render(state: MapHomeUiState) {
+        // Labelled with the destination rather than the current mode: a
+        // button reading "Hex grid" while showing the hex grid is ambiguous.
+        overlayButton.text = if (state.overlayMode == MapHomeOverlayMode.HEX_GRID) {
+            "Show points only"
+        } else {
+            "Show coverage grid"
+        }
         measureButton.isEnabled = state.canStartMeasurement
         measureButton.alpha = if (state.canStartMeasurement) 1f else 0.5f
 
@@ -152,19 +173,58 @@ class MapHomeScreen(
 
     private fun renderFeatures(state: MapHomeUiState) {
         val map = mapView ?: return
-        val manager = pointAnnotations ?: map.annotations.createPointAnnotationManager().also {
+        val points = pointAnnotations ?: map.annotations.createPointAnnotationManager().also {
             pointAnnotations = it
         }
-        manager.deleteAll()
-        manager.create(
+        // Created below the points so a pin is never hidden under a cell fill.
+        val polygons = polygonAnnotations ?: map.annotations.createPolygonAnnotationManager().also {
+            polygonAnnotations = it
+        }
+
+        polygons.deleteAll()
+        points.deleteAll()
+
+        val hexMode = state.overlayMode == MapHomeOverlayMode.HEX_GRID
+        if (hexMode) {
+            val drawable = state.hexCells.filter { it.hasBoundary }
+            if (drawable.isNotEmpty()) {
+                polygons.create(
+                    drawable.map { cell ->
+                        PolygonAnnotationOptions()
+                            .withPoints(
+                                listOf(
+                                    // Mapbox wants a closed ring: first vertex
+                                    // repeated last, which H3 does not supply.
+                                    cell.boundary.map { Point.fromLngLat(it.longitude, it.latitude) } +
+                                        cell.boundary.first()
+                                            .let { Point.fromLngLat(it.longitude, it.latitude) },
+                                ),
+                            )
+                            .withFillColor(Theme.Palette.PRIMARY)
+                            // Denser cells read darker, so the overlay conveys
+                            // count rather than mere presence.
+                            .withFillOpacity(fillOpacityFor(cell.measurementCount))
+                            .withFillOutlineColor(Theme.Palette.PRIMARY)
+                    },
+                )
+            }
+        }
+
+        // Points stay visible in both modes: the hexagon says how many, the
+        // pins say where, and hiding them made the grid look like the only data.
+        points.create(
             state.points.map { point ->
                 PointAnnotationOptions()
                     .withPoint(Point.fromLngLat(point.longitude, point.latitude))
                     .withIconImage(MARKER_IMAGE_ID)
-                    .withIconSize(1.0)
+                    .withIconSize(if (hexMode) 0.7 else 1.0)
             },
         )
     }
+
+    /** Caps out quickly: the useful distinction is one versus several. */
+    private fun fillOpacityFor(count: Int): Double =
+        (0.18 + (count.coerceAtMost(6) * 0.07)).coerceAtMost(0.6)
 
     /** Drawn rather than shipped as an asset, so it follows the palette. */
     private fun markerBitmap(): Bitmap {
