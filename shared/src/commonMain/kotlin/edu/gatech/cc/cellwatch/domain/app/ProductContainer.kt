@@ -508,22 +508,36 @@ class ProductContainer(
      * fixed in 1.2a - with no data, correcting the icon could not have made a
      * pin appear either.
      *
-     * One point per measurement, taken from its first recorded location. A
-     * measurement records a location at start and end; drawing both would put
-     * two pins on top of each other for a stationary user.
+     * One point per *run*, not per measurement, taken from the first location
+     * of the run's first measurement.
+     *
+     * Per-measurement would triple-count: a run is latency, download and
+     * upload, so three rows at one spot. That put three pins on top of each
+     * other and made the hex count read 9 where the user had taken 3 - which
+     * is also what frozenApp counted, group ids rather than measurements.
+     *
+     * Within a measurement only the first location is used; a measurement
+     * records one at start and one at end.
      */
     suspend fun recentMeasurementLocations(limit: Long = 500): List<MapHomeMeasurementLocationSnapshot> =
-        measurementRepository.getRecent(limit).mapNotNull { measurement ->
-            val location = locationRepository.getByMeasurementId(measurement.id).firstOrNull()
-                ?: return@mapNotNull null
-            MapHomeMeasurementLocationSnapshot(
-                id = measurement.id,
-                title = measurement.type,
-                timestampMs = measurement.timestamp?.toEpochMilliseconds() ?: 0L,
-                latitude = location.lat,
-                longitude = location.lon,
-            )
-        }
+        measurementRepository.getRecent(limit)
+            .filter { it.groupId != null }
+            .groupBy { it.groupId!! }
+            .mapNotNull { (groupId, measurements) ->
+                val ordered = measurements.sortedBy { it.timestamp?.toEpochMilliseconds() ?: 0L }
+                val located = ordered.firstNotNullOfOrNull { measurement ->
+                    locationRepository.getByMeasurementId(measurement.id).firstOrNull()
+                        ?.let { measurement to it }
+                } ?: return@mapNotNull null
+                val (measurement, location) = located
+                MapHomeMeasurementLocationSnapshot(
+                    id = groupId,
+                    title = measurement.type,
+                    timestampMs = measurement.timestamp?.toEpochMilliseconds() ?: 0L,
+                    latitude = location.lat,
+                    longitude = location.lon,
+                )
+            }
 
     /**
      * The submission profile for a run, with the persisted device id attached.

@@ -22,12 +22,10 @@ Carried forward so it is not lost between sessions. Updated 2026-09-19.
    emits stage transitions, not results, so latency sits at `--` on the run screen until the
    whole sequence completes even though it finished seconds earlier.
 
-5. **Hex overlay is short of frozenApp in two ways.** It tiles the viewport and fills cells that
-   hold measurements, but does not yet show the per-cell measurement count as a label, and
-   tapping a resolution-8 cell does not drill down to its resolution-9 children. frozenApp did
-   both. The count label needs view annotations on each cell; the drill-down needs
-   parent/child derivation, which is bit masking rather than a library call because h3-kmp
-   exposes no cellToChildren.
+5. **Hex overlay has no drill-down.** Tiling, fill and the per-cell count label now match
+   frozenApp, but tapping a resolution-8 cell does not render its resolution-9 children inside
+   it, and the cells are not tappable at all. That needs parent/child derivation by bit
+   masking, since h3-kmp exposes no cellToChildren.
 
 ## Deferred by decision
 

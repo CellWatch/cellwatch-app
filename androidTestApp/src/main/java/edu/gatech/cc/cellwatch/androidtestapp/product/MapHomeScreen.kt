@@ -61,6 +61,7 @@ class MapHomeScreen(
     private var mapView: MapView? = null
     private var pointAnnotations: PointAnnotationManager? = null
     private var polygonAnnotations: PolygonAnnotationManager? = null
+    private var countAnnotations: PointAnnotationManager? = null
 
     val view: View get() = scaffold
 
@@ -158,6 +159,7 @@ class MapHomeScreen(
             // icons, so the icon resolved to nothing and the annotation drew
             // nothing - silently.
             style.addImage(MARKER_IMAGE_ID, markerBitmap())
+            style.addImage(COUNT_IMAGE_ID, countBadgeBitmap())
             renderFeatures(viewModel.currentState())
         }
         map.mapboxMap.setCamera(
@@ -202,8 +204,19 @@ class MapHomeScreen(
             polygonAnnotations = it
         }
 
+        // Created last so the badges sit above both the fills and the pins.
+        val counts = countAnnotations ?: map.annotations.createPointAnnotationManager().also {
+            // Overlap allowed at the manager: suppressing a badge because a
+            // neighbour is close would silently hide data. These are
+            // manager-level properties in Mapbox v11, not per-annotation.
+            it.iconAllowOverlap = true
+            it.textAllowOverlap = true
+            countAnnotations = it
+        }
+
         polygons.deleteAll()
         points.deleteAll()
+        counts.deleteAll()
 
         val hexMode = state.overlayMode == MapHomeOverlayMode.HEX_GRID
         if (hexMode) {
@@ -234,6 +247,23 @@ class MapHomeScreen(
             }
         }
 
+        if (hexMode) {
+            // The count on the cell, as frozenApp showed it: a filled green
+            // badge with the number in white. Without it the fill says only
+            // "something happened here", which is the least useful half of
+            // what the overlay knows.
+            counts.create(
+                state.hexCells.filter { it.hasMeasurements }.map { cell ->
+                    PointAnnotationOptions()
+                        .withPoint(Point.fromLngLat(cell.centerLongitude, cell.centerLatitude))
+                        .withIconImage(COUNT_IMAGE_ID)
+                        .withTextField(cell.measurementCount.toString())
+                        .withTextColor(android.graphics.Color.WHITE)
+                        .withTextSize(12.0)
+                },
+            )
+        }
+
         // Points stay visible in both modes: the hexagon says how many, the
         // pins say where, and hiding them made the grid look like the only data.
         points.create(
@@ -247,6 +277,21 @@ class MapHomeScreen(
     }
 
 
+
+    /** The badge behind a cell's count. Green, matching frozenApp's circle. */
+    private fun countBadgeBitmap(): Bitmap {
+        val size = with(Theme) { context.dp(26) }
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val radius = size / 2f
+        canvas.drawCircle(
+            radius,
+            radius,
+            radius - 1f,
+            Paint(Paint.ANTI_ALIAS_FLAG).apply { color = HEX_COUNT_COLOR },
+        )
+        return bitmap
+    }
 
     /** Drawn rather than shipped as an asset, so it follows the palette. */
     private fun markerBitmap(): Bitmap {
@@ -271,11 +316,15 @@ class MapHomeScreen(
 
     private companion object {
         const val MARKER_IMAGE_ID = "cellwatch-measurement-pin"
+        const val COUNT_IMAGE_ID = "cellwatch-hex-count"
 
         /**
          * Translucent green, as frozenApp used: `cw_green_light` with its
          * alpha halved so the basemap stays readable underneath.
          */
         val HEX_FILL_COLOR = android.graphics.Color.argb(0x80, 0x4C, 0xAF, 0x50)
+
+        /** The badge is opaque; only the cell fill is translucent. */
+        val HEX_COUNT_COLOR = android.graphics.Color.rgb(0x2E, 0x7D, 0x32)
     }
 }
