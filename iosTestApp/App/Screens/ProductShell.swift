@@ -288,8 +288,9 @@ final class ProductShell: NSObject {
 
     private func label(for destination: Destination) -> String {
         switch destination {
-        case is DestinationDataUse: return "Data use"
-        case is DestinationCollectionChoice: return "Collection mode"
+        // Localised, so the bar does not sit in English above Spanish copy.
+        case is DestinationDataUse: return ConsentCopy.shared.DATA_USE_TITLE
+        case is DestinationCollectionChoice: return ConsentCopy.shared.COLLECTION_MODE_TITLE
         case is DestinationMapHome: return "Map home"
         case is DestinationMeasurementStart: return "Start measurement"
         case is DestinationMeasurementRun: return "Measurement"

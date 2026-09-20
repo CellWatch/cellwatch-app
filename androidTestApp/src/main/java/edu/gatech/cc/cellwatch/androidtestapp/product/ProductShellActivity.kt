@@ -12,6 +12,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.onboarding.AndroidOnboardingProfileStore
 import edu.gatech.cc.cellwatch.domain.app.ExportDocument
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingInput
+import edu.gatech.cc.cellwatch.domain.consent.ConsentCopy
 import edu.gatech.cc.cellwatch.domain.consent.ConsentViewModel
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingUseCase
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
@@ -345,8 +346,9 @@ class ProductShellActivity : AppCompatActivity() {
         }
 
     private fun label(destination: Destination): String = when (destination) {
-        is Destination.DataUse -> "Data use"
-        is Destination.CollectionChoice -> "Collection mode"
+        // Localised, so the bar does not sit in English above Spanish copy.
+        is Destination.DataUse -> ConsentCopy.DATA_USE_TITLE
+        is Destination.CollectionChoice -> ConsentCopy.COLLECTION_MODE_TITLE
         is Destination.Onboarding -> "Your profile"
         is Destination.MapHome -> "Map home"
         is Destination.MeasurementStart -> "Start measurement"

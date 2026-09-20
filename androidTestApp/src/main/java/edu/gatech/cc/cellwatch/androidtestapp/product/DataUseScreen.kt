@@ -35,7 +35,7 @@ class DataUseScreen(
                 }
             }
         }
-        val continueButton = Components.primaryButton(context, "Continue").apply {
+        val continueButton = Components.primaryButton(context, ConsentCopy.CONTINUE).apply {
             setOnClickListener { onContinue() }
         }
 

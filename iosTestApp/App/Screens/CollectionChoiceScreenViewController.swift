@@ -14,7 +14,7 @@ final class CollectionChoiceScreenViewController: UIViewController {
     private let fccHeader = Components.sectionHeader(ConsentCopy.shared.FCC_INFO_TITLE)
     private let fccInfo = Components.bodyText(ConsentCopy.shared.FCC_INFO_DESCRIPTION, muted: true)
     private let status = Components.bodyText("", muted: true)
-    private lazy var continueButton = Components.primaryButton("Continue")
+    private lazy var continueButton = Components.primaryButton(ConsentCopy.shared.CONTINUE)
     private lazy var acknowledgeRow = switchRow(ConsentCopy.shared.FCC_ACKNOWLEDGEMENT, acknowledgeSwitch)
 
     private var rendering = false

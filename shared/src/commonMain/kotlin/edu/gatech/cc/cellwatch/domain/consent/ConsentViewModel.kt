@@ -42,9 +42,9 @@ class ConsentViewModel {
             collectionMode = collectionMode,
             acknowledged = acknowledged,
             statusMessage = when {
-                satisfied && needsAcknowledgement -> "You can change this later in Settings."
-                satisfied -> "Measurements will be saved and shared publicly, but not sent to the FCC."
-                else -> "Acknowledge the FCC information to continue in challenge mode."
+                satisfied && needsAcknowledgement -> ConsentCopy.CHANGE_LATER
+                satisfied -> ConsentCopy.TESTING_SUMMARY
+                else -> ConsentCopy.ACKNOWLEDGEMENT_REQUIRED
             },
             canContinue = satisfied,
         )

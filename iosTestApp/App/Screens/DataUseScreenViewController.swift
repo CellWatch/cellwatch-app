@@ -7,7 +7,7 @@ final class DataUseScreenViewController: UIViewController {
 
     private let onContinue: () -> Void
     private let scaffold = ScreenScaffold()
-    private lazy var continueButton = Components.primaryButton("Continue")
+    private lazy var continueButton = Components.primaryButton(ConsentCopy.shared.CONTINUE)
     private lazy var policyButton = Components.secondaryButton(ConsentCopy.shared.PRIVACY_POLICY_LABEL)
 
     init(onContinue: @escaping () -> Void) {
