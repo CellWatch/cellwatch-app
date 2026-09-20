@@ -76,6 +76,8 @@ object MeasurementHistoryViewParityContract {
     private fun snapshot(
         timestampMs: Long,
         latency: String,
+        jitter: String = "3 ms",
+        packetLoss: String = "0% (0 of 120 lost)",
         download: String,
         upload: String,
         uploaded: String,
@@ -84,6 +86,8 @@ object MeasurementHistoryViewParityContract {
         return MeasurementHistoryRunSnapshot(
             timestampMs = timestampMs,
             latency = latency,
+            jitter = jitter,
+            packetLoss = packetLoss,
             download = download,
             upload = upload,
             uploaded = uploaded,

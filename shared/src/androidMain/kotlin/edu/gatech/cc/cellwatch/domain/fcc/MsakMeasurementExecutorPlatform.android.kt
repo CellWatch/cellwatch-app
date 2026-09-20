@@ -77,8 +77,18 @@ actual object MsakMeasurementExecutorPlatform {
                     latencyData = LatencyData(
                         id = uuid4().toString(),
                         measurementId = id,
-                        rtt = summary.meanMs?.roundToInt(),
-                        jitter = summary.stdevMs?.roundToInt(),
+                        // Microseconds, which is what `rtt` means everywhere
+                        // else: frozenApp stored it that way, the FCC's
+                        // `round_trip_time` is defined as microseconds, and
+                        // MeasurementResultReadModelUseCase divides by 1000 to
+                        // display it. The MSAK client hands back milliseconds
+                        // (`LatencyRunner.summarizeLatency` divides rttUs by
+                        // 1000), and assigning that straight across made every
+                        // reading a thousand times too small - which is why the
+                        // run screen always said "<1 ms" and why every
+                        // round_trip_time this app has ever submitted is wrong.
+                        rtt = summary.meanMs?.let { (it * 1_000.0).roundToInt() },
+                        jitter = summary.stdevMs?.let { (it * 1_000.0).roundToInt() },
                         sent = summary.sent,
                         received = summary.received,
                         servers = listOf(server.machine),

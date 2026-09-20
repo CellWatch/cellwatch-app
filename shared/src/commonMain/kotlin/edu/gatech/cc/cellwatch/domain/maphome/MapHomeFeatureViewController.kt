@@ -158,9 +158,15 @@ class MapHomeFeatureViewController(
             .take(maxPoints)
 
         if (points.isEmpty()) {
+            // The grid is a property of the viewport, not of the data. It
+            // used to be returned empty here, so a device with no
+            // measurements - every fresh install - saw a bare map, and
+            // panning never produced anything because the early return fired
+            // before the tiling did.
+            val tiled = tileViewport()
             return MapHomeFeatureState(
                 points = emptyList(),
-                hexCells = emptyList(),
+                hexCells = tiled,
                 hasAnyLocationData = false,
                 centerLatitude = null,
                 centerLongitude = null,
@@ -196,6 +202,31 @@ class MapHomeFeatureViewController(
      * the jvm target and any future platform still produce something sane
      * rather than an empty map.
      */
+    /**
+     * The empty grid over whatever the map is currently showing.
+     *
+     * Separate from [aggregateCells] because it has to work with no points at
+     * all, which is the state a new install is in and the state the overlay
+     * used to draw nothing in.
+     */
+    private fun tileViewport(): List<MapHomeHexCellFeature> {
+        if (!H3Grid.isSupported) return emptyList()
+        val covering = bounds?.let { h3CellsCovering(it, H3Resolution.OVERLAY) }.orEmpty()
+        return covering.mapNotNull(::emptyCell)
+    }
+
+    private fun emptyCell(cell: String): MapHomeHexCellFeature? {
+        val boundary = H3Grid.boundaryOf(cell)
+        if (boundary.isEmpty()) return null
+        return MapHomeHexCellFeature(
+            id = cell,
+            centerLatitude = boundary.map { it.latitude }.average(),
+            centerLongitude = boundary.map { it.longitude }.average(),
+            measurementCount = 0,
+            boundary = boundary,
+        )
+    }
+
     private fun aggregateCells(points: List<MapHomePointFeature>): List<MapHomeHexCellFeature> {
         if (!H3Grid.isSupported) return squareBuckets(points)
 
@@ -230,22 +261,7 @@ class MapHomeFeatureViewController(
             )
         }
         val occupied = indexed.associateBy { it.id }
-        val empty = tiled
-            .filter { it !in occupied }
-            .mapNotNull { cell ->
-                val boundary = H3Grid.boundaryOf(cell)
-                if (boundary.isEmpty()) {
-                    null
-                } else {
-                    MapHomeHexCellFeature(
-                        id = cell,
-                        centerLatitude = boundary.map { it.latitude }.average(),
-                        centerLongitude = boundary.map { it.longitude }.average(),
-                        measurementCount = 0,
-                        boundary = boundary,
-                    )
-                }
-            }
+        val empty = tiled.filter { it !in occupied }.mapNotNull(::emptyCell)
 
         val parentGrid = (indexed + empty).sortedByDescending { it.measurementCount }
         val withChildren = expandSelected(parentGrid, points, resolution)

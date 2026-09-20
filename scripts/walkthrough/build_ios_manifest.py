@@ -125,7 +125,7 @@ def main() -> int:
         "environment": {
             "Platform": args.device_label,
             "Bundle": "edu.gatech.cc.cellwatch",
-            "Entry point": "ProductShell (-CellWatchProductShell)",
+            "Entry point": "ProductShell (default; -CellWatchHarness selects the harness)",
             "Evidence": "XCUITest ProductWalkthroughUiTests — every step below was asserted "
                         "before its screenshot was taken",
         },

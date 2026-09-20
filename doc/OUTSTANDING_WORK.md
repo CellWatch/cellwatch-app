@@ -14,6 +14,16 @@ Carried forward so it is not lost between sessions. Updated 2026-09-20.
 
 ## Known defects, not yet fixed
 
+0. **Stored latency before 2026-09-20 is in the wrong unit.** `rtt` and `jitter` are
+   microseconds everywhere - frozenApp stored them that way, the FCC defines
+   `round_trip_time` as microseconds, and the read model divides by 1000 to display. Both MSAK
+   executors were assigning `summary.meanMs` straight across, so every measurement this app has
+   taken is recorded a thousand times too small: the run screen always read `<1 ms`, and every
+   `round_trip_time` uploaded to the CellWatch server or exported for the FCC is wrong by the
+   same factor. Fixed at the source, but **rows written before the fix are still in
+   milliseconds**, and nothing distinguishes them. They are test data; purging is simpler than
+   migrating.
+
 3. **A permanently-rejected record retries forever.** Sync has no notion of a row the server
    will never accept. When iOS was writing null location timestamps, twelve measurements failed
    on every attempt indefinitely; the rows were purged on 2026-09-19, but nothing stops it

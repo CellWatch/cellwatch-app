@@ -25,6 +25,10 @@ final class MapHomeScreenViewController: UIViewController {
     private let statusCardHolder = UIView()
     private let measureButton = Components.primaryButton(MapHomeCopy.shared.MEASURE)
     private let overlayButton = Components.secondaryButton("")
+    /// Circular, sitting on the map itself rather than in the button column.
+    /// The filled arrow is the convention every maps app uses for "put me
+    /// back where I am", which is worth more here than a label.
+    private let recenterButton = Components.mapOverlayButton(systemImage: "location.fill")
 
 #if canImport(MapboxMaps)
     private var mapView: MapView?
@@ -32,6 +36,8 @@ final class MapHomeScreenViewController: UIViewController {
     private var polygonAnnotations: PolygonAnnotationManager?
     private var countAnnotations: PointAnnotationManager?
     private var mapEventTokens: [AnyCancelable] = []
+    /// Coalesces camera movement into one grid rebuild.
+    private var boundsRebuild: DispatchWorkItem?
 #endif
 
     init(
@@ -63,6 +69,7 @@ final class MapHomeScreenViewController: UIViewController {
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
         measureButton.addTarget(self, action: #selector(measureTapped), for: .touchUpInside)
         overlayButton.addTarget(self, action: #selector(overlayTapped), for: .touchUpInside)
+        recenterButton.addTarget(self, action: #selector(recenterTapped), for: .touchUpInside)
 
         let secondaryRow = UIStackView(arrangedSubviews: [historyButton, settingsButton])
         secondaryRow.axis = .horizontal
@@ -177,16 +184,33 @@ final class MapHomeScreenViewController: UIViewController {
         ])
         mapView = map
 
-        // Somewhere useful rather than the whole globe. The app is used while
-        // standing in the place being measured, so once there are measurements
-        // the camera moves to the most recent; until then this is the project's
-        // home campus.
+        // The blue dot. Without it there is no way to tell where the map is
+        // relative to where you are standing, which is the whole question
+        // this screen exists to answer.
+        map.location.options.puckType = .puck2D(.makeDefault(showBearing: false))
+
+        // Somewhere useful rather than the whole globe. Georgia Tech is the
+        // starting frame only until the device reports a fix; the camera
+        // follows the puck as soon as one arrives, which is what a user who
+        // is standing somewhere else expects. Before this it stayed on
+        // campus forever unless a measurement had already been taken.
         map.mapboxMap.setCamera(
             to: CameraOptions(
                 center: CLLocationCoordinate2D(latitude: 33.7756, longitude: -84.3963),
                 zoom: 12.5
             )
         )
+        followPuck(animated: false)
+
+        map.addSubview(recenterButton)
+        NSLayoutConstraint.activate([
+            recenterButton.trailingAnchor.constraint(
+                equalTo: map.trailingAnchor, constant: -Theme.Space.m
+            ),
+            recenterButton.bottomAnchor.constraint(
+                equalTo: map.bottomAnchor, constant: -Theme.Space.l
+            ),
+        ])
 
         mapEventTokens.append(
             map.mapboxMap.onStyleLoaded.observeNext { [weak self] _ in
@@ -204,19 +228,17 @@ final class MapHomeScreenViewController: UIViewController {
         mapEventTokens.append(
             map.mapboxMap.onMapIdle.observeNext { [weak self] _ in
                 guard let self, let map = self.mapView else { return }
-                self.render(self.viewModel.onZoomChanged(zoomLevel: map.mapboxMap.cameraState.zoom))
-                // Reported after idle rather than every frame: the grid is
-                // recomputed from these, and doing that mid-gesture would
-                // resample the lattice on every pan tick.
-                let bounds = map.mapboxMap.coordinateBounds(
-                    for: CameraOptions(cameraState: map.mapboxMap.cameraState)
-                )
-                self.render(self.viewModel.onBoundsChanged(
-                    north: bounds.northeast.latitude,
-                    south: bounds.southwest.latitude,
-                    east: bounds.northeast.longitude,
-                    west: bounds.southwest.longitude
-                ))
+                self.reportBounds(of: map)
+            }
+        )
+        mapEventTokens.append(
+            // Idle alone is not enough. A camera driven by the viewport
+            // plugin - which is how the recentre button moves it - can settle
+            // without ever emitting idle, and the grid then stays frozen at
+            // whatever bounds it last saw. Coalesced so a pan costs one
+            // rebuild rather than one per frame.
+            map.mapboxMap.onCameraChanged.observe { [weak self] _ in
+                self?.scheduleBoundsRebuild()
             }
         )
 #endif
@@ -288,6 +310,74 @@ final class MapHomeScreenViewController: UIViewController {
         ) else { return }
         render(viewModel.onCellSelected(cellId: cell))
 #endif
+    }
+
+    private func scheduleBoundsRebuild() {
+        boundsRebuild?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, let map = self.mapView else { return }
+            self.reportBounds(of: map)
+        }
+        boundsRebuild = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+    }
+
+    /// Tells the view model what the map is now showing.
+    ///
+    /// Called after idle rather than every frame: the grid is recomputed from
+    /// these bounds, and doing that mid-gesture would resample the lattice on
+    /// every pan tick.
+    private func reportBounds(of map: MapView) {
+#if canImport(MapboxMaps)
+        render(viewModel.onZoomChanged(zoomLevel: map.mapboxMap.cameraState.zoom))
+        let bounds = map.mapboxMap.coordinateBounds(
+            for: CameraOptions(cameraState: map.mapboxMap.cameraState)
+        )
+        render(viewModel.onBoundsChanged(
+            north: bounds.northeast.latitude,
+            south: bounds.southwest.latitude,
+            east: bounds.northeast.longitude,
+            west: bounds.southwest.longitude
+        ))
+#endif
+    }
+
+    /// Moves the camera to the device's own position and keeps it there
+    /// until the user pans away.
+    ///
+    /// `viewport` rather than a one-shot `setCamera`: the first fix on a cold
+    /// start can be seconds away, and a one-shot call made before it arrives
+    /// silently does nothing. Following waits for the puck.
+    private func followPuck(animated: Bool = true) {
+#if canImport(MapboxMaps)
+        guard let map = mapView else { return }
+        let follow = map.viewport.makeFollowPuckViewportState(
+            // 13, not the 14 a navigation app would use. The overlay is drawn
+            // at H3 resolution 8, whose cells are about a kilometre across;
+            // at zoom 14 the screen fits inside a single hexagon and the
+            // grid is invisible - it looks broken rather than close up.
+            options: FollowPuckViewportStateOptions(zoom: 13, bearing: .constant(0))
+        )
+        map.viewport.transition(
+            to: follow,
+            transition: animated ? map.viewport.makeDefaultViewportTransition()
+                                 : map.viewport.makeImmediateViewportTransition()
+        ) { [weak self] _ in
+            // Back to idle once the camera has arrived, rather than staying
+            // in follow mode. A camera that tracks the puck never settles, so
+            // `onMapIdle` stops firing - and that is the only thing that
+            // recomputes the hex grid, so the overlay would freeze at
+            // whatever bounds it last saw. This is a recentre, not a
+            // navigation mode.
+            guard let self, let map = self.mapView else { return }
+            map.viewport.idle()
+            self.reportBounds(of: map)
+        }
+#endif
+    }
+
+    @objc private func recenterTapped() {
+        followPuck()
     }
 
     @objc private func overlayTapped() {

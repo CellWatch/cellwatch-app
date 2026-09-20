@@ -23,6 +23,13 @@ final class MeasurementRunScreenViewController: UIViewController {
     private let syncCard = Components.StatusCardView()
     private let fccCard = Components.StatusCardView()
     private let latencyRow = Components.MetricRowView(label: MeasurementRunCopy.shared.LATENCY)
+    /// Next to latency rather than tucked away: on cellular the variation and
+    /// the losses are often what distinguishes a usable connection from one
+    /// that only looks fast on the mean.
+    private let jitterRow = Components.MetricRowView(label: MeasurementRunCopy.shared.JITTER)
+    private let packetLossRow = Components.MetricRowView(
+        label: MeasurementRunCopy.shared.PACKET_LOSS
+    )
     private let downloadRow = Components.MetricRowView(label: MeasurementRunCopy.shared.DOWNLOAD)
     private let uploadRow = Components.MetricRowView(label: MeasurementRunCopy.shared.UPLOAD)
     private let syncRow = Components.MetricRowView(label: MeasurementRunCopy.shared.SYNC)
@@ -61,6 +68,8 @@ final class MeasurementRunScreenViewController: UIViewController {
             progressHeader,
             Components.divider(),
             latencyRow,
+            jitterRow,
+            packetLossRow,
             downloadRow,
             uploadRow,
             syncRow,
@@ -101,6 +110,8 @@ final class MeasurementRunScreenViewController: UIViewController {
     private func render(_ state: MeasurementRunUiState) {
         progressHeader.update(state.headerText, progress: Float(state.progressPercent) / 100.0)
         latencyRow.update(state.latencyText)
+        jitterRow.update(state.jitterText)
+        packetLossRow.update(state.packetLossText)
         downloadRow.update(state.downloadText)
         uploadRow.update(state.uploadText)
         syncRow.update(state.uploadedText)

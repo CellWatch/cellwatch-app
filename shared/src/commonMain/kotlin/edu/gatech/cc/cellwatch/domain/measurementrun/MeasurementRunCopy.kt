@@ -98,6 +98,28 @@ object MeasurementRunCopy {
     val DOWNLOAD: String get() = localized(en = "Download", es = "Descarga")
     val UPLOAD: String get() = localized(en = "Upload", es = "Subida")
 
+    /**
+     * The same word in both languages, so it is `const` rather than a
+     * `localized` pair that happens to repeat itself - which is also what
+     * keeps CopyLocaleTest's "every string must differ" rule absolute
+     * instead of carrying an exception list.
+     *
+     * It stays "Jitter" because that is the term the FCC's own submission
+     * format uses, and anyone comparing the app against their BDC file
+     * should see the same word.
+     */
+    const val JITTER = "Jitter"
+
+    val PACKET_LOSS: String get() = localized(
+        en = "Packet loss",
+        es = "Pérdida de paquetes",
+    )
+
+    fun packetLoss(percent: String, lost: Int, sent: Int): String = localized(
+        en = "$percent% ($lost of $sent lost)",
+        es = "$percent% ($lost de $sent perdidos)",
+    )
+
     val SYNC: String get() = localized(en = "Sync", es = "Sincronización")
 
     /** frozenApp `pending`. */

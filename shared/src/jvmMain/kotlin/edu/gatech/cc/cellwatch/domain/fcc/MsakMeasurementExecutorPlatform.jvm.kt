@@ -40,8 +40,13 @@ actual object MsakMeasurementExecutorPlatform {
                     latencyData = LatencyData(
                         id = uuid4().toString(),
                         measurementId = id,
-                        rtt = 22,
-                        jitter = 2,
+                        // Microseconds - 22 ms and 2 ms. As plain 22 and 2
+                        // this fake produced a latency the UI rendered as
+                        // "<1 ms", which is exactly the bug the real
+                        // executors had and made the fake useless for
+                        // spotting it.
+                        rtt = 22_000,
+                        jitter = 2_000,
                         sent = 30,
                         received = 30,
                         servers = listOf(server.machine),
