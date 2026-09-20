@@ -8,6 +8,7 @@ final class HistoryScreenViewController: UIViewController {
     private let viewModel: MeasurementHistoryViewModel
     private let snapshotProvider: (@escaping (ProductHistorySnapshot) -> Void) -> Void
     private let onRetry: (@escaping (ProductHistorySnapshot) -> Void) -> Void
+    private let onExport: () -> Void
     private let onBack: () -> Void
 
     private let scaffold = ScreenScaffold()
@@ -17,6 +18,7 @@ final class HistoryScreenViewController: UIViewController {
     private let detailHeader = Components.sectionHeader("")
     private let detailText = Components.bodyText("")
     private lazy var retryButton = Components.primaryButton("Retry upload")
+    private lazy var exportButton = Components.secondaryButton("Export data")
     private lazy var backButton = Components.secondaryButton("Back to map")
 
     /// Rows are rebuilt per render, so their targets need a stable owner.
@@ -26,11 +28,13 @@ final class HistoryScreenViewController: UIViewController {
         viewModel: MeasurementHistoryViewModel,
         snapshotProvider: @escaping (@escaping (ProductHistorySnapshot) -> Void) -> Void,
         onRetry: @escaping (@escaping (ProductHistorySnapshot) -> Void) -> Void,
+        onExport: @escaping () -> Void,
         onBack: @escaping () -> Void
     ) {
         self.viewModel = viewModel
         self.snapshotProvider = snapshotProvider
         self.onRetry = onRetry
+        self.onExport = onExport
         self.onBack = onBack
         super.init(nibName: nil, bundle: nil)
     }
@@ -45,6 +49,7 @@ final class HistoryScreenViewController: UIViewController {
         runsStack.spacing = Theme.Space.s
 
         retryButton.addTarget(self, action: #selector(retryTapped), for: .touchUpInside)
+        exportButton.addTarget(self, action: #selector(exportTapped), for: .touchUpInside)
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
 
         scaffold.addContent(
@@ -56,7 +61,7 @@ final class HistoryScreenViewController: UIViewController {
             detailHeader,
             detailText
         )
-        scaffold.addActions(retryButton, backButton)
+        scaffold.addActions(retryButton, exportButton, backButton)
         render(viewModel.currentState())
     }
 
@@ -121,6 +126,8 @@ final class HistoryScreenViewController: UIViewController {
         retryButton.setTitle("Retrying…", for: .normal)
         onRetry { [weak self] snapshot in self?.apply(snapshot) }
     }
+
+    @objc private func exportTapped() { onExport() }
 
     @objc private func backTapped() { onBack() }
 }

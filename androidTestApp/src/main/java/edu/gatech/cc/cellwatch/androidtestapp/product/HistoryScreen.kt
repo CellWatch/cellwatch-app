@@ -38,6 +38,7 @@ class HistoryScreen(
             onRetry { snapshot -> apply(snapshot) }
         }
     }
+    private val exportButton = Components.secondaryButton(context, "Export data")
     private val backButton = Components.secondaryButton(context, "Back to map")
 
     val view: View get() = scaffold
@@ -52,13 +53,17 @@ class HistoryScreen(
             detailHeader,
             detailText,
         )
-        scaffold.addActions(retryButton, backButton)
+        scaffold.addActions(retryButton, exportButton, backButton)
         render(viewModel.currentState())
         refresh()
     }
 
     fun setOnBack(action: () -> Unit) {
         backButton.setOnClickListener { action() }
+    }
+
+    fun setOnExport(action: () -> Unit) {
+        exportButton.setOnClickListener { action() }
     }
 
     /** Re-read on every appearance, so a new run shows without a restart. */

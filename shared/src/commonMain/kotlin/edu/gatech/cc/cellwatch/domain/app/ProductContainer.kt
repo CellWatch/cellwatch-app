@@ -13,6 +13,16 @@ import edu.gatech.cc.cellwatch.data.sync.MeasurementSyncServiceFactory
 import edu.gatech.cc.cellwatch.data.sync.SupabaseSyncRemoteDataSourceProvider
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.capability.PlatformCapabilityProvider
+import edu.gatech.cc.cellwatch.domain.export.ExportContact
+import edu.gatech.cc.cellwatch.domain.export.ExtendedExportApp
+import edu.gatech.cc.cellwatch.domain.export.ExtendedExportBundle
+import edu.gatech.cc.cellwatch.domain.export.ExtendedExportSummary
+import edu.gatech.cc.cellwatch.domain.export.FccSubmissionExportBundle
+import edu.gatech.cc.cellwatch.domain.export.deriveFccOutcome
+import edu.gatech.cc.cellwatch.domain.export.toExtendedExportRun
+import edu.gatech.cc.cellwatch.domain.export.toFccSubmissionExport
+import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionOutcomeMessage
+import kotlinx.serialization.json.Json
 import edu.gatech.cc.cellwatch.domain.fcc.DefaultMsakMeasurementSequenceOrchestratorFactory
 import edu.gatech.cc.cellwatch.domain.fcc.FccSubmissionProfile
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementSequenceProgressListener
@@ -132,12 +142,36 @@ data class ProductDiagnostics(
 )
 
 /**
+ * A ready-to-write export: the platform only has to put it somewhere.
+ */
+data class ExportDocument(
+    val fileName: String,
+    val json: String,
+    val recordCount: Int,
+)
+
+/**
  * Composition root for the product app. One per process; screens receive it.
  */
 class ProductContainer(
     private val services: ProductPlatformServices,
     private val clock: Clock = Clock.System,
 ) {
+    /**
+     * `explicitNulls` matters: the FCC specification conditions nullability on
+     * failure, so an absent field and a null field are different statements
+     * and the nulls have to be written out.
+     */
+    private val exportJson = Json {
+        prettyPrint = true
+        encodeDefaults = true
+        explicitNulls = true
+    }
+
+    private companion object {
+        const val SUBMISSION_CATEGORY = "Consumer Challenge"
+    }
+
     val database: CellwatchDatabase get() = services.database
 
     val measurementRepository by lazy {
@@ -319,6 +353,108 @@ class ProductContainer(
                 .firstOrNull()?.let { measurement.copy(uploadDownloadData = it) }
             else -> null
         }
+    }
+
+    /**
+     * Adds the locations and cells an export needs.
+     *
+     * Separate from [hydrate] because history does not need them and they are
+     * two more queries per measurement; the export is the only caller that
+     * reads them.
+     */
+    private suspend fun withObservations(measurement: Measurement): Measurement = measurement.copy(
+        locations = locationRepository.getByMeasurementId(measurement.id),
+        cells = cellRepository.getByMeasurement(measurement.id),
+    )
+
+    /**
+     * Every stored run, hydrated, newest first.
+     *
+     * Returns groups rather than export documents so both exports read the
+     * same source: an FCC file and an extended file that disagreed about the
+     * same measurement would be worse than either alone.
+     */
+    private suspend fun exportGroups(limit: Long = 1_000): List<Pair<MeasurementGroup, Measurement?>> {
+        val byGroup = measurementRepository.getRecent(limit)
+            .filter { it.groupId != null }
+            .groupBy { it.groupId!! }
+        return byGroup.mapNotNull { (groupId, measurements) ->
+            val hydrated = measurements.mapNotNull { hydrate(it) }.map { withObservations(it) }
+            val group = runCatching {
+                MeasurementGroup(
+                    latency = hydrated.firstOrNull { it.type == "latency" },
+                    download = hydrated.firstOrNull { it.type == "download" },
+                    upload = hydrated.firstOrNull { it.type == "upload" },
+                    submission = submissionRepository.getById(groupId),
+                    id = groupId,
+                )
+            }.getOrElse { return@mapNotNull null }
+            group to hydrated.firstOrNull()
+        }.sortedByDescending { (_, first) -> first?.timestamp?.toEpochMilliseconds() ?: 0L }
+    }
+
+    /** The FCC bulk-submission document. Empty when nothing qualified. */
+    suspend fun exportFccJson(): ExportDocument {
+        val identity = services.submissionIdentity()
+        val submissions = exportGroups().mapNotNull { (group, _) -> group.toFccSubmissionExport() }
+        val bundle = FccSubmissionExportBundle(
+            contact = ExportContact(
+                name = identity.contactName,
+                email = identity.contactEmail,
+                phone = identity.contactPhone,
+            ),
+            submission_category = SUBMISSION_CATEGORY,
+            submissions = submissions,
+        )
+        return ExportDocument(
+            fileName = "cellwatch-fcc-${clock.now().toEpochMilliseconds()}.json",
+            json = exportJson.encodeToString(FccSubmissionExportBundle.serializer(), bundle),
+            recordCount = submissions.size,
+        )
+    }
+
+    /** Everything recorded, qualifying or not, with the reason it did not. */
+    suspend fun exportExtendedJson(): ExportDocument {
+        val identity = services.submissionIdentity()
+        val diagnostics = diagnostics()
+        val groups = exportGroups()
+        val runs = groups.map { (group, _) ->
+            group.toExtendedExportRun(
+                fccOutcome = group.deriveFccOutcome(
+                    challengeMode = diagnostics.collectionMode == CollectionMode.FCC_CHALLENGE,
+                ),
+            )
+        }
+        val bundle = ExtendedExportBundle(
+            exported_at = clock.now().toString(),
+            app = ExtendedExportApp(
+                name = identity.appName,
+                version = identity.appVersion,
+                device_id = diagnostics.deviceId,
+                platform = services.appSource,
+                msak_mode = diagnostics.msakMode,
+                msak_endpoint = diagnostics.msakEndpoint,
+                upload_target = diagnostics.supabaseMode,
+                collection_mode = diagnostics.collectionMode.name,
+            ),
+            contact = ExportContact(
+                name = identity.contactName,
+                email = identity.contactEmail,
+                phone = identity.contactPhone,
+            ),
+            summary = ExtendedExportSummary(
+                run_count = runs.size,
+                measurement_count = runs.sumOf { it.measurements.size },
+                submitted_run_count = runs.count { it.submitted_to_fcc },
+                unsynced_measurement_count = measurementRepository.getUnsynced().size,
+            ),
+            runs = runs,
+        )
+        return ExportDocument(
+            fileName = "cellwatch-extended-${clock.now().toEpochMilliseconds()}.json",
+            json = exportJson.encodeToString(ExtendedExportBundle.serializer(), bundle),
+            recordCount = runs.size,
+        )
     }
 
     /** Unsynced counts, split the way the history screen reports them. */
