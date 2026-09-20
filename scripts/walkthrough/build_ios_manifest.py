@@ -73,7 +73,8 @@ STEPS = [
      ["returned to map home"]),
     ("12-history", "History and sync",
      "Saved runs, newest first, with the same sync wording as the map and the results screen. "
-     "Selecting a run shows its detail. Retry appears only when something is actually queued.",
+     "Selecting a run shows its detail. Sync now is always present; with an empty queue it "
+     "says so rather than disappearing.",
      ["run list rendered", "'Back to map' offered"]),
     ("13-export", "Export",
      "Two formats. The FCC file is the document the challenge accepts and contains only "

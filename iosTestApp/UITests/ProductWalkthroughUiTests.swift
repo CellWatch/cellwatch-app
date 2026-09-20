@@ -101,6 +101,11 @@ final class ProductWalkthroughUiTests: XCTestCase {
 
         let done = app.buttons["Done"]
         XCTAssertTrue(done.waitForExistence(timeout: 120), "run never completed")
+        // Asserted rather than merely photographed: these two rows are new,
+        // and a screenshot of a screen that quietly lost them would still
+        // look plausible.
+        XCTAssertTrue(app.staticTexts["Jitter"].exists, "jitter row missing from results")
+        XCTAssertTrue(app.staticTexts["Packet loss"].exists, "packet loss row missing from results")
         capture("10-results")
 
         done.tap()

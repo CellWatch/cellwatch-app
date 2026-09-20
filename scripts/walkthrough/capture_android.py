@@ -360,8 +360,10 @@ def main() -> int:
          "Results",
          "Metrics, then two statements the app previously left unsaid: what sync did and when, "
          "and whether this measurement reaches the FCC. Both were silent before — a measurement "
-         "could complete perfectly and be withheld with no explanation.",
-         ["Measurement complete", "Latency", "Download", "Upload"])
+         "could complete perfectly and be withheld with no explanation. Jitter and packet loss "
+         "sit next to latency: MSAK reports both and the app has always stored them, but "
+         "neither this app nor frozenApp ever showed them.",
+         ["Measurement complete", "Latency", "Jitter", "Packet loss", "Download", "Upload"])
 
     if dev.tap_text("Done", settle=8, fallback=(540, 2098)):
         step(dev, steps, "10-map-home-after",
@@ -376,8 +378,8 @@ def main() -> int:
             step(dev, steps, "11-history",
                  "History and sync",
                  "Saved runs, newest first, with the same sync wording as the map and the "
-                 "results screen. Selecting a run shows its detail. Retry appears only when "
-                 "something is actually queued.",
+                 "results screen. Selecting a run shows its detail. Sync now is always present; "
+                 "with an empty queue it says so rather than disappearing.",
                  ["Selected run", "Back to map"])
 
             if dev.tap_text("Export data", settle=4):

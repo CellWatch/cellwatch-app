@@ -17,7 +17,11 @@ final class HistoryScreenViewController: UIViewController {
     private let runsStack = UIStackView()
     private let detailHeader = Components.sectionHeader("")
     private let detailText = Components.bodyText("")
-    private lazy var retryButton = Components.primaryButton(HistoryCopy.shared.RETRY_UPLOAD)
+    /// Always present, never hidden. It used to disappear whenever the queue
+    /// was empty, which reads as "this screen cannot sync" rather than "there
+    /// is nothing to sync".
+    private lazy var syncButton = Components.primaryButton(HistoryCopy.shared.SYNC_NOW)
+    private var hasPendingUploads = false
     private lazy var exportButton = Components.secondaryButton(HistoryCopy.shared.EXPORT_DATA)
     private lazy var backButton = Components.secondaryButton(MapHomeCopy.shared.BACK_TO_MAP)
 
@@ -48,7 +52,7 @@ final class HistoryScreenViewController: UIViewController {
         runsStack.axis = .vertical
         runsStack.spacing = Theme.Space.s
 
-        retryButton.addTarget(self, action: #selector(retryTapped), for: .touchUpInside)
+        syncButton.addTarget(self, action: #selector(retryTapped), for: .touchUpInside)
         exportButton.addTarget(self, action: #selector(exportTapped), for: .touchUpInside)
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
 
@@ -61,7 +65,7 @@ final class HistoryScreenViewController: UIViewController {
             detailHeader,
             detailText
         )
-        scaffold.addActions(retryButton, exportButton, backButton)
+        scaffold.addActions(syncButton, exportButton, backButton)
         render(viewModel.currentState())
     }
 
@@ -85,14 +89,14 @@ final class HistoryScreenViewController: UIViewController {
         header.text = state.headerText
         syncCard.update(
             [state.syncHeadline, state.syncDetail].compactMap { $0 }.joined(separator: " "),
-            tone: state.showRetry ? .warning : .success
+            tone: state.hasPendingUploads ? .warning : .success
         )
         detailHeader.text = state.selectedTitle
         detailText.text = state.selectedDetail
 
-        retryButton.isHidden = !state.showRetry
-        retryButton.isEnabled = true
-        retryButton.setTitle(HistoryCopy.shared.RETRY_UPLOAD, for: .normal)
+        hasPendingUploads = state.hasPendingUploads
+        syncButton.isEnabled = true
+        syncButton.setTitle(HistoryCopy.shared.SYNC_NOW, for: .normal)
 
         runsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         rowTimestamps.removeAll()
@@ -122,8 +126,14 @@ final class HistoryScreenViewController: UIViewController {
     }
 
     @objc private func retryTapped() {
-        retryButton.isEnabled = false
-        retryButton.setTitle(HistoryCopy.shared.RETRYING, for: .normal)
+        // Nothing queued means the answer is already known; a round trip
+        // would only make the user wait to be told so.
+        guard hasPendingUploads else {
+            syncCard.update(HistoryCopy.shared.NOTHING_TO_SYNC, tone: .success)
+            return
+        }
+        syncButton.isEnabled = false
+        syncButton.setTitle(HistoryCopy.shared.SYNCING, for: .normal)
         onRetry { [weak self] snapshot in self?.apply(snapshot) }
     }
 

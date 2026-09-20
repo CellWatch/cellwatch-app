@@ -16,7 +16,15 @@ data class MeasurementHistoryUiState(
     /** Sync wording, from the one presenter that owns it app-wide. */
     val syncHeadline: String,
     val syncDetail: String?,
-    val showRetry: Boolean,
+    /**
+     * Whether anything is actually queued.
+     *
+     * Was `showRetry`, and the button's visibility was bound to it. Hiding
+     * the control whenever the queue was empty read as "this screen has no
+     * sync" rather than "there is nothing to sync"; the button is always
+     * shown now and this only drives the tone and what a tap reports.
+     */
+    val hasPendingUploads: Boolean,
 ) {
     val isEmpty: Boolean get() = runRows.isEmpty()
 }
@@ -97,7 +105,7 @@ class MeasurementHistoryViewModel {
             syncDetail = syncSummary?.detail,
             // Only offered when there is something to retry; a permanently
             // enabled Retry on an empty queue invites pointless taps.
-            showRetry = pendingRecords > 0,
+            hasPendingUploads = pendingRecords > 0,
         )
     }
 }
