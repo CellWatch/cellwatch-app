@@ -97,6 +97,19 @@ final class ProductWalkthroughUiTests: XCTestCase {
         history.tap()
         XCTAssertTrue(app.buttons["Back to map"].waitForExistence(timeout: 15), "history never appeared")
         capture("10-history")
+
+        let export = app.buttons["Export data"]
+        XCTAssertTrue(export.waitForExistence(timeout: 10))
+        export.tap()
+        XCTAssertTrue(app.buttons["Export full data"].waitForExistence(timeout: 10), "export never appeared")
+        capture("11-export")
+
+        app.buttons["Back to map"].tap()
+        let settings = app.buttons["Settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 15))
+        settings.tap()
+        XCTAssertTrue(app.buttons["Save settings"].waitForExistence(timeout: 10), "settings never appeared")
+        capture("12-settings")
     }
 
     /// Taps in before typing; a field that is not first responder swallows the text.

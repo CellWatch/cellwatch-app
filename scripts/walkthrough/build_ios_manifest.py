@@ -63,6 +63,17 @@ STEPS = [
      "Saved runs, newest first, with the same sync wording as the map and the results screen. "
      "Selecting a run shows its detail. Retry appears only when something is actually queued.",
      ["run list rendered", "'Back to map' offered"]),
+    ("11-export", "Export",
+     "Two formats. The FCC file is the document the challenge accepts and contains only "
+     "measurements that qualified, so it is empty here - the simulator has no carrier and is "
+     "on Wi-Fi. The full export carries every run, why each was withheld, and what the device "
+     "could not report, which the FCC format has no field for.",
+     ["both export formats offered"]),
+    ("12-settings", "Settings",
+     "Contact details, an FCC-challenge opt-out that genuinely stops submissions being built, "
+     "and a read-only account of what this install is talking to - app version, device id, "
+     "measurement server, upload target.",
+     ["settings form and diagnostics presented"]),
 ]
 
 
