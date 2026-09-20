@@ -15,6 +15,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme.dp
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingCopy
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileUiState
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileViewModel
 
@@ -36,9 +37,9 @@ class OnboardingScreen(
     private val onComplete: () -> Unit,
 ) {
 
-    private val nameField = Components.formField(context, "Full name")
-    private val phoneField = Components.formField(context, "Phone (###-###-####)", InputType.TYPE_CLASS_PHONE)
-    private val emailField = Components.formField(context, "Email", InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
+    private val nameField = Components.formField(context, OnboardingCopy.FULL_NAME)
+    private val phoneField = Components.formField(context, OnboardingCopy.PHONE_HINT, InputType.TYPE_CLASS_PHONE)
+    private val emailField = Components.formField(context, OnboardingCopy.EMAIL, InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
     private val feedbackLabel = Components.bodyText(context, "", muted = true)
 
     val view: View
@@ -52,7 +53,7 @@ class OnboardingScreen(
         // something already agreed.
         viewModel.onAcknowledgementChanged(acknowledged)
 
-        val saveButton = Components.primaryButton(context, "Save profile")
+        val saveButton = Components.primaryButton(context, OnboardingCopy.SAVE_PROFILE)
         saveButton.setOnClickListener {
             val submission = viewModel.submit()
             render(submission.state)
@@ -63,7 +64,7 @@ class OnboardingScreen(
         scaffold.addContent(
             Components.bodyText(
                 context,
-                "Tell us who you are before starting measurements. These details accompany every submission.",
+                OnboardingCopy.PROMPT,
                 muted = true,
             ),
             nameField,

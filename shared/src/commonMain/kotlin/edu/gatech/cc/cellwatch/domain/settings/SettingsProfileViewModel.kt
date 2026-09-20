@@ -5,6 +5,7 @@ import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingField
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingPersistenceUseCase
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfile
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingValidationUseCase
+import edu.gatech.cc.cellwatch.domain.profile.ProfileCopy
 
 data class SettingsProfileUiState(
     val collectionMode: CollectionMode = CollectionMode.TESTING,
@@ -12,7 +13,7 @@ data class SettingsProfileUiState(
     val phone: String = "",
     val email: String = "",
     val fccAcknowledged: Boolean = false,
-    val feedbackMessage: String = "Update your settings and save.",
+    val feedbackMessage: String = SettingsCopy.UPDATE_AND_SAVE,
     val feedbackIsError: Boolean = false,
     val fieldErrors: Map<OnboardingField, String> = emptyMap(),
 )
@@ -44,7 +45,7 @@ class SettingsProfileViewModel(
                 phone = formatPhoneDisplay(persisted.phone),
                 email = persisted.email,
                 fccAcknowledged = persisted.fccAcknowledged,
-                feedbackMessage = "Saved settings loaded.",
+                feedbackMessage = SettingsCopy.SAVED_SETTINGS_LOADED,
                 feedbackIsError = false,
             )
         }
@@ -96,7 +97,7 @@ class SettingsProfileViewModel(
                 phone = persisted.phone,
                 email = persisted.email,
                 fccAcknowledged = persisted.fccAcknowledged,
-                feedbackMessage = "Settings saved.",
+                feedbackMessage = SettingsCopy.SETTINGS_SAVED,
                 feedbackIsError = false,
             )
             SettingsProfileSubmission(
@@ -107,7 +108,7 @@ class SettingsProfileViewModel(
         } else {
             val errors = result.fieldErrors.entries.joinToString(separator = "; ") { "${it.key}:${it.value}" }
             uiState = uiState.copy(
-                feedbackMessage = "Fix validation errors and save again.",
+                feedbackMessage = SettingsCopy.FIX_ERRORS,
                 feedbackIsError = true,
                 fieldErrors = result.fieldErrors,
             )
@@ -123,20 +124,25 @@ class SettingsProfileViewModel(
         val name = uiState.name.trim()
         val phoneDigits = uiState.phone.filter(Char::isDigit)
         val email = uiState.email.trim()
-        val feedback = when {
-            phoneDigits.isNotEmpty() && phoneDigits.length < 10 ->
-                "Phone should be 10 digits."
-            email.isNotEmpty() && !email.contains("@") ->
-                "Email appears incomplete."
-            name.isEmpty() || phoneDigits.isEmpty() || email.isEmpty() ->
-                "Update your settings and save."
-            !uiState.fccAcknowledged ->
-                "Please acknowledge FCC challenge sharing terms."
-            else ->
-                "Looks good. Tap Save Settings."
+        // Which case it is, rather than which sentence came out - see the
+        // same change in OnboardingProfileViewModel. Comparing the rendered
+        // message against English literals stops working once it is
+        // translated.
+        val problem = when {
+            phoneDigits.isNotEmpty() && phoneDigits.length < 10 -> ProfileCopy.PHONE_TOO_SHORT
+            email.isNotEmpty() && !email.contains("@") -> ProfileCopy.EMAIL_INCOMPLETE
+            !uiState.fccAcknowledged &&
+                name.isNotEmpty() && phoneDigits.isNotEmpty() && email.isNotEmpty() ->
+                ProfileCopy.ACKNOWLEDGE_TERMS
+            else -> null
         }
-        val isError = feedback != "Update your settings and save." &&
-            feedback != "Looks good. Tap Save Settings."
+        val feedback = problem
+            ?: if (name.isEmpty() || phoneDigits.isEmpty() || email.isEmpty()) {
+                SettingsCopy.UPDATE_AND_SAVE
+            } else {
+                SettingsCopy.LOOKS_GOOD
+            }
+        val isError = problem != null
         uiState = uiState.copy(
             feedbackMessage = feedback,
             feedbackIsError = isError,

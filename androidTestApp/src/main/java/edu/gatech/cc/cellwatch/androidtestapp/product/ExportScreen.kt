@@ -5,6 +5,8 @@ import android.view.View
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
 import edu.gatech.cc.cellwatch.domain.app.ExportDocument
+import edu.gatech.cc.cellwatch.domain.export.ExportCopy
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeCopy
 
 /**
  * Write the stored measurements to a file. Android counterpart of
@@ -28,45 +30,40 @@ class ExportScreen(
     val view: View get() = scaffold
 
     init {
-        val fccButton = Components.primaryButton(context, "Export FCC submission file").apply {
+        val fccButton = Components.primaryButton(context, ExportCopy.EXPORT_FCC_FILE).apply {
             setOnClickListener {
-                status.update("Preparing FCC file…", Components.StatusTone.NEUTRAL)
-                buildFcc { document -> deliver(document, "FCC submission file") }
+                status.update(ExportCopy.PREPARING_FCC_FILE, Components.StatusTone.NEUTRAL)
+                buildFcc { document -> deliver(document, ExportCopy.FCC_FILE_TITLE) }
             }
         }
-        val extendedButton = Components.secondaryButton(context, "Export full data").apply {
+        val extendedButton = Components.secondaryButton(context, ExportCopy.EXPORT_FULL_DATA).apply {
             setOnClickListener {
-                status.update("Preparing full export…", Components.StatusTone.NEUTRAL)
-                buildExtended { document -> deliver(document, "Full export") }
+                status.update(ExportCopy.PREPARING_FULL_EXPORT, Components.StatusTone.NEUTRAL)
+                buildExtended { document -> deliver(document, ExportCopy.FULL_EXPORT_TITLE) }
             }
         }
-        val backButton = Components.secondaryButton(context, "Back to map").apply {
+        val backButton = Components.secondaryButton(context, MapHomeCopy.BACK_TO_MAP).apply {
             setOnClickListener { onBack() }
         }
 
         scaffold.addContent(
-            Components.sectionHeader(context, "FCC submission file"),
+            Components.sectionHeader(context, ExportCopy.FCC_FILE_TITLE),
             Components.bodyText(
                 context,
-                "The format the FCC accepts for a challenge submission. It contains only " +
-                    "measurements that qualified: taken over cellular, complete, and with " +
-                    "submission turned on. If none qualified, this file will be empty.",
+                ExportCopy.FCC_FILE_DESCRIPTION,
                 muted = true,
             ),
             Components.divider(context),
-            Components.sectionHeader(context, "Full export"),
+            Components.sectionHeader(context, ExportCopy.FULL_EXPORT_TITLE),
             Components.bodyText(
                 context,
-                "Everything this device recorded, including measurements the FCC file leaves " +
-                    "out and the reason each one was left out. Also records what the device " +
-                    "could not report — missing permissions, unavailable telephony — which the " +
-                    "FCC format has no field for.",
+                ExportCopy.FULL_EXPORT_DESCRIPTION,
                 muted = true,
             ),
             status,
         )
         scaffold.addActions(fccButton, extendedButton, backButton)
-        status.update("Choose a format to export.", Components.StatusTone.NEUTRAL)
+        status.update(ExportCopy.CHOOSE_FORMAT, Components.StatusTone.NEUTRAL)
     }
 
     private fun deliver(document: ExportDocument, label: String) {
@@ -78,17 +75,17 @@ class ExportScreen(
             Components.StatusTone.SUCCESS
         }
         status.update(
-            "$label ready: ${document.recordCount} record(s). Choose where to save it.",
+            ExportCopy.ready(label, document.recordCount),
             tone,
         )
         save(document)
     }
 
     fun onSaved(fileName: String) {
-        status.update("Saved to $fileName.", Components.StatusTone.SUCCESS)
+        status.update(ExportCopy.savedTo(fileName), Components.StatusTone.SUCCESS)
     }
 
     fun onSaveFailed(reason: String) {
-        status.update("Export not saved: $reason", Components.StatusTone.WARNING)
+        status.update(ExportCopy.notSaved(reason), Components.StatusTone.WARNING)
     }
 }

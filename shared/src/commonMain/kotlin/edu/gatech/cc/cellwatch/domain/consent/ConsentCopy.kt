@@ -1,5 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.consent
 
+import edu.gatech.cc.cellwatch.domain.localization.localized
+
 /**
  * What the user is asked to agree to, worded exactly as frozenApp worded it.
  *

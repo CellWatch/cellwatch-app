@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.domain.measurementhistory
 
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementResultReadModelUseCase
+import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunCopy
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunProgress
 import edu.gatech.cc.cellwatch.domain.measurementrun.MeasurementRunState
 import edu.gatech.cc.cellwatch.domain.model.Measurement
@@ -74,25 +75,25 @@ class MeasurementHistoryStatusUseCase(
             MeasurementHistoryStatusReadModel(
                 stateKey = MeasurementHistoryStateKey.EMPTY,
                 syncStateKey = sync.stateKey,
-                title = "No measurements yet",
-                detail = "Run your first measurement to populate history.",
-                latencyText = "--",
-                downloadText = "--",
-                uploadText = "--",
-                uploadedText = "--",
+                title = HistoryCopy.NO_MEASUREMENTS_YET,
+                detail = HistoryCopy.RUN_YOUR_FIRST,
+                latencyText = MeasurementRunCopy.NO_VALUE,
+                downloadText = MeasurementRunCopy.NO_VALUE,
+                uploadText = MeasurementRunCopy.NO_VALUE,
+                uploadedText = MeasurementRunCopy.NO_VALUE,
                 syncSummary = sync.summary,
                 hasMeasurement = false,
             )
         } else {
-            val latencyText = metrics?.latencyText ?: input.fallbackLatencyText.orEmpty().ifBlank { "--" }
-            val downloadText = metrics?.downloadText ?: input.fallbackDownloadText.orEmpty().ifBlank { "--" }
-            val uploadText = metrics?.uploadText ?: input.fallbackUploadText.orEmpty().ifBlank { "--" }
-            val uploadedText = metrics?.uploadedText ?: input.fallbackUploadedText.orEmpty().ifBlank { "Pending sync" }
-            val detail = metrics?.summaryText ?: input.fallbackDetailText.orEmpty().ifBlank { "Latest measurement captured." }
+            val latencyText = metrics?.latencyText ?: input.fallbackLatencyText.orEmpty().ifBlank { MeasurementRunCopy.NO_VALUE }
+            val downloadText = metrics?.downloadText ?: input.fallbackDownloadText.orEmpty().ifBlank { MeasurementRunCopy.NO_VALUE }
+            val uploadText = metrics?.uploadText ?: input.fallbackUploadText.orEmpty().ifBlank { MeasurementRunCopy.NO_VALUE }
+            val uploadedText = metrics?.uploadedText ?: input.fallbackUploadedText.orEmpty().ifBlank { MeasurementRunCopy.PENDING_SYNC }
+            val detail = metrics?.summaryText ?: input.fallbackDetailText.orEmpty().ifBlank { HistoryCopy.LATEST_CAPTURED }
             MeasurementHistoryStatusReadModel(
                 stateKey = MeasurementHistoryStateKey.HAS_MEASUREMENT,
                 syncStateKey = sync.stateKey,
-                title = "Latest measurement",
+                title = HistoryCopy.LATEST_MEASUREMENT,
                 detail = detail,
                 latencyText = latencyText,
                 downloadText = downloadText,
@@ -132,19 +133,19 @@ class MeasurementHistoryStatusUseCase(
     private fun pendingSummary(measurements: Int?, submissions: Int?): PendingSummary {
         if (measurements == null || submissions == null) {
             return PendingSummary(
-                summary = "Sync status unknown. Tap refresh.",
+                summary = HistoryCopy.SYNC_UNKNOWN_TAP_REFRESH,
                 stateKey = MeasurementHistorySyncStateKey.UNKNOWN,
             )
         }
         val total = measurements + submissions
         if (total <= 0) {
             return PendingSummary(
-                summary = "All records are synced.",
+                summary = HistoryCopy.ALL_SYNCED,
                 stateKey = MeasurementHistorySyncStateKey.SYNCED,
             )
         }
         return PendingSummary(
-            summary = "Pending sync queue: $measurements measurement record(s), $submissions submission record(s).",
+            summary = HistoryCopy.pendingQueue(measurements, submissions),
             stateKey = MeasurementHistorySyncStateKey.PENDING,
         )
     }

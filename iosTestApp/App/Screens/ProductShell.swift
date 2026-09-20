@@ -183,8 +183,10 @@ final class ProductShell: NSObject {
         case let run as DestinationMeasurementRun:
             guard case .success(let container) = Container.result else {
                 return PlaceholderScreenViewController(
-                    titleText: "Cannot start",
-                    message: "Measurement is unavailable: \(Container.errorText ?? "runtime configuration missing").",
+                    titleText: ShellCopy.shared.CANNOT_START,
+                    message: ShellCopy.shared.measurementUnavailable(
+                        reason: Container.errorText ?? ShellCopy.shared.RUNTIME_CONFIG_MISSING
+                    ),
                     tone: .warning
                 )
             }
@@ -201,8 +203,10 @@ final class ProductShell: NSObject {
         case is DestinationHistory:
             guard case .success(let container) = Container.result else {
                 return PlaceholderScreenViewController(
-                    titleText: "History",
-                    message: "History is unavailable: \(Container.errorText ?? "runtime configuration missing").",
+                    titleText: HistoryCopy.shared.TITLE,
+                    message: ShellCopy.shared.historyUnavailable(
+                        reason: Container.errorText ?? ShellCopy.shared.RUNTIME_CONFIG_MISSING
+                    ),
                     tone: .warning
                 )
             }
@@ -227,8 +231,10 @@ final class ProductShell: NSObject {
         case is DestinationSettings:
             guard case .success(let container) = Container.result else {
                 return PlaceholderScreenViewController(
-                    titleText: "Settings",
-                    message: "Settings are unavailable: \(Container.errorText ?? "runtime configuration missing").",
+                    titleText: SettingsCopy.shared.TITLE,
+                    message: ShellCopy.shared.settingsUnavailable(
+                        reason: Container.errorText ?? ShellCopy.shared.RUNTIME_CONFIG_MISSING
+                    ),
                     tone: .warning
                 )
             }
@@ -250,8 +256,10 @@ final class ProductShell: NSObject {
         case is DestinationExport:
             guard case .success(let container) = Container.result else {
                 return PlaceholderScreenViewController(
-                    titleText: "Export",
-                    message: "Export is unavailable: \(Container.errorText ?? "runtime configuration missing").",
+                    titleText: ExportCopy.shared.TITLE,
+                    message: ShellCopy.shared.exportUnavailable(
+                        reason: Container.errorText ?? ShellCopy.shared.RUNTIME_CONFIG_MISSING
+                    ),
                     tone: .warning
                 )
             }
@@ -273,32 +281,21 @@ final class ProductShell: NSObject {
 
         case let blocking as DestinationBlockingError:
             return PlaceholderScreenViewController(
-                titleText: "Cannot start",
+                titleText: ShellCopy.shared.CANNOT_START,
                 message: blocking.reason,
                 tone: .warning
             )
         default:
             return PlaceholderScreenViewController(
                 titleText: label(for: destination),
-                message: "This screen is not built yet. See UI_DELIVERY_PLAN.md for where it lands.",
+                message: ShellCopy.shared.NOT_BUILT_YET,
                 tone: .neutral
             )
         }
     }
 
     private func label(for destination: Destination) -> String {
-        switch destination {
-        // Localised, so the bar does not sit in English above Spanish copy.
-        case is DestinationDataUse: return ConsentCopy.shared.DATA_USE_TITLE
-        case is DestinationCollectionChoice: return ConsentCopy.shared.COLLECTION_MODE_TITLE
-        case is DestinationMapHome: return "Map home"
-        case is DestinationMeasurementStart: return "Start measurement"
-        case is DestinationMeasurementRun: return "Measurement"
-        case is DestinationHistory: return "History"
-        case is DestinationSettings: return "Settings"
-        case is DestinationExport: return "Export"
-        default: return "Screen"
-        }
+        ShellCopy.shared.title(destination: destination)
     }
 }
 

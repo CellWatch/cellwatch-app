@@ -69,32 +69,22 @@ class MeasurementHistoryViewModel {
         val selected = state.selectedRun
         return MeasurementHistoryUiState(
             headerText = if (state.totalRunCount == 0) {
-                "No measurements yet"
+                HistoryCopy.NO_MEASUREMENTS_YET
             } else {
                 // The list is capped; saying so stops "5 runs" reading as the total.
-                "${state.totalRunCount} measurement${if (state.totalRunCount == 1) "" else "s"}" +
-                    if (state.runRows.size < state.totalRunCount) {
-                        " — showing the ${state.runRows.size} most recent"
-                    } else {
-                        ""
-                    }
+                HistoryCopy.measurementCount(state.totalRunCount, state.runRows.size)
             },
-            emptyText = if (state.totalRunCount == 0) {
-                "Measurements you take will be listed here, newest first."
-            } else {
-                null
-            },
+            emptyText = if (state.totalRunCount == 0) HistoryCopy.EMPTY_HINT else null,
             runRows = state.runRows,
             totalRunCount = state.totalRunCount,
             selected = selected,
-            selectedTitle = if (selected == null) "Measurement details" else "Selected run",
+            selectedTitle = if (selected == null) {
+                HistoryCopy.MEASUREMENT_DETAILS
+            } else {
+                HistoryCopy.SELECTED_RUN
+            },
             selectedDetail = selected?.let { run ->
-                buildString {
-                    appendLine("Latency: ${run.latency}")
-                    appendLine("Download: ${run.download}")
-                    appendLine("Upload: ${run.upload}")
-                    append("Sync: ${run.uploaded}")
-                }
+                HistoryCopy.detailBlock(run.latency, run.download, run.upload, run.uploaded)
             } ?: state.status.detail,
             syncHeadline = syncSummary?.headline ?: state.status.syncSummary,
             syncDetail = syncSummary?.detail,

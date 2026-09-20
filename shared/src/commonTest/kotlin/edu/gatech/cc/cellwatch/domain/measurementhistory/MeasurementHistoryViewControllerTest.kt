@@ -76,7 +76,7 @@ class MeasurementHistoryViewControllerTest {
 
         assertEquals(4, pending.totalRunCount)
         assertEquals(MeasurementHistorySyncStateKey.PENDING, pending.status.syncStateKey)
-        assertEquals("Pending sync queue: 1 measurement record(s), 1 submission record(s).", pending.status.syncSummary)
+        assertEquals("Pending sync queue: 1 measurement record, 1 submission record.", pending.status.syncSummary)
     }
 
     @Test

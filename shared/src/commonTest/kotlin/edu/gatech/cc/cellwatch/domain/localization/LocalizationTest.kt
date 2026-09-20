@@ -1,10 +1,12 @@
-package edu.gatech.cc.cellwatch.domain.consent
+package edu.gatech.cc.cellwatch.domain.localization
+
+import edu.gatech.cc.cellwatch.domain.consent.ConsentCopy
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class ConsentCopyTest {
+class LocalizationTest {
 
     @Test
     fun spanishIsChosenForAnySpanishLanguageTag() {
@@ -29,7 +31,7 @@ class ConsentCopyTest {
     fun everyDisclosureHasCopyInTheDeviceLanguage() {
         // Whichever language the host reports, no disclosure may come back
         // empty. That the two languages actually differ is checked on the JVM
-        // by ConsentCopyLocaleTest, which can swap the default locale.
+        // by CopyLocaleTest, which can swap the default locale.
         val disclosures = listOf(
             "DATA_USE_TITLE" to ConsentCopy::DATA_USE_TITLE,
             "DATA_USE_SHARED" to ConsentCopy::DATA_USE_SHARED,

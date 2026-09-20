@@ -13,7 +13,11 @@ import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme.dp
 import edu.gatech.cc.cellwatch.domain.app.ProductDiagnostics
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeCopy
 import edu.gatech.cc.cellwatch.domain.model.CollectionMode
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingCopy
+import edu.gatech.cc.cellwatch.domain.profile.ProfileCopy
+import edu.gatech.cc.cellwatch.domain.settings.SettingsCopy
 import edu.gatech.cc.cellwatch.domain.settings.SettingsProfileUiState
 import edu.gatech.cc.cellwatch.domain.settings.SettingsProfileViewModel
 
@@ -33,13 +37,13 @@ class SettingsScreen(
 ) {
 
     private val scaffold = ScreenScaffold(context)
-    private val nameField = Components.formField(context, "Full name")
-    private val phoneField = Components.formField(context, "Phone (###-###-####)", InputType.TYPE_CLASS_PHONE)
-    private val emailField = Components.formField(context, "Email", InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
+    private val nameField = Components.formField(context, OnboardingCopy.FULL_NAME)
+    private val phoneField = Components.formField(context, OnboardingCopy.PHONE_HINT, InputType.TYPE_CLASS_PHONE)
+    private val emailField = Components.formField(context, OnboardingCopy.EMAIL, InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
     private val acknowledgeSwitch = Switch(context)
     private val challengeSwitch = Switch(context)
     private val feedback = Components.bodyText(context, "", muted = true)
-    private val diagnosticsText = Components.bodyText(context, "Loading…", muted = true)
+    private val diagnosticsText = Components.bodyText(context, SettingsCopy.LOADING, muted = true)
 
     /** Guards the text watchers while the view model writes values back. */
     private var rendering = false
@@ -47,14 +51,14 @@ class SettingsScreen(
     val view: View get() = scaffold
 
     init {
-        val saveButton = Components.primaryButton(context, "Save settings").apply {
+        val saveButton = Components.primaryButton(context, SettingsCopy.SAVE_SETTINGS).apply {
             setOnClickListener {
                 val submission = viewModel.submit()
                 render(submission.state)
                 if (submission.success) onSaved()
             }
         }
-        val backButton = Components.secondaryButton(context, "Back to map").apply {
+        val backButton = Components.secondaryButton(context, MapHomeCopy.BACK_TO_MAP).apply {
             setOnClickListener { onBack() }
         }
 
@@ -76,25 +80,23 @@ class SettingsScreen(
         scaffold.addContent(
             Components.bodyText(
                 context,
-                "These details accompany every submission. Changing them affects future " +
-                    "measurements, not ones already uploaded.",
+                SettingsCopy.DETAILS_NOTE,
                 muted = true,
             ),
             nameField,
             phoneField,
             emailField,
-            switchRow("I acknowledge the FCC challenge sharing terms.", acknowledgeSwitch),
+            switchRow(ProfileCopy.FCC_ACK_LABEL, acknowledgeSwitch),
             Components.divider(context),
-            switchRow("Submit measurements to the FCC challenge", challengeSwitch),
+            switchRow(SettingsCopy.SUBMIT_TO_CHALLENGE, challengeSwitch),
             Components.bodyText(
                 context,
-                "With this off, measurements are still taken and saved, but no FCC submission " +
-                    "is created for them.",
+                SettingsCopy.SUBMIT_NOTE,
                 muted = true,
             ),
             feedback,
             Components.divider(context),
-            Components.sectionHeader(context, "About this install"),
+            Components.sectionHeader(context, SettingsCopy.ABOUT_THIS_INSTALL),
             diagnosticsText,
         )
         scaffold.addActions(saveButton, backButton)
@@ -131,9 +133,9 @@ class SettingsScreen(
     private fun renderDiagnostics(d: ProductDiagnostics) {
         diagnosticsText.text = buildString {
             appendLine("${d.appName} ${d.appVersion}")
-            appendLine("Device ID: ${d.deviceId}")
-            appendLine("Measurement server: ${d.msakMode} (${d.msakEndpoint})")
-            append("Upload target: ${d.supabaseMode}")
+            appendLine(SettingsCopy.deviceId(d.deviceId))
+            appendLine(SettingsCopy.measurementServer(d.msakMode, d.msakEndpoint))
+            append(SettingsCopy.uploadTarget(d.supabaseMode))
         }
     }
 

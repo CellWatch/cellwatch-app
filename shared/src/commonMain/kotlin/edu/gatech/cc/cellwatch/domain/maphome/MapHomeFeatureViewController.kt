@@ -164,7 +164,7 @@ class MapHomeFeatureViewController(
                 hasAnyLocationData = false,
                 centerLatitude = null,
                 centerLongitude = null,
-                summary = "No measurement location points available yet.",
+                summary = MapHomeCopy.NO_POINTS_YET,
             )
         }
 
@@ -172,11 +172,7 @@ class MapHomeFeatureViewController(
         val centerLongitude = points.map { it.longitude }.average()
         val hexCells = aggregateCells(points)
 
-        val summary = if (hexCells.size == 1) {
-            "Showing ${points.size} point(s) in 1 grid cell."
-        } else {
-            "Showing ${points.size} point(s) in ${hexCells.size} grid cells."
-        }
+        val summary = MapHomeCopy.showingPoints(points.size, hexCells.size)
 
         return MapHomeFeatureState(
             points = points,

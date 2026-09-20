@@ -17,9 +17,9 @@ final class HistoryScreenViewController: UIViewController {
     private let runsStack = UIStackView()
     private let detailHeader = Components.sectionHeader("")
     private let detailText = Components.bodyText("")
-    private lazy var retryButton = Components.primaryButton("Retry upload")
-    private lazy var exportButton = Components.secondaryButton("Export data")
-    private lazy var backButton = Components.secondaryButton("Back to map")
+    private lazy var retryButton = Components.primaryButton(HistoryCopy.shared.RETRY_UPLOAD)
+    private lazy var exportButton = Components.secondaryButton(HistoryCopy.shared.EXPORT_DATA)
+    private lazy var backButton = Components.secondaryButton(MapHomeCopy.shared.BACK_TO_MAP)
 
     /// Rows are rebuilt per render, so their targets need a stable owner.
     private var rowTimestamps: [UIButton: Int64] = [:]
@@ -92,7 +92,7 @@ final class HistoryScreenViewController: UIViewController {
 
         retryButton.isHidden = !state.showRetry
         retryButton.isEnabled = true
-        retryButton.setTitle("Retry upload", for: .normal)
+        retryButton.setTitle(HistoryCopy.shared.RETRY_UPLOAD, for: .normal)
 
         runsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         rowTimestamps.removeAll()
@@ -123,7 +123,7 @@ final class HistoryScreenViewController: UIViewController {
 
     @objc private func retryTapped() {
         retryButton.isEnabled = false
-        retryButton.setTitle("Retrying…", for: .normal)
+        retryButton.setTitle(HistoryCopy.shared.RETRYING, for: .normal)
         onRetry { [weak self] snapshot in self?.apply(snapshot) }
     }
 

@@ -3,11 +3,11 @@ package edu.gatech.cc.cellwatch.domain.measurementhistory
 import edu.gatech.cc.cellwatch.domain.model.LatencyData
 import edu.gatech.cc.cellwatch.domain.model.Measurement
 import edu.gatech.cc.cellwatch.domain.model.UploadDownloadData
-import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.datetime.Instant
 
 class MeasurementHistoryStatusUseCaseTest {
     private val useCase = MeasurementHistoryStatusUseCase()
@@ -68,7 +68,7 @@ class MeasurementHistoryStatusUseCaseTest {
         assertEquals("100 Mbps", model.downloadText)
         assertEquals("30 Mbps", model.uploadText)
         assertEquals("Pending sync", model.uploadedText)
-        assertEquals("Pending sync queue: 2 measurement record(s), 1 submission record(s).", model.syncSummary)
+        assertEquals("Pending sync queue: 2 measurement records, 1 submission record.", model.syncSummary)
     }
 
     @Test

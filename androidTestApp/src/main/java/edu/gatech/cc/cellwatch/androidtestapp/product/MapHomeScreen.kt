@@ -14,25 +14,28 @@ import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.annotation.annotations
-import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationOptions
-import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
+import com.mapbox.maps.plugin.gestures.gestures
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.MapScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
-import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
 import edu.gatech.cc.cellwatch.domain.maphome.H3Grid
 import edu.gatech.cc.cellwatch.domain.maphome.H3Resolution
-import edu.gatech.cc.cellwatch.domain.maphome.MapHomeOverlayMode
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeCopy
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeMeasurementLocationSnapshot
-import edu.gatech.cc.cellwatch.domain.sync.SyncStatusSummary
+import edu.gatech.cc.cellwatch.domain.maphome.MapHomeOverlayMode
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeSyncStateKey
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeUiState
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeViewModel
+import edu.gatech.cc.cellwatch.domain.measurementhistory.HistoryCopy
+import edu.gatech.cc.cellwatch.domain.settings.SettingsCopy
+import edu.gatech.cc.cellwatch.domain.sync.SyncStatusSummary
 
 /**
  * The app's home. Android counterpart of `MapHomeScreenViewController`.
@@ -59,7 +62,7 @@ class MapHomeScreen(
 
     private val scaffold = MapScreenScaffold(context)
     private val statusHolder = FrameLayout(context)
-    private val measureButton = Components.primaryButton(context, "Measure")
+    private val measureButton = Components.primaryButton(context, MapHomeCopy.MEASURE)
     private val overlayButton = Components.secondaryButton(context, "")
     private var mapView: MapView? = null
     private var pointAnnotations: PointAnnotationManager? = null
@@ -78,10 +81,10 @@ class MapHomeScreen(
             }
             render(viewModel.setOverlayMode(next))
         }
-        val historyButton = Components.secondaryButton(context, "History & sync").apply {
+        val historyButton = Components.secondaryButton(context, HistoryCopy.TITLE).apply {
             setOnClickListener { onHistory() }
         }
-        val settingsButton = Components.secondaryButton(context, "Settings").apply {
+        val settingsButton = Components.secondaryButton(context, SettingsCopy.TITLE).apply {
             setOnClickListener { onSettings() }
         }
         val secondaryRow = LinearLayout(context).apply {
@@ -120,11 +123,11 @@ class MapHomeScreen(
 
     private fun render(state: MapHomeUiState) {
         // Labelled with the destination rather than the current mode: a
-        // button reading "Hex grid" while showing the hex grid is ambiguous.
+        // button reading MapHomeCopy.HEX_GRID while showing the hex grid is ambiguous.
         overlayButton.text = if (state.overlayMode == MapHomeOverlayMode.HEX_GRID) {
-            "Show points only"
+            MapHomeCopy.SHOW_POINTS_ONLY
         } else {
-            "Show coverage grid"
+            MapHomeCopy.SHOW_COVERAGE_GRID
         }
         measureButton.isEnabled = state.canStartMeasurement
         measureButton.alpha = if (state.canStartMeasurement) 1f else 0.5f
