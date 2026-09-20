@@ -14,6 +14,7 @@ import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.annotation.annotations
+import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationManager
@@ -24,6 +25,8 @@ import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Components
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.MapScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.designsystem.Theme
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
+import edu.gatech.cc.cellwatch.domain.maphome.H3Grid
+import edu.gatech.cc.cellwatch.domain.maphome.H3Resolution
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeOverlayMode
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeMeasurementLocationSnapshot
 import edu.gatech.cc.cellwatch.domain.sync.SyncStatusSummary
@@ -168,6 +171,16 @@ class MapHomeScreen(
                 .zoom(12.5)
                 .build(),
         )
+        // Which cell was tapped is computed from the coordinate rather than
+        // hit-tested against the annotations. H3 is a spatial index, so the
+        // cell is a pure function of the point - and the annotation click
+        // listener never fired anyway, because the point and badge managers
+        // sit above the polygons and swallow the gesture.
+        map.gestures.addOnMapClickListener { point ->
+            H3Grid.cellAt(point.latitude(), point.longitude(), H3Resolution.OVERLAY)
+                ?.let { render(viewModel.onCellSelected(it)) }
+            true
+        }
         map.mapboxMap.addOnMapIdleListener {
             render(viewModel.onZoomChanged(map.mapboxMap.cameraState.zoom))
             // Reported after idle rather than on every frame: the grid is
@@ -242,6 +255,7 @@ class MapHomeScreen(
                                 if (cell.hasMeasurements) HEX_FILL_COLOR else android.graphics.Color.TRANSPARENT,
                             )
                             .withFillOutlineColor(Theme.Palette.PRIMARY)
+
                     },
                 )
             }

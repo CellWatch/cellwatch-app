@@ -195,6 +195,12 @@ final class MapHomeScreenViewController: UIViewController {
                 self.renderFeatures(self.viewModel.currentState())
             }
         )
+        // A plain tap recogniser rather than a map event: the tap signal moved
+        // between Mapbox versions, and converting a screen point to a
+        // coordinate is stable across them.
+        let cellTap = UITapGestureRecognizer(target: self, action: #selector(mapTapped(_:)))
+        map.addGestureRecognizer(cellTap)
+
         mapEventTokens.append(
             map.mapboxMap.onMapIdle.observeNext { [weak self] _ in
                 guard let self, let map = self.mapView else { return }
@@ -265,6 +271,24 @@ final class MapHomeScreenViewController: UIViewController {
         }
     }
 #endif
+
+    /// Which cell was tapped is computed from the coordinate rather than
+    /// hit-tested against the annotations: H3 is a spatial index, so the cell
+    /// is a pure function of the point - and on Android the annotation click
+    /// listener never fired at all, because the point and badge managers sit
+    /// above the polygons and swallow the gesture.
+    @objc private func mapTapped(_ recognizer: UITapGestureRecognizer) {
+#if canImport(MapboxMaps)
+        guard let map = mapView else { return }
+        let coordinate = map.mapboxMap.coordinate(for: recognizer.location(in: map))
+        guard let cell = H3Grid.shared.cellAt(
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            resolution: Int32(H3Resolution.shared.OVERLAY)
+        ) else { return }
+        render(viewModel.onCellSelected(cellId: cell))
+#endif
+    }
 
     @objc private func overlayTapped() {
         let next = viewModel.currentState().overlayMode == MapHomeOverlayMode.hexGrid

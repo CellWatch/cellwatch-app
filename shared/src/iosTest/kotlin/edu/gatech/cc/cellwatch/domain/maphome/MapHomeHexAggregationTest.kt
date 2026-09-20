@@ -86,3 +86,67 @@ class MapHomeHexAggregationTest {
         assertTrue(coarse <= fine, "zooming out produced more cells ($coarse) than in ($fine)")
     }
 }
+
+/**
+ * Drill-down: tapping a resolution-8 cell shows its resolution-9 children.
+ */
+class MapHomeHexDrillDownTest {
+
+    private val lat = 33.7756
+    private val lon = -84.3963
+
+    private fun controllerWithOnePoint(): Pair<MapHomeFeatureViewController, String> {
+        val controller = MapHomeFeatureViewController()
+        controller.loadMeasurements(
+            listOf(
+                MapHomeMeasurementLocationSnapshot(
+                    id = "a",
+                    title = "latency",
+                    timestampMs = 1,
+                    latitude = lat,
+                    longitude = lon,
+                ),
+            ),
+        )
+        // Zoomed out, so the grid is at the parent resolution.
+        controller.onZoomChanged(10.0)
+        val parent = H3Grid.cellAt(lat, lon, H3Resolution.OVERLAY)!!
+        return controller to parent
+    }
+
+    @Test
+    fun selectingAParentReplacesItWithItsChildren() {
+        val (controller, parent) = controllerWithOnePoint()
+
+        val state = controller.onCellSelected(parent)
+
+        val ids = state.hexCells.map { it.id }
+        // The parent is gone, not drawn beneath: leaving it would double-count
+        // the same measurements on screen.
+        assertTrue(parent !in ids, "the selected parent is still drawn")
+        H3Index.childrenOf(parent, H3Resolution.STORED).forEach { child ->
+            assertTrue(child in ids, "child $child missing from the drill-down")
+        }
+    }
+
+    @Test
+    fun exactlyOneChildCarriesTheMeasurement() {
+        val (controller, parent) = controllerWithOnePoint()
+
+        val children = controller.onCellSelected(parent).hexCells
+            .filter { it.id in H3Index.childrenOf(parent, H3Resolution.STORED) }
+
+        assertEquals(1, children.count { it.hasMeasurements })
+        assertEquals(1, children.first { it.hasMeasurements }.measurementCount)
+    }
+
+    @Test
+    fun selectingTheSameCellAgainBacksOut() {
+        val (controller, parent) = controllerWithOnePoint()
+
+        controller.onCellSelected(parent)
+        val state = controller.onCellSelected(parent)
+
+        assertTrue(state.hexCells.any { it.id == parent }, "did not return to the parent grid")
+    }
+}

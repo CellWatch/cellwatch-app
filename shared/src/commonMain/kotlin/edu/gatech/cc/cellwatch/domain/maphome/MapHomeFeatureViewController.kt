@@ -83,6 +83,7 @@ class MapHomeFeatureViewController(
     private var snapshots: List<MapHomeMeasurementLocationSnapshot> = emptyList()
     private var zoomLevel: Double = 13.0
     private var bounds: H3Bounds? = null
+    private var selectedParent: String? = null
 
     fun reset(): MapHomeFeatureState {
         snapshots = emptyList()
@@ -109,6 +110,29 @@ class MapHomeFeatureViewController(
      * cells that happen to contain data; without bounds there is nothing to
      * tile against.
      */
+    /**
+     * Drills into a cell, or back out of it.
+     *
+     * frozenApp's behaviour: tapping a parent renders its children inside it
+     * and clears the parent's own fill, so the finer breakdown is readable
+     * against the coarse grid. Tapping the selected parent again backs out.
+     */
+    fun onCellSelected(cellId: String): MapHomeFeatureState {
+        selectedParent = when {
+            selectedParent == cellId -> null
+            // Only a parent-resolution cell drills; tapping a child that is
+            // already shown should not re-enter a level.
+            H3Index.resolutionOf(cellId) == H3Resolution.OVERLAY -> cellId
+            else -> null
+        }
+        return currentState()
+    }
+
+    fun clearSelection(): MapHomeFeatureState {
+        selectedParent = null
+        return currentState()
+    }
+
     fun onBoundsChanged(north: Double, south: Double, east: Double, west: Double): MapHomeFeatureState {
         bounds = H3Bounds(north = north, south = south, east = east, west = west)
         return currentState()
@@ -179,11 +203,12 @@ class MapHomeFeatureViewController(
     private fun aggregateCells(points: List<MapHomePointFeature>): List<MapHomeHexCellFeature> {
         if (!H3Grid.isSupported) return squareBuckets(points)
 
-        val resolution = if (zoomLevel >= fineGridZoomThreshold) {
-            H3Resolution.STORED
-        } else {
-            H3Resolution.OVERLAY
-        }
+        // Always the parent resolution, as frozenApp drew it. Switching the
+        // grid to resolution 9 when zoomed in was my own addition and it made
+        // drill-down impossible: the cells on screen were already children,
+        // so tapping one had nothing finer to reveal. Zoom now affects only
+        // how much of the grid fits, not what a cell means.
+        val resolution = H3Resolution.OVERLAY
         val grouped = points.groupBy { point ->
             H3Grid.cellAt(point.latitude, point.longitude, resolution)
         }
@@ -226,8 +251,48 @@ class MapHomeFeatureViewController(
                 }
             }
 
-        return (indexed + empty + squareBuckets(unindexed))
+        val parentGrid = (indexed + empty).sortedByDescending { it.measurementCount }
+        val withChildren = expandSelected(parentGrid, points, resolution)
+        return (withChildren + squareBuckets(unindexed))
             .sortedByDescending { it.measurementCount }
+    }
+
+    /**
+     * Replaces the selected cell with its children.
+     *
+     * The parent itself is dropped rather than drawn underneath: frozenApp
+     * clears its fill when selected, and leaving a filled parent behind its
+     * own children double-counts the same measurements on screen.
+     */
+    private fun expandSelected(
+        grid: List<MapHomeHexCellFeature>,
+        points: List<MapHomePointFeature>,
+        resolution: Int,
+    ): List<MapHomeHexCellFeature> {
+        val parent = selectedParent ?: return grid
+        if (resolution != H3Resolution.OVERLAY) return grid
+        val childResolution = H3Resolution.STORED
+
+        val childCounts = points
+            .mapNotNull { H3Grid.cellAt(it.latitude, it.longitude, childResolution) }
+            .groupingBy { it }
+            .eachCount()
+
+        val children = H3Index.childrenOf(parent, childResolution).mapNotNull { child ->
+            val boundary = H3Grid.boundaryOf(child)
+            if (boundary.isEmpty()) {
+                null
+            } else {
+                MapHomeHexCellFeature(
+                    id = child,
+                    centerLatitude = boundary.map { it.latitude }.average(),
+                    centerLongitude = boundary.map { it.longitude }.average(),
+                    measurementCount = childCounts[child] ?: 0,
+                    boundary = boundary,
+                )
+            }
+        }
+        return grid.filterNot { it.id == parent } + children
     }
 
     private fun squareBuckets(points: List<MapHomePointFeature>): List<MapHomeHexCellFeature> {

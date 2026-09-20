@@ -68,6 +68,12 @@ class MapHomeViewModel(
         return combine()
     }
 
+    /** Drills into a hex cell, or back out of it if already selected. */
+    fun onCellSelected(cellId: String): MapHomeUiState {
+        features.onCellSelected(cellId)
+        return combine()
+    }
+
     /** The visible rectangle, so the overlay can tile it. */
     fun onBoundsChanged(north: Double, south: Double, east: Double, west: Double): MapHomeUiState {
         features.onBoundsChanged(north = north, south = south, east = east, west = west)
