@@ -32,3 +32,6 @@ SELECT * FROM LatencyDataEntity WHERE id = ?;
 
 selectLatencyDataByMeasurement:
 SELECT * FROM LatencyDataEntity WHERE measurementId = ? ORDER BY createdOn DESC;
+
+deleteAllLatencyData:
+DELETE FROM LatencyDataEntity;

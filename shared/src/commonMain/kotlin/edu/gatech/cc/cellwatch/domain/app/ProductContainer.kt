@@ -355,6 +355,41 @@ class ProductContainer(
         recordSyncAttempt(uploadedCount = uploaded, failed = report.isFailure || uploaded == 0)
     }
 
+    /**
+     * Deletes every stored measurement from this device.
+     *
+     * Local only. Anything already uploaded stays on the CellWatch server and,
+     * if it was a challenge submission, with the FCC - there is no API here
+     * that could recall it, and pretending otherwise in the UI would be a
+     * lie. The Settings copy says so, and points at Export first.
+     *
+     * Children before parents: `LatencyDataEntity`, `LocationEntity`,
+     * `CellEntity` and `UploadDownloadDataEntity` all carry a foreign key to
+     * `MeasurementEntity`, so deleting measurements first would either fail
+     * or orphan them depending on how the driver has enforcement configured.
+     *
+     * The device credential and the contact profile are deliberately left
+     * alone: this purges measurements, not the identity the next one will be
+     * submitted under.
+     */
+    suspend fun purgeLocalMeasurements(): Int {
+        // Counted before the delete: afterwards there is nothing left to
+        // count, and "deleted 0 measurements" is exactly the wrong thing to
+        // tell someone who just wiped their history.
+        val removed = recentRuns().size
+        latencyRepository.deleteAll()
+        uploadDownloadRepository.deleteAll()
+        locationRepository.deleteAll()
+        cellRepository.deleteAll()
+        submissionRepository.deleteAll()
+        measurementRepository.deleteAll()
+        // The sync record counts uploads that no longer have local rows
+        // behind them; leaving it would report "24 records uploaded" over an
+        // empty history.
+        services.syncStatusStore.clear()
+        return removed
+    }
+
     suspend fun diagnostics(): ProductDiagnostics {
         val identity = services.submissionIdentity()
         val profile = services.runtimeProfile

@@ -34,3 +34,6 @@ SELECT * FROM LocationEntity WHERE id = ?;
 
 selectLocationsByMeasurement:
 SELECT * FROM LocationEntity WHERE measurementId = ? ORDER BY timestamp DESC;
+
+deleteAllLocations:
+DELETE FROM LocationEntity;

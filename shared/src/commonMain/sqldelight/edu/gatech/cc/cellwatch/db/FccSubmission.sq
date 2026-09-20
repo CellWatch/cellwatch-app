@@ -63,3 +63,6 @@ markFccSubmissionUploaded:
 UPDATE FccSubmissionEntity
 SET uploadTime = ?
 WHERE id = ?;
+
+deleteAllFccSubmissions:
+DELETE FROM FccSubmissionEntity;

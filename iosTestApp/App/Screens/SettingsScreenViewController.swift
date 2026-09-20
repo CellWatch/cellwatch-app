@@ -9,6 +9,8 @@ final class SettingsScreenViewController: UIViewController {
     private let viewModel: SettingsProfileViewModel
     private let diagnosticsProvider: (@escaping (ProductDiagnostics) -> Void) -> Void
     private let onSaved: () -> Void
+    /// Runs the purge and reports how many runs were removed.
+    private let onPurge: (@escaping (Int32) -> Void) -> Void
     private let onBack: () -> Void
 
     private let scaffold = ScreenScaffold()
@@ -21,6 +23,12 @@ final class SettingsScreenViewController: UIViewController {
     private let diagnostics = Components.bodyText(SettingsCopy.shared.LOADING, muted: true)
     private lazy var saveButton = Components.primaryButton(SettingsCopy.shared.SAVE_SETTINGS)
     private lazy var backButton = Components.secondaryButton(MapHomeCopy.shared.BACK_TO_MAP)
+    /// Destructive, so it asks first. In the content column rather than the
+    /// pinned action row: the actions are what a user reaches for
+    /// repeatedly, and "delete everything" should not sit where "Save
+    /// settings" is muscle memory.
+    private lazy var deleteButton = Components.secondaryButton(SettingsCopy.shared.DELETE_DATA_BUTTON)
+    private let deleteFeedback = Components.bodyText("", muted: true)
 
     /// Guards the editing callbacks while render writes values back.
     private var rendering = false
@@ -29,11 +37,13 @@ final class SettingsScreenViewController: UIViewController {
         viewModel: SettingsProfileViewModel,
         diagnosticsProvider: @escaping (@escaping (ProductDiagnostics) -> Void) -> Void,
         onSaved: @escaping () -> Void,
+        onPurge: @escaping (@escaping (Int32) -> Void) -> Void,
         onBack: @escaping () -> Void
     ) {
         self.viewModel = viewModel
         self.diagnosticsProvider = diagnosticsProvider
         self.onSaved = onSaved
+        self.onPurge = onPurge
         self.onBack = onBack
         super.init(nibName: nil, bundle: nil)
     }
@@ -52,6 +62,8 @@ final class SettingsScreenViewController: UIViewController {
         challengeSwitch.addTarget(self, action: #selector(switchChanged), for: .valueChanged)
         saveButton.addTarget(self, action: #selector(saveTapped), for: .touchUpInside)
         backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
+        deleteButton.addTarget(self, action: #selector(deleteTapped), for: .touchUpInside)
+        deleteFeedback.isHidden = true
 
         scaffold.addContent(
             Components.bodyText(
@@ -69,6 +81,11 @@ final class SettingsScreenViewController: UIViewController {
                 muted: true
             ),
             feedback,
+            Components.divider(),
+            Components.sectionHeader(SettingsCopy.shared.DELETE_DATA_TITLE),
+            Components.bodyText(SettingsCopy.shared.DELETE_DATA_EXPLANATION, muted: true),
+            deleteButton,
+            deleteFeedback,
             Components.divider(),
             Components.sectionHeader(SettingsCopy.shared.ABOUT_THIS_INSTALL),
             diagnostics
@@ -120,6 +137,32 @@ final class SettingsScreenViewController: UIViewController {
         let submission = viewModel.submit()
         render(submission.state)
         if submission.success { onSaved() }
+    }
+
+    @objc private func deleteTapped() {
+        let confirm = UIAlertController(
+            title: SettingsCopy.shared.DELETE_DATA_CONFIRM_TITLE,
+            message: SettingsCopy.shared.DELETE_DATA_EXPLANATION,
+            preferredStyle: .alert
+        )
+        confirm.addAction(
+            UIAlertAction(title: SettingsCopy.shared.DELETE_DATA_CANCEL, style: .cancel)
+        )
+        confirm.addAction(
+            UIAlertAction(title: SettingsCopy.shared.DELETE_DATA_CONFIRM, style: .destructive) {
+                [weak self] _ in
+                guard let self else { return }
+                self.deleteButton.isEnabled = false
+                self.onPurge { removed in
+                    DispatchQueue.main.async {
+                        self.deleteButton.isEnabled = true
+                        self.deleteFeedback.text = SettingsCopy.shared.deleteDataDone(removed: removed)
+                        self.deleteFeedback.isHidden = false
+                    }
+                }
+            }
+        )
+        present(confirm, animated: true)
     }
 
     @objc private func backTapped() { onBack() }

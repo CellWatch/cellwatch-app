@@ -68,7 +68,9 @@ object PendingSyncParityContract {
         }
         override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
         override fun observeByGroupId(groupId: String): Flow<List<Measurement>> = emptyFlow()
-    }
+    
+    override suspend fun deleteAll() = Unit
+}
 
     private class PendingCountsSubmissionRepository(
         var unsyncedCount: Int,
@@ -82,5 +84,7 @@ object PendingSyncParityContract {
         }
         override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
         override fun observeUnsubmitted(): Flow<List<FccSubmission>> = emptyFlow()
-    }
+    
+    override suspend fun deleteAll() = Unit
+}
 }

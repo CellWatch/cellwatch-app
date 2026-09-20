@@ -14,4 +14,6 @@ interface MeasurementRepository {
     suspend fun getUnsynced(): List<Measurement>
     suspend fun markUploaded(id: String, uploadedAt: Instant)
     fun observeByGroupId(groupId: String): Flow<List<Measurement>>
+    /** Wipes the table. Used only by the Settings purge, never by sync. */
+    suspend fun deleteAll()
 }

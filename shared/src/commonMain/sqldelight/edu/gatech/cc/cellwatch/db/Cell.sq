@@ -46,3 +46,6 @@ SELECT * FROM CellEntity WHERE id = ?;
 
 selectCellsByMeasurement:
 SELECT * FROM CellEntity WHERE measurementId = ? ORDER BY timestamp DESC;
+
+deleteAllCells:
+DELETE FROM CellEntity;

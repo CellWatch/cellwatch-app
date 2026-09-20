@@ -151,6 +151,8 @@ private class PendingCountsMeasurementRepository(
     override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
 
     override fun observeByGroupId(groupId: String): Flow<List<Measurement>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }
 
 private class PendingCountsSubmissionRepository(
@@ -171,4 +173,6 @@ private class PendingCountsSubmissionRepository(
     override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
 
     override fun observeUnsubmitted(): Flow<List<FccSubmission>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }

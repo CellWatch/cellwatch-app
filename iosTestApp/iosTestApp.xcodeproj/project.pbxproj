@@ -28,6 +28,7 @@
 		86459FD77C97ADE68AB8FF5B /* MapboxMaps in Frameworks */ = {isa = PBXBuildFile; productRef = 2DF937AE245D7F3BDC47774F /* MapboxMaps */; };
 		89E0D34B32E6051C03B33433 /* DataUseScreenViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8667B14D78FA0531D27D888B /* DataUseScreenViewController.swift */; };
 		89FA7FCD8FE5F2573997FE75 /* sharedKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5FBB840AFCBCA7D65A6631A /* sharedKit.framework */; };
+		8A9E3E56D80CDF71A69D0D65 /* ListScreenScaffold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81E5E58BB9A9D5EC88C8B8E0 /* ListScreenScaffold.swift */; };
 		977E9231D468416122AC68B8 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF61CDEBFB7F6D32D7D78061 /* Theme.swift */; };
 		A7D28BB638F32ABC40E53916 /* OnboardingUiScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = 472086868B28DBFF7BA40D28 /* OnboardingUiScenario.swift */; };
 		B74097565DC6F8AFBBEA8B1B /* sharedKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C5FBB840AFCBCA7D65A6631A /* sharedKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -103,6 +104,7 @@
 		69722339826D742BBE4CDC6A /* TestingSupabaseHostedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestingSupabaseHostedTests.swift; sourceTree = "<group>"; };
 		782E33907E65E3B549EEC742 /* MeasurementStartScreenViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementStartScreenViewController.swift; sourceTree = "<group>"; };
 		7FBA4A19DB0AC3D964EE15F0 /* LocalMsakPhase3HostedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMsakPhase3HostedTests.swift; sourceTree = "<group>"; };
+		81E5E58BB9A9D5EC88C8B8E0 /* ListScreenScaffold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListScreenScaffold.swift; sourceTree = "<group>"; };
 		8299095BF8160B417290B09F /* ScreenScaffold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenScaffold.swift; sourceTree = "<group>"; };
 		855C37415555A2CF3EB2445A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8667B14D78FA0531D27D888B /* DataUseScreenViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataUseScreenViewController.swift; sourceTree = "<group>"; };
@@ -176,6 +178,7 @@
 			children = (
 				D7235E6B95B6E13A80186856 /* ComponentGalleryViewController.swift */,
 				6928C5C59275F28B9FA849D3 /* Components.swift */,
+				81E5E58BB9A9D5EC88C8B8E0 /* ListScreenScaffold.swift */,
 				55B17F2FD10979151ADC54EF /* MapScreenScaffold.swift */,
 				8299095BF8160B417290B09F /* ScreenScaffold.swift */,
 				EF61CDEBFB7F6D32D7D78061 /* Theme.swift */,
@@ -398,6 +401,7 @@
 				89E0D34B32E6051C03B33433 /* DataUseScreenViewController.swift in Sources */,
 				C2C3C858578CD4D3A2C417E8 /* ExportScreenViewController.swift in Sources */,
 				04007DC233A000135FB340F6 /* HistoryScreenViewController.swift in Sources */,
+				8A9E3E56D80CDF71A69D0D65 /* ListScreenScaffold.swift in Sources */,
 				D7195C00C496BBE2DB7212C5 /* MapHomeScreenViewController.swift in Sources */,
 				39AA3BA9C3A12CC39DC53C9F /* MapScreenScaffold.swift in Sources */,
 				C0BA213AE78E430951A30DCA /* MeasurementRunScreenViewController.swift in Sources */,

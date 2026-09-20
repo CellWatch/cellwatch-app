@@ -147,6 +147,8 @@ private class FakeMeasurementRepository(
         lastMarkedTime = uploadedAt
     }
     override fun observeByGroupId(groupId: String): Flow<List<Measurement>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }
 
 private class FakeUploadDownloadDataRepository(
@@ -158,6 +160,8 @@ private class FakeUploadDownloadDataRepository(
     override suspend fun getByMeasurementId(measurementId: String): List<UploadDownloadData> =
         byMeasurementId[measurementId].orEmpty()
     override fun observeByMeasurementId(measurementId: String): Flow<List<UploadDownloadData>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }
 
 private class FakeLatencyDataRepository(
@@ -169,6 +173,8 @@ private class FakeLatencyDataRepository(
     override suspend fun getByMeasurementId(measurementId: String): List<LatencyData> =
         byMeasurementId[measurementId].orEmpty()
     override fun observeByMeasurementId(measurementId: String): Flow<List<LatencyData>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }
 
 private class FakeLocationRepository(
@@ -180,6 +186,8 @@ private class FakeLocationRepository(
     override suspend fun getByMeasurementId(measurementId: String): List<Location> =
         byMeasurementId[measurementId].orEmpty()
     override fun observeByMeasurementId(measurementId: String): Flow<List<Location>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }
 
 private class FakeCellRepository(
@@ -191,6 +199,8 @@ private class FakeCellRepository(
     override suspend fun getByMeasurement(measurementId: String): List<Cell> =
         byMeasurementId[measurementId].orEmpty()
     override fun observeByMeasurement(measurementId: String): Flow<List<Cell>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }
 
 private class FakeFccSubmissionRepository(
@@ -209,4 +219,6 @@ private class FakeFccSubmissionRepository(
         lastMarkedTime = uploadedAt
     }
     override fun observeUnsubmitted(): Flow<List<FccSubmission>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }

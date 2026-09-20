@@ -184,6 +184,8 @@ private class FakeMeasurementRepository(
     override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
 
     override fun observeByGroupId(groupId: String): Flow<List<Measurement>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }
 
 private class FakeFccSubmissionRepository(
@@ -202,6 +204,8 @@ private class FakeFccSubmissionRepository(
     override suspend fun markUploaded(id: String, uploadedAt: Instant) = Unit
 
     override fun observeUnsubmitted(): Flow<List<FccSubmission>> = emptyFlow()
+
+    override suspend fun deleteAll() = Unit
 }
 
 private fun latency(groupId: String, id: String, uploadTime: Instant?): Measurement = Measurement(

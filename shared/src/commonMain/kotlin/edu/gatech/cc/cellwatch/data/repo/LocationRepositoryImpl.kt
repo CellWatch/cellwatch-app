@@ -49,4 +49,8 @@ class LocationRepositoryImpl(
             .asFlow()
             .mapToList(io)
             .map { rows -> rows.map { it.toDomain() } }
+
+    override suspend fun deleteAll() {
+        queries.deleteAllLocations()
+    }
 }

@@ -9,4 +9,6 @@ interface UploadDownloadDataRepository {
     suspend fun deleteByMeasurementId(measurementId: String)
     suspend fun getByMeasurementId(measurementId: String): List<UploadDownloadData>
     fun observeByMeasurementId(measurementId: String): Flow<List<UploadDownloadData>>
+    /** Wipes the table. Used only by the Settings purge, never by sync. */
+    suspend fun deleteAll()
 }
