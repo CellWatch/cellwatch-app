@@ -31,21 +31,15 @@ Carried forward so it is not lost between sessions. Updated 2026-09-19.
 7. **Crashlytics** — low priority. The shared logger landed without it; reinstating it is a
    data-governance question, not a technical one.
 
-## Verification gaps introduced 2026-09-19
-
-8. **Sync failure and in-progress messaging is unit-tested only.** The empty and success states
-    were driven live on both platforms; the failure wording was not, because the hosted testing
-    endpoint now works and there is no cheap way to force a real upload failure.
-
 ## External action
 
-9. **Send `FCC_IOS_DISCREPANCIES.md`** to the FCC and ask for guidance. Ready and pushed. The
+8. **Send `FCC_IOS_DISCREPANCIES.md`** to the FCC and ask for guidance. Ready and pushed. The
    standing strategy is not to block development on the reply, but the clock only starts once
    it goes.
 
 ## Build fragility
 
-10. **msak-client-kmp 0.6.0 exists only in this machine's `~/.m2`.** cellwatch pins it and
+9. **msak-client-kmp 0.6.0 exists only in this machine's `~/.m2`.** cellwatch pins it and
    resolves via `mavenLocal()`, so a fresh clone or another machine cannot build until someone
    runs `publishToMavenLocal` in msak — and nothing says so. Either set
    `cellwatch.useLocalMsak=true` to resolve from source through the existing `includeBuild`, or
