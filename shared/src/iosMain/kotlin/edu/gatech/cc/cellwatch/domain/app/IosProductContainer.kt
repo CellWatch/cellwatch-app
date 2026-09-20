@@ -6,6 +6,7 @@ import edu.gatech.cc.cellwatch.data.remote.IosDeviceCredentialStorage
 import edu.gatech.cc.cellwatch.db.CellwatchDatabase
 import edu.gatech.cc.cellwatch.domain.capability.IosPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.capability.PlatformCapabilityProvider
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileStore
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileConfig
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileResolver
@@ -25,6 +26,7 @@ import platform.Foundation.NSBundle
  */
 class IosProductServices(
     override val runtimeProfile: RuntimeSyncMsakProfile,
+    override val onboardingStore: OnboardingProfileStore,
     private val contact: () -> ProductSubmissionIdentity,
 ) : ProductPlatformServices {
 
@@ -81,10 +83,14 @@ object IosProductContainerFactory {
     private var cached: ProductContainer? = null
 
     @Throws(IllegalStateException::class, Throwable::class)
-    fun create(contact: () -> ProductSubmissionIdentity): ProductContainer {
+    fun create(
+        onboardingStore: OnboardingProfileStore,
+        contact: () -> ProductSubmissionIdentity,
+    ): ProductContainer {
         cached?.let { return it }
         val profile = RuntimeProfileResolver.resolveProfile(packagedConfig())
-        return ProductContainer(IosProductServices(profile, contact)).also { cached = it }
+        return ProductContainer(IosProductServices(profile, onboardingStore, contact))
+            .also { cached = it }
     }
 
     private fun packagedConfig(): RuntimeProfileConfig = RuntimeProfileConfig(

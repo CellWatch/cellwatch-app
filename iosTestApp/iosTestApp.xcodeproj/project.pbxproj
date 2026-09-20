@@ -21,6 +21,7 @@
 		4FEEB5A1AA5CCE04BCF14372 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2719041E3CF0FFB3362AD23B /* SceneDelegate.swift */; };
 		688776FA9F39A51A18E72E96 /* OnboardingRuntimeHostedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3BD851B5AC03638135A8070 /* OnboardingRuntimeHostedTests.swift */; };
 		792ED54D3A4767F43652B59A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 855C37415555A2CF3EB2445A /* Assets.xcassets */; };
+		7AD90878D167FDF557E1A0EC /* SettingsScreenViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40B7558C152E12E02B565B0 /* SettingsScreenViewController.swift */; };
 		84F560F5FE514C2F882EC660 /* PublicMsakLocalSupabaseHostedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E6C60504253D7266EA7634E /* PublicMsakLocalSupabaseHostedTests.swift */; };
 		860267AAF566B2DEE348E34A /* MeasurementStartScreenViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 782E33907E65E3B549EEC742 /* MeasurementStartScreenViewController.swift */; };
 		86459FD77C97ADE68AB8FF5B /* MapboxMaps in Frameworks */ = {isa = PBXBuildFile; productRef = 2DF937AE245D7F3BDC47774F /* MapboxMaps */; };
@@ -110,6 +111,7 @@
 		D7235E6B95B6E13A80186856 /* ComponentGalleryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentGalleryViewController.swift; sourceTree = "<group>"; };
 		E7484BFCC67094A1E0163165 /* iosTestAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = iosTestAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EF61CDEBFB7F6D32D7D78061 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		F40B7558C152E12E02B565B0 /* SettingsScreenViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreenViewController.swift; sourceTree = "<group>"; };
 		FB9A153688887E8E766B727E /* HistoryScreenViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryScreenViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -184,6 +186,7 @@
 				782E33907E65E3B549EEC742 /* MeasurementStartScreenViewController.swift */,
 				BB126610B2F72E4D396DC9D5 /* OnboardingScreenViewController.swift */,
 				A7B50B6F1371F5F189B8C522 /* ProductShell.swift */,
+				F40B7558C152E12E02B565B0 /* SettingsScreenViewController.swift */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -391,6 +394,7 @@
 				42D7BA0DAC927DE18C0753E8 /* ProductShell.swift in Sources */,
 				4FEEB5A1AA5CCE04BCF14372 /* SceneDelegate.swift in Sources */,
 				EBDD3A6DCF4CAA5D194407E7 /* ScreenScaffold.swift in Sources */,
+				7AD90878D167FDF557E1A0EC /* SettingsScreenViewController.swift in Sources */,
 				977E9231D468416122AC68B8 /* Theme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

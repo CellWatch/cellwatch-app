@@ -21,7 +21,9 @@ final class ProductShell: NSObject {
     private enum Container {
         static let result: Result<ProductContainer, Error> = {
             do {
-                return .success(try IosProductContainerFactory.shared.create(contact: {
+                return .success(try IosProductContainerFactory.shared.create(
+                    onboardingStore: OnboardingUserDefaultsStore(),
+                    contact: {
                     let profile = OnboardingUserDefaultsStore().loadProfile()
                     return ProductSubmissionIdentity(
                         appName: IosProductServices.companion.appName(),
@@ -41,6 +43,14 @@ final class ProductShell: NSObject {
             if case .failure(let error) = result { return error.localizedDescription }
             return nil
         }
+    }
+
+    /// The user's collection-mode choice, or the challenge default.
+    ///
+    /// Was hardcoded to `.fccChallenge`, so the settings toggle could not
+    /// actually stop submissions being built.
+    private static func collectionMode() -> CollectionMode {
+        (try? Container.result.get())?.collectionMode() ?? CollectionMode.fccChallenge
     }
 
     private let navigator: Navigator
@@ -90,7 +100,12 @@ final class ProductShell: NSObject {
             return OnboardingScreenViewController(
                 viewModel: OnboardingProfileViewModel(
                     validationUseCase: OnboardingValidationUseCase(),
-                    persistenceUseCase: OnboardingPersistenceUseCase(store: OnboardingUserDefaultsStore())
+                    persistenceUseCase: OnboardingPersistenceUseCase(store: OnboardingUserDefaultsStore()),
+                    // The screen asks the user to acknowledge the FCC challenge
+                    // terms, so recording them as TESTING - the two-argument
+                    // default - contradicted what they just agreed to, and
+                    // meant no submission was ever created.
+                    collectionMode: CollectionMode.fccChallenge
                 ),
                 onComplete: { [weak self] in
                     // Reset rather than push: the back button must not return
@@ -138,7 +153,7 @@ final class ProductShell: NSObject {
 
         case is DestinationMeasurementStart:
             return MeasurementStartScreenViewController(
-                viewModel: MeasurementStartViewModel(collectionMode: CollectionMode.fccChallenge),
+                viewModel: MeasurementStartViewModel(collectionMode: Self.collectionMode()),
                 hasRuntimeProfile: (try? Container.result.get()) != nil,
                 onReadyToRun: { [weak self] inVehicle in
                     self?.go(to: DestinationMeasurementRun(inVehicle: inVehicle))
@@ -156,7 +171,7 @@ final class ProductShell: NSObject {
             return MeasurementRunScreenViewController(
                 viewModel: MeasurementRunViewModel(
                     container: container,
-                    mode: CollectionMode.fccChallenge,
+                    mode: Self.collectionMode(),
                     inVehicle: run.inVehicle
                 ),
                 onDone: { [weak self] in self?.reset(to: DestinationMapHome.shared) },
@@ -185,6 +200,29 @@ final class ProductShell: NSObject {
                         DispatchQueue.main.async { completion(snapshot) }
                     }
                 },
+                onBack: { [weak self] in self?.reset(to: DestinationMapHome.shared) }
+            )
+
+        case is DestinationSettings:
+            guard case .success(let container) = Container.result else {
+                return PlaceholderScreenViewController(
+                    titleText: "Settings",
+                    message: "Settings are unavailable: \(Container.errorText ?? "runtime configuration missing").",
+                    tone: .warning
+                )
+            }
+            return SettingsScreenViewController(
+                viewModel: SettingsProfileViewModel(
+                    validationUseCase: OnboardingValidationUseCase(),
+                    persistenceUseCase: OnboardingPersistenceUseCase(store: OnboardingUserDefaultsStore())
+                ),
+                diagnosticsProvider: { completion in
+                    container.diagnostics { value, _ in
+                        guard let value else { return }
+                        DispatchQueue.main.async { completion(value) }
+                    }
+                },
+                onSaved: { [weak self] in self?.reset(to: DestinationMapHome.shared) },
                 onBack: { [weak self] in self?.reset(to: DestinationMapHome.shared) }
             )
 

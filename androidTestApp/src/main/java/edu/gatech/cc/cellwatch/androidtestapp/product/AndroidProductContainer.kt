@@ -14,6 +14,7 @@ import edu.gatech.cc.cellwatch.domain.app.ProductPlatformServices
 import edu.gatech.cc.cellwatch.domain.app.ProductSubmissionIdentity
 import edu.gatech.cc.cellwatch.domain.capability.AndroidPlatformCapabilityProvider
 import edu.gatech.cc.cellwatch.domain.capability.PlatformCapabilityProvider
+import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileStore
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeMsakMode
 import edu.gatech.cc.cellwatch.domain.sync.SyncStatusStore
 import edu.gatech.cc.cellwatch.domain.runtime.RuntimeProfileResolver
@@ -55,6 +56,8 @@ class AndroidProductServices(
     override val appSource: String = APP_SOURCE
 
     override val syncStatusStore: SyncStatusStore = AndroidSyncStatusStore(appContext)
+
+    override val onboardingStore: OnboardingProfileStore = AndroidOnboardingProfileStore(appContext)
 
     override fun submissionIdentity(): ProductSubmissionIdentity {
         val profile = AndroidOnboardingProfileStore(appContext).loadProfile()

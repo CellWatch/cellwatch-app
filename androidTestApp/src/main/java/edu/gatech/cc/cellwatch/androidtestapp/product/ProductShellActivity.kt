@@ -23,6 +23,7 @@ import edu.gatech.cc.cellwatch.domain.navigation.toDestination
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingPersistenceUseCase
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileViewModel
 import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingValidationUseCase
+import edu.gatech.cc.cellwatch.domain.settings.SettingsProfileViewModel
 
 /**
  * Hosts the product navigation graph. Android counterpart of `ProductShell`.
@@ -83,6 +84,15 @@ class ProductShellActivity : AppCompatActivity() {
         render()
     }
 
+    /**
+     * The user's collection-mode choice, or the challenge default.
+     *
+     * Was hardcoded to FCC_CHALLENGE, which meant the settings toggle could
+     * not actually stop submissions being built.
+     */
+    private fun collectionMode(): CollectionMode =
+        container.getOrNull()?.collectionMode() ?: CollectionMode.FCC_CHALLENGE
+
     private fun goTo(destination: Destination) {
         navigator.goTo(destination)
         render()
@@ -126,6 +136,11 @@ class ProductShellActivity : AppCompatActivity() {
             viewModel = OnboardingProfileViewModel(
                 OnboardingValidationUseCase(),
                 OnboardingPersistenceUseCase(AndroidOnboardingProfileStore(applicationContext)),
+                // The screen asks the user to acknowledge the FCC challenge
+                // terms, so recording them as TESTING - the two-argument
+                // default - contradicted what they just agreed to, and meant
+                // no submission was ever created. Settings can opt back out.
+                CollectionMode.FCC_CHALLENGE,
             ),
             // Reset rather than push: back must not return to onboarding once a
             // profile is saved.
@@ -172,7 +187,7 @@ class ProductShellActivity : AppCompatActivity() {
 
         is Destination.MeasurementStart -> MeasurementStartScreen(
             context = this,
-            viewModel = MeasurementStartViewModel(CollectionMode.FCC_CHALLENGE),
+            viewModel = MeasurementStartViewModel(collectionMode()),
             hasRuntimeProfile = container.isSuccess,
             onReadyToRun = { inVehicle -> goTo(Destination.MeasurementRun(inVehicle)) },
         ).view
@@ -183,7 +198,7 @@ class ProductShellActivity : AppCompatActivity() {
                     context = this,
                     viewModel = MeasurementRunViewModel(
                         container = productContainer,
-                        mode = CollectionMode.FCC_CHALLENGE,
+                        mode = collectionMode(),
                         inVehicle = destination.inVehicle,
                     ),
                     onDone = { resetTo(Destination.MapHome) },
@@ -213,6 +228,26 @@ class ProductShellActivity : AppCompatActivity() {
             },
             onFailure = { error ->
                 placeholder("History is unavailable: ${error.message}", Components.StatusTone.WARNING)
+            },
+        )
+
+        is Destination.Settings -> container.fold(
+            onSuccess = { productContainer ->
+                SettingsScreen(
+                    context = this,
+                    viewModel = SettingsProfileViewModel(
+                        OnboardingValidationUseCase(),
+                        OnboardingPersistenceUseCase(AndroidOnboardingProfileStore(applicationContext)),
+                    ),
+                    diagnosticsProvider = { deliver ->
+                        lifecycleScope.launch { deliver(productContainer.diagnostics()) }
+                    },
+                    onSaved = { resetTo(Destination.MapHome) },
+                    onBack = { resetTo(Destination.MapHome) },
+                ).view
+            },
+            onFailure = { error ->
+                placeholder("Settings are unavailable: ${error.message}", Components.StatusTone.WARNING)
             },
         )
 
