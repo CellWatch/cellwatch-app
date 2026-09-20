@@ -16,17 +16,24 @@ import sharedKit
 final class OnboardingScreenViewController: UIViewController {
 
     private let viewModel: OnboardingProfileViewModel
+    /// Carried from the consent step, where the real acknowledgement - the one
+    /// naming what the carrier releases to the FCC - is now asked.
+    private let acknowledged: Bool
     private let onComplete: () -> Void
 
     private let nameField = Components.formField(placeholder: "Full name")
     private let phoneField = Components.formField(placeholder: "Phone (###-###-####)", keyboard: .phonePad)
     private let emailField = Components.formField(placeholder: "Email", keyboard: .emailAddress)
-    private let acknowledgeSwitch = UISwitch()
     private let feedbackLabel = Components.bodyText("", muted: true)
     private let saveButton = Components.primaryButton("Save profile")
 
-    init(viewModel: OnboardingProfileViewModel, onComplete: @escaping () -> Void) {
+    init(
+        viewModel: OnboardingProfileViewModel,
+        acknowledged: Bool,
+        onComplete: @escaping () -> Void
+    ) {
         self.viewModel = viewModel
+        self.acknowledged = acknowledged
         self.onComplete = onComplete
         super.init(nibName: nil, bundle: nil)
     }
@@ -37,20 +44,16 @@ final class OnboardingScreenViewController: UIViewController {
     override func loadView() {
         let scaffold = ScreenScaffold()
 
-        let acknowledgeRow = UIStackView(arrangedSubviews: [
-            Components.bodyText("I acknowledge the FCC challenge sharing terms."),
-            acknowledgeSwitch,
-        ])
-        acknowledgeRow.axis = .horizontal
-        acknowledgeRow.alignment = .center
-        acknowledgeRow.spacing = Theme.Space.m
+        // The acknowledgement is not asked here any more. It used to be a
+        // single invented line that linked to nothing and disclosed nothing;
+        // the consent step now asks frozenApp's actual sentence, after showing
+        // what gets published.
 
         scaffold.addContent(
             Components.bodyText("Tell us who you are before starting measurements. These details accompany every submission.", muted: true),
             nameField,
             phoneField,
             emailField,
-            acknowledgeRow,
             feedbackLabel
         )
         scaffold.addActions(saveButton)
@@ -65,10 +68,13 @@ final class OnboardingScreenViewController: UIViewController {
         [nameField, phoneField, emailField].forEach {
             $0.addTarget(self, action: #selector(fieldChanged), for: .editingChanged)
         }
-        acknowledgeSwitch.addTarget(self, action: #selector(acknowledgementChanged), for: .valueChanged)
         saveButton.addTarget(self, action: #selector(save), for: .touchUpInside)
 
         render(viewModel.loadPersistedProfile())
+        // Re-applied after load: loadPersistedProfile resets the state, which
+        // would drop the acknowledgement carried in from consent and leave
+        // Save permanently disabled.
+        render(viewModel.onAcknowledgementChanged(acknowledged: acknowledged), echoingFields: false)
     }
 
     // MARK: - Events in, state out
@@ -83,9 +89,6 @@ final class OnboardingScreenViewController: UIViewController {
         }
     }
 
-    @objc private func acknowledgementChanged() {
-        render(viewModel.onAcknowledgementChanged(acknowledged: acknowledgeSwitch.isOn), echoingFields: false)
-    }
 
     @objc private func save() {
         let submission = viewModel.submit()
@@ -105,7 +108,6 @@ final class OnboardingScreenViewController: UIViewController {
             phoneField.text = state.phone
             emailField.text = state.email
         }
-        acknowledgeSwitch.isOn = state.fccAcknowledged
         feedbackLabel.text = state.feedbackMessage
         feedbackLabel.textColor = state.feedbackIsError ? Theme.Color.warning : Theme.Color.success
     }

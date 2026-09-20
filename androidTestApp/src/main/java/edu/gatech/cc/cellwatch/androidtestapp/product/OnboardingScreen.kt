@@ -28,28 +28,29 @@ import edu.gatech.cc.cellwatch.domain.onboarding.OnboardingProfileViewModel
 class OnboardingScreen(
     context: Context,
     private val viewModel: OnboardingProfileViewModel,
+    /**
+     * Carried from the consent step, where the real acknowledgement - the one
+     * naming what the carrier releases to the FCC - is now asked.
+     */
+    private val acknowledged: Boolean,
     private val onComplete: () -> Unit,
 ) {
 
     private val nameField = Components.formField(context, "Full name")
     private val phoneField = Components.formField(context, "Phone (###-###-####)", InputType.TYPE_CLASS_PHONE)
     private val emailField = Components.formField(context, "Email", InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
-    private val acknowledgeSwitch = Switch(context)
     private val feedbackLabel = Components.bodyText(context, "", muted = true)
 
     val view: View
 
     init {
-        val acknowledgeRow = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            addView(
-                Components.bodyText(context, "I acknowledge the FCC challenge sharing terms."),
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-            )
-            addView(acknowledgeSwitch)
-            minimumHeight = context.dp(Theme.MIN_TAP_TARGET_DP)
-        }
+        // The acknowledgement is not asked here any more. It used to be a
+        // single invented line - "I acknowledge the FCC challenge sharing
+        // terms" - that linked to nothing and disclosed nothing. The consent
+        // step now asks frozenApp's actual sentence, after showing what is
+        // published, so repeating a checkbox here would be asking twice for
+        // something already agreed.
+        viewModel.onAcknowledgementChanged(acknowledged)
 
         val saveButton = Components.primaryButton(context, "Save profile")
         saveButton.setOnClickListener {
@@ -68,7 +69,6 @@ class OnboardingScreen(
             nameField,
             phoneField,
             emailField,
-            acknowledgeRow,
             feedbackLabel,
         )
         scaffold.addActions(saveButton)
@@ -77,11 +77,12 @@ class OnboardingScreen(
         nameField.onTextChanged { render(viewModel.onNameChanged(it), echoFields = false) }
         phoneField.onTextChanged { render(viewModel.onPhoneChanged(it), echoFields = false) }
         emailField.onTextChanged { render(viewModel.onEmailChanged(it), echoFields = false) }
-        acknowledgeSwitch.setOnCheckedChangeListener { _, checked ->
-            render(viewModel.onAcknowledgementChanged(checked), echoFields = false)
-        }
 
         render(viewModel.loadPersistedProfile())
+        // Re-applied after load: loadPersistedProfile resets the state, which
+        // would drop the acknowledgement carried in from the consent step and
+        // leave Save permanently disabled.
+        render(viewModel.onAcknowledgementChanged(acknowledged))
     }
 
     /**
@@ -95,7 +96,6 @@ class OnboardingScreen(
             phoneField.setText(state.phone)
             emailField.setText(state.email)
         }
-        acknowledgeSwitch.isChecked = state.fccAcknowledged
         feedbackLabel.text = state.feedbackMessage
         feedbackLabel.setTextColor(
             if (state.feedbackIsError) Theme.Palette.WARNING else Theme.Palette.SUCCESS,

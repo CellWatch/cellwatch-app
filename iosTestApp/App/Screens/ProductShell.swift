@@ -53,6 +53,11 @@ final class ProductShell: NSObject {
         (try? Container.result.get())?.collectionMode() ?? CollectionMode.fccChallenge
     }
 
+    /// Carried from the consent step into the profile save; the mode the user
+    /// chose has to reach the saved profile or the choice is cosmetic.
+    private var consentMode: CollectionMode = CollectionMode.fccChallenge
+    private var consentAcknowledged = false
+
     private let navigator: Navigator
     private let navigationController = UINavigationController()
 
@@ -96,17 +101,32 @@ final class ProductShell: NSObject {
 
     private func screen(for destination: Destination) -> UIViewController {
         switch destination {
+        case is DestinationDataUse:
+            return DataUseScreenViewController(
+                onContinue: { [weak self] in self?.go(to: DestinationCollectionChoice.shared) }
+            )
+
+        case is DestinationCollectionChoice:
+            return CollectionChoiceScreenViewController(
+                viewModel: ConsentViewModel(),
+                onContinue: { [weak self] mode, acknowledged in
+                    self?.consentMode = mode
+                    self?.consentAcknowledged = acknowledged
+                    self?.go(to: DestinationOnboarding.shared)
+                }
+            )
+
         case is DestinationOnboarding:
             return OnboardingScreenViewController(
                 viewModel: OnboardingProfileViewModel(
                     validationUseCase: OnboardingValidationUseCase(),
                     persistenceUseCase: OnboardingPersistenceUseCase(store: OnboardingUserDefaultsStore()),
-                    // The screen asks the user to acknowledge the FCC challenge
-                    // terms, so recording them as TESTING - the two-argument
-                    // default - contradicted what they just agreed to, and
-                    // meant no submission was ever created.
-                    collectionMode: CollectionMode.fccChallenge
+                    // The mode the user picked on the consent step, not a
+                    // default: recording anything else would contradict the
+                    // choice they were just shown the consequences of.
+                    collectionMode: consentMode
                 ),
+                acknowledged: consentAcknowledged,
                 onComplete: { [weak self] in
                     // Reset rather than push: the back button must not return
                     // to onboarding once a profile is saved.
@@ -268,6 +288,8 @@ final class ProductShell: NSObject {
 
     private func label(for destination: Destination) -> String {
         switch destination {
+        case is DestinationDataUse: return "Data use"
+        case is DestinationCollectionChoice: return "Collection mode"
         case is DestinationMapHome: return "Map home"
         case is DestinationMeasurementStart: return "Start measurement"
         case is DestinationMeasurementRun: return "Measurement"

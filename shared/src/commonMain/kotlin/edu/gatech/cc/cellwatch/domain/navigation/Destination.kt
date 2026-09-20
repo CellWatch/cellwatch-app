@@ -16,6 +16,15 @@ import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingUseCase
  * affordance, not navigation, and never satisfy a story.
  */
 sealed interface Destination {
+    /**
+     * Data use and collection mode, before any details are collected.
+     *
+     * Ahead of [Onboarding] rather than inside it: the first thing asked of a
+     * new user should be whether they accept that their measurements are
+     * published, not their phone number.
+     */
+    data object DataUse : Destination
+    data object CollectionChoice : Destination
     data object Onboarding : Destination
     data object MapHome : Destination
     data object MeasurementStart : Destination
@@ -44,7 +53,8 @@ sealed interface Destination {
  * drifted apart in the first place.
  */
 fun AppLaunchRoutingDecision.toDestination(): Destination = when (destinationToken) {
-    AppLaunchRoutingUseCase.DESTINATION_ONBOARDING_FLOW -> Destination.Onboarding
+    // Consent comes first; the profile form is the last step of that flow.
+    AppLaunchRoutingUseCase.DESTINATION_ONBOARDING_FLOW -> Destination.DataUse
     AppLaunchRoutingUseCase.DESTINATION_MAP_HOME -> Destination.MapHome
     AppLaunchRoutingUseCase.DESTINATION_BLOCKING_ERROR -> Destination.BlockingError(reason)
     // A token this graph does not know is a routing bug. Surfacing it beats

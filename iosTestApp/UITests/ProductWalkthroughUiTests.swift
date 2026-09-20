@@ -32,15 +32,28 @@ final class ProductWalkthroughUiTests: XCTestCase {
         app.launchEnvironment["CELLWATCH_CLEAR_ONBOARDING"] = "1"
         app.launch()
 
+        // Consent comes before anything is collected.
+        XCTAssertTrue(app.staticTexts["Data Use"].waitForExistence(timeout: 30), "data use never appeared")
+        capture("01-data-use")
+        app.buttons["Continue"].tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Collection Mode"].waitForExistence(timeout: 15),
+            "collection mode never appeared"
+        )
+        // Challenge mode is preselected, so the acknowledgement gates Continue.
+        app.switches.element(boundBy: 1).tap()
+        capture("02-collection-mode")
+        app.buttons["Continue"].tap()
+
         let nameField = app.textFields["Full name"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 30), "onboarding never appeared")
-        capture("01-onboarding-empty")
+        XCTAssertTrue(nameField.waitForExistence(timeout: 15), "profile never appeared")
+        capture("03-profile-empty")
 
         type(nameField, "Jeff Wilson")
         type(app.textFields["Phone (###-###-####)"], "404-555-0142")
         type(app.textFields["Email"], "jw199@gatech.edu")
-        app.switches.firstMatch.tap()
-        capture("02-onboarding-complete")
+        capture("04-profile-complete")
 
         let save = app.buttons["Save profile"]
         XCTAssertTrue(save.isHittable, "Save profile is not reachable - is the keyboard covering it?")
@@ -53,19 +66,19 @@ final class ProductWalkthroughUiTests: XCTestCase {
             capture("99-save-failed")
             XCTFail("map home never appeared after saving the profile")
         }
-        capture("03-map-home")
+        capture("05-map-home")
 
         measure.tap()
 
         let start = app.buttons["Start measurement"]
         XCTAssertTrue(start.waitForExistence(timeout: 15), "pre-flight never appeared")
         XCTAssertTrue(app.staticTexts["I am in a moving vehicle"].exists)
-        capture("04-start-measurement")
+        capture("06-start-measurement")
 
         let inVehicle = app.switches.firstMatch
         if inVehicle.exists {
             inVehicle.tap()
-            capture("05-in-vehicle")
+            capture("07-in-vehicle")
             // Back to off, so the captured run reflects the ordinary case.
             inVehicle.tap()
         }
@@ -76,40 +89,40 @@ final class ProductWalkthroughUiTests: XCTestCase {
         // expected here rather than incidental.
         let measureAnyway = app.buttons["Measure anyway"]
         if measureAnyway.waitForExistence(timeout: 5) {
-            capture("06-wifi-confirmation")
+            capture("08-wifi-confirmation")
             measureAnyway.tap()
         }
 
         let stop = app.buttons["Stop measurement"]
         XCTAssertTrue(stop.waitForExistence(timeout: 20), "run screen never appeared")
-        capture("07-run-in-progress")
+        capture("09-run-in-progress")
 
         let done = app.buttons["Done"]
         XCTAssertTrue(done.waitForExistence(timeout: 120), "run never completed")
-        capture("08-results")
+        capture("10-results")
 
         done.tap()
         XCTAssertTrue(measure.waitForExistence(timeout: 20), "did not return to map home")
-        capture("09-map-home-after")
+        capture("11-map-home-after")
 
         let history = app.buttons["History & sync"]
         XCTAssertTrue(history.waitForExistence(timeout: 10))
         history.tap()
         XCTAssertTrue(app.buttons["Back to map"].waitForExistence(timeout: 15), "history never appeared")
-        capture("10-history")
+        capture("12-history")
 
         let export = app.buttons["Export data"]
         XCTAssertTrue(export.waitForExistence(timeout: 10))
         export.tap()
         XCTAssertTrue(app.buttons["Export full data"].waitForExistence(timeout: 10), "export never appeared")
-        capture("11-export")
+        capture("13-export")
 
         app.buttons["Back to map"].tap()
         let settings = app.buttons["Settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 15))
         settings.tap()
         XCTAssertTrue(app.buttons["Save settings"].waitForExistence(timeout: 10), "settings never appeared")
-        capture("12-settings")
+        capture("14-settings")
     }
 
     /// Taps in before typing; a field that is not first responder swallows the text.
