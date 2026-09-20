@@ -28,6 +28,14 @@ Carried forward so it is not lost between sessions. Updated 2026-09-20.
    will never accept. When iOS was writing null location timestamps, twelve measurements failed
    on every attempt indefinitely; the rows were purged on 2026-09-19, but nothing stops it
    recurring. Needs a failure count or a `rejected` state so the queue can drain.
+
+   Raised again on 2026-09-20 and left unfixed by decision - the expectation is that failures
+   are network-wide rather than per-record. The one occurrence so far was per-record (a NOT NULL
+   violation on `locations.timestamp` affecting twelve rows while others uploaded normally), and
+   the cost is not the wasted requests: `pendingRecordCount` never reaches zero, so the sync
+   status stays on "Last upload attempt failed" and the History card stays amber permanently,
+   with no way for a user to clear it. Now that the map sweeps on every open, that state would
+   be re-entered on every launch.
 4. **Per-test results only appear when a run finishes.** `MeasurementSequenceProgressListener`
    emits stage transitions, not results, so latency sits at `--` on the run screen until the
    whole sequence completes even though it finished seconds earlier.

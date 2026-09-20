@@ -170,6 +170,9 @@ class ProductContainer(
 
     private companion object {
         const val SUBMISSION_CATEGORY = "Consumer Challenge"
+
+        /** Latency, download, upload - one run is three measurements. */
+        private const val MEASUREMENTS_PER_RUN = 3L
     }
 
     val database: CellwatchDatabase get() = services.database
@@ -237,10 +240,16 @@ class ProductContainer(
      * one the results screen uses - so a run cannot read "17.2 Mbps" when it
      * finishes and something else in history.
      */
-    suspend fun recentRuns(limit: Long = 200): List<MeasurementHistoryRunSnapshot> {
+    suspend fun recentRuns(maxRuns: Int = 200): List<MeasurementHistoryRunSnapshot> {
+        // The limit is runs, not measurements. It used to be a measurement
+        // count, and since a run is three measurements the caller asking for
+        // "200" actually got about 66 runs - a quiet factor of three between
+        // what the parameter said and what came back. Over-fetch so the
+        // oldest run in the window is whole rather than clipped mid-group.
+        val measurementLimit = (maxRuns.toLong() * MEASUREMENTS_PER_RUN) + MEASUREMENTS_PER_RUN
         // Measurements without a group are dropped: history lists runs, and a
         // measurement with no run to belong to cannot be presented as one.
-        val byGroup = measurementRepository.getRecent(limit)
+        val byGroup = measurementRepository.getRecent(measurementLimit)
             .filter { it.groupId != null }
             .groupBy { it.groupId!! }
         return byGroup.mapNotNull { (groupId, measurements) ->
@@ -280,7 +289,7 @@ class ProductContainer(
                 uploaded = read.uploadedText,
                 detail = read.summaryText,
             )
-        }.sortedByDescending { it.timestampMs }
+        }.sortedByDescending { it.timestampMs }.take(maxRuns)
     }
 
     suspend fun historySnapshot(): ProductHistorySnapshot {

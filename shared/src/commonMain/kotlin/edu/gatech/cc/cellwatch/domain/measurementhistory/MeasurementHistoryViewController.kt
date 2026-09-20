@@ -33,7 +33,21 @@ data class MeasurementHistoryViewState(
  */
 class MeasurementHistoryViewController(
     private val statusUseCase: MeasurementHistoryStatusUseCase = MeasurementHistoryStatusUseCase(),
-    private val maxVisibleRows: Int = 5,
+    /**
+     * How many runs the list will render.
+     *
+     * Was 5, with the header admitting "showing the 5 most recent" - which
+     * meant everything older than the last five measurements was simply
+     * unreachable. There is no paging and no way to select an older run, so
+     * after a few days of collecting, most of a user's history was invisible.
+     *
+     * 200 matches what [edu.gatech.cc.cellwatch.domain.app.ProductContainer]
+     * loads, so in practice nothing is hidden. It is still a bound rather
+     * than "all": the list is rendered into a scroll view, not a virtualised
+     * one, so a few hundred rows is the honest ceiling. Past that the header
+     * keeps telling the truth about what is on screen.
+     */
+    private val maxVisibleRows: Int = 200,
 ) {
     private var runs: List<MeasurementHistoryRunSnapshot> = emptyList()
     private var selectedTimestampMs: Long? = null
