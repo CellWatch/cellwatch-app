@@ -338,6 +338,27 @@ def main() -> int:
                  "something is actually queued.",
                  ["Selected run", "Back to map"])
 
+            if dev.tap_text("Export data", settle=4):
+                step(dev, steps, "10-export",
+                     "Export",
+                     "Two formats. The FCC file is the document the challenge accepts and "
+                     "contains only measurements that qualified, so it is empty here - the "
+                     "emulator reports no carrier. The full export carries every run, why each "
+                     "was withheld, and what the device could not report, which the FCC format "
+                     "has no field for.",
+                     ["Export full data", "FCC submission file"])
+
+                if dev.tap_text("Back to map", settle=6) and dev.tap_text(
+                    "Settings", settle=5, fallback=(795, 2230),
+                ):
+                    step(dev, steps, "11-settings",
+                         "Settings",
+                         "Contact details, an FCC-challenge opt-out that genuinely stops "
+                         "submissions being built, and a read-only account of what this install "
+                         "is talking to - app version, device id, measurement server, upload "
+                         "target.",
+                         ["Save settings", "About this install"])
+
     manifest = {
         "title": "CellWatch — measurement walkthrough",
         "subtitle": "Android product shell, full vertical slice: profile → map → pre-flight → run → results → history",
