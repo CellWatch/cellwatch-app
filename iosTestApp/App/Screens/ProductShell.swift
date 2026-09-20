@@ -162,7 +162,11 @@ final class ProductShell: NSObject {
                         completion(nil)
                         return
                     }
-                    container.syncStatus(inProgress: false) { summary, _ in
+                    // Sweeps the pending queue before reporting, which is
+                    // what frozenApp did in MapActivity.onCreate and the
+                    // other half of store-and-forward. A no-op when nothing
+                    // is queued.
+                    container.syncOnMapStart { summary, _ in
                         DispatchQueue.main.async { completion(summary) }
                     }
                 },

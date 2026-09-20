@@ -46,9 +46,18 @@ object HistoryCopy {
 
     val SELECTED: String get() = localized(en = "Selected", es = "Seleccionada")
 
-    val RETRY_UPLOAD: String get() = localized(en = "Retry upload", es = "Reintentar la subida")
+    /**
+     * One label for both states. "Retry upload" was only correct after a
+     * failure, and the control is now present even when nothing is queued.
+     */
+    val SYNC_NOW: String get() = localized(en = "Sync now", es = "Sincronizar ahora")
 
-    val RETRYING: String get() = localized(en = "Retrying…", es = "Reintentando…")
+    val NOTHING_TO_SYNC: String get() = localized(
+        en = "No measurements need uploading.",
+        es = "Ninguna medición necesita subirse.",
+    )
+
+    val SYNCING: String get() = localized(en = "Syncing…", es = "Sincronizando…")
 
     val SYNC: String get() = localized(en = "Sync", es = "Sincronizar")
 

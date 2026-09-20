@@ -228,7 +228,11 @@ class ProductShellActivity : AppCompatActivity() {
                 if (productContainer == null) {
                     deliver(null)
                 } else {
-                    lifecycleScope.launch { deliver(productContainer.syncStatus()) }
+                    // Sweeps the pending queue before reporting, which is
+                    // what frozenApp did in MapActivity.onCreate and the
+                    // other half of store-and-forward. A no-op when nothing
+                    // is queued.
+                    lifecycleScope.launch { deliver(productContainer.syncOnMapStart()) }
                 }
             },
             measurementLocationProvider = { deliver ->

@@ -33,13 +33,26 @@ class HistoryScreen(
     private val runsColumn = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     private val detailHeader = Components.sectionHeader(context, "")
     private val detailText = Components.bodyText(context, "")
-    private val retryButton = Components.primaryButton(context, HistoryCopy.RETRY_UPLOAD).apply {
+    /**
+     * Always present, never hidden.
+     *
+     * It used to disappear whenever the queue was empty, which reads as "this
+     * screen cannot sync" rather than "there is nothing to sync". With
+     * nothing queued it answers immediately rather than making a pointless
+     * round trip.
+     */
+    private val syncButton = Components.primaryButton(context, HistoryCopy.SYNC_NOW).apply {
         setOnClickListener {
+            if (!hasPendingUploads) {
+                syncCard.update(HistoryCopy.NOTHING_TO_SYNC, Components.StatusTone.SUCCESS)
+                return@setOnClickListener
+            }
             isEnabled = false
-            text = HistoryCopy.RETRYING
+            text = HistoryCopy.SYNCING
             onRetry { snapshot -> apply(snapshot) }
         }
     }
+    private var hasPendingUploads = false
     private val exportButton = Components.secondaryButton(context, HistoryCopy.EXPORT_DATA)
     private val backButton = Components.secondaryButton(context, MapHomeCopy.BACK_TO_MAP)
 
@@ -55,7 +68,7 @@ class HistoryScreen(
             detailHeader,
             detailText,
         )
-        scaffold.addActions(retryButton, exportButton, backButton)
+        scaffold.addActions(syncButton, exportButton, backButton)
         render(viewModel.currentState())
         refresh()
     }
@@ -86,16 +99,16 @@ class HistoryScreen(
 
     private fun render(state: MeasurementHistoryUiState) {
         header.text = state.headerText
+        hasPendingUploads = state.hasPendingUploads
         syncCard.update(
             listOfNotNull(state.syncHeadline, state.syncDetail).joinToString(" "),
-            if (state.showRetry) Components.StatusTone.WARNING else Components.StatusTone.SUCCESS,
+            if (state.hasPendingUploads) Components.StatusTone.WARNING else Components.StatusTone.SUCCESS,
         )
         detailHeader.text = state.selectedTitle
         detailText.text = state.selectedDetail
 
-        retryButton.visibility = if (state.showRetry) View.VISIBLE else View.GONE
-        retryButton.isEnabled = true
-        retryButton.text = HistoryCopy.RETRY_UPLOAD
+        syncButton.isEnabled = true
+        syncButton.text = HistoryCopy.SYNC_NOW
 
         runsColumn.removeAllViews()
         if (state.isEmpty) {

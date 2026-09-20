@@ -305,12 +305,45 @@ class ProductContainer(
      * second upload path would be a second set of rules about what is eligible.
      */
     suspend fun retryPendingUploads(): ProductHistorySnapshot {
+        sweepPendingUploads()
+        return historySnapshot()
+    }
+
+    /**
+     * The same sweep, run when the map opens.
+     *
+     * This is what frozenApp did in `MapActivity.onCreate`, and it is the
+     * other half of store-and-forward: records are written with no upload
+     * time and swept later, but "later" has to actually arrive. Without it a
+     * measurement that failed to upload sat until the user opened History,
+     * noticed the warning and tapped the button - so a user who never visited
+     * that screen would simply never send their data.
+     *
+     * Returns the fresh status so the map panel reflects whatever the sweep
+     * just did.
+     */
+    suspend fun syncOnMapStart(): SyncStatusSummary {
+        sweepPendingUploads()
+        return syncStatus()
+    }
+
+    /**
+     * Sweeps the queue, if there is one.
+     *
+     * The emptiness check is not an optimisation. `recordSyncAttempt` treats
+     * "uploaded nothing" as a failed attempt, so sweeping an empty queue
+     * would write `lastAttemptFailed` and the status would read "Last upload
+     * attempt failed" when nothing had been attempted at all. Harmless while
+     * the only caller was a button hidden unless something was queued;
+     * reachable now that the map sweeps on every open.
+     */
+    private suspend fun sweepPendingUploads() {
+        if (pendingRecordCount() == 0) return
         val report = runCatching { uploadTriggerUseCase.onMapStart() }
         val uploaded = report.getOrNull()
             ?.let { it.measurements.uploaded + it.submissions.uploaded }
             ?: 0
         recordSyncAttempt(uploadedCount = uploaded, failed = report.isFailure || uploaded == 0)
-        return historySnapshot()
     }
 
     suspend fun diagnostics(): ProductDiagnostics {
