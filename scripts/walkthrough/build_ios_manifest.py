@@ -18,58 +18,70 @@ import shutil
 import sys
 
 STEPS = [
-    ("01-onboarding-empty", "First launch — profile",
-     "A new install lands on onboarding, not the map. The FCC requires contact details with "
-     "every submission, so a measurement taken before they exist could not be submitted.",
+    ("01-data-use", "First launch — data use",
+     "A new install lands here, before anything is collected. The wording is frozenApp's, "
+     "verbatim: measurements are shared with the public including general location and time, "
+     "may be used for research, and the published privacy policy is linked with its address "
+     "shown.",
+     ["data-use disclosures presented"]),
+    ("02-collection-mode", "Collection mode and FCC information",
+     "Whether to work toward a formal FCC challenge, with what that means stated plainly - the "
+     "FCC may make public the exact GPS location and provider. The acknowledgement is "
+     "frozenApp's actual sentence about the carrier releasing customer information, and it "
+     "gates Continue in challenge mode.",
+     ["collection mode offered", "FCC acknowledgement required"]),
+    ("03-profile-empty", "Contact details",
+     "Only now are details asked for. They accompany every submission, which is why they come "
+     "after the disclosures rather than before.",
      ["profile form presented"]),
-    ("02-onboarding-complete", "Contact details and terms",
-     "Name, phone and email are validated as they are typed, and the terms acknowledgement is "
-     "explicit. Save is only offered once all four are satisfied.",
-     ["form accepted", "terms acknowledged"]),
-    ("03-map-home", "Map home",
+    ("04-profile-complete", "Details entered",
+     "Name, phone and email are validated as they are typed; Save is offered once all three "
+     "are satisfied and consent has been given.",
+     ["form accepted"]),
+    ("05-map-home", "Map home",
      "Saving routes to the map and resets the back stack, so the back button cannot return to "
      "onboarding once a profile exists. Saved measurements are drawn as pins, and the panel "
      "reports what sync has done rather than a bare queue count.",
      ["Measure button present"]),
-    ("04-start-measurement", "Tap Measure — pre-flight",
+    ("06-start-measurement", "Tap Measure — pre-flight",
      "The pre-flight screen states what a run involves and asks the one question the FCC needs "
      "that the device cannot detect: whether the user is in a moving vehicle. Conditions are "
      "checked at press time, not cached.",
      ["Start measurement button present", "'I am in a moving vehicle' present"]),
-    ("05-in-vehicle", "Toggle in-vehicle",
+    ("07-in-vehicle", "Toggle in-vehicle",
      "The answer travels with the measurement rather than living in shared state, so a later "
      "run cannot inherit it.",
      ["in-vehicle switch toggled"]),
-    ("06-wifi-confirmation", "Wi-Fi confirmation",
+    ("08-wifi-confirmation", "Wi-Fi confirmation",
      "The simulator is always on Wi-Fi, and the FCC only accepts cellular measurements, so the "
      "app asks before spending half a minute on a run it cannot submit. On a handset with "
      "Wi-Fi off this step does not appear.",
      ["'Measure anyway' offered"]),
-    ("07-run-in-progress", "Run in progress",
+    ("09-run-in-progress", "Run in progress",
      "Three tests run in sequence — latency, download, upload. The screen stays awake and "
      "offers Stop, because iOS has no foreground-service equivalent and a run the user leaves "
      "would yield partial data.",
      ["Stop measurement offered"]),
-    ("08-results", "Results",
+    ("10-results", "Results",
      "Metrics, then two statements the app previously left unsaid: what sync did and when, and "
      "whether this measurement reaches the FCC. Both were silent before — a measurement could "
      "complete perfectly and be withheld with no explanation.",
      ["run reached completion (Done offered)"]),
-    ("09-map-home-after", "Back to the map",
+    ("11-map-home-after", "Back to the map",
      "The new measurement appears as a pin at the captured location, and the sync panel carries "
      "the same wording as the results screen — one presenter owns both.",
      ["returned to map home"]),
-    ("10-history", "History and sync",
+    ("12-history", "History and sync",
      "Saved runs, newest first, with the same sync wording as the map and the results screen. "
      "Selecting a run shows its detail. Retry appears only when something is actually queued.",
      ["run list rendered", "'Back to map' offered"]),
-    ("11-export", "Export",
+    ("13-export", "Export",
      "Two formats. The FCC file is the document the challenge accepts and contains only "
      "measurements that qualified, so it is empty here - the simulator has no carrier and is "
      "on Wi-Fi. The full export carries every run, why each was withheld, and what the device "
      "could not report, which the FCC format has no field for.",
      ["both export formats offered"]),
-    ("12-settings", "Settings",
+    ("14-settings", "Settings",
      "Contact details, an FCC-challenge opt-out that genuinely stops submissions being built, "
      "and a read-only account of what this install is talking to - app version, device id, "
      "measurement server, upload target.",
@@ -109,7 +121,7 @@ def main() -> int:
 
     manifest = {
         "title": "CellWatch — measurement walkthrough",
-        "subtitle": "iOS product shell, full vertical slice: profile → map → pre-flight → run → results → history",
+        "subtitle": "iOS product shell: consent → profile → map → pre-flight → run → results → history → export → settings",
         "environment": {
             "Platform": args.device_label,
             "Bundle": "edu.gatech.cc.cellwatch",

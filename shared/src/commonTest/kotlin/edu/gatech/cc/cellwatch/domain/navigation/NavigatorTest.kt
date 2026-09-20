@@ -71,11 +71,14 @@ class NavigatorTest {
     }
 
     @Test
-    fun aFirstRunLandsOnOnboardingAndAReadyAppOnTheMap() {
+    fun aFirstRunLandsOnConsentAndAReadyAppOnTheMap() {
         val useCase = AppLaunchRoutingUseCase()
 
+        // DataUse, not Onboarding: consent is the first step of the flow now.
+        // A new user is told what is published before being asked for their
+        // name, and the profile form is the last step rather than the first.
         assertEquals(
-            Destination.Onboarding,
+            Destination.DataUse,
             useCase.resolve(AppLaunchRoutingInput(onboardingComplete = false)).toDestination(),
         )
         assertEquals(

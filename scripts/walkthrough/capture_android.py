@@ -10,6 +10,7 @@ made every control move.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import pathlib
 import re
@@ -69,7 +70,10 @@ class Device:
         return ""
 
     def texts(self, xml: str) -> list[str]:
-        return [t for t in re.findall(r'text="([^"]*)"', xml) if t]
+        # Unescaped: the dump is XML, so "History & sync" arrives as
+        # "History &amp; sync" and an expectation written the way a user reads
+        # it would fail against a screen that is perfectly correct.
+        return [html.unescape(t) for t in re.findall(r'text="([^"]*)"', xml) if t]
 
     def find(self, xml: str, needle: str) -> tuple[int, int] | None:
         """Centre of the element with this exact text, preferring a tappable one.
@@ -129,6 +133,20 @@ class Device:
             if 'class="android.widget.Switch"' in node:
                 return 'checked="true"' in node
         return None
+
+    def tap_switch_at(self, index: int, settle: float = 1.5) -> bool:
+        """Taps the nth Switch on screen, for pages carrying more than one."""
+        xml = self.dump(attempts=3)
+        nodes = [n for n in xml.split(">") if 'class="android.widget.Switch"' in n]
+        if index >= len(nodes):
+            return False
+        m = BOUNDS.search(nodes[index])
+        if not m:
+            return False
+        x1, y1, x2, y2 = map(int, m.groups())
+        self.sh("shell", "input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
+        time.sleep(settle)
+        return True
 
     def tap_switch(self, settle: float = 1.5) -> bool:
         """Tap the Switch itself.
@@ -237,15 +255,40 @@ def main() -> int:
         return 2
 
     if args.reset_profile:
+        step(dev, steps, "01-data-use",
+             "First launch — data use",
+             "A new install lands here, before anything is collected. The wording is "
+             "frozenApp's, verbatim: measurements are shared with the public including general "
+             "location and time, may be used for research, and the published privacy policy is "
+             "linked with its address shown.",
+             ["Data Use", "Read our Privacy Policy"])
+
+        if not dev.tap_text("Continue", settle=4):
+            print("could not leave the data use screen", file=sys.stderr)
+            return 2
+
+        # Challenge mode is preselected, so the acknowledgement gates Continue.
+        dev.tap_switch_at(1)
+        step(dev, steps, "02-collection-mode",
+             "Collection mode and FCC information",
+             "Whether to work toward a formal FCC challenge, with what that means stated "
+             "plainly - the FCC may make public the exact GPS location and provider. The "
+             "acknowledgement is frozenApp's actual sentence about the carrier releasing "
+             "customer information, and it gates Continue in challenge mode.",
+             ["Collection Mode", "FCC Information"])
+
+        if not dev.tap_text("Continue", settle=4):
+            print("could not leave the collection mode screen", file=sys.stderr)
+            return 2
+
         fields = dev.text_fields()
         if len(fields) < 3:
             print(f"expected three onboarding fields, found {len(fields)}", file=sys.stderr)
             return 2
-        step(dev, steps, "01-onboarding-empty",
-             "First launch — profile",
-             "A new install lands on onboarding, not the map. The FCC requires contact details "
-             "with every submission, so a measurement taken before they exist could not be "
-             "submitted.",
+        step(dev, steps, "03-profile-empty",
+             "Contact details",
+             "Only now are details asked for. They accompany every submission, which is why "
+             "they come after the disclosures rather than before.",
              ["Full name", "Save profile"])
 
         dev.type_into(fields[0], "Jeff Wilson")
@@ -253,18 +296,17 @@ def main() -> int:
         dev.type_into(dev.text_fields()[2], "jw199@gatech.edu")
         dev.sh("shell", "input", "keyevent", "KEYCODE_BACK")
         time.sleep(1)
-        dev.tap_switch()
-        step(dev, steps, "02-onboarding-complete",
-             "Contact details and terms",
-             "Name, phone and email are validated as they are typed, and the terms "
-             "acknowledgement is explicit. Save is only offered once all four are satisfied.",
+        step(dev, steps, "04-profile-complete",
+             "Details entered",
+             "Name, phone and email are validated as they are typed; Save is offered once all "
+             "three are satisfied and consent has been given.",
              ["Looks good. Tap Save Profile."])
 
         if not dev.tap_text("Save profile", settle=6):
             print("could not find Save profile", file=sys.stderr)
             return 2
 
-    step(dev, steps, "03-map-home",
+    step(dev, steps, "05-map-home",
          "Map home",
          "Saving routes to the map and resets the back stack, so back cannot return to "
          "onboarding once a profile exists. Saved measurements are drawn as pins, and the "
@@ -276,7 +318,7 @@ def main() -> int:
         print("could not find Measure", file=sys.stderr)
         return 2
 
-    step(dev, steps, "04-start-measurement",
+    step(dev, steps, "06-start-measurement",
          "Tap Measure — pre-flight",
          "The pre-flight screen states what a run involves and asks the one question the FCC "
          "needs that the device cannot detect: whether the user is in a moving vehicle. "
@@ -287,7 +329,7 @@ def main() -> int:
         print("could not find the in-vehicle switch", file=sys.stderr)
         return 2
     toggled_on = dev.switch_state() is True
-    step(dev, steps, "05-in-vehicle",
+    step(dev, steps, "07-in-vehicle",
          "Toggle in-vehicle",
          "The answer is carried with the measurement rather than held in shared state, so a "
          "later run cannot inherit it.",
@@ -300,7 +342,7 @@ def main() -> int:
         print("could not find Start measurement", file=sys.stderr)
         return 2
 
-    step(dev, steps, "06-run-in-progress",
+    step(dev, steps, "08-run-in-progress",
          "Run in progress",
          "Three tests run in sequence — latency, download, upload. The screen stays awake for "
          "the duration and offers Stop, because there is no foreground service and a run the "
@@ -314,7 +356,7 @@ def main() -> int:
             break
         time.sleep(3)
 
-    step(dev, steps, "07-results",
+    step(dev, steps, "09-results",
          "Results",
          "Metrics, then two statements the app previously left unsaid: what sync did and when, "
          "and whether this measurement reaches the FCC. Both were silent before — a measurement "
@@ -322,7 +364,7 @@ def main() -> int:
          ["Measurement complete", "Latency", "Download", "Upload"])
 
     if dev.tap_text("Done", settle=8, fallback=(540, 2098)):
-        step(dev, steps, "08-map-home-after",
+        step(dev, steps, "10-map-home-after",
              "Back to the map",
              "The new measurement appears as a pin at the captured location, and the sync panel "
              "carries the same wording as the results screen — one presenter owns both.",
@@ -331,7 +373,7 @@ def main() -> int:
         # History & sync is the left button of the secondary row; map home
         # cannot be introspected, so this is a coordinate like the Measure tap.
         if dev.tap_text("History & sync", settle=5, fallback=(283, 2230)):
-            step(dev, steps, "09-history",
+            step(dev, steps, "11-history",
                  "History and sync",
                  "Saved runs, newest first, with the same sync wording as the map and the "
                  "results screen. Selecting a run shows its detail. Retry appears only when "
@@ -339,7 +381,7 @@ def main() -> int:
                  ["Selected run", "Back to map"])
 
             if dev.tap_text("Export data", settle=4):
-                step(dev, steps, "10-export",
+                step(dev, steps, "12-export",
                      "Export",
                      "Two formats. The FCC file is the document the challenge accepts and "
                      "contains only measurements that qualified, so it is empty here - the "
@@ -351,7 +393,7 @@ def main() -> int:
                 if dev.tap_text("Back to map", settle=6) and dev.tap_text(
                     "Settings", settle=5, fallback=(795, 2230),
                 ):
-                    step(dev, steps, "11-settings",
+                    step(dev, steps, "13-settings",
                          "Settings",
                          "Contact details, an FCC-challenge opt-out that genuinely stops "
                          "submissions being built, and a read-only account of what this install "
@@ -361,7 +403,7 @@ def main() -> int:
 
     manifest = {
         "title": "CellWatch — measurement walkthrough",
-        "subtitle": "Android product shell, full vertical slice: profile → map → pre-flight → run → results → history",
+        "subtitle": "Android product shell: consent → profile → map → pre-flight → run → results → history → export → settings",
         "environment": {
             "Platform": args.device_label,
             "Package": PKG,

@@ -12,6 +12,7 @@ import edu.gatech.cc.cellwatch.androidtestapp.designsystem.ScreenScaffold
 import edu.gatech.cc.cellwatch.androidtestapp.onboarding.AndroidOnboardingProfileStore
 import edu.gatech.cc.cellwatch.domain.app.ExportDocument
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingInput
+import edu.gatech.cc.cellwatch.domain.consent.ConsentViewModel
 import edu.gatech.cc.cellwatch.domain.applaunch.AppLaunchRoutingUseCase
 import edu.gatech.cc.cellwatch.domain.maphome.MapHomeInput
 import edu.gatech.cc.cellwatch.domain.measurementhistory.MeasurementHistoryViewModel
@@ -47,6 +48,16 @@ class ProductShellActivity : AppCompatActivity() {
     private var mapHomeScreen: MapHomeScreen? = null
     private var measurementRunScreen: MeasurementRunScreen? = null
     private var exportScreen: ExportScreen? = null
+
+    /**
+     * Carried from the consent step into the profile save.
+     *
+     * The mode the user actually chose has to reach the saved profile, or the
+     * choice is cosmetic - which is the defect the hardcoded FCC_CHALLENGE
+     * already was.
+     */
+    private var consentMode: CollectionMode = CollectionMode.FCC_CHALLENGE
+    private var consentAcknowledged: Boolean = false
     private var pendingExport: ExportDocument? = null
 
     /**
@@ -160,17 +171,32 @@ class ProductShellActivity : AppCompatActivity() {
     }
 
     private fun screen(destination: Destination): View = when (destination) {
+        is Destination.DataUse -> DataUseScreen(
+            context = this,
+            onContinue = { goTo(Destination.CollectionChoice) },
+        ).view
+
+        is Destination.CollectionChoice -> CollectionChoiceScreen(
+            context = this,
+            viewModel = ConsentViewModel(),
+            onContinue = { mode, acknowledged ->
+                consentMode = mode
+                consentAcknowledged = acknowledged
+                goTo(Destination.Onboarding)
+            },
+        ).view
+
         is Destination.Onboarding -> OnboardingScreen(
             context = this,
             viewModel = OnboardingProfileViewModel(
                 OnboardingValidationUseCase(),
                 OnboardingPersistenceUseCase(AndroidOnboardingProfileStore(applicationContext)),
-                // The screen asks the user to acknowledge the FCC challenge
-                // terms, so recording them as TESTING - the two-argument
-                // default - contradicted what they just agreed to, and meant
-                // no submission was ever created. Settings can opt back out.
-                CollectionMode.FCC_CHALLENGE,
+                // The mode the user picked on the consent step, not a
+                // default: recording anything else would contradict the
+                // choice they were just shown the consequences of.
+                consentMode,
             ),
+            acknowledged = consentAcknowledged,
             // Reset rather than push: back must not return to onboarding once a
             // profile is saved.
             onComplete = { resetTo(Destination.MapHome) },
@@ -319,6 +345,8 @@ class ProductShellActivity : AppCompatActivity() {
         }
 
     private fun label(destination: Destination): String = when (destination) {
+        is Destination.DataUse -> "Data use"
+        is Destination.CollectionChoice -> "Collection mode"
         is Destination.Onboarding -> "Your profile"
         is Destination.MapHome -> "Map home"
         is Destination.MeasurementStart -> "Start measurement"

@@ -21,24 +21,33 @@ Carried forward so it is not lost between sessions. Updated 2026-09-19.
 4. **Per-test results only appear when a run finishes.** `MeasurementSequenceProgressListener`
    emits stage transitions, not results, so latency sits at `--` on the run screen until the
    whole sequence completes even though it finished seconds earlier.
+5. **Consent copy is English only.** frozenApp ships a Spanish `values-es` translation of the
+   data-use and FCC strings. The product app has no localisation mechanism, so the ported copy
+   is English only and a Spanish-speaking user now sees less than frozenApp gave them.
+
+6. **The privacy policy is not versioned or recorded.** The app links to
+   `sites.gatech.edu/cellwatch/android-app/app-privacy-policy/` but does not record which
+   version a user agreed to, or when. frozenApp did not either, but for a study that publishes
+   location data it is worth knowing.
+
 ## Deferred by decision
 
-5. **Mapbox `sk.` secret token** ships in the app bundle. High severity, extractable from any
+7. **Mapbox `sk.` secret token** ships in the app bundle. High severity, extractable from any
    build. Deferred until nearer deployment; full detail in `PRE_DEPLOYMENT_CHECKLIST.md` item 1.
-6. **`server_source_port`** — blocked on the AWS tuple service decision and external
+8. **`server_source_port`** — blocked on the AWS tuple service decision and external
    stakeholders. `PRE_DEPLOYMENT_CHECKLIST.md` item 5.
-7. **Crashlytics** — low priority. The shared logger landed without it; reinstating it is a
+9. **Crashlytics** — low priority. The shared logger landed without it; reinstating it is a
    data-governance question, not a technical one.
 
 ## External action
 
-8. **Send `FCC_IOS_DISCREPANCIES.md`** to the FCC and ask for guidance. Ready and pushed. The
+10. **Send `FCC_IOS_DISCREPANCIES.md`** to the FCC and ask for guidance. Ready and pushed. The
    standing strategy is not to block development on the reply, but the clock only starts once
    it goes.
 
 ## Build fragility
 
-9. **msak-client-kmp 0.6.0 exists only in this machine's `~/.m2`.** cellwatch pins it and
+11. **msak-client-kmp 0.6.0 exists only in this machine's `~/.m2`.** cellwatch pins it and
    resolves via `mavenLocal()`, so a fresh clone or another machine cannot build until someone
    runs `publishToMavenLocal` in msak — and nothing says so. Either set
    `cellwatch.useLocalMsak=true` to resolve from source through the existing `includeBuild`, or
