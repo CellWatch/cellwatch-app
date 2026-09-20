@@ -263,21 +263,21 @@ def main() -> int:
              "linked with its address shown.",
              ["Data Use", "Read our Privacy Policy"])
 
-        if not dev.tap_text("Continue", settle=4):
+        if not dev.tap_text("Next", settle=4):
             print("could not leave the data use screen", file=sys.stderr)
             return 2
 
-        # Challenge mode is preselected, so the acknowledgement gates Continue.
+        # Challenge mode is preselected, so the acknowledgement gates Next.
         dev.tap_switch_at(1)
         step(dev, steps, "02-collection-mode",
              "Collection mode and FCC information",
              "Whether to work toward a formal FCC challenge, with what that means stated "
              "plainly - the FCC may make public the exact GPS location and provider. The "
              "acknowledgement is frozenApp's actual sentence about the carrier releasing "
-             "customer information, and it gates Continue in challenge mode.",
+             "customer information, and it gates Next in challenge mode.",
              ["Collection Mode", "FCC Information"])
 
-        if not dev.tap_text("Continue", settle=4):
+        if not dev.tap_text("Next", settle=4):
             print("could not leave the collection mode screen", file=sys.stderr)
             return 2
 

@@ -28,7 +28,7 @@ STEPS = [
      "Whether to work toward a formal FCC challenge, with what that means stated plainly - the "
      "FCC may make public the exact GPS location and provider. The acknowledgement is "
      "frozenApp's actual sentence about the carrier releasing customer information, and it "
-     "gates Continue in challenge mode.",
+     "gates Next in challenge mode.",
      ["collection mode offered", "FCC acknowledgement required"]),
     ("03-profile-empty", "Contact details",
      "Only now are details asked for. They accompany every submission, which is why they come "

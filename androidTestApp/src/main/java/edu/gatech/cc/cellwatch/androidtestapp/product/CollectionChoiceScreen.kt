@@ -31,7 +31,7 @@ class CollectionChoiceScreen(
     private val fccHeader = Components.sectionHeader(context, ConsentCopy.FCC_INFO_TITLE)
     private val modeDetail = Components.bodyText(context, "", muted = true)
     private val status = Components.bodyText(context, "", muted = true)
-    private val continueButton = Components.primaryButton(context, "Continue")
+    private val continueButton = Components.primaryButton(context, ConsentCopy.CONTINUE)
 
     private var rendering = false
 

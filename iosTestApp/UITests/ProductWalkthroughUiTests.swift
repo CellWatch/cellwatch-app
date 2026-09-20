@@ -35,7 +35,7 @@ final class ProductWalkthroughUiTests: XCTestCase {
         // Consent comes before anything is collected.
         XCTAssertTrue(app.staticTexts["Data Use"].waitForExistence(timeout: 30), "data use never appeared")
         capture("01-data-use")
-        app.buttons["Continue"].tap()
+        app.buttons["Next"].tap()
 
         XCTAssertTrue(
             app.staticTexts["Collection Mode"].waitForExistence(timeout: 15),
@@ -44,7 +44,7 @@ final class ProductWalkthroughUiTests: XCTestCase {
         // Challenge mode is preselected, so the acknowledgement gates Continue.
         app.switches.element(boundBy: 1).tap()
         capture("02-collection-mode")
-        app.buttons["Continue"].tap()
+        app.buttons["Next"].tap()
 
         let nameField = app.textFields["Full name"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 15), "profile never appeared")

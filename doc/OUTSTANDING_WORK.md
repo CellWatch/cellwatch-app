@@ -1,6 +1,6 @@
 # Outstanding work
 
-Carried forward so it is not lost between sessions. Updated 2026-09-19.
+Carried forward so it is not lost between sessions. Updated 2026-09-20.
 
 ## Verification owed
 
@@ -21,9 +21,13 @@ Carried forward so it is not lost between sessions. Updated 2026-09-19.
 4. **Per-test results only appear when a run finishes.** `MeasurementSequenceProgressListener`
    emits stage transitions, not results, so latency sits at `--` on the run screen until the
    whole sequence completes even though it finished seconds earlier.
-5. **Consent copy is English only.** frozenApp ships a Spanish `values-es` translation of the
-   data-use and FCC strings. The product app has no localisation mechanism, so the ported copy
-   is English only and a Spanish-speaking user now sees less than frozenApp gave them.
+5. **Localisation stops at the consent flow.** The data-use and collection-mode screens now
+   render in Spanish, using frozenApp's own `values-es` wording, via `ConsentCopy` and the
+   `currentLanguageCode()` expect/actual. Everything else - Map home, the run screen, History,
+   Settings, Export, all sync status lines - is still English only, and there is no
+   translator-facing resource format: the two languages sit adjacent in Kotlin source. Three
+   strings (`ACKNOWLEDGEMENT_REQUIRED`, `CHANGE_LATER`, `TESTING_SUMMARY`) have no frozenApp
+   equivalent, so their Spanish is mine and unreviewed.
 
 6. **The privacy policy is not versioned or recorded.** The app links to
    `sites.gatech.edu/cellwatch/android-app/app-privacy-policy/` but does not record which

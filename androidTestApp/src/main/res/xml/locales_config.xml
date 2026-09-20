@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Declares the languages the app speaks, so Android offers it in the
+  per-app language picker (Settings > Apps > CellWatch > Language) on
+  API 33+.
+
+  frozenApp got this for free from its `values-es` resource folder. The
+  product app keeps its copy in `ConsentCopy` rather than in resources -
+  the two platforms must not drift into asking for different consent -
+  so nothing else tells the platform Spanish is available.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="es" />
+</locale-config>

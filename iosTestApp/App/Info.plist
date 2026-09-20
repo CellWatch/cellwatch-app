@@ -10,6 +10,18 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
+	<!-- Declared so UIKit's own chrome - the navigation Back button, system
+	     alert buttons - follows the user's language too. Without an `es`
+	     entry the bundle's only localization is English, so UIKit resolved
+	     its framework strings to English and a fully Spanish screen still
+	     carried an English "Back". There are no .lproj files: the app's own
+	     copy comes from `ConsentCopy`, and this key only tells the loader
+	     which languages the bundle claims to support. -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>es</string>
+	</array>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
