@@ -1364,7 +1364,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
             )
         } else {
             let missingTokenLabel = UILabel()
-            missingTokenLabel.text = "Mapbox token missing. Set MAPBOX_ACCESS_TOKEN in cellwatch.properties."
+            missingTokenLabel.text = "Mapbox token missing. This build was packaged without a public "
+                + "map token, so the map cannot draw."
             mapHomeRenderStateLabel.text = "TOKEN_MISSING"
             missingTokenLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
             missingTokenLabel.textColor = UIColor(red: 0.36, green: 0.15, blue: 0.15, alpha: 1.0)
@@ -1665,7 +1666,8 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
             )
         } else {
             let missingTokenLabel = UILabel()
-            missingTokenLabel.text = "Mapbox token missing. Set MAPBOX_ACCESS_TOKEN in cellwatch.properties."
+            missingTokenLabel.text = "Mapbox token missing. This build was packaged without a public "
+                + "map token, so the map cannot draw."
             mapHomeRenderStateLabel.text = "TOKEN_MISSING"
             missingTokenLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
             missingTokenLabel.textColor = UIColor(red: 0.36, green: 0.15, blue: 0.15, alpha: 1.0)
@@ -3470,7 +3472,17 @@ final class HarnessViewController: UIViewController, UITextFieldDelegate, CLLoca
     }
 
     private func configureSyncDiagnostics() {
-        let level = RuntimeSelection.readConfig("CELLWATCH_SYNC_DIAGNOSTICS_LEVEL") ?? "VERBOSE"
+        // Verbose while developing, quiet in anything distributable. A
+        // TestFlight build logging every sync attempt in full is noise on a
+        // tester's device and, before redactSecrets landed, was how headers
+        // ended up in a log at all - PRE_DEPLOYMENT_CHECKLIST item 2. Still
+        // overridable by config for a tester who is chasing something.
+#if DEBUG
+        let defaultLevel = "VERBOSE"
+#else
+        let defaultLevel = "BASIC"
+#endif
+        let level = RuntimeSelection.readConfig("CELLWATCH_SYNC_DIAGNOSTICS_LEVEL") ?? defaultLevel
         let maxSamplesRaw = RuntimeSelection.readConfig("CELLWATCH_SYNC_DIAGNOSTICS_MAX_SAMPLES")
         let maxSamples = Int(maxSamplesRaw ?? "") ?? 12
         let includeCauseChain = RuntimeConfigSource.bool(

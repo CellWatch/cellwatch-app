@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Export options for a TestFlight / App Store build.
+
+  `app-store-connect` is the destination for both: TestFlight is App Store
+  Connect with a narrower audience, not a separate distribution method.
+
+  Upload is deliberately NOT automated here (`destination` stays `export`, so
+  the export produces a local .ipa). Uploading needs App Store Connect
+  credentials and is an outward-facing action; the archive script prints the
+  command rather than running it.
+-->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>export</string>
+	<key>teamID</key>
+	<string>LECSLW6UDQ</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<!-- Symbols go up so crash reports from testers are readable. -->
+	<key>uploadSymbols</key>
+	<true/>
+	<!-- Bitcode has been dead since Xcode 14; stating it avoids a warning. -->
+	<key>compileBitcode</key>
+	<false/>
+</dict>
+</plist>
