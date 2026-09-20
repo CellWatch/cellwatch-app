@@ -24,10 +24,12 @@ final class MapHomeScreenViewController: UIViewController {
     private let scaffold = MapScreenScaffold()
     private let statusCardHolder = UIView()
     private let measureButton = Components.primaryButton("Measure")
+    private let overlayButton = Components.secondaryButton("")
 
 #if canImport(MapboxMaps)
     private var mapView: MapView?
     private var pointAnnotations: PointAnnotationManager?
+    private var polygonAnnotations: PolygonAnnotationManager?
     private var mapEventTokens: [AnyCancelable] = []
 #endif
 
@@ -59,13 +61,14 @@ final class MapHomeScreenViewController: UIViewController {
         historyButton.addTarget(self, action: #selector(historyTapped), for: .touchUpInside)
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
         measureButton.addTarget(self, action: #selector(measureTapped), for: .touchUpInside)
+        overlayButton.addTarget(self, action: #selector(overlayTapped), for: .touchUpInside)
 
         let secondaryRow = UIStackView(arrangedSubviews: [historyButton, settingsButton])
         secondaryRow.axis = .horizontal
         secondaryRow.distribution = .fillEqually
         secondaryRow.spacing = Theme.Space.s
 
-        scaffold.addToPanel(statusCardHolder, measureButton, secondaryRow)
+        scaffold.addToPanel(statusCardHolder, overlayButton, measureButton, secondaryRow)
         view = scaffold
     }
 
@@ -118,6 +121,12 @@ final class MapHomeScreenViewController: UIViewController {
     // MARK: - Rendering
 
     private func render(_ state: MapHomeUiState) {
+        // Labelled with the destination rather than the current mode: a button
+        // reading "Hex grid" while showing the hex grid is ambiguous.
+        overlayButton.setTitle(
+            state.overlayMode == MapHomeOverlayMode.hexGrid ? "Show points only" : "Show coverage grid",
+            for: .normal
+        )
         measureButton.isEnabled = state.canStartMeasurement
         measureButton.alpha = state.canStartMeasurement ? 1.0 : 0.5
 
@@ -228,20 +237,56 @@ final class MapHomeScreenViewController: UIViewController {
     }
 #endif
 
+    @objc private func overlayTapped() {
+        let next = viewModel.currentState().overlayMode == MapHomeOverlayMode.hexGrid
+            ? MapHomeOverlayMode.points
+            : MapHomeOverlayMode.hexGrid
+        render(viewModel.setOverlayMode(mode: next))
+    }
+
     private func renderFeatures(_ state: MapHomeUiState) {
 #if canImport(MapboxMaps)
         guard let map = mapView else { return }
+        // Made before the points so a pin is never hidden under a cell fill.
+        if polygonAnnotations == nil {
+            polygonAnnotations = map.annotations.makePolygonAnnotationManager(id: "mapHomeProductCells")
+        }
         if pointAnnotations == nil {
             pointAnnotations = map.annotations.makePointAnnotationManager(id: "mapHomeProductPoints")
         }
+
+        let hexMode = state.overlayMode == MapHomeOverlayMode.hexGrid
+        polygonAnnotations?.annotations = hexMode ? state.hexCells.compactMap { cell in
+            guard cell.hasBoundary else { return nil }
+            let ring = cell.boundary.map {
+                CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+            }
+            // Turf closes the ring itself, but only when the first and last
+            // coordinates match, which H3 does not supply.
+            var annotation = PolygonAnnotation(polygon: Polygon([ring + [ring[0]]]))
+            annotation.fillColor = StyleColor(Theme.Color.primary)
+            // Denser cells read darker, so the overlay conveys count rather
+            // than mere presence.
+            annotation.fillOpacity = Self.fillOpacity(for: Int(cell.measurementCount))
+            annotation.fillOutlineColor = StyleColor(Theme.Color.primary)
+            return annotation
+        } : []
+
+        // Points stay visible in both modes: the hexagon says how many, the
+        // pins say where, and hiding them made the grid look like the only data.
         pointAnnotations?.annotations = state.points.map { point in
             var annotation = PointAnnotation(
                 coordinate: CLLocationCoordinate2D(latitude: point.latitude, longitude: point.longitude)
             )
             annotation.iconImage = Self.markerImageId
-            annotation.iconSize = 1.0
+            annotation.iconSize = hexMode ? 0.7 : 1.0
             return annotation
         }
 #endif
+    }
+
+    /// Caps out quickly: the useful distinction is one versus several.
+    private static func fillOpacity(for count: Int) -> Double {
+        min(0.18 + (Double(min(count, 6)) * 0.07), 0.6)
     }
 }
