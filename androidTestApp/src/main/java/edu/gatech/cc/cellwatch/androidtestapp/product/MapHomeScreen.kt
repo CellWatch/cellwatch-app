@@ -168,6 +168,27 @@ class MapHomeScreen(
         )
         map.mapboxMap.addOnMapIdleListener {
             render(viewModel.onZoomChanged(map.mapboxMap.cameraState.zoom))
+            // Reported after idle rather than on every frame: the grid is
+            // recomputed from these, and doing that mid-gesture would sample
+            // the lattice on every pan tick.
+            val camera = map.mapboxMap.cameraState
+            val bounds = map.mapboxMap.coordinateBoundsForCamera(
+                CameraOptions.Builder()
+                    .center(camera.center)
+                    .zoom(camera.zoom)
+                    .bearing(camera.bearing)
+                    .pitch(camera.pitch)
+                    .padding(camera.padding)
+                    .build(),
+            )
+            render(
+                viewModel.onBoundsChanged(
+                    north = bounds.northeast.latitude(),
+                    south = bounds.southwest.latitude(),
+                    east = bounds.northeast.longitude(),
+                    west = bounds.southwest.longitude(),
+                ),
+            )
         }
     }
 
@@ -200,10 +221,13 @@ class MapHomeScreen(
                                             .let { Point.fromLngLat(it.longitude, it.latitude) },
                                 ),
                             )
-                            .withFillColor(Theme.Palette.PRIMARY)
-                            // Denser cells read darker, so the overlay conveys
-                            // count rather than mere presence.
-                            .withFillOpacity(fillOpacityFor(cell.measurementCount))
+                            // frozenApp's semantics: the outline draws the
+                            // grid, the fill marks which cells hold data.
+                            // Transparent rather than absent, so an empty cell
+                            // is still a tappable, visible part of the tiling.
+                            .withFillColor(
+                                if (cell.hasMeasurements) HEX_FILL_COLOR else android.graphics.Color.TRANSPARENT,
+                            )
                             .withFillOutlineColor(Theme.Palette.PRIMARY)
                     },
                 )
@@ -222,9 +246,7 @@ class MapHomeScreen(
         )
     }
 
-    /** Caps out quickly: the useful distinction is one versus several. */
-    private fun fillOpacityFor(count: Int): Double =
-        (0.18 + (count.coerceAtMost(6) * 0.07)).coerceAtMost(0.6)
+
 
     /** Drawn rather than shipped as an asset, so it follows the palette. */
     private fun markerBitmap(): Bitmap {
@@ -249,5 +271,11 @@ class MapHomeScreen(
 
     private companion object {
         const val MARKER_IMAGE_ID = "cellwatch-measurement-pin"
+
+        /**
+         * Translucent green, as frozenApp used: `cw_green_light` with its
+         * alpha halved so the basemap stays readable underneath.
+         */
+        val HEX_FILL_COLOR = android.graphics.Color.argb(0x80, 0x4C, 0xAF, 0x50)
     }
 }

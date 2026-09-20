@@ -22,24 +22,31 @@ Carried forward so it is not lost between sessions. Updated 2026-09-19.
    emits stage transitions, not results, so latency sits at `--` on the run screen until the
    whole sequence completes even though it finished seconds earlier.
 
+5. **Hex overlay is short of frozenApp in two ways.** It tiles the viewport and fills cells that
+   hold measurements, but does not yet show the per-cell measurement count as a label, and
+   tapping a resolution-8 cell does not drill down to its resolution-9 children. frozenApp did
+   both. The count label needs view annotations on each cell; the drill-down needs
+   parent/child derivation, which is bit masking rather than a library call because h3-kmp
+   exposes no cellToChildren.
+
 ## Deferred by decision
 
-5. **Mapbox `sk.` secret token** ships in the app bundle. High severity, extractable from any
+6. **Mapbox `sk.` secret token** ships in the app bundle. High severity, extractable from any
    build. Deferred until nearer deployment; full detail in `PRE_DEPLOYMENT_CHECKLIST.md` item 1.
-6. **`server_source_port`** — blocked on the AWS tuple service decision and external
+7. **`server_source_port`** — blocked on the AWS tuple service decision and external
    stakeholders. `PRE_DEPLOYMENT_CHECKLIST.md` item 5.
-7. **Crashlytics** — low priority. The shared logger landed without it; reinstating it is a
+8. **Crashlytics** — low priority. The shared logger landed without it; reinstating it is a
    data-governance question, not a technical one.
 
 ## External action
 
-8. **Send `FCC_IOS_DISCREPANCIES.md`** to the FCC and ask for guidance. Ready and pushed. The
+9. **Send `FCC_IOS_DISCREPANCIES.md`** to the FCC and ask for guidance. Ready and pushed. The
    standing strategy is not to block development on the reply, but the clock only starts once
    it goes.
 
 ## Build fragility
 
-9. **msak-client-kmp 0.6.0 exists only in this machine's `~/.m2`.** cellwatch pins it and
+10. **msak-client-kmp 0.6.0 exists only in this machine's `~/.m2`.** cellwatch pins it and
    resolves via `mavenLocal()`, so a fresh clone or another machine cannot build until someone
    runs `publishToMavenLocal` in msak — and nothing says so. Either set
    `cellwatch.useLocalMsak=true` to resolve from source through the existing `includeBuild`, or
