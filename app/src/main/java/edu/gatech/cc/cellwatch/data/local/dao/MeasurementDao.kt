@@ -67,6 +67,9 @@ abstract class MeasurementDao {
     @Query("SELECT * FROM MeasurementEntity WHERE id = :id")
     abstract suspend fun getMeasurementById(id: String): MeasurementEntity
 
+    @Query("SELECT * FROM MeasurementEntity WHERE groupId = :groupId")
+    abstract suspend fun getMeasurementsInGroup(groupId: String): List<MeasurementEntity>
+
     @Query("SELECT * FROM MeasurementEntity")
     abstract fun getMeasurementsFlow(): Flow<List<MeasurementEntity>>
 
