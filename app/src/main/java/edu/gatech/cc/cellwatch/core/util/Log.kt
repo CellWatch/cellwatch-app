@@ -26,15 +26,15 @@ object Log : Logger {
     private fun log(level: Int, tag: String?, message: String?, throwable: Throwable?) {
         if (level >= INFO) {
             val msg = listOfNotNull(tag, message, throwable?.message).joinToString(" ")
-            if (msg.isNotEmpty()) Firebase.crashlytics.log(msg)
+            if (msg.isNotEmpty()) Firebase.crashlytics.log(redactSecrets(msg))
         }
 
         if (level >= WARN) {
-            Firebase.crashlytics.recordException(throwable ?: Exception(message))
+            Firebase.crashlytics.recordException(redactSecrets(throwable ?: Exception(message)))
         }
 
         if (BuildConfig.DEBUG) {
-            android.util.Log.println(level, tag, listOfNotNull(message, throwable?.stackTraceToString()).joinToString(" "))
+            android.util.Log.println(level, tag, redactSecrets(listOfNotNull(message, throwable?.stackTraceToString()).joinToString(" ")))
         }
     }
 
@@ -58,3 +58,28 @@ object Log : Logger {
         log(ERROR, tag, message, throwable)
     }
 }
+
+// Supabase client errors put every request header in their message, including the device secret
+// and API key, so everything this logger emits is scrubbed before it leaves the app.
+private val SECRET_HEADER = Regex("""(?i)\b(x-device-secret|authorization|apikey)(=\[[^\]]*\]|\s*:\s*[^\s,\]}]+)""")
+private val JWT = Regex("""eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+""")
+private const val REDACTED = "[REDACTED]"
+
+internal fun redactSecrets(text: String): String =
+    JWT.replace(SECRET_HEADER.replace(text) { "${it.groupValues[1]}=$REDACTED" }, REDACTED)
+
+/**
+ * Returns [throwable] itself if none of the messages in its cause chain contain secrets, and
+ * otherwise a copy of the chain with redacted messages and the original stack traces.
+ */
+internal fun redactSecrets(throwable: Throwable): Throwable {
+    val chain = generateSequence(throwable) { t -> t.cause?.takeIf { it !== t } }.take(10).toList()
+    if (chain.none { t -> t.message?.let { redactSecrets(it) != it } == true }) return throwable
+
+    return chain.foldRight<Throwable, Throwable?>(null) { t, cause ->
+        val message = listOfNotNull(t.javaClass.name, t.message?.let { redactSecrets(it) }).joinToString(": ")
+        RedactedException(message, cause).apply { stackTrace = t.stackTrace }
+    }!!
+}
+
+private class RedactedException(message: String, cause: Throwable?) : Exception(message, cause)
