@@ -87,6 +87,7 @@ import com.mapbox.search.ui.view.SearchResultsView
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.data.core.sync.UploadWorker
 import edu.gatech.cc.cellwatch.databinding.ActivityMapBinding
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 import kotlinx.coroutines.CoroutineScope
@@ -231,14 +232,7 @@ class MapActivity : AppCompatActivity() {
             }
         }
 
-        lifecycleScope.launch {
-            try {
-                CellWatchApp.measurementRepository.tryUploadMeasurements()
-                CellWatchApp.measurementRepository.tryUploadFccSubmissions()
-            } catch(e: Exception) {
-                Log.d(TAG, "failed to upload measurements and submissions", e)
-            }
-        }
+        UploadWorker.enqueue(this)
 
         // Search Implementation
         searchResultsView = binding.searchResultsView.apply {

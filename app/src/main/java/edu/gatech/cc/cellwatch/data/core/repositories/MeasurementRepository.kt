@@ -6,9 +6,12 @@ import com.google.gson.JsonSyntaxException
 import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.data.core.sync.MeasurementUploader
+import edu.gatech.cc.cellwatch.data.core.sync.UploadWorker
 import edu.gatech.cc.cellwatch.data.local.dao.FccSubmissionDao
 import edu.gatech.cc.cellwatch.data.local.dao.MeasurementDao
 import edu.gatech.cc.cellwatch.data.local.model.FccSubmissionEntity
+import edu.gatech.cc.cellwatch.data.local.model.MeasurementEntity
 import edu.gatech.cc.cellwatch.data.local.model.MeasurementWithData
 import edu.gatech.cc.cellwatch.data.local.model.asExternalModel
 import edu.gatech.cc.cellwatch.data.model.FccSubmission
@@ -18,12 +21,9 @@ import edu.gatech.cc.cellwatch.data.model.TcpTuple
 import edu.gatech.cc.cellwatch.data.model.asEntity
 import edu.gatech.cc.cellwatch.data.model.asEntityWithData
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withContext
-import kotlinx.datetime.Clock
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.datetime.Instant
 import okhttp3.Call
 import okhttp3.Callback
@@ -38,9 +38,10 @@ import kotlin.coroutines.suspendCoroutine
 
 /**
  * A MeasurementRepository contains methods to read/write [Measurement] records to the local Room
- * database. MeasurementRepository also contains the uploadMeasurements method which uploads all
- * unsynchronized [Measurement] records from the Room database to the remote Supabase database and
- * marks the local records synchronized by setting the uploadTime field to a timestamp.
+ * database. MeasurementRepository also contains the uploadPending method which uploads all
+ * unsynchronized [Measurement] and [FccSubmission] records from the Room database to the remote
+ * Supabase database and marks the local records synchronized by setting the uploadTime field to a
+ * timestamp. Callers should use [UploadWorker.enqueue] rather than calling it from a screen.
  */
 
 class MeasurementRepository(
@@ -140,110 +141,53 @@ class MeasurementRepository(
         return maxOf(measurementTime, submissionTime)
     }
 
-    @WorkerThread
-    suspend fun tryUploadMeasurements() {
-        val unsynchronizedMeasurements = getUnsynchronizedMeasurementsWithData()
-        if (unsynchronizedMeasurements.isEmpty()) {
-            Log.d(TAG, "no measurements to upload")
-            return
-        }
-
-        Log.d(TAG, "attempting to upload ${unsynchronizedMeasurements.size} measurements")
-
-        coroutineScope {
-            unsynchronizedMeasurements.map { measurement ->
-                async(Dispatchers.IO) {
-                    try {
-                        val entity = networkDataSource.insertMeasurement(measurement).asEntity()
-                        entity.uploadTime = Clock.System.now()
-                        measurementDao.updateMeasurement(entity)
-                        Log.i(TAG, "measurement ${measurement.id} uploaded")
-                    } catch (e: NetworkMeasurementDatasource.NetworkError) {
-                        Log.i(TAG, "network error uploading measurement ${measurement.id}", e)
-                    } catch (e: NetworkMeasurementDatasource.DuplicateKeyError) {
-                        if (canMarkUploaded(measurement)) {
-                            val entity = measurement.asEntity()
-                            entity.uploadTime = Clock.System.now()
-                            measurementDao.updateMeasurement(entity)
-                            Log.i(TAG, "marked measurement ${measurement.id} as previously uploaded")
-                        } else {
-                            Log.i(TAG, "duplicate key error uploading measurement and can't mark as previously uploaded; will retry later", e)
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "unexpected error uploading measurement ${measurement.id}", e)
-                    }
-                }
-            }.awaitAll()
-        }
-    }
-
-        @WorkerThread
-    suspend fun canMarkUploaded(measurement: Measurement): Boolean {
-        try {
-            val networkMeasurement = withContext(Dispatchers.IO) {
-                networkDataSource.getMeasurementById(measurement.id)
-            }
-
-            if (networkMeasurement.timestamp == measurement.timestamp) {
-                return true
-            } else {
-                Log.e(TAG, "duplicate measurement ids with mismatched timestamps: $networkMeasurement $measurement")
-            }
-        } catch (e: NetworkMeasurementDatasource.NotFoundError) {
-            Log.e(TAG, "duplicate key error for measurement ${measurement.id}, but measurement not found", e)
-        } catch (e: NetworkMeasurementDatasource.NetworkError) {
-            Log.i(TAG, "network error fetching existing measurement ${measurement.id}", e)
-        } catch (e: Exception) {
-            Log.e(TAG, "unexpected error fetching existing measurement ${measurement.id}", e)
-        }
-
-        return false
-    }
+    /**
+     * Emits the group's upload time whenever local upload state changes, which is null until the
+     * background upload has finished with every record in the group.
+     */
+    fun uploadTimeFlow(group: MeasurementGroup): Flow<Instant?> =
+        combine(measurementDao.getMeasurementsFlow(), submissionDao.getFccSubmissionsFlow()) { _, _ ->
+            getUploadTime(group)
+        }.distinctUntilChanged()
 
     @WorkerThread
-    suspend fun tryUploadFccSubmissions() {
-        val fccSubmissions = getUnsynchronizedFccSubmissions()
-        if (fccSubmissions.isEmpty()) {
-            Log.d(TAG, "no submissions to upload")
-            return
-        }
+    suspend fun uploadPending(): MeasurementUploader.Summary = uploader.uploadPending()
 
-        val tuple = try {
-            withContext(Dispatchers.IO) { getPubicTCPTuple() }
-        } catch (e: IOException) {
-            Log.i(TAG, "network error getting tcp tuple", e)
-            return
-        } catch (e: Exception) {
-            Log.e(TAG, "unexpected error getting tcp tuple", e)
-            return
-        }
+    private val uploader = MeasurementUploader(
+        local = object : MeasurementUploader.Local {
+            override suspend fun unsyncedMeasurements() = getUnsynchronizedMeasurementsWithData()
 
-        Log.d(TAG, "adding tcp tuple to submissions $tuple")
-        fccSubmissions.forEach {
-            it.sourceIp = tuple.remoteAddress
-            it.sourcePort = tuple.remotePort
-            it.serverTimestamp = Instant.fromEpochMilliseconds(tuple.timestamp)
-        }
+            override suspend fun markMeasurementUploaded(measurement: Measurement, uploadTime: Instant) {
+                val entity = measurement.asEntity()
+                entity.uploadTime = uploadTime
+                measurementDao.updateMeasurement(entity)
+            }
 
-        Log.d(TAG, "attempting to upload ${fccSubmissions.size} submissions")
+            override suspend fun unsyncedSubmissions() = getUnsynchronizedFccSubmissions()
 
-        coroutineScope {
-            fccSubmissions.map { submission ->
-                async(Dispatchers.IO) {
-                    try {
-                        val entity = networkDataSource.insertFccSubmission(submission).asEntity()
-                        entity.uploadTime = Clock.System.now()
-                        submissionDao.updateFccSubmission(entity)
-                        Log.i(TAG, "submission ${submission.id} uploaded")
-                    } catch (e: NetworkMeasurementDatasource.NetworkError) {
-                        Log.i(TAG, "network error uploading submission ${submission.id}", e)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "unexpected error uploading submission ${submission.id}", e)
-                    }
-                }
-            }.awaitAll()
-        }
-    }
+            override suspend fun measurementsInGroup(groupId: String) =
+                measurementDao.getMeasurementsInGroup(groupId).map(MeasurementEntity::asExternalModel)
+
+            override suspend fun markSubmissionUploaded(submission: FccSubmission, uploadTime: Instant) {
+                val entity = submission.asEntity()
+                entity.uploadTime = uploadTime
+                submissionDao.updateFccSubmission(entity)
+            }
+        },
+        remote = object : MeasurementUploader.Remote {
+            override suspend fun insertMeasurement(measurement: Measurement) =
+                networkDataSource.insertMeasurement(measurement)
+
+            override suspend fun insertFccSubmission(submission: FccSubmission) =
+                networkDataSource.insertFccSubmission(submission)
+
+            override suspend fun getTcpTuple() = getPubicTCPTuple()
+        },
+        log = object : MeasurementUploader.Log {
+            override fun info(message: String, throwable: Throwable?) = Log.i(TAG, message, throwable)
+            override fun error(message: String, throwable: Throwable?) = Log.e(TAG, message, throwable)
+        },
+    )
 
     private suspend fun getPubicTCPTuple(
         serviceUrl: String = BuildConfig.TCP_TUPLE_URL,

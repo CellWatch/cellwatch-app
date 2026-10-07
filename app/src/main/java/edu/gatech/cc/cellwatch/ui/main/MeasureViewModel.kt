@@ -7,11 +7,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.core.util.Log
+import edu.gatech.cc.cellwatch.data.core.sync.UploadWorker
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementService
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
@@ -20,6 +23,7 @@ class MeasureViewModel: ViewModel() {
     private val TAG = this::class.simpleName
     private val _state = MutableStateFlow(State(MeasureProgress.PRE, null, null, false, null))
     val state: StateFlow<State> = _state
+    private var uploadTimeJob: Job? = null
 
     val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -81,6 +85,7 @@ class MeasureViewModel: ViewModel() {
     }
 
     fun reset() {
+        uploadTimeJob?.cancel()
         _state.update { State(MeasureProgress.PRE, null, null, false, null) }
     }
 
@@ -135,17 +140,13 @@ class MeasureViewModel: ViewModel() {
 
         _state.update { currentState -> currentState.copy(progress = MeasureProgress.END, results = group) }
 
-        viewModelScope.launch {
-            val uploadTime = try {
-                CellWatchApp.measurementRepository.tryUploadMeasurements()
-                CellWatchApp.measurementRepository.tryUploadFccSubmissions()
-                CellWatchApp.measurementRepository.getUploadTime(group)
-            } catch (e: Exception) {
-                Log.d(TAG, "failed to upload measurements and submission", e)
-                null
-            }
+        UploadWorker.enqueue(CellWatchApp.applicationContext())
 
-            _state.update { currentState -> currentState.copy(uploadTime = uploadTime) }
+        uploadTimeJob?.cancel()
+        uploadTimeJob = viewModelScope.launch {
+            CellWatchApp.measurementRepository.uploadTimeFlow(group)
+                .catch { e -> Log.d(TAG, "failed to read upload time", e) }
+                .collect { uploadTime -> _state.update { currentState -> currentState.copy(uploadTime = uploadTime) } }
         }
     }
 
