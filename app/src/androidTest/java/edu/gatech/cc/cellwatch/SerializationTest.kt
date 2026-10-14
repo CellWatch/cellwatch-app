@@ -35,6 +35,13 @@ class SerializationTest {
               "extra_data": "extraData",
               "created_on": "2023-07-12T13:19:23.078772+00:00",
               "updated_on": "2023-07-12T13:19:23.078772+00:00",
+              "sim_mobile_country_code": "310",
+              "sim_mobile_network_code": "260",
+              "net_mobile_country_code": "310",
+              "net_mobile_network_code": "260",
+              "connection_type": "CELLULAR",
+              "cellular_data_enabled": true,
+              "app_version": "1.0.0",
               "locations": [
                 {
                   "id": "67bb3d80-08c5-4439-8ff7-faa1a513f0d4",
@@ -126,7 +133,10 @@ class SerializationTest {
                   "server2"
                 ],
                 "created_on": "2023-07-12T13:19:23.078772+00:00",
-                "updated_on": "2023-07-12T13:19:23.078772+00:00"
+                "updated_on": "2023-07-12T13:19:23.078772+00:00",
+                "application_bytes": null,
+                "bytes_per_sec": 8932.99,
+                "application_bytes_per_sec": null
               }
             }
     """.trimIndent()
