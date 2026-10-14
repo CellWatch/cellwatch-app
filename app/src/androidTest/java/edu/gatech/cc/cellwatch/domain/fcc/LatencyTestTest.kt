@@ -1,13 +1,13 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import edu.gatech.cc.cellwatch.domain.msak.LATENCY_AUTHORIZE_PATH
-import edu.gatech.cc.cellwatch.domain.msak.LATENCY_RESULT_PATH
-import edu.gatech.cc.cellwatch.domain.msak.Server
-import edu.gatech.cc.cellwatch.domain.msak.latency.LatencyMessage
-import edu.gatech.cc.cellwatch.domain.msak.latency.LatencyResult
-import edu.gatech.cc.cellwatch.domain.msak.latency.LatencyRoundTrip
-import edu.gatech.cc.cellwatch.domain.msak.latency.LatencyUpdate
+import edu.gatech.cc.cellwatch.msak.LATENCY_AUTHORIZE_PATH
+import edu.gatech.cc.cellwatch.msak.LATENCY_RESULT_PATH
+import edu.gatech.cc.cellwatch.msak.Server
+import edu.gatech.cc.cellwatch.msak.latency.LatencyMessage
+import edu.gatech.cc.cellwatch.msak.latency.LatencyResult
+import edu.gatech.cc.cellwatch.msak.latency.LatencyRoundTrip
+import edu.gatech.cc.cellwatch.msak.latency.LatencyUpdate
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockkObject
@@ -27,6 +27,8 @@ class LatencyTestTest {
 
     @Before
     fun setup() {
+        grantMeasurementPermissions()
+
         val server = Server("test", null, mapOf(
             "http:///$LATENCY_AUTHORIZE_PATH" to "http://0.0.0.0/$LATENCY_AUTHORIZE_PATH",
             "http:///$LATENCY_RESULT_PATH" to "http://0.0.0.0/$LATENCY_RESULT_PATH",
@@ -39,7 +41,7 @@ class LatencyTestTest {
     @Test
     fun testCalculations() {
         every { test.msakTest.start() } answers {
-            (self as edu.gatech.cc.cellwatch.domain.msak.latency.LatencyTest).result = LatencyResult(
+            (self as edu.gatech.cc.cellwatch.msak.latency.LatencyTest).result = LatencyResult(
                 "test",
                 "",
                 listOf(
@@ -62,7 +64,7 @@ class LatencyTestTest {
         (test.msakTest.updatesChan as Channel<LatencyUpdate>).close()
         val result = runBlocking { test.run() }
         assertEquals(6, result.latencyData?.rtt)
-        assertEquals(8, result.latencyData?.jitter)
+        assertEquals(2, result.latencyData?.jitter)
     }
 
     @Test

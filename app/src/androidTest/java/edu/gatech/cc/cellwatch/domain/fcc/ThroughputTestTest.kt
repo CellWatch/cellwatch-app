@@ -1,13 +1,13 @@
 package edu.gatech.cc.cellwatch.domain.fcc
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import edu.gatech.cc.cellwatch.domain.msak.Server
-import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_DOWNLOAD_PATH
-import edu.gatech.cc.cellwatch.domain.msak.THROUGHPUT_UPLOAD_PATH
-import edu.gatech.cc.cellwatch.domain.msak.throughput.ByteCounters
-import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputDirection
-import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputMeasurement
-import edu.gatech.cc.cellwatch.domain.msak.throughput.ThroughputUpdate
+import edu.gatech.cc.cellwatch.msak.Server
+import edu.gatech.cc.cellwatch.msak.THROUGHPUT_DOWNLOAD_PATH
+import edu.gatech.cc.cellwatch.msak.THROUGHPUT_UPLOAD_PATH
+import edu.gatech.cc.cellwatch.msak.throughput.ByteCounters
+import edu.gatech.cc.cellwatch.msak.throughput.ThroughputDirection
+import edu.gatech.cc.cellwatch.msak.throughput.ThroughputMeasurement
+import edu.gatech.cc.cellwatch.msak.throughput.ThroughputUpdate
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockkObject
@@ -30,6 +30,8 @@ class ThroughputTestTest {
     lateinit var test: ThroughputTest
 
     private fun setup(maxWarmupTime: Long = 100, maxActiveTime: Long = 100, direction: ThroughputDirection = ThroughputDirection.DOWNLOAD) {
+        grantMeasurementPermissions()
+
         val server = Server("test", null, mapOf(
             "ws:///$THROUGHPUT_DOWNLOAD_PATH" to "ws://0.0.0.0/$THROUGHPUT_DOWNLOAD_PATH",
             "ws:///$THROUGHPUT_UPLOAD_PATH" to "ws://0.0.0.0/$THROUGHPUT_UPLOAD_PATH",
