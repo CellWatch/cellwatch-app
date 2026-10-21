@@ -88,4 +88,15 @@ class LatencyTest(
             _rttChan.close()
         }
     }
+
+    companion object {
+        /** How long msak sends latency probes for: msak 0.1.3's default, which [msakTest] uses. */
+        const val DURATION_MILLIS = 5000L
+
+        /**
+         * msak stops the test [DURATION_MILLIS] plus this many milliseconds after the first echo
+         * comes back, to give the last probes time to return. It is fixed inside msak 0.1.3.
+         */
+        const val MSAK_STOP_GRACE_MILLIS = 1000L
+    }
 }

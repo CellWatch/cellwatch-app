@@ -22,8 +22,8 @@ class ThroughputTest(
     private val direction: ThroughputDirection,
     groupId: String,
     measurementId: String? = null,
-    private val maxWarmupTime: Long = 10000L,
-    private val maxActiveTime: Long = 10000L,
+    private val maxWarmupTime: Long = MAX_WARMUP_MILLIS,
+    private val maxActiveTime: Long = MAX_ACTIVE_MILLIS,
 ): MeasurementTest<ThroughputResult>(
     groupId,
     if (direction == ThroughputDirection.DOWNLOAD) "download" else "upload",
@@ -275,4 +275,12 @@ class ThroughputTest(
     }
 
     private class MissingWarmupUpdateException: Exception("one or more streams had no updates in warmup period")
+
+    companion object {
+        /** The warmup ends early once every stream's rate stops rising, but never runs longer than this. */
+        const val MAX_WARMUP_MILLIS = 10000L
+
+        /** How long the active (measured) part of the test runs after the warmup. */
+        const val MAX_ACTIVE_MILLIS = 10000L
+    }
 }
