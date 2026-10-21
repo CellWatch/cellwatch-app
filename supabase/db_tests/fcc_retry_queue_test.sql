@@ -1,54 +1,30 @@
 -- Tests for private.process_fcc_submission_retries, run by supabase/db_tests/run.sh in a
 -- throwaway container. Stand-ins replace FCC posting and the readiness check, so nothing is
--- sent anywhere.
+-- sent anywhere. See also fcc_queue_test.sql, which runs the real posting code.
 \set ON_ERROR_STOP on
 set client_min_messages = notice;
 
--- Minimal copies of the tables the retry function uses (columns as in the live schema).
-create schema if not exists private;
+-- The live schema and the 2026-10-21 migrations, which change how the queue is processed;
+-- these scenarios run through process_fcc_submission_retries, which is kept for manual use.
+\i /db_tests/lib/fcc_schema.sql
+\i /migrations/202610210101_build_fcc_payload_per_submission.sql
+\i /migrations/202610210102_fill_blank_fcc_provider_from_sim.sql
+\i /migrations/202610210103_fcc_retry_queue_processing.sql
 
-create table public.fcc_submissions (
-    id uuid primary key,
-    provider text,
-    submitted boolean default false,
-    submission_response text
-);
-
-create table private.fcc_submission_retry_queue (
-    submission_id uuid primary key,
-    fcc_env text default 'prod' not null,
-    state text default 'pending' not null check (state in ('pending', 'blocked')),
-    attempt_count integer default 0 not null,
-    next_attempt_at timestamptz default now() not null,
-    last_attempt_at timestamptz,
-    last_error text,
-    created_on timestamptz default now() not null,
-    updated_on timestamptz default now() not null
-);
-
-create table private.fcc_submission_failures (
-    id uuid default gen_random_uuid() primary key,
-    submission_id uuid,
-    measurement_group_id uuid,
-    error_message text,
-    occurred_on timestamptz default now() not null,
-    succeeded boolean,
-    fcc_env text,
-    response_status integer,
-    response_snippet text
-);
+-- These tests queue entries themselves.
+alter table public.fcc_submissions disable trigger trg_auto_post_fcc_submission;
 
 -- Which submissions have all three measurements, and how the stand-in FCC answers.
 create table test_ready (submission_id uuid primary key);
 create table test_fcc (status integer not null, delay_seconds numeric not null);
 insert into test_fcc values (200, 0);
 
-create function private.fcc_submission_is_ready(sub_id uuid) returns boolean
+create or replace function private.fcc_submission_is_ready(sub_id uuid) returns boolean
 language sql stable as $$
     select exists (select 1 from test_ready where submission_id = sub_id)
 $$;
 
-create function private.post_fcc_submission(sub_id uuid, fcc_env text) returns boolean
+create or replace function private.post_fcc_submission(sub_id uuid, fcc_env text) returns boolean
 language plpgsql as $$
 declare
     fcc record;
@@ -62,8 +38,6 @@ begin
     return true;
 end;
 $$;
-
-\i /migrations/202610070001_unclog_fcc_retry_queue.sql
 
 -- Adds a due queue entry for a submission that was queued `queued_ago` ago.
 create function test_add(sub_id uuid, ready boolean, queued_ago interval) returns void
@@ -79,16 +53,6 @@ language sql as $$
     truncate public.fcc_submissions, private.fcc_submission_retry_queue,
         private.fcc_submission_failures, test_ready;
     update test_fcc set status = 200, delay_seconds = 0;
-$$;
-
-create function expect(ok boolean, description text) returns void
-language plpgsql as $$
-begin
-    if ok is distinct from true then
-        raise exception 'FAILED: %', description;
-    end if;
-    raise notice 'ok - %', description;
-end;
 $$;
 
 do $$
@@ -154,11 +118,13 @@ begin
     insert into public.fcc_submissions (id, provider) values (sub, ' ');
     insert into private.fcc_submission_retry_queue (submission_id, next_attempt_at)
         values (sub, now() - interval '1 minute');
+    -- Changed 2026-10-21: the provider is checked once the measurements are complete.
+    insert into test_ready values (sub);
 
     perform private.process_fcc_submission_retries(10);
 
     perform expect(
-        (select state = 'blocked' and last_error = 'Missing provider'
+        (select state = 'blocked' and last_error like 'Missing provider%'
          from private.fcc_submission_retry_queue where submission_id = sub),
         'an entry without a carrier name is blocked');
 end;
