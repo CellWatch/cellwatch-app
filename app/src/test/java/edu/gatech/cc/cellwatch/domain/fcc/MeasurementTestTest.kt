@@ -174,6 +174,21 @@ class MeasurementTestTest {
         assertEquals(NetworkConnectionType.WIFI, m.connectionType)
     }
 
+    @Test
+    fun generationChangeByTheEndOfTheTestFailsEvenWithoutACellUpdate() = runBlocking<Unit> {
+        // The FCC requires the same generation at the start and at the end of the test. Cell info
+        // callbacks are not guaranteed to arrive before the watcher is stopped, so the generation
+        // at the end has to be checked directly.
+        val env = FakeEnvironment(cells = listOf(lte), generation = "4G")
+
+        val m = test("download", env) {
+            env.generation = "5G"
+            throughput(success = true)
+        }.run()
+
+        assertEquals(false, m.success)
+    }
+
     // --- errors and cancellation ---
 
     @Test
