@@ -9,6 +9,7 @@ import edu.gatech.cc.cellwatch.data.core.repositories.SettingsRepository
 import edu.gatech.cc.cellwatch.data.datastore.LocalDataStore
 import edu.gatech.cc.cellwatch.data.local.CellWatchDatabase
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
+import edu.gatech.cc.cellwatch.ui.SystemBarInsets
 import org.conscrypt.Conscrypt
 import java.security.Security
 
@@ -22,6 +23,11 @@ class CellWatchApp : Application() {
         // issue (https://github.com/google/conscrypt/issues/65) that suggests Conscrypt
         // might eventually solve the problem but hasn't yet. I guess it has now...
         Security.insertProviderAt(Conscrypt.newProvider(), 1)
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        registerActivityLifecycleCallbacks(SystemBarInsets)
     }
 
     companion object {
