@@ -16,9 +16,8 @@ import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import com.google.android.flexbox.FlexboxLayout
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
-import edu.gatech.cc.cellwatch.data.model.FccSubmission
-import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
+import edu.gatech.cc.cellwatch.data.model.uploadTime
 import edu.gatech.cc.cellwatch.databinding.ItemMeasurementGroupBinding
 import kotlinx.datetime.Instant
 
@@ -143,16 +142,7 @@ class MeasurementGroupItem(
             context.getString(R.string.fcc_challenge_stationary)
         }
 
-        val uploadable = listOfNotNull(group.latency, group.download, group.upload, group.submission)
-        val uploadTimes = uploadable.map {
-            when (it) {
-                is Measurement -> it.uploadTime
-                is FccSubmission -> it.uploadTime
-                else -> throw RuntimeException("expected Measurement or FccSubmission, got $it")
-            }
-        }
-        val uploadTime = if (uploadTimes.all { it != null }) uploadTimes.firstOrNull() else null
-        updateUploadTime(uploadTime)
+        updateUploadTime(group.uploadTime({ it.uploadTime }, { it.uploadTime }))
 
         binding.summaryLatencyText.text = group.latency?.displayValue(context) ?: "-"
         binding.summaryDownloadText.text = group.download?.displayValue(context) ?: "-"
