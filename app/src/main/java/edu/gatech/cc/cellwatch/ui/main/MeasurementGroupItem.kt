@@ -128,11 +128,16 @@ class MeasurementGroupItem(
             binding.timeText.text = "-"
         }
 
-        val carrier = group.latency?.provider
-            ?: group.download?.provider
-            ?: group.upload?.provider
+        // A blank provider is stored and uploaded as blank so the server can fill it in; it is only
+        // labelled here. Older builds stored "unknown", which is shown as it was.
+        val measurements = listOfNotNull(group.latency, group.download, group.upload)
+        val carrier = measurements.firstNotNullOfOrNull { it.provider?.takeIf(String::isNotBlank) }
 
-        binding.carrierText.text = carrier ?: ""
+        binding.carrierText.text = when {
+            carrier != null -> carrier
+            measurements.isEmpty() -> ""
+            else -> context.getString(R.string.unknown_carrier)
+        }
 
         val submission = group.submission
         binding.typeText.text = if (submission == null && collectionMode != CollectionMode.FCC_CHALLENGE) {

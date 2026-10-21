@@ -106,6 +106,7 @@
     <string name="fcc_challenge_stationary">Impugnación FCC (Parado)</string>
     <string name="fcc_challenge_vehicle">Impugnación FCC (En Vehículo)</string>
     <string name="testing">Prueba</string>
+    <string name="unknown_carrier">Operador desconocido</string>
     <string name="take_another_measurement">Medir otra vez</string>
     <string name="back_to_map">Regresar al mapa</string>
     <string name="measurement_in_progress">Medición en curso</string>

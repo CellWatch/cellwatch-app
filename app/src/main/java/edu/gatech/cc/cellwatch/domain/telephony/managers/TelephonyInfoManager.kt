@@ -46,6 +46,30 @@ enum class NetworkConnectionType {
     NONE, WIFI, CELLULAR
 }
 
+/**
+ * The BDC's provider_name is the subscriber's mobile service provider, the same carrier the sim_*
+ * codes identify. The network the phone is camped on is already reported in the net_* codes and
+ * network_roaming_flag, so the SIM's carrier name comes first.
+ *
+ * The network's name is used only when the SIM has no name and the phone is not roaming: off
+ * roaming the registered network is the subscriber's own, so it names the same carrier. While
+ * roaming it names the host network, which is the wrong provider.
+ *
+ * Returns "" when neither applies (Android returns "" rather than null for these names). The server
+ * fills a blank provider in from the SIM's MCC/MNC; a placeholder such as "unknown" would be sent to
+ * the FCC as if it were a carrier. Names are lowercased and trimmed, as the app has always sent them.
+ */
+fun providerName(simOperatorName: String?, networkOperatorName: String?, roaming: Boolean): String {
+    val sim = simOperatorName?.trim().orEmpty()
+    val network = networkOperatorName?.trim().orEmpty()
+
+    return when {
+        sim.isNotEmpty() -> sim
+        !roaming -> network
+        else -> ""
+    }.lowercase()
+}
+
 object TelephonyInfoManager {
     private val TAG = this::class.simpleName
     private val appContext = CellWatchApp.applicationContext()
@@ -124,14 +148,13 @@ object TelephonyInfoManager {
         return mnc
     }
 
+    /** The subscriber's carrier, lowercased, or "" when unknown. See [providerName]. */
     fun getProviderName(): String {
-        return (telephonyManager.networkOperatorName
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?: telephonyManager.simOperatorName
-                ?.trim()
-                ?.takeIf { it.isNotEmpty() }
-            ?: "unknown").lowercase()
+        return providerName(
+            simOperatorName = telephonyManager.simOperatorName,
+            networkOperatorName = telephonyManager.networkOperatorName,
+            roaming = telephonyManager.isNetworkRoaming,
+        )
     }
 
     fun getConnectionType(): NetworkConnectionType {
