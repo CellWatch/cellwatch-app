@@ -15,12 +15,12 @@ cellwatchProperties.load(new FileInputStream(cellwatchPropertiesFile))
 
 android {
     namespace 'edu.gatech.cc.cellwatch'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "edu.gatech.cc.cellwatch"
         minSdk 29
-        targetSdk 35
+        targetSdk 36
         versionCode 13
         versionName "1.0.0"
 
@@ -72,6 +72,7 @@ android {
     }
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
 
     packagingOptions {
