@@ -1,0 +1,367 @@
+-- Tests for the FCC retry queue after the 2026-10-21 migrations: per-entry commits and
+-- duplicate_test_id (#117) and the provider block reason (#118). Run by
+-- supabase/db_tests/run.sh in a throwaway container. The real posting code runs, but a
+-- stand-in replaces the HTTP request, so nothing is sent anywhere.
+\set ON_ERROR_STOP on
+set client_min_messages = notice;
+
+\i /db_tests/lib/fcc_schema.sql
+\i /migrations/202610210101_build_fcc_payload_per_submission.sql
+\i /migrations/202610210102_fill_blank_fcc_provider_from_sim.sql
+\i /migrations/202610210103_fcc_retry_queue_processing.sql
+
+-- How the stand-in FCC answers each submission (200 unless listed), and what it was sent.
+create table test_fcc_reply (
+    submission_id uuid primary key,
+    status integer,
+    content text,
+    delay_seconds numeric not null default 0
+);
+create table test_http_log (submission_id uuid, body text);
+
+create or replace function private.fcc_http_post(
+    p_url text, p_hash_value text, p_body text, out status integer, out content text)
+language plpgsql as $$
+declare
+    sub uuid := (p_body::jsonb #>> '{submissions,0,test_id}')::uuid;
+    reply record;
+begin
+    select * into reply from test_fcc_reply r where r.submission_id = sub;
+    if found then
+        perform pg_sleep(reply.delay_seconds);
+        status := reply.status;
+        content := reply.content;
+    else
+        status := 200;
+        content := '{"status":"ok"}';
+    end if;
+    insert into test_http_log values (sub, p_body);
+end;
+$$;
+
+insert into vault.secrets (id, name, secret)
+values ('00000000-0000-0000-0000-00000000f0cc', 'fcc_hash', 'test-hash-value');
+insert into private.fcc_submission_info (env, url, hash_secret_id)
+values ('prod', 'https://bdc.example.invalid/api/challenge', '00000000-0000-0000-0000-00000000f0cc');
+
+-- Adds a submission the way the app does (the live trigger queues it), with all three
+-- measurements unless ready is false. `due_ago` orders the entries.
+create function test_submission(
+    ready boolean default true,
+    provider text default 'at&t',
+    sim_mcc text default '310',
+    sim_mnc text default '410',
+    net_mcc text default '310',
+    net_mnc text default '410',
+    with_locations boolean default true,
+    queued_ago interval default interval '1 hour',
+    due_ago interval default interval '1 minute'
+) returns uuid
+language plpgsql as $$
+declare
+    sub uuid := gen_random_uuid();
+    m uuid;
+    t text;
+begin
+    insert into public.fcc_submissions (
+        id, provider, sim_country_code, sim_network_code, net_country_code, net_network_code)
+    values (sub, provider, sim_mcc, sim_mnc, net_mcc, net_mnc);
+
+    update private.fcc_submission_retry_queue
+    set created_on = now() - queued_ago, next_attempt_at = now() - due_ago
+    where submission_id = sub;
+
+    if ready then
+        foreach t in array array['latency', 'download', 'upload'] loop
+            insert into public.measurements (group_id, type) values (sub, t) returning id into m;
+            if t = 'latency' then
+                insert into public.latency_data (measurement_id, rtt) values (m, 30000);
+            else
+                insert into public.upload_download_data (measurement_id, duration, bytes)
+                values (m, 5000000, 1000000);
+            end if;
+            if with_locations then
+                insert into public.locations (measurement_id, lat, lon) values (m, 33.7756, -84.3963);
+            end if;
+        end loop;
+    end if;
+
+    return sub;
+end;
+$$;
+
+create function test_reset() returns void
+language sql as $$
+    truncate public.fcc_submissions, private.fcc_submission_retry_queue,
+        private.fcc_submission_failures, public.measurements, public.latency_data,
+        public.upload_download_data, public.locations, public.cells,
+        test_fcc_reply, test_http_log;
+    delete from private.carrier_by_plmn where provider like 'test %';
+$$;
+
+-- Submission ids are passed between the psql steps below as settings.
+create function test_id(name text) returns uuid
+language sql as $$ select current_setting('test.' || name)::uuid $$;
+
+create function test_set_id(name text, sub uuid) returns void
+language sql as $$ select set_config('test.' || name, sub::text, false) $$;
+
+-- #117: a CALL from the top level commits after each entry.
+do $$
+begin
+    perform test_reset();
+    perform test_set_id('a', test_submission(due_ago => interval '3 minutes'));
+    perform test_set_id('b', test_submission(due_ago => interval '2 minutes'));
+    perform test_set_id('c', test_submission(due_ago => interval '1 minute'));
+end;
+$$;
+
+call private.run_fcc_submission_retries(10) \gset
+set test.processed = :'processed';
+
+do $$
+begin
+    perform expect(current_setting('test.processed') = '3', 'a CALL from the top level posts every due entry');
+    perform expect((select count(*) from public.fcc_submissions where submitted) = 3
+                   and not exists (select 1 from private.fcc_submission_retry_queue)
+                   and (select count(*) from private.fcc_submission_failures where succeeded) = 3,
+        'each post is marked sent, logged and removed from the queue');
+    perform expect(
+        (select count(distinct xmin::text) from public.fcc_submissions where submitted) = 3,
+        'each post was recorded in its own transaction');
+end;
+$$;
+
+-- Inside a transaction block the procedure can't commit, and must stop before posting.
+do $$
+begin
+    perform test_reset();
+    perform test_set_id('a', test_submission());
+end;
+$$;
+
+\set LAST_ERROR_SQLSTATE none
+\echo 'Next: a CALL inside a transaction block (an "invalid transaction termination" error is expected).'
+\set ON_ERROR_STOP off
+begin;
+call private.run_fcc_submission_retries(10);
+rollback;
+\set ON_ERROR_STOP on
+set test.last_sqlstate = :'LAST_ERROR_SQLSTATE';
+
+do $$
+begin
+    perform expect(current_setting('test.last_sqlstate') = '2D000',
+        'a CALL inside a transaction block fails with invalid transaction termination');
+    perform expect(not exists (select 1 from test_http_log)
+                   and (select state = 'pending' and attempt_count = 0
+                        from private.fcc_submission_retry_queue where submission_id = test_id('a')),
+        'it fails before posting anything');
+end;
+$$;
+
+-- The 2026-08-17 incident: a run posts two entries, then times out on the third.
+do $$
+begin
+    perform test_reset();
+    perform test_set_id('a', test_submission(due_ago => interval '3 minutes'));
+    perform test_set_id('b', test_submission(due_ago => interval '2 minutes'));
+    perform test_set_id('c', test_submission(due_ago => interval '1 minute'));
+    insert into test_fcc_reply values (test_id('c'), 200, '{"status":"ok"}', 3);
+end;
+$$;
+
+\set LAST_ERROR_SQLSTATE none
+\echo 'Next: a run that hits statement_timeout on its third entry (a statement timeout error is expected).'
+set statement_timeout = '1500ms';
+\set ON_ERROR_STOP off
+call private.run_fcc_submission_retries(10);
+\set ON_ERROR_STOP on
+reset statement_timeout;
+set test.last_sqlstate = :'LAST_ERROR_SQLSTATE';
+
+do $$
+begin
+    perform expect(current_setting('test.last_sqlstate') = '57014', 'the run was cancelled by statement_timeout');
+    perform expect(
+        (select count(*) from public.fcc_submissions where submitted and id in (test_id('a'), test_id('b'))) = 2
+        and (select count(*) from private.fcc_submission_failures
+             where succeeded and submission_id in (test_id('a'), test_id('b'))) = 2
+        and not exists (select 1 from private.fcc_submission_retry_queue
+                        where submission_id in (test_id('a'), test_id('b'))),
+        'the two posts before the timeout stay recorded');
+    perform expect(
+        not (select submitted from public.fcc_submissions where id = test_id('c'))
+        and (select state = 'pending' and attempt_count = 0
+             from private.fcc_submission_retry_queue where submission_id = test_id('c')),
+        'the entry that timed out is still pending');
+end;
+$$;
+
+-- Its post may well have reached the FCC. The next run gets duplicate_test_id.
+update test_fcc_reply
+set status = 400,
+    delay_seconds = 0,
+    content = '{"status":"error","errors":[{"field":"test_id","code":"duplicate_test_id","message":"test_id already exists"}]}'
+where submission_id = (select current_setting('test.c')::uuid);
+
+call private.run_fcc_submission_retries(10) \gset
+set test.processed = :'processed';
+
+do $$
+declare
+    s record;
+begin
+    select * into s from public.fcc_submissions where id = test_id('c');
+    perform expect(s.submitted and s.submitted_on is not null,
+        'a duplicate_test_id answer marks the submission sent');
+    perform expect(s.submission_response like 'Not posted again: the FCC answered duplicate_test_id%'
+                   and s.submission_response like '%FCC HTTP status 400 for submission%duplicate_test_id%',
+        'the stored response says why, with the FCC''s answer');
+    perform expect(not exists (select 1 from private.fcc_submission_retry_queue where submission_id = test_id('c')),
+        'and the entry leaves the queue instead of being blocked');
+    perform expect(
+        (select succeeded and error_message like 'FCC HTTP status 400%'
+         from private.fcc_submission_failures where submission_id = test_id('c')),
+        'it is logged as a success, with the FCC''s answer');
+    perform expect(current_setting('test.processed') = '1', 'it counts as processed');
+end;
+$$;
+
+do $$
+declare
+    sub text := '6f1c2d3e-0000-4000-8000-000000000001';
+begin
+    perform expect(private.fcc_error_is_duplicate_test_id(
+            format('FCC HTTP status 400 for submission %s: {"errors":[{"code":"duplicate_test_id"}]}', sub)),
+        'duplicate_test_id in a 400 answer is recognised');
+    perform expect(private.fcc_error_is_duplicate_test_id(
+            format(E'FCC HTTP status 409 for submission %s: {"errors":[\n{"code":"other"},\n{"code":"duplicate_test_id"}]}', sub)),
+        'among other errors, and across lines');
+    perform expect(not private.fcc_error_is_duplicate_test_id(
+            format('FCC HTTP status 503 for submission %s: duplicate_test_id', sub)),
+        'not in a 5xx answer');
+    perform expect(not private.fcc_error_is_duplicate_test_id(
+            format('FCC HTTP status 400 for submission %s: {"errors":[{"code":"null_properties"}]}', sub)),
+        'not for other validation errors');
+    perform expect(not private.fcc_error_is_duplicate_test_id(
+            format('FCC HTTP status 400 for submission %s: {"errors":[{"code":"duplicate_test_ids"}]}', sub)),
+        'not for a longer word');
+    perform expect(not private.fcc_error_is_duplicate_test_id('duplicate_test_id')
+                   and not private.fcc_error_is_duplicate_test_id(null),
+        'not for errors that did not come from the FCC');
+end;
+$$;
+
+-- The function kept for manual use still works, in one transaction.
+do $$
+begin
+    perform test_reset();
+    perform test_submission();
+    perform test_submission();
+    perform test_submission(ready => false);
+    perform expect(private.process_fcc_submission_retries(10) = 2,
+        'process_fcc_submission_retries still posts due entries and returns the count');
+    perform expect((select count(*) from public.fcc_submissions where submitted) = 2
+                   and (select count(*) from private.fcc_submission_retry_queue) = 1,
+        'the entry still waiting for data stays queued');
+end;
+$$;
+
+-- #118: provider checks happen once the data is complete, and say which code is unknown.
+do $$
+declare
+    waiting uuid;
+    unknown_code uuid;
+    no_code uuid;
+    sent text;
+begin
+    perform test_reset();
+    waiting := test_submission(ready => false, provider => '', sim_mnc => '999');
+    unknown_code := test_submission(provider => '', sim_mnc => '999');
+    no_code := test_submission(provider => null, sim_mcc => null, sim_mnc => null);
+
+    perform private.process_fcc_submission_retries(10);
+
+    perform expect(
+        (select state = 'pending' and last_error like 'Waiting%'
+         from private.fcc_submission_retry_queue where submission_id = waiting),
+        'an entry without a provider that is still waiting for data keeps waiting');
+    perform expect(
+        (select state = 'blocked' and last_error = 'Missing provider (SIM 310/999 not in private.carrier_by_plmn)'
+         from private.fcc_submission_retry_queue where submission_id = unknown_code),
+        'a complete entry with an unknown SIM code is blocked, naming the code');
+    perform expect(
+        (select state = 'blocked' and last_error = 'Missing provider (no SIM code)'
+         from private.fcc_submission_retry_queue where submission_id = no_code),
+        'a complete entry without a SIM code is blocked, saying so');
+    perform expect(not exists (select 1 from test_http_log), 'nothing is posted without a provider');
+
+    -- Someone adds the code and releases the entry.
+    insert into private.carrier_by_plmn values ('310', '999', 'test wireless');
+    update private.fcc_submission_retry_queue
+    set state = 'pending', next_attempt_at = now() - interval '1 minute'
+    where submission_id = unknown_code;
+
+    perform private.process_fcc_submission_retries(10);
+
+    select body into sent from test_http_log where submission_id = unknown_code;
+    perform expect(sent::jsonb #>> '{submissions,0,provider_name}' = 'test wireless'
+                   and (select provider = 'test wireless' from public.fcc_submissions where id = unknown_code),
+        'once the code is known, the job fills the provider and posts it');
+end;
+$$;
+
+-- pg_cron runs each job's command at the top level, so the procedure can commit there.
+-- Checked with pg_cron itself where the image has it (it can only be installed in the
+-- postgres database, and runs jobs in other databases with schedule_in_database).
+select current_database() as test_db,
+       exists (select 1 from pg_available_extensions where name = 'pg_cron')
+           and current_setting('shared_preload_libraries') like '%pg_cron%' as have_cron \gset
+\if :have_cron
+do $$
+begin
+    perform test_reset();
+    perform test_set_id('a', test_submission());
+    perform test_set_id('b', test_submission());
+end;
+$$;
+select current_setting('test.a') as cron_a, current_setting('test.b') as cron_b \gset
+
+\c postgres
+create extension if not exists pg_cron;
+select cron.schedule_in_database('fcc-queue-test', '1 seconds',
+    'call private.run_fcc_submission_retries(10);', :'test_db') as cron_job \gset
+set test.cron_job = :'cron_job';
+do $$
+begin
+    for i in 1 .. 60 loop
+        exit when exists (
+            select 1 from cron.job_run_details
+            where jobid = current_setting('test.cron_job')::bigint and status in ('succeeded', 'failed'));
+        perform pg_sleep(0.5);
+    end loop;
+end;
+$$;
+select coalesce((select status || ': ' || return_message from cron.job_run_details
+                 where jobid = :cron_job and status in ('succeeded', 'failed')
+                 order by runid limit 1), 'no finished run') as cron_result \gset
+select cron.unschedule(:cron_job) as unscheduled \gset
+\c :test_db
+set test.cron_result = :'cron_result';
+set test.a = :'cron_a';
+set test.b = :'cron_b';
+
+do $$
+begin
+    perform expect(current_setting('test.cron_result') like 'succeeded:%',
+        format('pg_cron runs the CALL without errors (%s)', current_setting('test.cron_result')));
+    perform expect(
+        (select count(*) from public.fcc_submissions where submitted and id in (test_id('a'), test_id('b'))) = 2
+        and (select count(distinct xmin::text) from public.fcc_submissions where id in (test_id('a'), test_id('b'))) = 2,
+        'and the run commits each post separately');
+end;
+$$;
+\else
+\echo 'Skipping the pg_cron check: pg_cron is not preloaded in this image.'
+\endif

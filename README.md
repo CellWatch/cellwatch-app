@@ -125,6 +125,13 @@ supabase db reset
 grep -E "INSERT INTO|COPY " supabase/migrations/dump-migrations.sql | head
 ```
 
+### FCC submission queue
+
+Each new row in `fcc_submissions` is queued in `private.fcc_submission_retry_queue`. Every 2 minutes the pg_cron job `fcc-submission-retries` runs `call private.run_fcc_submission_retries(10);`, which posts up to 10 complete submissions to the FCC and commits after each one.
+
+- **Don't post big batches from the Supabase SQL editor**, or from anything else that runs the call inside one transaction. If such a run fails or times out part way, the FCC keeps the tests it already accepted, but our record of them is rolled back. To work the queue by hand, use psql and a small batch: `call private.run_fcc_submission_retries(1);` (inside a transaction block it refuses to start).
+- The database tests in `supabase/db_tests` cover the queue: `supabase/db_tests/run.sh` (needs Docker).
+
 ---
 
 ## Data & exports
