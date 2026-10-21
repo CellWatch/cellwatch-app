@@ -29,6 +29,10 @@ abstract class MeasurementTest<T: Any>(
             generations.add(env.getActiveNetworkGeneration())
         }
         val result = try { measure() } finally { stopWatching() }
+        // The FCC checks the generation at the end of the test too. Cell info callbacks are
+        // asynchronous, so a change near the end may not have been reported before we stopped
+        // watching; sample it again now rather than seconds later, after the location fix.
+        generations.add(env.getActiveNetworkGeneration())
         val endLocation = env.getLocation()
 
         if (type == "latency" && result !is LatencyResult) {
