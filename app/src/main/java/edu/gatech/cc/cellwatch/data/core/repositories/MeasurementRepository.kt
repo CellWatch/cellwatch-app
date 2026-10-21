@@ -20,6 +20,7 @@ import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.data.model.TcpTuple
 import edu.gatech.cc.cellwatch.data.model.asEntity
 import edu.gatech.cc.cellwatch.data.model.asEntityWithData
+import edu.gatech.cc.cellwatch.data.model.uploadTime
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -119,27 +120,10 @@ class MeasurementRepository(
     }
 
     @WorkerThread
-    suspend fun getUploadTime(group: MeasurementGroup): Instant? {
-        val measurementId = group.latency?.id ?: group.download?.id ?: group.upload?.id
-        val submissionId = group.submission?.id
-
-        val measurementTime = measurementId?.let { measurementDao.getMeasurementById(it).uploadTime }
-        val submissionTime = submissionId?.let { submissionDao.getFccSubmissionById(it).uploadTime }
-
-        if (measurementId == null) {
-            return submissionTime
-        }
-
-        if (submissionId == null) {
-            return measurementTime
-        }
-
-        if (measurementTime == null || submissionTime == null) {
-            return null
-        }
-
-        return maxOf(measurementTime, submissionTime)
-    }
+    suspend fun getUploadTime(group: MeasurementGroup): Instant? = group.uploadTime(
+        measurementUploadTime = { measurementDao.getMeasurementById(it.id).uploadTime },
+        submissionUploadTime = { submissionDao.getFccSubmissionById(it.id).uploadTime },
+    )
 
     /**
      * Emits the group's upload time whenever local upload state changes, which is null until the
