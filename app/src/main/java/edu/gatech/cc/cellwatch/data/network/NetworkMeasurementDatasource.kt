@@ -12,6 +12,7 @@ import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurement
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurementWithData
 import edu.gatech.cc.cellwatch.data.network.model.asExternalModel
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.SupabaseClientBuilder
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.exceptions.HttpRequestException
 import io.github.jan.supabase.exceptions.RestException
@@ -19,11 +20,14 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.api.createClientPlugin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.IOException
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * NetworkMeasurementDatasource is a singleton object representing a network data source with
@@ -60,6 +64,7 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
                 supabaseKey = supabaseApiKey
             ) {
                 install(Postgrest)
+                allowSlowRequests()
 
                 httpConfig {
                     install(createClientPlugin("DeviceHeaderPlugin") {
@@ -78,7 +83,10 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
 
     private suspend fun registerDevice(id: String): String {
         try {
-            val client = createSupabaseClient(supabaseUrl, supabaseApiKey) { install(Postgrest) }
+            val client = createSupabaseClient(supabaseUrl, supabaseApiKey) {
+                install(Postgrest)
+                allowSlowRequests()
+            }
             val secret = client.postgrest
                 .rpc("register_device", mapOf("device_id" to id))
                 .decodeAs<String>()
@@ -157,4 +165,21 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
     class NetworkError(cause: Exception? = null): IOException(cause)
     class DuplicateKeyError(cause: Exception? = null): Exception(cause)
     class NotFoundError(cause: Exception? = null): Exception(cause)
+}
+
+/**
+ * How long a Supabase request may take, connecting included. supabase-kt gives up after 10 s,
+ * which uploads over a weak signal or to a slow server often need more than, so the same records
+ * failed and were resent run after run. A minute leaves room for both, while a request that has
+ * stalled still frees its upload slot well within WorkManager's 10 minute limit on a run.
+ */
+private val REQUEST_TIMEOUT = 60.seconds
+
+internal fun SupabaseClientBuilder.allowSlowRequests(timeout: Duration = REQUEST_TIMEOUT) {
+    requestTimeout = timeout
+    httpConfig {
+        // Ktor's CIO engine otherwise gives up connecting after 5 s. Ktor merges this with the
+        // HttpTimeout settings supabase-kt installs, so the request timeout above still applies.
+        install(HttpTimeout) { connectTimeoutMillis = timeout.inWholeMilliseconds }
+    }
 }
