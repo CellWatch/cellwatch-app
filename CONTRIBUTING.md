@@ -115,7 +115,14 @@ Checklist:
 - [ ] Request review from a maintainer
 
 ## Release & tagging
-- Create annotated tags and GitHub Releases with highlights and migration notes
+- Version numbers follow the policy in README.md, "Versioning". `versionName` is the `app_version` the FCC
+  checks against its approved list, so don't change it without checking that section. `versionCode` goes up by
+  1 for every Play upload.
+- Bump the version in its own commit: `Release v<versionName> (versionCode <N>)`.
+- Create an annotated tag on that commit. Use `v<versionName>`, or `v<versionName>+<versionCode>` when
+  `versionName` didn't change (e.g. `v1.0.0+14`).
+- Create a GitHub Release with highlights and migration notes. Call out any change to measurement or submission
+  behaviour, since those are the changes the FCC cares about.
 - Attach sample FCC export JSON if applicable
 
 ## Issue labels
