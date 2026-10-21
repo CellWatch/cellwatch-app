@@ -3,6 +3,7 @@ package edu.gatech.cc.cellwatch.ui.main
 import android.content.ComponentName
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.gatech.cc.cellwatch.CellWatchApp
@@ -37,8 +38,7 @@ class MeasureViewModel: ViewModel() {
                     when (serviceState) {
                         null, MeasurementService.State.STARTING -> { /* do nothing */ }
                         MeasurementService.State.STARTED -> _state.update { old ->
-                            old.copy(
-                                progress = MeasureProgress.START,
+                            old.moveTo(MeasureProgress.START).copy(
                                 results = MeasurementGroup(
                                     null,
                                     null,
@@ -89,12 +89,23 @@ class MeasureViewModel: ViewModel() {
         _state.update { State(MeasureProgress.PRE, null, null, false, null) }
     }
 
+    /** What the step indicator should show right now. */
+    fun stepProgress(nowMillis: Long = SystemClock.elapsedRealtime()): MeasureStepProgress {
+        val s = _state.value
+        return MeasureSteps.compute(
+            s.progress,
+            s.stoppedDuring,
+            MeasureSteps.finishedSteps(s.results),
+            s.progressSinceMillis?.let { nowMillis - it } ?: 0L,
+        )
+    }
+
     private fun handleLocateStart() {
-        _state.update { currentState -> currentState.copy(progress = MeasureProgress.LOCATE) }
+        _state.update { currentState -> currentState.moveTo(MeasureProgress.LOCATE) }
     }
 
     private fun handleLatencyStart() {
-        _state.update { currentState -> currentState.copy(progress = MeasureProgress.LATENCY) }
+        _state.update { currentState -> currentState.moveTo(MeasureProgress.LATENCY) }
     }
 
     private fun handleLatencyComplete(m: Measurement) {
@@ -110,11 +121,11 @@ class MeasureViewModel: ViewModel() {
     }
 
     private fun handleDownloadStart() {
-        _state.update { currentState -> currentState.copy(progress = MeasureProgress.DOWNLOAD) }
+        _state.update { currentState -> currentState.moveTo(MeasureProgress.DOWNLOAD) }
     }
 
     private fun handleUploadStart() {
-        _state.update { currentState -> currentState.copy(progress = MeasureProgress.UPLOAD) }
+        _state.update { currentState -> currentState.moveTo(MeasureProgress.UPLOAD) }
     }
 
     private fun handleThroughputComplete(m: Measurement) {
@@ -134,11 +145,21 @@ class MeasureViewModel: ViewModel() {
                 429 -> "You’re temporarily rate-limited by the test servers. Please wait a few minutes and try again."
                 else -> errorText ?: "Measurement failed. Please try again."
             }
-            _state.update { currentState -> currentState.copy(progress = MeasureProgress.ERROR, errorMessage = msg) }
+            _state.update { currentState ->
+                currentState.moveTo(MeasureProgress.ERROR).copy(
+                    errorMessage = msg,
+                    // DONE can arrive twice (one collector per bind); keep the first answer.
+                    stoppedDuring = if (currentState.progress == MeasureProgress.ERROR) {
+                        currentState.stoppedDuring
+                    } else {
+                        currentState.progress
+                    },
+                )
+            }
             return
         }
 
-        _state.update { currentState -> currentState.copy(progress = MeasureProgress.END, results = group) }
+        _state.update { currentState -> currentState.moveTo(MeasureProgress.END).copy(results = group) }
 
         UploadWorker.enqueue(CellWatchApp.applicationContext())
 
@@ -155,8 +176,21 @@ class MeasureViewModel: ViewModel() {
         val results: MeasurementGroup?,
         val uploadTime: Instant?,
         val inVehicle: Boolean,
-        val errorMessage: String?
-    )
+        val errorMessage: String?,
+        /** [SystemClock.elapsedRealtime] when [progress] last changed. */
+        val progressSinceMillis: Long? = null,
+        /** For [MeasureProgress.ERROR]: the progress the measurement was in when it stopped. */
+        val stoppedDuring: MeasureProgress? = null,
+    ) {
+        /**
+         * Moves to [next], noting when that happened. The service's state is collected again every
+         * time the activity rebinds, so the same state can arrive more than once; that must not
+         * restart the clock for the current step.
+         */
+        fun moveTo(next: MeasureProgress): State =
+            if (next == progress) this
+            else copy(progress = next, progressSinceMillis = SystemClock.elapsedRealtime())
+    }
 
     enum class MeasureProgress { PRE, START, LOCATE, LATENCY, DOWNLOAD, UPLOAD, END, ERROR }
 }
