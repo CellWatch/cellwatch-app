@@ -1,6 +1,6 @@
 -- Tests for the FCC retry queue after the 2026-10-21 migrations: per-entry commits and
--- duplicate_test_id (#117), the provider block reason (#118), and holding submissions the
--- FCC rejects (#124, #125). Run by
+-- duplicate_test_id (#117), the provider block reason (#118), holding submissions the FCC
+-- rejects (#124, #125), and expiry, health views and the digest (#119). Run by
 -- supabase/db_tests/run.sh in a throwaway container. The real posting code runs, but a
 -- stand-in replaces the HTTP request, so nothing is sent anywhere.
 \set ON_ERROR_STOP on
@@ -10,6 +10,7 @@ set client_min_messages = notice;
 \i /migrations/202610210101_build_fcc_payload_per_submission.sql
 \i /migrations/202610210102_fill_blank_fcc_provider_from_sim.sql
 \i /migrations/202610210103_fcc_retry_queue_processing.sql
+\i /migrations/202610210104_fcc_queue_health.sql
 
 -- How the stand-in FCC answers each submission (200 unless listed), and what it was sent.
 create table test_fcc_reply (
@@ -409,6 +410,136 @@ begin
             jsonb_set(with_net, '{submissions,0,tests}',
                       jsonb_build_object('latency', test_ok, 'upload', '{"locations":[]}'::jsonb))) like 'No locations%',
         'hold reason: an empty locations list counts as missing');
+end;
+$$;
+
+-- #119: entries still waiting for data 30 days after queueing expire.
+do $$
+declare
+    expires uuid;
+    keeps_waiting uuid;
+    old_but_complete uuid;
+begin
+    perform test_reset();
+    expires := test_submission(ready => false, queued_ago => interval '31 days');
+    keeps_waiting := test_submission(ready => false, queued_ago => interval '29 days');
+    old_but_complete := test_submission(queued_ago => interval '40 days');
+
+    perform private.process_fcc_submission_retries(10);
+
+    perform expect(
+        (select state = 'expired' and last_error = 'Expired: measurements still incomplete 30 days after queueing'
+         from private.fcc_submission_retry_queue where submission_id = expires),
+        'an entry still incomplete 30 days after queueing expires');
+    perform expect(
+        (select state = 'pending' and next_attempt_at = now() + interval '1 hour'
+         from private.fcc_submission_retry_queue where submission_id = keeps_waiting),
+        'a younger one keeps waiting');
+    perform expect((select submitted from public.fcc_submissions where id = old_but_complete),
+        'an old entry whose data is complete is still posted');
+
+    update private.fcc_submission_retry_queue
+    set next_attempt_at = now() - interval '1 day', updated_on = now() - interval '1 day'
+    where submission_id = expires;
+    perform private.process_fcc_submission_retries(10);
+    perform expect(
+        (select updated_on = now() - interval '1 day' from private.fcc_submission_retry_queue
+         where submission_id = expires),
+        'expired entries are not checked again');
+end;
+$$;
+
+-- #119: health views and digest.
+do $$
+declare
+    device_a uuid := gen_random_uuid();
+    device_b uuid := gen_random_uuid();
+    device_c uuid := gen_random_uuid();
+    stuck_1 uuid;
+    stuck_2 uuid;
+    new_entry uuid;
+    blocked uuid;
+    held uuid;
+    expired_complete uuid;
+    expired_incomplete uuid;
+    digest text;
+    m uuid;
+    t text;
+begin
+    perform test_reset();
+    stuck_1 := test_submission(ready => false, queued_ago => interval '5 days');
+    stuck_2 := test_submission(ready => false, queued_ago => interval '4 days');
+    blocked := test_submission(provider => '', sim_mnc => '999', queued_ago => interval '2 days');
+    held := test_submission(with_locations => false);
+    expired_complete := test_submission(ready => false, queued_ago => interval '45 days');
+    expired_incomplete := test_submission(ready => false, queued_ago => interval '40 days');
+    update public.fcc_submissions set device_id = device_a where id in (stuck_1, stuck_2);
+    update public.fcc_submissions set device_id = device_b where id in (blocked, held);
+    update public.fcc_submissions set device_id = device_c where id in (expired_complete, expired_incomplete);
+
+    perform private.process_fcc_submission_retries(10);
+
+    -- Queued after that run.
+    new_entry := test_submission(ready => false);
+    update public.fcc_submissions set device_id = device_a where id = new_entry;
+
+    -- The phone finally uploads one expired submission's measurements.
+    foreach t in array array['latency', 'download', 'upload'] loop
+        insert into public.measurements (group_id, type) values (expired_complete, t) returning id into m;
+        if t = 'latency' then
+            insert into public.latency_data (measurement_id, rtt) values (m, 30000);
+        else
+            insert into public.upload_download_data (measurement_id, duration, bytes) values (m, 5000000, 1000000);
+        end if;
+    end loop;
+
+    perform expect(
+        (select entries = 2 and pending_over_3_days = 2
+         from private.fcc_queue_health
+         where state = 'pending' and device_id = device_a
+           and reason = 'Waiting for complete latency/download/upload data'),
+        'health: entries waiting more than 3 days are counted by device and reason');
+    perform expect(
+        (select entries = 1 and pending_over_3_days = 0 from private.fcc_queue_health
+         where state = 'pending' and device_id = device_a and reason = 'New'),
+        'health: an entry not checked yet is counted as New');
+    perform expect(
+        (select entries = 1 from private.fcc_queue_health
+         where state = 'blocked' and device_id = device_b
+           and reason = 'Missing provider (SIM 310/999 not in private.carrier_by_plmn)'),
+        'health: blocked entries are counted with their reason');
+    perform expect(
+        (select entries = 1 from private.fcc_queue_health
+         where state = 'held' and device_id = device_b and reason like 'No locations%'),
+        'health: held entries are counted with their reason');
+    perform expect(
+        (select entries = 2 from private.fcc_queue_health where state = 'expired' and device_id = device_c),
+        'health: expired entries are counted');
+    perform expect((select sum(entries) from private.fcc_queue_health) = 7, 'health: every entry is counted once');
+
+    perform expect(
+        (select array_agg(submission_id order by queued_on) from private.fcc_queue_attention)
+            = array[expired_complete, stuck_1, stuck_2, blocked],
+        'attention: blocked entries, entries pending more than 3 days, and expired entries that are complete now');
+
+    digest := private.fcc_queue_digest();
+    raise notice 'digest example:%', E'\n' || digest;
+    perform expect(digest like 'FCC submission queue, %' and digest like '%In the queue: 3 pending, 1 held, 1 blocked, 2 expired%',
+        'digest: counts by state');
+    perform expect(digest like format('%%Blocked, needs a person (1):%%- %s (device %s, queued %%): Missing provider (SIM 310/999 not in private.carrier_by_plmn)%%',
+                                      blocked, left(device_b::text, 8)),
+        'digest: lists each blocked entry with its reason');
+    perform expect(digest like format('%%Pending for more than 3 days (2):%%- device %s: 2, oldest queued %%: Waiting for complete%%', left(device_a::text, 8)),
+        'digest: groups long-pending entries by device');
+    perform expect(digest like format('%%Expired, but their measurements are complete now (1). To post them:%%- %s (device%%', expired_complete),
+        'digest: lists expired entries whose data has arrived, with how to release them');
+    perform expect(digest like '%Held until there is a way to send them (1):%- No locations%: 1%',
+        'digest: counts held entries by reason');
+    perform expect(digest not like '%Nothing needs attention%', 'digest: does not say all is well');
+
+    perform test_reset();
+    digest := private.fcc_queue_digest();
+    perform expect(digest like '%The queue is empty.%Nothing needs attention.', 'digest: says so when nothing needs attention');
 end;
 $$;
 

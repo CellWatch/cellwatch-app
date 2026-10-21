@@ -1,7 +1,7 @@
 begin;
 
--- Record each FCC post in its own transaction (#117), and hold submissions the FCC is known
--- to reject (#124, #125).
+-- Record each FCC post in its own transaction (#117), hold submissions the FCC is known to
+-- reject (#124, #125), and stop re-checking submissions whose data never arrives (#119).
 --
 -- process_fcc_submission_retries posted a whole batch inside one transaction. A POST can't
 -- be rolled back, but the record of it can: the submitted flag, the stored response and the
@@ -43,6 +43,16 @@ begin;
 --         the measurement (insert_measurement), so once a submission is complete, missing
 --         locations won't turn up later. This is checked only after the readiness check,
 --         so incomplete submissions keep waiting for their data first.
+--   * New queue state 'expired' (#119): an entry still waiting for its measurements 30
+--     days after it was queued stops being checked. Waiting entries are re-checked hourly
+--     and each check takes one of the job's 10 places per run, so a few hundred entries
+--     whose data will never come (75 from one phone had been waiting since July 2026)
+--     would crowd out new submissions. 30 days leaves time for phones that upload late:
+--     the released app uploads only after a finished test or a cold start. Expired entries
+--     stay in the queue, and private.fcc_queue_attention (202610210104) lists any whose
+--     data has turned up since, so a person can set them back to pending. On the live
+--     database, entries already waiting more than 30 days expire at their next hourly
+--     check after this migration.
 --
 -- Don't post big batches from the Supabase SQL editor or any other client that wraps the
 -- call in one transaction: if the run fails or times out part way, the posts already made
@@ -54,7 +64,7 @@ begin;
 alter table private.fcc_submission_retry_queue
     drop constraint if exists fcc_submission_retry_queue_state_check,
     add constraint fcc_submission_retry_queue_state_check
-        check (state in ('pending', 'blocked', 'held'));
+        check (state in ('pending', 'blocked', 'held', 'expired'));
 
 -- Why the FCC would reject this payload, or null if we know of no reason. Held entries say
 -- this in last_error. Several reasons are joined with '; '.
@@ -130,8 +140,8 @@ $$
 $$;
 
 -- Handles the queue entry that has been due longest and returns what happened to it:
--- 'waiting', 'held', 'blocked', 'posted', 'already_at_fcc' or 'failed'; null when no entry
--- is due.
+-- 'waiting', 'expired', 'held', 'blocked', 'posted', 'already_at_fcc' or 'failed'; null when
+-- no entry is due.
 -- Changes from the loop body of the 202610070001 version are marked "Changed".
 create or replace function private.process_next_fcc_submission_retry()
 returns text
@@ -173,6 +183,18 @@ begin
         -- This does not count as a failed FCC attempt.
         -- Changed: checked before the provider.
         if not private.fcc_submission_is_ready(item.submission_id) then
+            -- Changed: stop checking after 30 days.
+            if item.created_on < now() - interval '30 days' then
+                update private.fcc_submission_retry_queue
+                set
+                    state = 'expired',
+                    last_error = 'Expired: measurements still incomplete 30 days after queueing',
+                    updated_on = now()
+                where submission_id = item.submission_id;
+
+                return 'expired';
+            end if;
+
             update private.fcc_submission_retry_queue
             set
                 next_attempt_at = now() + case

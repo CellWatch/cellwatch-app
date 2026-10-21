@@ -130,6 +130,8 @@ grep -E "INSERT INTO|COPY " supabase/migrations/dump-migrations.sql | head
 Each new row in `fcc_submissions` is queued in `private.fcc_submission_retry_queue`. Every 2 minutes the pg_cron job `fcc-submission-retries` runs `call private.run_fcc_submission_retries(10);`, which posts up to 10 complete submissions to the FCC and commits after each one.
 
 - **Don't post big batches from the Supabase SQL editor**, or from anything else that runs the call inside one transaction. If such a run fails or times out part way, the FCC keeps the tests it already accepted, but our record of them is rolled back. To work the queue by hand, use psql and a small batch: `call private.run_fcc_submission_retries(1);` (inside a transaction block it refuses to start).
+- Queue states: `pending` (waiting for the phone's measurements, or retrying after an error), `held` (the FCC is known to reject it, e.g. no network codes or no locations; waiting for a decision), `blocked` (a person has to fix something, e.g. an unknown SIM code in `private.carrier_by_plmn`), `expired` (measurements still incomplete 30 days after queueing). Posted entries leave the queue.
+- To see what is stuck: `select * from private.fcc_queue_health;` (counts by state, reason and device), `select * from private.fcc_queue_attention;` (entries a person should look at), or `select private.fcc_queue_digest();` (a text summary; how to send it daily is described in `supabase/migrations/202610210104_fcc_queue_health.sql`).
 - The database tests in `supabase/db_tests` cover the queue: `supabase/db_tests/run.sh` (needs Docker).
 
 ---
