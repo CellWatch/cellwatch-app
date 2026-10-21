@@ -419,6 +419,8 @@ declare
     expires uuid;
     keeps_waiting uuid;
     old_but_complete uuid;
+    m uuid;
+    t text;
 begin
     perform test_reset();
     expires := test_submission(ready => false, queued_ago => interval '31 days');
@@ -446,6 +448,24 @@ begin
         (select updated_on = now() - interval '1 day' from private.fcc_submission_retry_queue
          where submission_id = expires),
         'expired entries are not checked again');
+
+    -- The phone uploads the expired entry's measurements after all.
+    foreach t in array array['latency', 'download', 'upload'] loop
+        insert into public.measurements (group_id, type) values (expires, t) returning id into m;
+        if t = 'latency' then
+            insert into public.latency_data (measurement_id, rtt) values (m, 30000);
+        else
+            insert into public.upload_download_data (measurement_id, duration, bytes) values (m, 5000000, 1000000);
+        end if;
+        insert into public.locations (measurement_id, lat, lon) values (m, 33.7756, -84.3963);
+    end loop;
+
+    perform private.process_fcc_submission_retries(10);
+    perform expect((select submitted from public.fcc_submissions where id = expires),
+        'an expired entry is posted once its measurements arrive');
+    perform expect(
+        not exists (select 1 from private.fcc_submission_retry_queue where submission_id = expires),
+        'and leaves the queue');
 end;
 $$;
 

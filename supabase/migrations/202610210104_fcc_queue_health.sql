@@ -45,7 +45,8 @@ from private.fcc_submission_retry_queue q
 group by 1, 2, 3;
 
 -- The entries that need a person: every blocked entry, entries pending for more than 3 days,
--- and expired entries whose measurements are complete by now (set those back to pending).
+-- and expired entries whose measurements are complete by now. The retry job puts that last
+-- group back in line on its next run, so one that stays listed means the job isn't running.
 -- private.fcc_submission_is_ready reads measurements as the querying role, so a role that
 -- is subject to row level security won't see that last group; fcc_queue_digest() always
 -- does.

@@ -49,10 +49,11 @@ begin;
 --     whose data will never come (75 from one phone had been waiting since July 2026)
 --     would crowd out new submissions. 30 days leaves time for phones that upload late:
 --     the released app uploads only after a finished test or a cold start. Expired entries
---     stay in the queue, and private.fcc_queue_attention (202610210104) lists any whose
---     data has turned up since, so a person can set them back to pending. On the live
---     database, entries already waiting more than 30 days expire at their next hourly
---     check after this migration.
+--     stay in the queue, and each run puts back in line any whose measurements have turned
+--     up since, with one statement outside the batch. A phone that couldn't upload for weeks
+--     (#115) still gets its tests to the FCC once it can. On the live database, entries
+--     already waiting more than 30 days expire at their next hourly check after this
+--     migration.
 --
 -- Don't post big batches from the Supabase SQL editor or any other client that wraps the
 -- call in one transaction: if the run fails or times out part way, the posts already made
@@ -395,6 +396,34 @@ $$;
 
 revoke all on function private.process_next_fcc_submission_retry() from public;
 
+-- Puts expired entries whose measurements have arrived since back in line, and returns how
+-- many. One statement, so they don't take places in the batch until they can be posted.
+create or replace function private.revive_expired_fcc_submission_retries()
+returns integer
+language plpgsql
+security definer
+set search_path = public, private, extensions
+as
+$$
+declare
+    revived integer;
+begin
+    update private.fcc_submission_retry_queue q
+    set
+        state = 'pending',
+        next_attempt_at = now(),
+        last_error = 'Measurements arrived after the entry expired',
+        updated_on = now()
+    where q.state = 'expired'
+      and private.fcc_submission_is_ready(q.submission_id);
+
+    get diagnostics revived = row_count;
+    return revived;
+end;
+$$;
+
+revoke all on function private.revive_expired_fcc_submission_retries() from public;
+
 -- For manual use; the cron job uses the procedure below. Same results as before, but
 -- everything happens in the caller's transaction, so a run that fails or times out part way
 -- loses the record of posts the FCC has already accepted. Returns the number of entries
@@ -418,6 +447,8 @@ begin
     using public.fcc_submissions s
     where s.id = q.submission_id
       and coalesce(s.submitted, false) = true;
+
+    perform private.revive_expired_fcc_submission_retries();
 
     for i in 1 .. batch_size loop
         -- Leave the rest of the batch for the next run once this one has taken a minute,
@@ -464,6 +495,8 @@ begin
     using public.fcc_submissions s
     where s.id = q.submission_id
       and coalesce(s.submitted, false) = true;
+
+    perform private.revive_expired_fcc_submission_retries();
 
     commit;
 
