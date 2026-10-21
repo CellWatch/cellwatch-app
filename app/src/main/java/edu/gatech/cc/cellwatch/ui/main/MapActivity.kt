@@ -14,6 +14,7 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.graphics.drawable.toBitmap
@@ -144,6 +145,10 @@ class MapActivity : AppCompatActivity() {
 
         binding = ActivityMapBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Back hides the search results and otherwise stays on the map. This was an onBackPressed()
+        // override, which Android 16 no longer calls for apps that target it.
+        onBackPressedDispatcher.addCallback(this) { hideSearchResultsView() }
 
         model = ViewModelProvider(this)[MapViewModel::class.java]
         groupItemModel = ViewModelProvider(this)[MeasurementGroupItemViewModel::class.java]
@@ -362,10 +367,6 @@ class MapActivity : AppCompatActivity() {
                 startActivity(intent)
             }
         })
-    }
-
-    override fun onBackPressed() {
-        hideSearchResultsView()
     }
 
     private fun hideSearchResultsView() {
