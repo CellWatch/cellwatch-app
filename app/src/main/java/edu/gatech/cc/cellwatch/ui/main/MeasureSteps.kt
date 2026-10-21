@@ -44,6 +44,17 @@ object MeasureSteps {
         MeasureStep.UPLOAD to ThroughputTest.MAX_WARMUP_MILLIS + ThroughputTest.MAX_ACTIVE_MILLIS,
     )
 
+    /** Whether a measurement is under way, so the time left keeps changing. */
+    fun isRunning(progress: MeasureProgress) = progress in RUNNING
+
+    private val RUNNING = setOf(
+        MeasureProgress.START,
+        MeasureProgress.LOCATE,
+        MeasureProgress.LATENCY,
+        MeasureProgress.DOWNLOAD,
+        MeasureProgress.UPLOAD,
+    )
+
     fun stepFor(progress: MeasureProgress?): MeasureStep? = when (progress) {
         MeasureProgress.LATENCY -> MeasureStep.LATENCY
         MeasureProgress.DOWNLOAD -> MeasureStep.DOWNLOAD
@@ -78,13 +89,7 @@ object MeasureSteps {
     ): MeasureStepProgress {
         val steps = MeasureStep.values()
         val total = steps.sumOf { budgets.getValue(it) }.toFloat()
-        val running = progress in setOf(
-            MeasureProgress.START,
-            MeasureProgress.LOCATE,
-            MeasureProgress.LATENCY,
-            MeasureProgress.DOWNLOAD,
-            MeasureProgress.UPLOAD,
-        )
+        val running = isRunning(progress)
 
         val currentStep = when (progress) {
             MeasureProgress.ERROR -> stepFor(stoppedDuring)?.takeIf { it !in finished }
