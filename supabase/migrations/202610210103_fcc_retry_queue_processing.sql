@@ -299,9 +299,10 @@ begin
     exception when others then
         error_text := sqlerrm;
 
-        -- Changed: the FCC already has this test, from a post whose record was lost (or
-        -- that is still being recorded by an overlapping run). Record it as submitted
-        -- instead of blocking it. The success row keeps the FCC's answer in error_message.
+        -- Changed: the FCC already has this test, from an earlier post whose record was lost
+        -- (a run that timed out after posting, or a request that timed out after the FCC
+        -- had accepted it). Record it as submitted instead of blocking it. The success row
+        -- keeps the FCC's answer in error_message.
         if private.fcc_error_is_duplicate_test_id(error_text) then
             update public.fcc_submissions
             set
@@ -397,7 +398,8 @@ revoke all on function private.process_next_fcc_submission_retry() from public;
 -- For manual use; the cron job uses the procedure below. Same results as before, but
 -- everything happens in the caller's transaction, so a run that fails or times out part way
 -- loses the record of posts the FCC has already accepted. Returns the number of entries
--- posted or failed (waiting and blocked entries don't count).
+-- posted or failed; entries that were only checked (waiting, held, blocked, expired) don't
+-- count.
 create or replace function private.process_fcc_submission_retries(p_batch_size integer default 1)
 returns integer
 language plpgsql

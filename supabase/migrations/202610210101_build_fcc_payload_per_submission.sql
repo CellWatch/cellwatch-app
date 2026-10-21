@@ -20,9 +20,9 @@ begin;
 
 -- Readiness checks (private.fcc_submission_is_ready) and the payload both look up a
 -- submission's measurements by group_id, which had no index and was read with a full scan
--- of public.measurements. A plain (not CONCURRENTLY) build blocks writes to measurements
--- for the few seconds it takes; uploads that hit that window fail and are retried by the
--- app.
+-- of public.measurements. The index is built without CONCURRENTLY, which can't run inside
+-- the migration's transaction, so uploads of new measurements wait while it builds. At the
+-- live table's size that should take seconds.
 create index if not exists measurements_group_id_idx
     on public.measurements using btree (group_id);
 
