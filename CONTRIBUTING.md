@@ -81,6 +81,8 @@ cd ../app
 - `main` is protected.
 - Use feature branches: `feat/<topic>`, `fix/<topic>`, `chore/<topic>`, `docs/<topic>`.
 - Keep PRs focused and small where possible.
+- The Kotlin Multiplatform work lives on a long-lived branch. doc/branching.md proposes how it stays in sync
+  with `main` and how it is merged.
 
 ## Commit style
 Use **Conventional Commits**:
