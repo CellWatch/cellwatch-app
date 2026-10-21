@@ -117,6 +117,7 @@ Checklist:
 - [ ] Request review from a maintainer
 
 ## Release & tagging
+- Follow doc/release-checklist.md: server changes first, then build, sign, staged rollout, monitoring.
 - Version numbers follow the policy in README.md, "Versioning". `versionName` is the `app_version` the FCC
   checks against its approved list, so don't change it without checking that section. `versionCode` goes up by
   1 for every Play upload.
