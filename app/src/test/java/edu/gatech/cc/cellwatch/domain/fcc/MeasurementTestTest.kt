@@ -267,6 +267,29 @@ class MeasurementTestTest {
 
         assertEquals(true, m.success)
         assertEquals(emptyList<Location>(), m.locations)
+        assertEquals("one more fix is asked for", 1, env.retryRequests)
+    }
+
+    @Test
+    fun missingLocationFixesAreRetriedOnce() = runBlocking<Unit> {
+        val retried = Location(lat = 33.77, lon = -84.39)
+        val env = FakeEnvironment(locations = mutableListOf(null, null), retryLocation = retried)
+
+        val m = test("upload", env) { throughput(success = true) }.run()
+
+        assertEquals(listOf(retried), m.locations)
+        assertEquals(1, env.retryRequests)
+    }
+
+    @Test
+    fun locationIsNotRetriedWhenTheTestHasOne() = runBlocking<Unit> {
+        val begin = Location(lat = 33.77, lon = -84.39)
+        val env = FakeEnvironment(locations = mutableListOf(begin, null), retryLocation = Location(lat = 0.0, lon = 0.0))
+
+        val m = test("latency", env) { latency(success = true) }.run()
+
+        assertEquals(listOf(begin), m.locations)
+        assertEquals(0, env.retryRequests)
     }
 
     @Test
@@ -414,6 +437,7 @@ class MeasurementTestTest {
         var generation: String? = "4G",
         val locations: MutableList<Location?> = mutableListOf(),
         val locationError: Throwable? = null,
+        private val retryLocation: Location? = null,
         private val connectionType: NetworkConnectionType = NetworkConnectionType.CELLULAR,
         private val cellularDataEnabled: Boolean? = true,
     ) : MeasurementEnvironment {
@@ -422,11 +446,17 @@ class MeasurementTestTest {
         var watchCount = 0
         var stopCount = 0
         var locationRequests = 0
+        var retryRequests = 0
 
         /** Simulates the phone reporting new cells, which happens along with a generation change. */
         fun cellsChange(newCells: List<Cell>, newGeneration: String?) {
             generation = newGeneration
             if (watching) onChange?.invoke(newCells)
+        }
+
+        override suspend fun retryLocation(): Location? {
+            retryRequests++
+            return retryLocation
         }
 
         override suspend fun getLocation(): Location? {

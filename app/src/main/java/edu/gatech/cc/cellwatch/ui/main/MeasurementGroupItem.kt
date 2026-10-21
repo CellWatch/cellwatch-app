@@ -141,6 +141,10 @@ class MeasurementGroupItem(
         val submission = group.submission
         binding.typeText.text = if (submission == null && collectionMode != CollectionMode.FCC_CHALLENGE) {
             context.getString(R.string.testing)
+        } else if (submission == null && !inProgress) {
+            // An FCC Challenge test that finished (or failed) without a submission, e.g. on WiFi or
+            // with no location, so nothing is sent to the FCC.
+            context.getString(R.string.not_submitted_to_fcc)
         } else if (submission?.inVehicle == true || inVehicle == true) {
             context.getString(R.string.fcc_challenge_vehicle)
         } else {

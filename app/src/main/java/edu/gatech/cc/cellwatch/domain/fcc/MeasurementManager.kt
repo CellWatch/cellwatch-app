@@ -87,15 +87,7 @@ object MeasurementManager {
         insertMeasurement(uploadMeasurement)
         onUploadComplete(uploadMeasurement)
 
-        val fccSubmission = if (
-            mode == CollectionMode.FCC_CHALLENGE &&
-            latencyMeasurement.connectionType != NetworkConnectionType.WIFI &&
-            downloadMeasurement.connectionType != NetworkConnectionType.WIFI &&
-            uploadMeasurement.connectionType != NetworkConnectionType.WIFI &&
-            latencyMeasurement.cellularDataEnabled != false &&
-            downloadMeasurement.cellularDataEnabled != false &&
-            uploadMeasurement.cellularDataEnabled != false
-        ) {
+        val fccSubmission = if (isFccSubmittable(mode, latencyMeasurement, downloadMeasurement, uploadMeasurement)) {
             val submission = FccSubmission(
                 id = groupId,
                 deviceId = latencyMeasurement.deviceId ?: downloadMeasurement.deviceId ?: uploadMeasurement.deviceId,
@@ -121,7 +113,10 @@ object MeasurementManager {
             insertFccSubmission(submission)
             submission
         } else {
-            Log.i(TAG, "skipping fcc submission insertion for group $groupId")
+            val withoutLocation = listOf(latencyMeasurement, downloadMeasurement, uploadMeasurement)
+                .filter { it.locations.isNullOrEmpty() }
+                .map { it.type }
+            Log.i(TAG, "skipping fcc submission insertion for group $groupId (mode $mode, no location for $withoutLocation)")
             null
         }
 

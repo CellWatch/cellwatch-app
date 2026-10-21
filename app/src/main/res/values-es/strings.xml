@@ -105,6 +105,7 @@
     <string name="wifi">WiFi</string>
     <string name="fcc_challenge_stationary">Impugnación FCC (Parado)</string>
     <string name="fcc_challenge_vehicle">Impugnación FCC (En Vehículo)</string>
+    <string name="not_submitted_to_fcc">No se envió a la FCC</string>
     <string name="testing">Prueba</string>
     <string name="unknown_carrier">Operador desconocido</string>
     <string name="take_another_measurement">Medir otra vez</string>
