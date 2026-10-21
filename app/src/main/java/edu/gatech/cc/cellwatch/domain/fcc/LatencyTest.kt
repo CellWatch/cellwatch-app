@@ -21,7 +21,13 @@ class LatencyTest(
 ): MeasurementTest<LatencyResult>(groupId, "latency") {
     private val TAG = this::class.simpleName
     private val _rttChan = Channel<Int>(32)
-    val msakTest = LatencyTest(server, client, measurementId, userAgent = CellWatchApp.userAgent)
+    val msakTest = LatencyTest(
+        server,
+        client,
+        measurementId,
+        duration = DURATION_MILLIS,
+        userAgent = CellWatchApp.userAgent,
+    )
 
     val rttChan: ReceiveChannel<Int> = _rttChan
 
@@ -61,6 +67,15 @@ class LatencyTest(
     }
 
     companion object {
+        /** How long msak sends latency probes for. This is msak's default, made explicit here. */
+        const val DURATION_MILLIS = 5000L
+
+        /**
+         * msak stops the test [DURATION_MILLIS] plus this many milliseconds after the first echo
+         * comes back, to give the last probes time to return. It is fixed inside msak 0.1.3.
+         */
+        const val MSAK_STOP_GRACE_MILLIS = 1000L
+
         /** The result recorded when no latency server could be located. */
         internal fun unreachableResult(host: String, now: Instant) =
             LatencyResult(host, false, now, 0, 0, 0, 0, 0)
