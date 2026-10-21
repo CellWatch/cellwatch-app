@@ -4,6 +4,7 @@ import edu.gatech.cc.cellwatch.BuildConfig
 import edu.gatech.cc.cellwatch.data.model.LatencyData
 import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.UploadDownloadData
+import edu.gatech.cc.cellwatch.domain.telephony.managers.isUsingCarrierAggregation
 
 abstract class MeasurementTest<T: Any>(
     val groupId: String,
@@ -22,10 +23,11 @@ abstract class MeasurementTest<T: Any>(
         val beginLocation = env.getLocation()
         val connectionType = env.getConnectionType()
         val cellularDataEnabled = env.isCellularDataEnabled()
-        val cells = mutableListOf(*(env.getCells()?.toTypedArray() ?: arrayOf()))
+        // Each report of the cells the phone can see: one now, then one per change during the test.
+        val cellReports = mutableListOf(env.getCells() ?: emptyList())
         val generations = mutableListOf(env.getActiveNetworkGeneration())
         val stopWatching = env.watchCells {
-            cells.addAll(it)
+            cellReports.add(it)
             generations.add(env.getActiveNetworkGeneration())
         }
         val result = try { measure() } finally { stopWatching() }
@@ -67,13 +69,14 @@ abstract class MeasurementTest<T: Any>(
             provider = env.getProviderName(),
             type = type,
             scheduled = false,
-            cells = cells,
+            cells = cellReports.flatten(),
             locations = listOfNotNull(beginLocation, endLocation),
             simMcc = env.getSimMobileCountryCode(),
             simMnc = env.getSimMobileNetworkCode(),
             netMcc = env.getNetworkMobileCountryCode(),
             netMnc = env.getNetworkMobileNetworkCode(),
-            carrierAggregation = env.isUsingCarrierAggregation(cells),
+            // Per report: across reports the same serving cell repeats, which isn't aggregation.
+            carrierAggregation = cellReports.any { isUsingCarrierAggregation(it) },
             networkAvailable = env.isNetworkAvailable(),
             networkConnected = env.isNetworkConnected(),
             networkRoaming = env.isNetworkRoaming(),

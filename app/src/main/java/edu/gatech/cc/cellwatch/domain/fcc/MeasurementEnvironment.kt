@@ -41,7 +41,6 @@ interface MeasurementEnvironment {
     fun getSimMobileNetworkCode(): String?
     fun getNetworkMobileCountryCode(): String?
     fun getNetworkMobileNetworkCode(): String?
-    fun isUsingCarrierAggregation(cells: List<Cell>): Boolean
     fun isNetworkAvailable(): Boolean
     fun isNetworkConnected(): Boolean
     fun isNetworkRoaming(): Boolean
@@ -85,7 +84,6 @@ object AndroidMeasurementEnvironment : MeasurementEnvironment {
     override fun getSimMobileNetworkCode() = TelephonyInfoManager.getSimMobileNetworkCode()
     override fun getNetworkMobileCountryCode() = TelephonyInfoManager.getNetworkMobileCountryCode()
     override fun getNetworkMobileNetworkCode() = TelephonyInfoManager.getNetworkMobileNetworkCode()
-    override fun isUsingCarrierAggregation(cells: List<Cell>) = TelephonyInfoManager.isUsingCarrierAggregation(cells)
     override fun isNetworkAvailable() = TelephonyInfoManager.isNetworkAvailable()
     override fun isNetworkConnected() = TelephonyInfoManager.isNetworkConnected()
     override fun isNetworkRoaming() = TelephonyInfoManager.isNetworkRoaming()
