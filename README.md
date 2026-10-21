@@ -43,7 +43,7 @@ cd cellwatch-app
 ```bash
 cd supabase
 supabase start
-supabase db reset   # loads full_schema.sql and seed.sql
+supabase db reset   # applies supabase/migrations and seed.sql; see supabase/README.md, "Local stack"
 ```
 
 ### Build & install Android app
@@ -118,7 +118,9 @@ supabase start
 supabase db reset
 ```
 
-> `full_schema.sql` creates tables/views/indexes; `post_fcc_submission_func.sql` registers server-side logic for grouping/exports; `seed.sql` adds minimal sample data.
+> `full_schema.sql` is a snapshot of the live schema, and `supabase db reset` doesn't load it. Changes to the
+> live database are migrations in `supabase/migrations`, tested with `supabase/db_tests/run.sh`.
+> `supabase/check_drift.sh` compares the live project with the repo. See supabase/README.md.
 
 **Safety tip:** If you generate or update migration dumps, inspect for unintended data:
 ```bash
