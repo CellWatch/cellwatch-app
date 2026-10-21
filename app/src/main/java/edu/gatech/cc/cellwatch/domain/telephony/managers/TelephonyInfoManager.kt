@@ -400,13 +400,6 @@ object TelephonyInfoManager {
         return cells
     }
 
-    fun isUsingCarrierAggregation(cells: List<Cell>): Boolean {
-        // There will only be multiple cells that are currently "serving" (primary or secondary) if
-        // carrier aggregation is enabled.
-        // See https://www.sharetechnote.com/html/Handbook_LTE_CellType.html
-        return cells.filter { it.cellConnection == CONNECTION_PRIMARY_SERVING || it.cellConnection == CONNECTION_SECONDARY_SERVING }.size > 1
-    }
-
     fun isNetworkAvailable(): Boolean {
         return availableNetworks.isNotEmpty()
     }
@@ -464,4 +457,17 @@ object TelephonyInfoManager {
             }
         }
     }
+}
+
+/**
+ * Whether one report of the phone's cells, from [TelephonyInfoManager.getCells] or
+ * [TelephonyInfoManager.watchCells], shows carrier aggregation. There will only be multiple cells
+ * that are currently "serving" (primary or secondary) if carrier aggregation is enabled.
+ * See https://www.sharetechnote.com/html/Handbook_LTE_CellType.html
+ *
+ * Check each report on its own: in several reports put together, the same serving cell appears
+ * once per report and would look like aggregation.
+ */
+fun isUsingCarrierAggregation(cells: List<Cell>): Boolean {
+    return cells.count { it.cellConnection == CONNECTION_PRIMARY_SERVING || it.cellConnection == CONNECTION_SECONDARY_SERVING } > 1
 }

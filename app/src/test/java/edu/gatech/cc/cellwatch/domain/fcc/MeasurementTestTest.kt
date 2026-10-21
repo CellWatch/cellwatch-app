@@ -22,6 +22,7 @@ class MeasurementTestTest {
     private val start = Instant.fromEpochMilliseconds(1_790_000_000_000)
     private val lte = Cell(cellId = 1, networkGeneration = "4G", cellConnection = 1)
     private val lteSecondary = Cell(cellId = 2, networkGeneration = "4G", cellConnection = 2)
+    private val lteNext = Cell(cellId = 4, networkGeneration = "4G", cellConnection = 1)
     private val nr = Cell(cellId = 3, networkGeneration = "5G", cellConnection = 1)
 
     // --- result success is copied to the measurement ---
@@ -320,12 +321,38 @@ class MeasurementTestTest {
 
         val m = test("download", env) {
             env.cellsChange(listOf(lte, lteSecondary), "4G")
+            env.cellsChange(listOf(lte), "4G")
             throughput(success = true)
         }.run()
 
-        assertEquals(listOf(lte, lte, lteSecondary), m.cells)
-        assertEquals(true, m.carrierAggregation)
-        assertEquals(listOf(lte, lte, lteSecondary), env.carrierAggregationCells)
+        assertEquals(listOf(lte, lte, lteSecondary, lte), m.cells)
+        assertEquals("aggregation in any one report counts", true, m.carrierAggregation)
+    }
+
+    @Test
+    fun sameServingCellReportedAgainIsNotCarrierAggregation() = runBlocking<Unit> {
+        val env = FakeEnvironment(cells = listOf(lte), generation = "4G")
+
+        val m = test("download", env) {
+            env.cellsChange(listOf(lte), "4G")
+            throughput(success = true)
+        }.run()
+
+        assertEquals(listOf(lte, lte), m.cells)
+        assertEquals(false, m.carrierAggregation)
+    }
+
+    @Test
+    fun handoverToAnotherServingCellIsNotCarrierAggregation() = runBlocking<Unit> {
+        val env = FakeEnvironment(cells = listOf(lte), generation = "4G")
+
+        val m = test("upload", env) {
+            env.cellsChange(listOf(lteNext), "4G")
+            throughput(success = true)
+        }.run()
+
+        assertEquals(listOf(lte, lteNext), m.cells)
+        assertEquals(false, m.carrierAggregation)
     }
 
     @Test
@@ -395,7 +422,6 @@ class MeasurementTestTest {
         var watchCount = 0
         var stopCount = 0
         var locationRequests = 0
-        var carrierAggregationCells: List<Cell>? = null
 
         /** Simulates the phone reporting new cells, which happens along with a generation change. */
         fun cellsChange(newCells: List<Cell>, newGeneration: String?) {
@@ -434,11 +460,6 @@ class MeasurementTestTest {
         override fun getSimMobileNetworkCode() = "260"
         override fun getNetworkMobileCountryCode() = "311"
         override fun getNetworkMobileNetworkCode() = "480"
-
-        override fun isUsingCarrierAggregation(cells: List<Cell>): Boolean {
-            carrierAggregationCells = cells.toList()
-            return cells.count { it.cellConnection == 1 || it.cellConnection == 2 } > 1
-        }
 
         override fun isNetworkAvailable() = true
         override fun isNetworkConnected() = true
