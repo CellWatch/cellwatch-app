@@ -70,55 +70,23 @@ class ThroughputTest(
     override suspend fun measure(): ThroughputResult {
         try {
             if (server is UnreachableServer) {
-                return ThroughputResult(
-                    server.machine,
-                    false,
-                    Clock.System.now(),
-                    ThroughputMetrics(0, 0, 0.0),
-                    ThroughputMetrics(0, 0, 0.0),
-                )
+                return unreachableResult(server.machine, Clock.System.now())
             }
 
             msakTest.start()
             handler.postDelayed({ catchErrors { startActive() } }, maxWarmupTime)
             msakTest.updatesChan.consumeEach { handleUpdate(it) }
 
-            val start = msakTest.startTime!! // assume set since we started the test above
-            val activeStart = activeStartTime
-            val latest = latestUpdates
-
-            val warmupMetrics = calcAggregateMetrics(
-                ((activeStart ?: Clock.System.now()) - start).inWholeMicroseconds,
-                lastWarmupUpdates ?: latest,
+            return summarize(
+                serverHost = msakTest.serverHost,
+                start = msakTest.startTime!!, // assume set since we started the test above
+                activeStart = activeStartTime,
+                end = msakTest.endTime,
+                latest = latestUpdates,
+                lastWarmupUpdates = lastWarmupUpdates,
+                error = error,
+                streamErrors = msakTest.streams.map { it.error },
             )
-
-            val haveActiveUpdates = latest.all { it != null && it != lastWarmupUpdates?.get(it.stream) }
-            val activeMetrics = if (activeStart != null && haveActiveUpdates) {
-                calcAggregateMetrics(
-                    ((msakTest.endTime ?: Clock.System.now()) - activeStart).inWholeMicroseconds,
-                    latest,
-                    lastWarmupUpdates,
-                )
-            } else ThroughputMetrics(0, 0, 0.0)
-
-            // According to the FCC, a test is successful if it transmitted >0 bytes of data, even
-            // if it ends prematurely, for example because of a network error. Throw non-network
-            // related errors; these indicate that something went wrong that invalidates the test.
-            val success = when(val error = error) {
-                null -> true
-                is MissingWarmupUpdateException -> false
-                else -> throw error
-            } && msakTest.streams.all {
-                when (val error = it.error) {
-                    null -> true
-                    is ThroughputStream.UploadDataException,
-                    is ThroughputStream.UnexpectedCloseException,
-                    is ThroughputStream.FailureException -> true
-                    else -> throw error
-                }
-            } && activeMetrics.bytesPerSec > 0
-
-            return ThroughputResult(msakTest.serverHost, success, start, warmupMetrics, activeMetrics)
         } catch (c: CancellationException) {
             Log.i(TAG, "throughput test cancelled")
             msakTest.stop()
@@ -225,46 +193,6 @@ class ThroughputTest(
         return update.fromServer == (direction == ThroughputDirection.UPLOAD)
     }
 
-    private fun calcAggregateMetrics(
-        usecs: Long,
-        lastUpdates: List<ThroughputUpdate?>,
-        firstUpdates: List<ThroughputUpdate>? = null,
-    ): ThroughputMetrics {
-        val streamMetrics = lastUpdates.mapIndexed { i, lastUpdate ->
-            val firstUpdate = firstUpdates?.getOrNull(i)
-
-            if (lastUpdate == null) {
-                ThroughputMetrics(0, 0, 0.0)
-            } else if (firstUpdate == null) {
-                val bytes = getBytesReceived(lastUpdate)
-                ThroughputMetrics(bytes, usecs, calcBytesPerSec(bytes, lastUpdate.measurement.ElapsedTime))
-            } else {
-                val lastBytes = getBytesReceived(lastUpdate)
-                val firstBytes = getBytesReceived(firstUpdate)
-                val bytes = lastBytes - firstBytes
-                val elapsedUsecs = lastUpdate.measurement.ElapsedTime - firstUpdate.measurement.ElapsedTime
-
-                ThroughputMetrics(bytes, usecs, calcBytesPerSec(bytes, elapsedUsecs))
-            }
-        }
-
-        val totalBytes = streamMetrics.sumOf { it.bytes }
-        val totalBytesPerSec = streamMetrics.sumOf { it.bytesPerSec }
-        return ThroughputMetrics(totalBytes, usecs, totalBytesPerSec)
-    }
-
-    private fun calcBytesPerSec(bytes: Long, usecs: Long): Double {
-        return bytes.toDouble() / (usecs.toDouble() / 1000000.0)
-    }
-
-    private fun calcBytesPerSec(update: ThroughputUpdate): Double {
-        return calcBytesPerSec(getBytesReceived(update), update.measurement.ElapsedTime)
-    }
-
-    private fun getBytesReceived(update: ThroughputUpdate): Long {
-        return (update.measurement.Network ?: update.measurement.Application).BytesReceived
-    }
-
     private fun catchErrors(fn: () -> Unit) {
         try {
             fn()
@@ -274,5 +202,112 @@ class ThroughputTest(
         }
     }
 
-    private class MissingWarmupUpdateException: Exception("one or more streams had no updates in warmup period")
+    internal class MissingWarmupUpdateException: Exception("one or more streams had no updates in warmup period")
+
+    companion object {
+        /** The result recorded when no throughput server could be located. */
+        internal fun unreachableResult(host: String, now: Instant) = ThroughputResult(
+            host,
+            false,
+            now,
+            ThroughputMetrics(0, 0, 0.0),
+            ThroughputMetrics(0, 0, 0.0),
+        )
+
+        /**
+         * Builds the result of a finished msak throughput test from the receiver's updates and the
+         * errors the test and its streams ended with. Kept free of Android and msak state so it can
+         * be unit tested.
+         *
+         * @param latest each stream's latest update from the receiver, or null if it had none
+         * @param lastWarmupUpdates each stream's last receiver update before the active period
+         *   started, or null if the active period never started or a stream had none
+         * @param error an error the test itself ended with (as opposed to one of its streams)
+         * @param streamErrors the error each stream ended with, if any
+         */
+        internal fun summarize(
+            serverHost: String,
+            start: Instant,
+            activeStart: Instant?,
+            end: Instant?,
+            latest: List<ThroughputUpdate?>,
+            lastWarmupUpdates: List<ThroughputUpdate>?,
+            error: Throwable?,
+            streamErrors: List<Throwable?>,
+            now: () -> Instant = { Clock.System.now() },
+        ): ThroughputResult {
+            val warmupMetrics = calcAggregateMetrics(
+                ((activeStart ?: now()) - start).inWholeMicroseconds,
+                lastWarmupUpdates ?: latest,
+            )
+
+            val haveActiveUpdates = latest.all { it != null && it != lastWarmupUpdates?.get(it.stream) }
+            val activeMetrics = if (activeStart != null && haveActiveUpdates) {
+                calcAggregateMetrics(
+                    ((end ?: now()) - activeStart).inWholeMicroseconds,
+                    latest,
+                    lastWarmupUpdates,
+                )
+            } else ThroughputMetrics(0, 0, 0.0)
+
+            // According to the FCC, a test is successful if it transmitted >0 bytes of data, even
+            // if it ends prematurely, for example because of a network error. Throw non-network
+            // related errors; these indicate that something went wrong that invalidates the test.
+            val success = when(error) {
+                null -> true
+                is MissingWarmupUpdateException -> false
+                else -> throw error
+            } && streamErrors.all {
+                when (it) {
+                    null -> true
+                    is ThroughputStream.UploadDataException,
+                    is ThroughputStream.UnexpectedCloseException,
+                    is ThroughputStream.FailureException -> true
+                    else -> throw it
+                }
+            } && activeMetrics.bytesPerSec > 0
+
+            return ThroughputResult(serverHost, success, start, warmupMetrics, activeMetrics)
+        }
+
+        private fun calcAggregateMetrics(
+            usecs: Long,
+            lastUpdates: List<ThroughputUpdate?>,
+            firstUpdates: List<ThroughputUpdate>? = null,
+        ): ThroughputMetrics {
+            val streamMetrics = lastUpdates.mapIndexed { i, lastUpdate ->
+                val firstUpdate = firstUpdates?.getOrNull(i)
+
+                if (lastUpdate == null) {
+                    ThroughputMetrics(0, 0, 0.0)
+                } else if (firstUpdate == null) {
+                    val bytes = getBytesReceived(lastUpdate)
+                    ThroughputMetrics(bytes, usecs, calcBytesPerSec(bytes, lastUpdate.measurement.ElapsedTime))
+                } else {
+                    val lastBytes = getBytesReceived(lastUpdate)
+                    val firstBytes = getBytesReceived(firstUpdate)
+                    val bytes = lastBytes - firstBytes
+                    val elapsedUsecs = lastUpdate.measurement.ElapsedTime - firstUpdate.measurement.ElapsedTime
+
+                    ThroughputMetrics(bytes, usecs, calcBytesPerSec(bytes, elapsedUsecs))
+                }
+            }
+
+            val totalBytes = streamMetrics.sumOf { it.bytes }
+            val totalBytesPerSec = streamMetrics.sumOf { it.bytesPerSec }
+            return ThroughputMetrics(totalBytes, usecs, totalBytesPerSec)
+        }
+
+        private fun calcBytesPerSec(bytes: Long, usecs: Long): Double {
+            return bytes.toDouble() / (usecs.toDouble() / 1000000.0)
+        }
+
+        private fun calcBytesPerSec(update: ThroughputUpdate): Double {
+            return calcBytesPerSec(getBytesReceived(update), update.measurement.ElapsedTime)
+        }
+
+        private fun getBytesReceived(update: ThroughputUpdate): Long {
+            return (update.measurement.Network ?: update.measurement.Application).BytesReceived
+        }
+    }
 }
