@@ -166,4 +166,20 @@ class MeasureStepsTest {
         connectionType = null,
         cellularDataEnabled = null,
     )
+
+    @Test
+    fun onlyAMeasurementUnderWayIsRunning() {
+        val running = MeasureProgress.values().filter { MeasureSteps.isRunning(it) }
+
+        assertEquals(
+            listOf(
+                MeasureProgress.START,
+                MeasureProgress.LOCATE,
+                MeasureProgress.LATENCY,
+                MeasureProgress.DOWNLOAD,
+                MeasureProgress.UPLOAD,
+            ),
+            running,
+        )
+    }
 }
