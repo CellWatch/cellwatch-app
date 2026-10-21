@@ -88,7 +88,6 @@ import com.mapbox.search.ui.view.SearchResultsView
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
-import edu.gatech.cc.cellwatch.data.core.sync.UploadWorker
 import edu.gatech.cc.cellwatch.databinding.ActivityMapBinding
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 import kotlinx.coroutines.CoroutineScope
@@ -236,8 +235,6 @@ class MapActivity : AppCompatActivity() {
                 toggleHexGrid(binding.h3ToggleSwitch.isChecked)
             }
         }
-
-        UploadWorker.enqueue(this)
 
         // Search Implementation
         searchResultsView = binding.searchResultsView.apply {

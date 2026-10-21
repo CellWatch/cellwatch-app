@@ -4,8 +4,13 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.work.ExistingWorkPolicy
 import edu.gatech.cc.cellwatch.data.core.repositories.MeasurementRepository
 import edu.gatech.cc.cellwatch.data.core.repositories.SettingsRepository
+import edu.gatech.cc.cellwatch.data.core.sync.UploadWorker
 import edu.gatech.cc.cellwatch.data.datastore.LocalDataStore
 import edu.gatech.cc.cellwatch.data.local.CellWatchDatabase
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
@@ -28,6 +33,14 @@ class CellWatchApp : Application() {
     override fun onCreate() {
         super.onCreate()
         registerActivityLifecycleCallbacks(SystemBarInsets)
+
+        UploadWorker.schedulePeriodic(this)
+        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+            // The phone likely has service while someone is using it. Opening the app saves
+            // nothing new, so an upload that's already queued or running is enough.
+            override fun onStart(owner: LifecycleOwner) =
+                UploadWorker.enqueue(this@CellWatchApp, ExistingWorkPolicy.KEEP)
+        })
     }
 
     companion object {
