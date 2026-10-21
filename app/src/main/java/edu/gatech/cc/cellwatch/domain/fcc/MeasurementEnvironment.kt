@@ -4,7 +4,9 @@ import android.os.Build
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.Granularity
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import edu.gatech.cc.cellwatch.CellWatchApp
+import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.core.util.PermissionManager
 import edu.gatech.cc.cellwatch.data.model.Cell
 import edu.gatech.cc.cellwatch.data.model.Location
@@ -12,6 +14,7 @@ import edu.gatech.cc.cellwatch.domain.telephony.managers.NetworkConnectionType
 import edu.gatech.cc.cellwatch.domain.telephony.managers.TelephonyInfoManager
 import github.nisrulz.easydeviceinfo.base.EasyAppMod
 import github.nisrulz.easydeviceinfo.base.EasyDeviceMod
+import kotlinx.coroutines.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -23,6 +26,14 @@ import kotlin.coroutines.suspendCoroutine
  */
 interface MeasurementEnvironment {
     suspend fun getLocation(): Location?
+
+    /**
+     * Neither the start nor the end of the test produced a location, and the BDC rejects a test
+     * without one: ask once more for a fresh fix. Returns null rather than throwing so the
+     * measurement is still saved.
+     */
+    suspend fun retryLocation(): Location?
+
     fun getConnectionType(): NetworkConnectionType
     fun isCellularDataEnabled(): Boolean?
     fun getCells(): List<Cell>?
@@ -47,18 +58,43 @@ interface MeasurementEnvironment {
 }
 
 object AndroidMeasurementEnvironment : MeasurementEnvironment {
-    override suspend fun getLocation(): Location? = suspendCoroutine { continuation ->
+    private val TAG = this::class.simpleName
+    private const val LOCATION_RETRY_MILLIS = 10_000L
+
+    override suspend fun getLocation(): Location? = getLocation(
+        CurrentLocationRequest.Builder()
+            .setGranularity(Granularity.GRANULARITY_FINE)
+            .setMaxUpdateAgeMillis(3000)
+            .build()
+    )
+
+    /** Uses GPS this time, for at most [LOCATION_RETRY_MILLIS]. */
+    override suspend fun retryLocation(): Location? {
+        Log.i(TAG, "no location for this test; retrying")
+
+        return try {
+            getLocation(
+                CurrentLocationRequest.Builder()
+                    .setGranularity(Granularity.GRANULARITY_FINE)
+                    .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+                    .setMaxUpdateAgeMillis(3000)
+                    .setDurationMillis(LOCATION_RETRY_MILLIS)
+                    .build()
+            ).also { if (it == null) Log.i(TAG, "location retry found no location") }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.i(TAG, "location retry failed", e)
+            null
+        }
+    }
+
+    private suspend fun getLocation(request: CurrentLocationRequest): Location? = suspendCoroutine { continuation ->
         val context = CellWatchApp.applicationContext()
 
         if (PermissionManager.checkLocationPermission()) {
             val client = LocationServices.getFusedLocationProviderClient(context)
-            client.getCurrentLocation(
-                CurrentLocationRequest.Builder()
-                    .setGranularity(Granularity.GRANULARITY_FINE)
-                    .setMaxUpdateAgeMillis(3000)
-                    .build(),
-                null
-            ).addOnSuccessListener {
+            client.getCurrentLocation(request, null).addOnSuccessListener {
                 continuation.resume(Location.fromAndroidLocation(it))
             }.addOnFailureListener {
                 continuation.resumeWithException(it)

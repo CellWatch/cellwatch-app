@@ -36,6 +36,8 @@ abstract class MeasurementTest<T: Any>(
         // watching; sample it again now rather than seconds later, after the location fix.
         generations.add(env.getActiveNetworkGeneration())
         val endLocation = env.getLocation()
+        // The BDC rejects a test without a location, so if neither fix came back, try once more.
+        val locations = locationsOrRetry(beginLocation, endLocation) { env.retryLocation() }
 
         if (type == "latency" && result !is LatencyResult) {
             throw Exception("expected ${LatencyResult::class.simpleName} result, got ${result::class.simpleName}")
@@ -70,7 +72,7 @@ abstract class MeasurementTest<T: Any>(
             type = type,
             scheduled = false,
             cells = cellReports.flatten(),
-            locations = listOfNotNull(beginLocation, endLocation),
+            locations = locations,
             simMcc = env.getSimMobileCountryCode(),
             simMnc = env.getSimMobileNetworkCode(),
             netMcc = env.getNetworkMobileCountryCode(),

@@ -1,6 +1,8 @@
 package edu.gatech.cc.cellwatch.data.model
 
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
+
 @Serializable
 data class MeasurementGroup(
     val latency: Measurement?,
@@ -63,4 +65,25 @@ data class MeasurementGroup(
             latlons.map { it.second }.average(),
         )
     }
+}
+
+/**
+ * When the whole group reached the server: the latest upload time among its measurements and, if
+ * one was created, its FCC submission. Null until every one of them has been uploaded, so the app
+ * never shows a test as uploaded while part of it is still pending. A group without a submission
+ * (testing mode, or a test that was not submitted to the FCC) counts as uploaded once its
+ * measurements are.
+ */
+inline fun MeasurementGroup.uploadTime(
+    measurementUploadTime: (Measurement) -> Instant?,
+    submissionUploadTime: (FccSubmission) -> Instant?,
+): Instant? {
+    val times = listOfNotNull(latency, download, upload).map { measurementUploadTime(it) } +
+        listOfNotNull(submission).map { submissionUploadTime(it) }
+
+    if (times.isEmpty() || times.any { it == null }) {
+        return null
+    }
+
+    return times.filterNotNull().maxOrNull()
 }

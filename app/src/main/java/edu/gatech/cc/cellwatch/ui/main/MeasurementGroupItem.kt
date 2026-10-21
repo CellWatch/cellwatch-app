@@ -16,9 +16,8 @@ import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import com.google.android.flexbox.FlexboxLayout
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
-import edu.gatech.cc.cellwatch.data.model.FccSubmission
-import edu.gatech.cc.cellwatch.data.model.Measurement
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
+import edu.gatech.cc.cellwatch.data.model.uploadTime
 import edu.gatech.cc.cellwatch.databinding.ItemMeasurementGroupBinding
 import kotlinx.datetime.Instant
 
@@ -128,31 +127,31 @@ class MeasurementGroupItem(
             binding.timeText.text = "-"
         }
 
-        val carrier = group.latency?.provider
-            ?: group.download?.provider
-            ?: group.upload?.provider
+        // A blank provider is stored and uploaded as blank so the server can fill it in; it is only
+        // labelled here. Older builds stored "unknown", which is shown as it was.
+        val measurements = listOfNotNull(group.latency, group.download, group.upload)
+        val carrier = measurements.firstNotNullOfOrNull { it.provider?.takeIf(String::isNotBlank) }
 
-        binding.carrierText.text = carrier ?: ""
+        binding.carrierText.text = when {
+            carrier != null -> carrier
+            measurements.isEmpty() -> ""
+            else -> context.getString(R.string.unknown_carrier)
+        }
 
         val submission = group.submission
         binding.typeText.text = if (submission == null && collectionMode != CollectionMode.FCC_CHALLENGE) {
             context.getString(R.string.testing)
+        } else if (submission == null && !inProgress) {
+            // An FCC Challenge test that finished (or failed) without a submission, e.g. on WiFi or
+            // with no location, so nothing is sent to the FCC.
+            context.getString(R.string.not_submitted_to_fcc)
         } else if (submission?.inVehicle == true || inVehicle == true) {
             context.getString(R.string.fcc_challenge_vehicle)
         } else {
             context.getString(R.string.fcc_challenge_stationary)
         }
 
-        val uploadable = listOfNotNull(group.latency, group.download, group.upload, group.submission)
-        val uploadTimes = uploadable.map {
-            when (it) {
-                is Measurement -> it.uploadTime
-                is FccSubmission -> it.uploadTime
-                else -> throw RuntimeException("expected Measurement or FccSubmission, got $it")
-            }
-        }
-        val uploadTime = if (uploadTimes.all { it != null }) uploadTimes.firstOrNull() else null
-        updateUploadTime(uploadTime)
+        updateUploadTime(group.uploadTime({ it.uploadTime }, { it.uploadTime }))
 
         binding.summaryLatencyText.text = group.latency?.displayValue(context) ?: "-"
         binding.summaryDownloadText.text = group.download?.displayValue(context) ?: "-"
