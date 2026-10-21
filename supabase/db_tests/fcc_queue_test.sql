@@ -1,5 +1,6 @@
 -- Tests for the FCC retry queue after the 2026-10-21 migrations: per-entry commits and
--- duplicate_test_id (#117) and the provider block reason (#118). Run by
+-- duplicate_test_id (#117), the provider block reason (#118), and holding submissions the
+-- FCC rejects (#124, #125). Run by
 -- supabase/db_tests/run.sh in a throwaway container. The real posting code runs, but a
 -- stand-in replaces the HTTP request, so nothing is sent anywhere.
 \set ON_ERROR_STOP on
@@ -309,6 +310,105 @@ begin
     perform expect(sent::jsonb #>> '{submissions,0,provider_name}' = 'test wireless'
                    and (select provider = 'test wireless' from public.fcc_submissions where id = unknown_code),
         'once the code is known, the job fills the provider and posts it');
+end;
+$$;
+
+-- #124, #125: complete submissions the FCC is known to reject are held, not posted.
+do $$
+declare
+    no_net uuid;
+    blank_net uuid;
+    no_locations uuid;
+    both_reasons uuid;
+    incomplete uuid;
+    held_and_no_provider uuid;
+    fine uuid;
+begin
+    perform test_reset();
+    no_net := test_submission(net_mcc => null, net_mnc => null);
+    blank_net := test_submission(net_mnc => ' ');
+    no_locations := test_submission(with_locations => false);
+    both_reasons := test_submission(net_mcc => null, with_locations => false);
+    incomplete := test_submission(ready => false, net_mcc => null, with_locations => false);
+    held_and_no_provider := test_submission(provider => '', sim_mnc => '999', net_mcc => null);
+    fine := test_submission();
+
+    perform expect(private.process_fcc_submission_retries(10) = 1, 'only the submission without problems is posted');
+    perform expect((select array_agg(submission_id) from test_http_log) = array[fine],
+        'nothing is sent for the held ones');
+
+    perform expect(
+        (select state = 'held' and attempt_count = 0
+                and last_error = 'No network registration: net MCC/MNC missing (the FCC rejects this as null_net_mobile_country_code)'
+         from private.fcc_submission_retry_queue where submission_id = no_net),
+        '#124: a submission without network codes is held, with the reason');
+    perform expect(
+        (select state = 'held' and last_error like 'No network registration%'
+         from private.fcc_submission_retry_queue where submission_id = blank_net),
+        '#124: a blank network code counts as missing');
+    perform expect(
+        (select state = 'held'
+                and last_error = 'No locations: a test has no location fix (the FCC rejects this as null_properties)'
+         from private.fcc_submission_retry_queue where submission_id = no_locations),
+        '#125: a submission without locations is held, with the reason');
+    perform expect(
+        (select state = 'held' and last_error like 'No network registration%; No locations%'
+         from private.fcc_submission_retry_queue where submission_id = both_reasons),
+        'both reasons are given when both apply');
+    perform expect(
+        (select state = 'pending' and last_error like 'Waiting%'
+         from private.fcc_submission_retry_queue where submission_id = incomplete),
+        '#125: an incomplete submission keeps waiting for its data instead of being held');
+    perform expect(
+        (select state = 'held' from private.fcc_submission_retry_queue where submission_id = held_and_no_provider),
+        'a held submission is not also reported as missing its provider');
+    perform expect(not exists (select 1 from private.fcc_submission_failures where not succeeded),
+        'holding is not logged as a failed attempt');
+
+    -- Held entries are left alone by later runs.
+    update private.fcc_submission_retry_queue set next_attempt_at = now() - interval '1 hour'
+    where state = 'held';
+    update private.fcc_submission_retry_queue set updated_on = now() - interval '1 day' where state = 'held';
+    perform private.process_fcc_submission_retries(10);
+    perform expect(
+        (select count(*) from private.fcc_submission_retry_queue
+         where state = 'held' and updated_on = now() - interval '1 day') = 5,
+        'later runs don''t pick up held entries');
+
+    -- Released without a fix, an entry is checked again and held again.
+    update private.fcc_submission_retry_queue set state = 'pending' where submission_id = no_net;
+    perform private.process_fcc_submission_retries(10);
+    perform expect(
+        (select state = 'held' from private.fcc_submission_retry_queue where submission_id = no_net)
+        and (select count(*) from test_http_log) = 1,
+        'a released entry is checked again before posting');
+end;
+$$;
+
+do $$
+declare
+    with_net jsonb := '{"submissions":[{"net_mobile_country_code":"310","net_mobile_network_code":"410","tests":{}}]}';
+    test_ok jsonb := '{"locations":[{"latitude":1}]}';
+begin
+    perform expect(private.fcc_payload_hold_reason(
+            jsonb_set(with_net, '{submissions,0,tests}', jsonb_build_object('latency', test_ok, 'download', test_ok))) is null,
+        'hold reason: none for network codes and locations');
+    perform expect(private.fcc_payload_hold_reason(
+            jsonb_set(jsonb_set(with_net, '{submissions,0,net_mobile_country_code}', 'null'),
+                      '{submissions,0,tests}',
+                      jsonb_build_object('latency', test_ok || '{"connection_type":"wifi"}',
+                                         'download', test_ok || '{"connection_type":"WIFI"}'))) is null,
+        'hold reason: missing network codes are fine when every test is over wifi');
+    perform expect(private.fcc_payload_hold_reason(
+            jsonb_set(jsonb_set(with_net, '{submissions,0,net_mobile_network_code}', 'null'),
+                      '{submissions,0,tests}',
+                      jsonb_build_object('latency', test_ok || '{"connection_type":"wifi"}',
+                                         'download', test_ok || '{"connection_type":"cell"}'))) like 'No network registration%',
+        'hold reason: but not when one test is over cell');
+    perform expect(private.fcc_payload_hold_reason(
+            jsonb_set(with_net, '{submissions,0,tests}',
+                      jsonb_build_object('latency', test_ok, 'upload', '{"locations":[]}'::jsonb))) like 'No locations%',
+        'hold reason: an empty locations list counts as missing');
 end;
 $$;
 

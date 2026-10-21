@@ -1,6 +1,7 @@
 begin;
 
--- Record each FCC post in its own transaction (#117).
+-- Record each FCC post in its own transaction (#117), and hold submissions the FCC is known
+-- to reject (#124, #125).
 --
 -- process_fcc_submission_retries posted a whole batch inside one transaction. A POST can't
 -- be rolled back, but the record of it can: the submitted flag, the stored response and the
@@ -26,6 +27,22 @@ begin;
 --     arrive isn't blocked as needing a human (#119). A blank provider is filled from
 --     private.carrier_by_plmn when the SIM code is known by now; otherwise the block reason
 --     names the code (#118).
+--   * New queue state 'held': complete submissions the FCC is known to reject, kept
+--     until there is a way to send them. They aren't posted or checked again until someone
+--     sets them back to 'pending'. 'blocked' still means a person has to fix something.
+--     Two reasons so far (private.fcc_payload_hold_reason):
+--       - No network registration (#124). The FCC rejects a test whose
+--         net_mobile_country_code or net_mobile_network_code is null "when at least one
+--         connection_type is null or equals cell" (null_net_mobile_country_code /
+--         null_net_mobile_network_code). The spec says a null connection_type is treated
+--         as cell, and our payload never sends connection_type, so in practice every
+--         submission without network codes is held. We are waiting for the FCC to say
+--         what to send; the codes are not filled in from the SIM.
+--       - No locations (#125). The FCC rejects a test without locations (null_properties,
+--         "required: locations"). The app uploads a measurement's locations together with
+--         the measurement (insert_measurement), so once a submission is complete, missing
+--         locations won't turn up later. This is checked only after the readiness check,
+--         so incomplete submissions keep waiting for their data first.
 --
 -- Don't post big batches from the Supabase SQL editor or any other client that wraps the
 -- call in one transaction: if the run fails or times out part way, the posts already made
@@ -33,6 +50,69 @@ begin;
 --     call private.run_fcc_submission_retries(1);
 -- from psql. Called inside a transaction block, the procedure stops with "invalid
 -- transaction termination" before it does anything.
+
+alter table private.fcc_submission_retry_queue
+    drop constraint if exists fcc_submission_retry_queue_state_check,
+    add constraint fcc_submission_retry_queue_state_check
+        check (state in ('pending', 'blocked', 'held'));
+
+-- Why the FCC would reject this payload, or null if we know of no reason. Held entries say
+-- this in last_error. Several reasons are joined with '; '.
+--
+-- When the FCC answers, change this function to match, then release the entries, e.g.
+--     update private.fcc_submission_retry_queue
+--     set state = 'pending', next_attempt_at = now(), updated_on = now()
+--     where state = 'held' and last_error like '%No network registration%';
+-- The job checks each one again before posting it.
+create or replace function private.fcc_payload_hold_reason(payload jsonb)
+returns text
+language sql
+immutable
+as
+$$
+    with
+    submission as (
+        select payload #> '{submissions,0}' as s
+    ),
+    tests as (
+        select t.value as test
+        from submission,
+            jsonb_each(case when jsonb_typeof(s -> 'tests') = 'object' then s -> 'tests' else '{}' end) t
+    )
+    select nullif(
+        concat_ws(
+            '; ',
+            case
+                when (
+                    select nullif(btrim(s ->> 'net_mobile_country_code'), '') is null
+                        or nullif(btrim(s ->> 'net_mobile_network_code'), '') is null
+                    from submission
+                )
+                and exists (
+                    select 1
+                    from tests
+                    where coalesce(lower(test ->> 'connection_type'), 'cell') = 'cell'
+                )
+                then 'No network registration: net MCC/MNC missing (the FCC rejects this as '
+                     || 'null_net_mobile_country_code)'
+            end,
+            case
+                when exists (
+                    select 1
+                    from tests
+                    where case
+                        when jsonb_typeof(test -> 'locations') = 'array'
+                            then jsonb_array_length(test -> 'locations') = 0
+                        else true
+                    end
+                )
+                then 'No locations: a test has no location fix (the FCC rejects this as '
+                     || 'null_properties)'
+            end
+        ),
+        ''
+    );
+$$;
 
 -- True when a posting error is the FCC saying it already has this test_id.
 -- post_fcc_submission raises 'FCC HTTP status NNN for submission <id>: <response body>',
@@ -50,7 +130,8 @@ $$
 $$;
 
 -- Handles the queue entry that has been due longest and returns what happened to it:
--- 'waiting', 'blocked', 'posted', 'already_at_fcc' or 'failed'; null when no entry is due.
+-- 'waiting', 'held', 'blocked', 'posted', 'already_at_fcc' or 'failed'; null when no entry
+-- is due.
 -- Changes from the loop body of the 202610070001 version are marked "Changed".
 create or replace function private.process_next_fcc_submission_retry()
 returns text
@@ -62,6 +143,7 @@ $$
 declare
     item private.fcc_submission_retry_queue%rowtype;
     sub record;
+    hold_reason text;
     filled_provider text;
     error_text text;
     response_text text;
@@ -103,6 +185,23 @@ begin
             where submission_id = item.submission_id;
 
             return 'waiting';
+        end if;
+
+        -- Changed: hold what the FCC is known to reject. Checked before the provider, since
+        -- fixing the provider wouldn't get these through.
+        hold_reason := private.fcc_payload_hold_reason(
+            private.fcc_submission_payload(item.submission_id)
+        );
+
+        if hold_reason is not null then
+            update private.fcc_submission_retry_queue
+            set
+                state = 'held',
+                last_error = hold_reason,
+                updated_on = now()
+            where submission_id = item.submission_id;
+
+            return 'held';
         end if;
 
         -- A missing provider requires repair, not repeated FCC requests.
