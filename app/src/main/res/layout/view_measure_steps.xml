@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Step indicator for the measure screen (1 Latency, 2 Download, 3 Upload); see MeasureStepsView. -->
+<merge
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:orientation="vertical"
+    tools:parentTag="android.widget.LinearLayout">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <include
+            android:id="@+id/stepLatency"
+            layout="@layout/view_measure_step" />
+
+        <!-- 15dp = half the 32dp circle minus half the line, so the line meets the circles' middles -->
+        <View
+            android:id="@+id/lineLatencyDownload"
+            android:layout_width="0dp"
+            android:layout_height="2dp"
+            android:layout_marginTop="15dp"
+            android:layout_weight="1" />
+
+        <include
+            android:id="@+id/stepDownload"
+            layout="@layout/view_measure_step" />
+
+        <View
+            android:id="@+id/lineDownloadUpload"
+            android:layout_width="0dp"
+            android:layout_height="2dp"
+            android:layout_marginTop="15dp"
+            android:layout_weight="1" />
+
+        <include
+            android:id="@+id/stepUpload"
+            layout="@layout/view_measure_step" />
+    </LinearLayout>
+
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:contentDescription="@string/measure_steps_progress"
+        android:max="1000"
+        app:indicatorColor="@color/cw_green"
+        app:trackColor="@color/cw_grey_extra_light"
+        app:trackCornerRadius="4dp"
+        app:trackThickness="8dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal">
+
+        <!-- Changes only when the step changes, so screen readers announce each new step. -->
+        <TextView
+            android:id="@+id/stepText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:accessibilityLiveRegion="polite"
+            android:textColor="@color/cw_black"
+            android:textSize="16sp" />
+
+        <!-- Not a live region: it changes every second. -->
+        <TextView
+            android:id="@+id/remainingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textColor="@color/cw_grey_dark"
+            android:textSize="16sp" />
+    </LinearLayout>
+</merge>
