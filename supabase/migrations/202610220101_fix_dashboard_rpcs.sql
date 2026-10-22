@@ -10,6 +10,11 @@
 -- anyone holding the anon key that ships in the app could read every device's locations and
 -- results. They now refuse to run unless the request carries the dashboard's shared secret
 -- (x-dashboard-secret), the same check the dashboard RLS policies use.
+--
+-- latency_data.rtt and .jitter are in microseconds (the app stores MSAK's values, and the FCC
+-- payload uses the same unit). rpc_map_points already converted them to the milliseconds its
+-- ping_ms/jitter_ms names promise; rpc_group_detail and rpc_group_summaries now do too, so
+-- their lat_min/lat_max filters are also in milliseconds.
 
 create or replace function private.require_dashboard_request() returns void
     language plpgsql stable security definer
@@ -76,8 +81,8 @@ parts as (
         (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
       else null
     end as mbps,
-    case when m.type = 'latency' then ld.rtt end as ping_ms,
-    case when m.type = 'latency' then ld.jitter end as jitter_ms,
+    case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,
+    case when m.type = 'latency' then (ld.jitter / 1000.0) end as jitter_ms,
     case
       when m.type = 'latency' and ld.sent is not null and ld.received is not null and ld.sent > 0
         then (100.0 * greatest(0, ld.sent - ld.received)) / ld.sent
@@ -175,8 +180,8 @@ meas as (
         (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
       else null
     end as ul_mbps,
-    case when m.type = 'latency' then ld.rtt end as ping_ms,
-    case when m.type = 'latency' then ld.jitter end as jitter_ms,
+    case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,
+    case when m.type = 'latency' then (ld.jitter / 1000.0) end as jitter_ms,
     case
       when m.type = 'latency' and ld.sent is not null and ld.received is not null and ld.sent > 0
         then (100.0 * greatest(0, ld.sent - ld.received)) / ld.sent

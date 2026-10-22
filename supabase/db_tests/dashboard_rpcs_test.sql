@@ -150,3 +150,34 @@ begin
     end if;
     raise notice 'ok: dashboard RPCs work with the dashboard secret';
 end $$;
+
+-- All three report latency in milliseconds (stored values are microseconds).
+do $$
+declare
+    d jsonb := public.rpc_group_detail('aaaaaaaa-0000-0000-0000-000000000000');
+    s jsonb;
+    p jsonb;
+begin
+    select x into s from public.rpc_group_summaries(-180, -90, 180, 90) x
+        where x->>'group_id' = 'aaaaaaaa-0000-0000-0000-000000000000';
+    select x into p from public.rpc_map_points(-180, -90, 180, 90) x
+        where x->>'group_id' = 'aaaaaaaa-0000-0000-0000-000000000000';
+
+    if (d->'tests'->'latency'->>'rtt_ms')::numeric <> 40
+        or (d->'tests'->'latency'->>'jitter_ms')::numeric <> 2
+        or (s->>'ping_ms')::numeric <> 40
+        or (s->>'jitter_ms')::numeric <> 2
+        or (p->'stats'->>'ping_ms')::numeric <> 40
+        or (p->'stats'->>'jitter_ms')::numeric <> 2
+    then
+        raise exception 'latency is not in milliseconds: detail %, summary %, point %', d, s, p;
+    end if;
+
+    -- The latency filter is in milliseconds too: only group A (40 ms) is at or under 50 ms.
+    if (select count(*) from public.rpc_group_summaries(-180, -90, 180, 90, lat_max => 50)) <> 1
+        or (select count(*) from public.rpc_map_points(-180, -90, 180, 90, lat_max => 50)) <> 1
+    then
+        raise exception 'lat_max is not applied in milliseconds';
+    end if;
+    raise notice 'ok: dashboard RPCs report latency in milliseconds';
+end $$;
