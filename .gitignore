@@ -18,7 +18,11 @@
 local.properties
 /.idea/.name
 .idea/misc.xml
-/cellwatch.properties
+cellwatch.properties
 /keystore/
 /app/release/
 *.apk
+
+# Local notes at the repo root (runbooks, inquiry write-ups with PII, TODOs). Docs live in docs/.
+/*.md
+!/README.md
