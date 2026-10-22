@@ -17,8 +17,11 @@ class SettingsSetupFragment : Fragment() {
 
     companion object {
         private const val PERMISSIONS_REQUEST_CODE = 1
+        // From Android 12 (API 31), a request for fine location is ignored unless coarse
+        // location is requested with it. PermissionManager also checks both.
         private val REQUIRED_PERMISSIONS = arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.READ_PHONE_STATE
         )
     }
