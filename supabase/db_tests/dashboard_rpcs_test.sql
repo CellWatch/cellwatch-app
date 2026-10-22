@@ -109,3 +109,44 @@ begin
     end if;
     raise notice 'ok: rpc_group_detail returns only the requested group';
 end $$;
+
+-- Without the dashboard secret, none of the RPCs return anything.
+do $$
+declare
+    headers text;
+    call text;
+    refused boolean;
+begin
+    foreach headers in array array['{}', '{"x-dashboard-secret": "wrong"}', '{"x-dashboard-secret": ""}'] loop
+        perform set_config('request.headers', headers, false);
+        foreach call in array array[
+            $c$select public.rpc_group_detail('aaaaaaaa-0000-0000-0000-000000000000')$c$,
+            $c$select count(*) from public.rpc_group_summaries(-180, -90, 180, 90)$c$,
+            $c$select count(*) from public.rpc_map_points(-180, -90, 180, 90)$c$
+        ] loop
+            refused := false;
+            begin
+                execute call;
+            exception when insufficient_privilege then
+                refused := true;
+            end;
+            if not refused then
+                raise exception 'ran without the dashboard secret (headers %): %', headers, call;
+            end if;
+        end loop;
+    end loop;
+
+    raise notice 'ok: dashboard RPCs refuse requests without the dashboard secret';
+end $$;
+
+-- With the secret, the list RPCs return both groups.
+select set_config('request.headers', '{"x-dashboard-secret": "test-dashboard-secret"}', false);
+do $$
+begin
+    if (select count(*) from public.rpc_group_summaries(-180, -90, 180, 90)) <> 2
+        or (select count(*) from public.rpc_map_points(-180, -90, 180, 90)) <> 2
+    then
+        raise exception 'dashboard RPCs did not return both groups with the dashboard secret';
+    end if;
+    raise notice 'ok: dashboard RPCs work with the dashboard secret';
+end $$;
