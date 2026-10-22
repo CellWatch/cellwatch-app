@@ -45,11 +45,9 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
     private var _client: SupabaseClient? = null // use getClient(), not this field!
     private val clientLock = Mutex()
     private suspend fun getClient(): SupabaseClient {
-        // Only allow one attempt to create a client at a time to avoid registration errors (i.e.,
-        // one thread registers and then another also tries to register but gets an error because
-        // the same id was already registered by the first thread). Once the lock is acquired, do a
-        // second check for a non-null _client just in case another thread set it while we were
-        // waiting.
+        // Only allow one attempt to create a client at a time, so two threads don't each make and
+        // register a secret. Once the lock is acquired, do a second check for a non-null _client
+        // just in case another thread set it while we were waiting.
         return _client ?: clientLock.withLock {
             var client = _client
             if (client != null) {
@@ -57,7 +55,7 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
             }
 
             val deviceId = localDataStore.getDeviceId.first()
-            val deviceSecret = localDataStore.getDeviceSecret.first() ?: registerDevice(deviceId)
+            val deviceSecret = registeredDeviceSecret(credentials) { registerDevice(deviceId, it) }
 
             client = createSupabaseClient(
                 supabaseUrl = supabaseUrl,
@@ -81,18 +79,21 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
         }
     }
 
-    private suspend fun registerDevice(id: String): String {
+    private val credentials = object : DeviceCredentials {
+        override suspend fun secret() = localDataStore.getDeviceSecret.first()
+        override suspend fun saveSecret(secret: String) = localDataStore.saveDeviceSecret(secret)
+        override suspend fun isRegistered() = localDataStore.getDeviceRegistered.first()
+        override suspend fun markRegistered() = localDataStore.saveDeviceRegistered(true)
+    }
+
+    private suspend fun registerDevice(id: String, secret: String) {
         try {
             val client = createSupabaseClient(supabaseUrl, supabaseApiKey) {
                 install(Postgrest)
                 allowSlowRequests()
             }
-            val secret = client.postgrest
-                .rpc("register_device", mapOf("device_id" to id))
-                .decodeAs<String>()
-            localDataStore.saveDeviceSecret(secret)
+            requestDeviceRegistration(client, id, secret)
             Log.i(TAG, "device registered with id $id")
-            return secret
         } catch (e: Exception) {
             Log.i(TAG, "device registration failed for id $id", e)
             throw e
