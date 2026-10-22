@@ -1,15 +1,20 @@
 package edu.gatech.cc.cellwatch.data.network
 
+import edu.gatech.cc.cellwatch.data.core.repositories.tcpTupleClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.runBlocking
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.InterruptedIOException
 import java.net.InetAddress
 import java.net.ServerSocket
 import kotlin.time.Duration.Companion.milliseconds
@@ -41,5 +46,26 @@ class AllowSlowRequestsTest {
         } finally {
             runBlocking { client.close() }
         }
+    }
+
+    @Test(timeout = 15_000)
+    fun okHttpAbandonsARequestThatOutlastsTheTimeout() {
+        val client = OkHttpClient.Builder().allowSlowRequests(200.milliseconds).build()
+        val request = Request.Builder().url("http://127.0.0.1:${server.localPort}/").build()
+
+        val started = System.nanoTime()
+        assertThrows(InterruptedIOException::class.java) { client.newCall(request).execute() }
+
+        // OkHttp's default would have waited 10 s.
+        val waited = (System.nanoTime() - started).nanoseconds
+        assertTrue("gave up after $waited", waited < 5.seconds)
+    }
+
+    @Test
+    fun theTcpTupleFetchWaitsAsLongAsTheSupabaseRequests() {
+        assertEquals(60_000, tcpTupleClient.connectTimeoutMillis)
+        assertEquals(60_000, tcpTupleClient.readTimeoutMillis)
+        assertEquals(60_000, tcpTupleClient.writeTimeoutMillis)
+        assertEquals(60_000, tcpTupleClient.callTimeoutMillis)
     }
 }

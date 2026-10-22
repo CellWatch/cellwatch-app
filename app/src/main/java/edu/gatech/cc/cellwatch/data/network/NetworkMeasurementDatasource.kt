@@ -25,7 +25,9 @@ import io.ktor.client.plugins.api.createClientPlugin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import okhttp3.OkHttpClient
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -169,10 +171,11 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
 }
 
 /**
- * How long a Supabase request may take, connecting included. supabase-kt gives up after 10 s,
- * which uploads over a weak signal or to a slow server often need more than, so the same records
- * failed and were resent run after run. A minute leaves room for both, while a request that has
- * stalled still frees its upload slot well within WorkManager's 10 minute limit on a run.
+ * How long a request made while uploading may take, connecting included: the Supabase requests,
+ * and the TCP tuple fetch before FCC submissions. supabase-kt and OkHttp give up after 10 s, which
+ * uploads over a weak signal or to a slow server often need more than, so the same records failed
+ * and were resent run after run. A minute leaves room for both, while a request that has stalled
+ * still frees its upload slot well within WorkManager's 10 minute limit on a run.
  */
 private val REQUEST_TIMEOUT = 60.seconds
 
@@ -183,4 +186,16 @@ internal fun SupabaseClientBuilder.allowSlowRequests(timeout: Duration = REQUEST
         // HttpTimeout settings supabase-kt installs, so the request timeout above still applies.
         install(HttpTimeout) { connectTimeoutMillis = timeout.inWholeMilliseconds }
     }
+}
+
+/**
+ * The same limit for an OkHttp client. OkHttp otherwise gives up after 10 s connecting, or after 10 s
+ * without data while sending or receiving, and sets no limit on the whole call.
+ */
+internal fun OkHttpClient.Builder.allowSlowRequests(timeout: Duration = REQUEST_TIMEOUT): OkHttpClient.Builder {
+    val millis = timeout.inWholeMilliseconds
+    return connectTimeout(millis, TimeUnit.MILLISECONDS)
+        .readTimeout(millis, TimeUnit.MILLISECONDS)
+        .writeTimeout(millis, TimeUnit.MILLISECONDS)
+        .callTimeout(millis, TimeUnit.MILLISECONDS)
 }

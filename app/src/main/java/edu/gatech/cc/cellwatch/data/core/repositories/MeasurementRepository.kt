@@ -21,6 +21,7 @@ import edu.gatech.cc.cellwatch.data.model.TcpTuple
 import edu.gatech.cc.cellwatch.data.model.asEntity
 import edu.gatech.cc.cellwatch.data.model.asEntityWithData
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
+import edu.gatech.cc.cellwatch.data.network.allowSlowRequests
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -192,13 +193,12 @@ class MeasurementRepository(
     private suspend fun getPubicTCPTuple(
         serviceUrl: String = BuildConfig.TCP_TUPLE_URL,
     ): TcpTuple = suspendCoroutine { continuation ->
-        val client = OkHttpClient.Builder().build()
         val request = Request.Builder()
             .url(serviceUrl)
             .header("User-Agent", CellWatchApp.userAgent)
             .build()
 
-        client.newCall(request).enqueue(object : Callback {
+        tcpTupleClient.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.i(TAG, "tcp tuple request failure: $call", e)
                 continuation.resumeWithException(e)
@@ -225,3 +225,9 @@ class MeasurementRepository(
         })
     }
 }
+
+/**
+ * The client for the TCP tuple fetch before FCC submissions, which waits as long as the Supabase
+ * requests do. One client for every fetch, as OkHttp recommends.
+ */
+internal val tcpTupleClient: OkHttpClient by lazy { OkHttpClient.Builder().allowSlowRequests().build() }
