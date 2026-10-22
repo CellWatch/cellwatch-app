@@ -27,10 +27,10 @@ begin;
 --     arrive isn't blocked as needing a human (#119). A blank provider is filled from
 --     private.carrier_by_plmn when the SIM code is known by now; otherwise the block reason
 --     names the code (#118).
---   * New queue state 'held': complete submissions the FCC is known to reject, kept
---     until there is a way to send them. They aren't posted or checked again until someone
---     sets them back to 'pending'. 'blocked' still means a person has to fix something.
---     Two reasons so far (private.fcc_payload_hold_reason):
+--   * New queue state 'held': complete submissions the FCC is known to reject, or that fall
+--     short of the spec, kept until there is a way to send them. They aren't posted or
+--     checked again until someone sets them back to 'pending'. 'blocked' still means a person
+--     has to fix something. Three reasons so far (private.fcc_payload_hold_reason):
 --       - No network registration (#124). The FCC rejects a test whose
 --         net_mobile_country_code or net_mobile_network_code is null "when at least one
 --         connection_type is null or equals cell" (null_net_mobile_country_code /
@@ -43,6 +43,11 @@ begin;
 --         the measurement (insert_measurement), so once a submission is complete, missing
 --         locations won't turn up later. This is checked only after the readiness check,
 --         so incomplete submissions keep waiting for their data first.
+--       - One location (#125). The spec (section 5.1) says each test has at least two
+--         locations, a fix at its start and one at its end. The BDC accepted the one such
+--         test we posted (March 2026), but it is short of the spec, so it waits for the FCC
+--         to say one is enough. The same fix listed twice counts as two: that meets the
+--         spec's wording, and the released app lists one fix twice for about 6% of tests.
 --   * New queue state 'expired' (#119): an entry still waiting for its measurements 30
 --     days after it was queued stops being checked. Waiting entries are re-checked hourly
 --     and each check takes one of the job's 10 places per run, so a few hundred entries
@@ -67,8 +72,8 @@ alter table private.fcc_submission_retry_queue
     add constraint fcc_submission_retry_queue_state_check
         check (state in ('pending', 'blocked', 'held', 'expired'));
 
--- Why the FCC would reject this payload, or null if we know of no reason. Held entries say
--- this in last_error. Several reasons are joined with '; '.
+-- Why the FCC would reject this payload or it falls short of the spec, or null if we know of
+-- no reason. Held entries say this in last_error. Several reasons are joined with '; '.
 --
 -- When the FCC answers, change this function to match, then release the entries, e.g.
 --     update private.fcc_submission_retry_queue
@@ -119,6 +124,16 @@ $$
                 )
                 then 'No locations: a test has no location fix (the FCC rejects this as '
                      || 'null_properties)'
+            end,
+            case
+                when exists (
+                    select 1
+                    from tests
+                    where jsonb_typeof(test -> 'locations') = 'array'
+                      and jsonb_array_length(test -> 'locations') = 1
+                )
+                then 'One location: a test has only one location fix (the spec requires at '
+                     || 'least two)'
             end
         ),
         ''

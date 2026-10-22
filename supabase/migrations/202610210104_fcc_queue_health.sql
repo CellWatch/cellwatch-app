@@ -11,9 +11,9 @@ begin;
 -- Expiry of entries that wait more than 30 days is in 202610210103.
 --
 -- Queue states: 'pending' (waiting for its measurements, or retrying after an FCC or network
--- error), 'held' (the FCC is known to reject it; waiting for a decision), 'blocked' (a
--- person has to fix something), 'expired' (its measurements didn't arrive within 30 days).
--- Posted entries leave the queue.
+-- error), 'held' (the FCC is known to reject it, or it falls short of the spec; waiting
+-- for a decision), 'blocked' (a person has to fix something), 'expired' (its measurements
+-- didn't arrive within 30 days). Posted entries leave the queue.
 
 -- Entry counts by state, reason and device. The reason is last_error with submission ids
 -- taken out, so entries that failed the same way are counted together. 'New' means not

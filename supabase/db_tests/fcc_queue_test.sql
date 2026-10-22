@@ -47,7 +47,8 @@ insert into private.fcc_submission_info (env, url, hash_secret_id)
 values ('prod', 'https://bdc.example.invalid/api/challenge', '00000000-0000-0000-0000-00000000f0cc');
 
 -- Adds a submission the way the app does (the live trigger queues it), with all three
--- measurements unless ready is false. `due_ago` orders the entries.
+-- measurements unless ready is false. Each measurement gets `locations_per_test` location
+-- fixes, a second apart; the spec asks for at least two. `due_ago` orders the entries.
 create function test_submission(
     ready boolean default true,
     provider text default 'at&t',
@@ -55,7 +56,7 @@ create function test_submission(
     sim_mnc text default '410',
     net_mcc text default '310',
     net_mnc text default '410',
-    with_locations boolean default true,
+    locations_per_test integer default 2,
     queued_ago interval default interval '1 hour',
     due_ago interval default interval '1 minute'
 ) returns uuid
@@ -82,9 +83,9 @@ begin
                 insert into public.upload_download_data (measurement_id, duration, bytes)
                 values (m, 5000000, 1000000);
             end if;
-            if with_locations then
-                insert into public.locations (measurement_id, lat, lon) values (m, 33.7756, -84.3963);
-            end if;
+            insert into public.locations (measurement_id, "timestamp", lat, lon)
+            select m, now() - n * interval '1 second', 33.7756, -84.3963
+            from generate_series(1, locations_per_test) n;
         end loop;
     end if;
 
@@ -314,12 +315,14 @@ begin
 end;
 $$;
 
--- #124, #125: complete submissions the FCC is known to reject are held, not posted.
+-- #124, #125: complete submissions the FCC is known to reject, or that fall short of the
+-- spec, are held, not posted.
 do $$
 declare
     no_net uuid;
     blank_net uuid;
     no_locations uuid;
+    one_location uuid;
     both_reasons uuid;
     incomplete uuid;
     held_and_no_provider uuid;
@@ -328,9 +331,10 @@ begin
     perform test_reset();
     no_net := test_submission(net_mcc => null, net_mnc => null);
     blank_net := test_submission(net_mnc => ' ');
-    no_locations := test_submission(with_locations => false);
-    both_reasons := test_submission(net_mcc => null, with_locations => false);
-    incomplete := test_submission(ready => false, net_mcc => null, with_locations => false);
+    no_locations := test_submission(locations_per_test => 0);
+    one_location := test_submission(locations_per_test => 1);
+    both_reasons := test_submission(net_mcc => null, locations_per_test => 0);
+    incomplete := test_submission(ready => false, net_mcc => null, locations_per_test => 0);
     held_and_no_provider := test_submission(provider => '', sim_mnc => '999', net_mcc => null);
     fine := test_submission();
 
@@ -353,6 +357,11 @@ begin
          from private.fcc_submission_retry_queue where submission_id = no_locations),
         '#125: a submission without locations is held, with the reason');
     perform expect(
+        (select state = 'held'
+                and last_error = 'One location: a test has only one location fix (the spec requires at least two)'
+         from private.fcc_submission_retry_queue where submission_id = one_location),
+        '#125: a submission with one location per test is held, with the reason');
+    perform expect(
         (select state = 'held' and last_error like 'No network registration%; No locations%'
          from private.fcc_submission_retry_queue where submission_id = both_reasons),
         'both reasons are given when both apply');
@@ -373,7 +382,7 @@ begin
     perform private.process_fcc_submission_retries(10);
     perform expect(
         (select count(*) from private.fcc_submission_retry_queue
-         where state = 'held' and updated_on = now() - interval '1 day') = 5,
+         where state = 'held' and updated_on = now() - interval '1 day') = 6,
         'later runs don''t pick up held entries');
 
     -- Released without a fix, an entry is checked again and held again.
@@ -389,7 +398,7 @@ $$;
 do $$
 declare
     with_net jsonb := '{"submissions":[{"net_mobile_country_code":"310","net_mobile_network_code":"410","tests":{}}]}';
-    test_ok jsonb := '{"locations":[{"latitude":1}]}';
+    test_ok jsonb := '{"locations":[{"latitude":1},{"latitude":2}]}';
 begin
     perform expect(private.fcc_payload_hold_reason(
             jsonb_set(with_net, '{submissions,0,tests}', jsonb_build_object('latency', test_ok, 'download', test_ok))) is null,
@@ -410,6 +419,19 @@ begin
             jsonb_set(with_net, '{submissions,0,tests}',
                       jsonb_build_object('latency', test_ok, 'upload', '{"locations":[]}'::jsonb))) like 'No locations%',
         'hold reason: an empty locations list counts as missing');
+    perform expect(private.fcc_payload_hold_reason(
+            jsonb_set(with_net, '{submissions,0,tests}',
+                      jsonb_build_object('latency', test_ok, 'upload', '{"locations":[{"latitude":1}]}'::jsonb))) like 'One location%',
+        'hold reason: one location in a test is too few');
+    perform expect(private.fcc_payload_hold_reason(
+            jsonb_set(with_net, '{submissions,0,tests}',
+                      jsonb_build_object('latency', '{"locations":[]}'::jsonb,
+                                         'upload', '{"locations":[{"latitude":1}]}'::jsonb))) like 'No locations%; One location%',
+        'hold reason: both location reasons when one test has none and another has one');
+    perform expect(private.fcc_payload_hold_reason(
+            jsonb_set(with_net, '{submissions,0,tests}',
+                      jsonb_build_object('latency', '{"locations":[{"latitude":1},{"latitude":1}]}'::jsonb))) is null,
+        'hold reason: the same fix listed twice counts as two');
 end;
 $$;
 
@@ -457,7 +479,9 @@ begin
         else
             insert into public.upload_download_data (measurement_id, duration, bytes) values (m, 5000000, 1000000);
         end if;
-        insert into public.locations (measurement_id, lat, lon) values (m, 33.7756, -84.3963);
+        insert into public.locations (measurement_id, "timestamp", lat, lon)
+        select m, now() - n * interval '1 second', 33.7756, -84.3963
+        from generate_series(1, 2) n;
     end loop;
 
     perform private.process_fcc_submission_retries(10);
@@ -490,7 +514,7 @@ begin
     stuck_1 := test_submission(ready => false, queued_ago => interval '5 days');
     stuck_2 := test_submission(ready => false, queued_ago => interval '4 days');
     blocked := test_submission(provider => '', sim_mnc => '999', queued_ago => interval '2 days');
-    held := test_submission(with_locations => false);
+    held := test_submission(locations_per_test => 0);
     expired_complete := test_submission(ready => false, queued_ago => interval '45 days');
     expired_incomplete := test_submission(ready => false, queued_ago => interval '40 days');
     update public.fcc_submissions set device_id = device_a where id in (stuck_1, stuck_2);
