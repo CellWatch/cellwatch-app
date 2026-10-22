@@ -14,7 +14,7 @@ Network measurement for Android. It collects, visualizes, and exports cellular p
 
 ## Architecture
 ```
-/app        Android app (Kotlin, Gradle, minSdk 29, targetSdk 34)
+/app        Android app (Kotlin, Gradle, minSdk 29, targetSdk 36)
 /supabase   Local Supabase project (config, schema, functions, seed)
 ```
 
@@ -28,7 +28,7 @@ Network measurement for Android. It collects, visualizes, and exports cellular p
 ## Quickstart
 
 ### Prereqs
-- Android Studio Giraffe+ (JDK 17)
+- Android Studio Meerkat (2024.3.1 Patch 1) or newer (JDK 17)
 - Node 18+ (for Supabase CLI), Docker (for local Postgres)
 - Supabase CLI `supabase >= 1.180`
 - Git LFS (if storing large sample datasets)
