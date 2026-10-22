@@ -2,6 +2,7 @@ package edu.gatech.cc.cellwatch.ui
 
 import android.app.Activity
 import android.app.Application
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
@@ -17,9 +18,15 @@ import androidx.core.view.WindowInsetsCompat
  * This pads every activity's content by those insets, which puts it back where it was, and by the
  * keyboard unless the activity pans for it (the map does). The theme's status bar colour no longer
  * applies, so the bar icons are made dark to suit the app's light screens.
+ *
+ * Android 14 and older don't draw the app edge to edge, so this leaves them alone: they still lay the
+ * content out inside the bars and use the theme's green status bar and black navigation bar, where dark
+ * icons would be hard to see.
  */
 object SystemBarInsets : Application.ActivityLifecycleCallbacks {
     override fun onActivityPostCreated(activity: Activity, savedInstanceState: Bundle?) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return
+
         val window = activity.window
         val content = activity.findViewById<View>(android.R.id.content) ?: return
 
