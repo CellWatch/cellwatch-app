@@ -22,7 +22,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
 import edu.gatech.cc.cellwatch.databinding.ActivityMeasureHistoryBinding
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.IOException
 
 class MeasureHistoryActivity : AppCompatActivity() {
     private val TAG = this::class.simpleName
@@ -55,13 +59,20 @@ class MeasureHistoryActivity : AppCompatActivity() {
         model.loadGroups()
 
         createFile = registerForActivityResult(CreateExportFile()) { uri ->
-            try {
-                uri?.let { contentResolver.openFileDescriptor(it, "w") }?.use {
-                    model.exportData(it.fileDescriptor)
+            if (uri == null) return@registerForActivityResult
+            // The stream has to stay open until exportData has written everything, so open and
+            // close it inside the coroutine.
+            lifecycleScope.launch {
+                try {
+                    val out = withContext(Dispatchers.IO) { contentResolver.openOutputStream(uri, "w") }
+                        ?: throw IOException("could not open $uri for writing")
+                    out.use { model.exportData(it) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "failed to write to file", e)
+                    Toast.makeText(this@MeasureHistoryActivity, R.string.export_failed, Toast.LENGTH_LONG).show()
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "failed to write to file", e)
-                Toast.makeText(this, R.string.export_failed, Toast.LENGTH_LONG).show()
             }
         }
     }

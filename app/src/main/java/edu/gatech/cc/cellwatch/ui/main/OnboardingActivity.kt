@@ -65,6 +65,9 @@ class OnboardingActivity : AppCompatActivity(),
     }
 
     private fun goNext() {
+        // Read More and Permissions have no next screen; a swipe there does nothing.
+        val next = screen.next(collectionMode) ?: return
+
         if (screen == Screen.FCC_INFO) {
             val fragment = supportFragmentManager.findFragmentById(R.id.content_frame)
             if (fragment !is FCCInfoFragment) {
@@ -81,7 +84,7 @@ class OnboardingActivity : AppCompatActivity(),
             lifecycleScope.launch { CellWatchApp.settingsRepository.setCollectionMode(collectionMode) }
         }
 
-        setCurrentFragment(screen.next(collectionMode).toNewFragment())
+        setCurrentFragment(next.toNewFragment())
     }
 
     private fun goPrev() {
@@ -174,13 +177,14 @@ class OnboardingActivity : AppCompatActivity(),
     enum class Screen {
         WELCOME, READ_MORE, DATA_USE, COLLECTION_MODE, FCC_INFO, PERMISSIONS;
 
-        fun next(selectedMode: CollectionMode): Screen = when (this) {
+        /** The screen after this one, or null where there is none (Read More, Permissions). */
+        fun next(selectedMode: CollectionMode): Screen? = when (this) {
             WELCOME -> DATA_USE
-            READ_MORE -> throw RuntimeException("can't go next from read more screen")
+            READ_MORE -> null
             DATA_USE -> COLLECTION_MODE
             COLLECTION_MODE -> if (selectedMode == CollectionMode.FCC_CHALLENGE) FCC_INFO else PERMISSIONS
             FCC_INFO -> PERMISSIONS
-            PERMISSIONS -> throw RuntimeException("can't go next from permissions screen")
+            PERMISSIONS -> null
         }
 
         fun toNavPosition(): Int = when (this) {
