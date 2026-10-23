@@ -68,7 +68,7 @@ Jobs are rows in `cron.job`, so **schema dumps (`full_schema.sql`) do not includ
 
 Notes:
 - `202610070001` reschedules the job with `cron.schedule('fcc-submission-retries', ...)`, which updates the job of that name in place. It skips this step when `pg_cron` is not installed (for example a fresh local DB).
-- Whether `202610070001` is live: the prod deploy runbook (`prod-deploy-runbook.md`, a local file not in git) Step 0 has a read-only check (the function source contains `60 seconds`, and the job command uses `(10)`). `cron_jobs.sql` predates it. After any job change, refresh `cron_jobs.sql`.
+- `202610070001` is live on prod: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked. The prod deploy runbook (`prod-deploy-runbook.md`, a local file not in git) Step 0 checks both (the function source contains `60 seconds`, and the job command uses `(10)`). `cron_jobs.sql` predates it. After any job change, refresh `cron_jobs.sql`.
 - A job's whole command runs in **one transaction**. If a run is cancelled (for example by `statement_timeout`), every database change from that run rolls back. FCC POSTs already sent are not undone, so a submission can be accepted by the FCC and still look unsent locally. PL/pgSQL `exception when others` does not catch `query_canceled`.
 - Run history is in `cron.job_run_details` (`status`, `return_message`, `start_time`, `end_time`).
 

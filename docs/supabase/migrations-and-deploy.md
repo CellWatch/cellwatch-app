@@ -22,7 +22,7 @@ Migrations in this checkout:
 | Migration | Status |
 |---|---|
 | `202607140001_repair_fcc_submission_functions.sql` | Live: its `fcc_submission_is_ready` and `post_fcc_submission` match the snapshot exactly. Its `auto_post_fcc_submission` has since been replaced live by the queue version, so **do not re-apply** |
-| `202610070001_unclog_fcc_retry_queue.sql` | Committed on this branch. Check whether it is live with runbook Step 0 |
+| `202610070001_unclog_fcc_retry_queue.sql` | **Function live on prod: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked**; check it with runbook Step 0 |
 | `202610130001_record_local_ports.sql` | **Pending: uncommitted, not yet deployed.** Tested by `db_tests/local_ports_test.sql` |
 | `202610220101_fix_dashboard_rpcs.sql` | **Added in #136; not yet deployed.** Fixes `rpc_group_detail`'s filter, requires `x-dashboard-secret` on the three dashboard RPCs, reports latency in ms. **The dashboard must send `x-dashboard-secret` on these calls before this is deployed**, or its map stops loading |
 | `202610220102_tighten_database_helpers.sql` | **Added in #136; not yet deployed.** Drops `log_user_data`, fixes `get_raw_header(item)`, pins `search_path` on the device/dashboard checks, revokes `TRUNCATE` from `anon`/`authenticated` |

@@ -100,7 +100,7 @@ The queue entry is created as soon as the submission row arrives. Normally the m
 
 ### 4. FCC post and retry queue
 
-Cron job `fcc-submission-retries` runs every 2 minutes ([cron_jobs.sql](../../supabase/cron_jobs.sql)) and calls `private.process_fcc_submission_retries(n)`. The snapshot has `n = 1`; migration [202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql) changes it to 10.
+Cron job `fcc-submission-retries` runs every 2 minutes ([cron_jobs.sql](../../supabase/cron_jobs.sql)) and calls `private.process_fcc_submission_retries(n)`. The snapshot has `n = 1`; migration [202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql) changes it to 10. The migration's function is live on prod (hash match, 2026-10-22); the job's batch size there was not checked.
 
 1. Deletes queue rows whose submission is already `submitted`.
 2. Locks up to `n` (capped at 10) due `pending` rows with `FOR UPDATE SKIP LOCKED`. With 202610070001, it stops taking new rows once the run has lasted 60 s.

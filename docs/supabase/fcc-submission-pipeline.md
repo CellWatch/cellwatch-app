@@ -55,7 +55,7 @@ pg_cron job `fcc-submission-retries` runs every 2 minutes as `postgres` and call
 | Time limit per run | none | stops taking new entries after **60 s** |
 | Recheck of not-ready entries | every 5 min | 5 min; **1 h** if queued more than a day ago |
 
-> Whether `202610070001` is live: run the read-only check in Step 0 of the prod deploy runbook (`prod-deploy-runbook.md`, a local file not in git). The snapshot files predate it.
+> `202610070001` is live on prod: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked; the read-only check in Step 0 of the prod deploy runbook (`prod-deploy-runbook.md`, a local file not in git) covers both. The snapshot files predate it.
 
 Each run does this:
 

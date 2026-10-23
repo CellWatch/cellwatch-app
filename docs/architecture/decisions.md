@@ -27,7 +27,7 @@ Dates come from git (`git log --date=short`). Where a decision predates its firs
 | [009](#adr-009-live-schema-snapshot-in-the-repo) | 2026-10-07 | Live schema snapshot in the repo | merged |
 | [010](#adr-010-background-uploads-in-workmanager-measurements-before-submissions) | 2026-10-07 | Background uploads in WorkManager, measurements before submissions | merged |
 | [011](#adr-011-scrub-secrets-before-logging-to-crashlytics) | 2026-10-07 | Scrub secrets before logging to Crashlytics | merged |
-| [012](#adr-012-unclog-the-retry-queue) | 2026-10-07 | Unclog the retry queue | merged (deploy: TODO: verify) |
+| [012](#adr-012-unclog-the-retry-queue) | 2026-10-07 | Unclog the retry queue | live (function confirmed 2026-10-22) |
 | [013](#adr-013-app-reports-its-own-tcp-local-port-pending) | 2026-10-13 | App reports its own TCP local port | pending |
 | [014](#adr-014-two-locations-per-fcc-test) | 2026-10-22 | Two locations per FCC test | decided, not yet merged |
 
@@ -194,7 +194,7 @@ Dates come from git (`git log --date=short`). Where a decision predates its firs
   - Throughput rises roughly 10×.
   - [cron_jobs.sql](../../supabase/cron_jobs.sql) (the 2026-09-30 snapshot) still shows batch size 1 until it is refreshed.
   - Tested in a throwaway, offline container ([db_tests/run.sh](../../supabase/db_tests/run.sh)).
-- **Status:** merged. TODO: verify it is deployed; the prod runbook pre-check `unclog_live` tests for it.
+- **Status:** live on prod: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked; the prod runbook pre-check `unclog_live` covers it.
 
 ## ADR-013: App reports its own TCP local port (pending)
 
