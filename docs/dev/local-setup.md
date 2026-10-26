@@ -6,12 +6,12 @@ Related: [Testing](testing.md) · [Build and config](../app/build-and-config.md)
 
 ## Prerequisites
 
-| Tool | Version in this checkout | Notes |
+| Tool | Version on main | Notes |
 |---|---|---|
 | JDK | 17 | `compileOptions` / `jvmTarget` are 17 ([app/build.gradle](../../app/build.gradle)). |
 | Android Studio + SDK | compileSdk 35 | AGP 8.1.2 and Kotlin 1.8.10 ([build.gradle](../../build.gradle)); Gradle wrapper 8.9 ([gradle-wrapper.properties](../../gradle/wrapper/gradle-wrapper.properties)). |
 | Docker | Docker Desktop | Needed by `supabase start` and [db_tests/run.sh](../../supabase/db_tests/run.sh). |
-| Supabase CLI | README says ≥ 1.180 | Local Postgres major version is 17 in [config.toml](../../supabase/config.toml) (*pending* change; committed value is 15). |
+| Supabase CLI | README says ≥ 1.180 | Local Postgres major version is 15 in [config.toml](../../supabase/config.toml) on main, while prod runs 17. The change to 17 is uncommitted on the `client-port-header` branch. |
 | Mapbox downloads token | | Gradle needs it to resolve the Mapbox Maven repo ([settings.gradle](../../settings.gradle)). |
 
 ## `cellwatch.properties`
@@ -35,7 +35,7 @@ Create `cellwatch.properties` at the **repo root**. It is gitignored. Both [sett
 String values need surrounding quotes, because they are pasted into `buildConfigField` as Java literals.
 
 Notes:
-- `app/cellwatch.properties` was an old tracked copy the build never read. #136 removed it from git, and `cellwatch.properties` is now gitignored in every directory.
+- `app/cellwatch.properties` is an old tracked copy the build never reads. #136 removes it from git and gitignores `cellwatch.properties` in every directory.
 - `app/google-services.json` is tracked. Crashlytics is wired into **both** debug and release builds (see [Testing → cautions](testing.md#cautions)).
 
 ## Local Supabase
@@ -47,14 +47,16 @@ supabase start          # API 54321, DB 54322, Studio 54323, Inbucket 54324
 
 Ports come from [config.toml](../../supabase/config.toml): API 54321, DB 54322, Studio 54323, Inbucket web/SMTP/POP3 54324/54325/54326, analytics 54327/54328 (disabled).
 
-**Loading the schema.** `supabase db reset` applies only `supabase/migrations/*` and `seed.sql`. It does **not** read `full_schema.sql`. This checkout's migrations folder holds just three incremental migrations, and they assume the live schema already exists. So on a fresh stack, load the snapshot first:
+**Loading the schema.** `supabase db reset` applies only `supabase/migrations/*` and `seed.sql`. It does **not** read `full_schema.sql`. On main the migrations folder holds just two incremental migrations (#136 adds two more), and they assume the live schema already exists. So on a fresh stack, load the snapshot first:
 
 ```bash
 # from the repo root, after `supabase start`
 psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -f supabase/full_schema.sql
 ```
 
-> TODO: verify. A fresh `db reset` probably fails on `202607140001` (schema `private` doesn't exist yet). A baseline migration (`202609300001`) that fixes this is on the unmerged `board-docs` branch (#134). The local stack's default superuser credentials are Supabase's well-known local defaults, not a secret.
+The snapshot predates `202610070001` (and #136's `202610220101`/`0102`), so apply those on top with `psql -f`, in filename order.
+
+> TODO: verify. A fresh `db reset` probably fails on `202607140001` (schema `private` doesn't exist yet). A baseline migration (`202609300001`) that fixes this is in open PR #134 (`board-docs`). The local stack's default superuser credentials are Supabase's well-known local defaults, not a secret.
 
 [sync_from_remote.sh](../../supabase/sync_from_remote.sh) builds the local stack from prod instead. It is destructive to the local DB and pulls prod data, which contains PII; see [Runbooks](../ops/runbooks.md#refreshing-the-local-schema-snapshot).
 
@@ -105,12 +107,12 @@ From the Android emulator, the host machine is **`10.0.2.2`**; `127.0.0.1` is th
 
 ## Where README / CONTRIBUTING are stale
 
-| Claim | Reality in this checkout |
+| Claim | Reality on main |
 |---|---|
-| `targetSdk 34` | `targetSdk 35`, `compileSdk 35`. Play now requires 36 for updates; that upgrade is pending (#135). |
+| `targetSdk 34` | `targetSdk 35`, `compileSdk 35`. Play now requires 36 for updates; that upgrade is in open PR #135. |
 | `supabase db reset` "loads full_schema.sql and seed.sql" | It applies `migrations/*` and `seed.sql` only. `seed.sql` is empty. |
 | `SUPABASE_LOCAL_URL="http://127.0.0.1:54321"` | Unreachable from the emulator; use `10.0.2.2`. |
-| `cd app && ./gradlew …` | `gradlew` is at the repo root. |
+| `cd ../app` before `./gradlew …` | `gradlew` is at the repo root. |
 | `./gradlew ktlintCheck`, `detekt` | Neither plugin is configured. |
 | "Supply a `google-services.json`" | One is already tracked in `app/`. |
 | Edge Functions, golden-file export tests, "Backend SQL/Edge-function tests using Supabase CLI runners" | No `supabase/functions/` and no golden-file tests. DB tests are plain SQL run by [db_tests/run.sh](../../supabase/db_tests/run.sh). |

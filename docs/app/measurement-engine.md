@@ -60,7 +60,7 @@ sequenceDiagram
 - States exposed via `MeasurementBinder.state`: `STARTING, STARTED, LOCATE, LATENCY, DOWNLOAD, UPLOAD, DONE`. The binder also exposes `groupId`, `latency`, `download`, `upload`, `group`, `lastErrorCode`, `lastErrorMessage`.
 - On exception the message is kept and `HttpUtil.code()` pulls an HTTP status from it; `MeasureViewModel` shows a special message for `429` (M-Lab rate limiting).
 
-> Note: on the error path `runTest` calls `releaseWakeLock()` in `catch` and then `wakeLock.release()` again in `finally`. The second release on an un-held lock likely throws ("under-locked"), which is caught and logged as "unexpected error running test" after `DONE` is already set. **Fixed in #136**: `runTest` no longer releases the lock; `onStartCommand` releases it once.
+> Note: on main, on the error path `runTest` calls `releaseWakeLock()` in `catch` and then `wakeLock.release()` again in `finally`. The second release on an un-held lock likely throws ("under-locked"), which is caught and logged as "unexpected error running test" after `DONE` is already set. **Fixed in #136; reaches users with the next app release**: `runTest` no longer releases the lock; `onStartCommand` releases it once.
 
 ### `MeasurementManager.runTestSequence`
 
@@ -90,11 +90,11 @@ Any exception from a test (other than the tolerated network errors described bel
 Selection steps:
 
 1. `locateThroughputServers()`; empty list -> exception "no throughput servers found" (run fails).
-2. Ping every candidate's `machine` with [ping.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ping.kt) (5 ICMP pings, 5 ms apart, IPv4 preferred; uses `com.spectrum.android.ping.Ping` from `lib/AndroidPing.aar`) and pick with `maxBy { ping(...) }`. If any ping throws, fall back to the first server.
+2. Ping every candidate's `machine` with [ping.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ping.kt) (5 ICMP pings, 5 ms apart, IPv4 preferred; uses `com.spectrum.android.ping.Ping` from `lib/AndroidPing.aar`) and pick the lowest average RTT with `closestServer()` in [ServerSelection.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ServerSelection.kt) (#136). A server whose ping throws ranks last; if every ping fails, the first server in locate's order wins.
 3. `locateLatencyServers(throughputServer)`; prefer the entry on the same machine, else the first. Empty -> exception.
 4. If locate throws an `IOException` (no connectivity), both servers become an [`UnreachableServer`](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/UnreachableServer.kt) for the locate host. Tests against it return immediately with `success = false` and zero metrics, so a failed group is still recorded (the FCC counts failed tests).
 
-> Note: `maxBy` on average ping time selects the candidate with the *highest* latency. Confirmed: `ping()` returns the average RTT in ms, so this picks the slowest server. **Fixed in #136**: `closestServer()` in `ServerSelection.kt` picks the lowest RTT, and an unreachable server ranks last.
+> Note: main picks with `maxBy { ping(...) }`, which selects the candidate with the *highest* latency (`ping()` returns the average RTT in ms, so this is the slowest server), and falls back to the first server if any ping throws. **Fixed in #136; reaches users with the next app release**: `closestServer()` picks the lowest RTT, and an unreachable server ranks last (`ServerSelectionTest`).
 
 ## What every test captures (`MeasurementTest.run`)
 
@@ -155,7 +155,9 @@ In `runTestSequence`, only if **all** of:
 
 Otherwise it logs "skipping fcc submission insertion". `PreMeasureFragment` warns before starting an FCC-mode test when `MeasurementManager.checkCellular()` is false (on Wi-Fi or mobile data off), and the user may proceed anyway (the group is then stored without a submission).
 
-Submission fields set on the device: `id = groupId`, `deviceId`, `deviceTimestamp = now`, `inVehicle` (from the stationary/moving choice), `externalAntenna = false`, `deviceType = "Android"`, manufacturer, model, `deviceOsName = "Android <version>"`, app name, `appVersion` (`EasyAppMod.appVersion`, i.e. versionName), provider, SIM/network MCC/MNC, and contact name/email/phone from `SettingsRepository`. `sourceIp`, `sourcePort`, `serverTimestamp` (and, pending, `tupleLocalPort`) are filled in at upload time; see [sync-and-upload.md](sync-and-upload.md).
+> Not on main: the team decided on 2026-10-22 to require at least two locations per test. The app-side rule (`isFccSubmittable` requiring two) is an unpushed local commit on `app-fcc-data-fixes`, the branch of open PR #130: not in the PR yet, not merged, not released. See [bdc-spec-mapping.md](../fcc/bdc-spec-mapping.md).
+
+Submission fields set on the device: `id = groupId`, `deviceId`, `deviceTimestamp = now`, `inVehicle` (from the stationary/moving choice), `externalAntenna = false`, `deviceType = "Android"`, manufacturer, model, `deviceOsName = "Android <version>"`, app name, `appVersion` (`EasyAppMod.appVersion`, i.e. versionName), provider, SIM/network MCC/MNC, and contact name/email/phone from `SettingsRepository`. `sourceIp`, `sourcePort`, `serverTimestamp` (and `tupleLocalPort`, in uncommitted work on the `client-port-header` branch) are filled in at upload time; see [sync-and-upload.md](sync-and-upload.md).
 
 ## Collection modes
 

@@ -4,7 +4,7 @@ How one test group travels from the phone to the FCC and to the public `publishe
 
 **Related:** [overview](overview.md) · [identity-and-security](identity-and-security.md) · [app/measurement-engine](../app/measurement-engine.md) · [app/sync-and-upload](../app/sync-and-upload.md) · [supabase/triggers-and-cron](../supabase/triggers-and-cron.md) · [supabase/fcc-submission-pipeline](../supabase/fcc-submission-pipeline.md)
 
-A **group** is one run of the three tests (latency, download, upload). Each test is one `measurements` row. All three share a `group_id`, and in FCC challenge mode the FCC submission's `id` is that same group ID. Items marked **pending** are uncommitted changes on branch `client-port-header`.
+A **group** is one run of the three tests (latency, download, upload). Each test is one `measurements` row. All three share a `group_id`, and in FCC challenge mode the FCC submission's `id` is that same group ID. This page follows the code on `main`. Items marked **pending** are uncommitted work on the `client-port-header` branch: not merged, and its migration `202610130001` is not pushed to prod.
 
 ## Sequence
 
@@ -70,13 +70,15 @@ sequenceDiagram
 - [MeasureViewModel.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureViewModel.kt) starts [MeasurementService.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementService.kt), a foreground service of type location that holds a 10-minute partial wake lock. The service creates a random group UUID.
 - [MeasurementManager.runTestSequence](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementManager.kt):
   1. Asks the M-Lab Locate API for throughput servers through msak `LocateManager`. It pings each candidate with [ping.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ping.kt) (AndroidPing.aar) and picks a latency server on the same machine when one exists. If Locate is unreachable, it falls back to `UnreachableServer`, so the tests still run and record their failure.
-  2. Runs the latency test, then download, then upload (3 streams each). Each result is written to Room straight away (`MeasurementRepository.insertMeasurement`).
+  2. Runs the latency test, then download, then upload (3 streams each for download and upload). Each result is written to Room straight away (`MeasurementRepository.insertMeasurement`).
   3. Each test ([MeasurementTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementTest.kt)) takes a fused location fix before and after the test, giving 0–2 locations. It also records serving and neighbouring cells, MCC/MNC, carrier aggregation, and roaming and connection flags.
   4. If the collection mode is `FCC_CHALLENGE`, no test ran on Wi-Fi, and cellular data was enabled, the manager builds an `FccSubmission` with `id = groupId` and stores it in Room. The submission includes contact name, email, and phone from settings, the device model and OS, the provider, MCC/MNC, and `inVehicle`. `deviceImei` and `deviceTac` exist on the model but are never set.
 
 ### 2. Upload (phone)
 
-- Triggers: `MeasureViewModel.handleMeasurementComplete` and `MapActivity.onCreate` both call [UploadWorker.enqueue](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/UploadWorker.kt). The work is unique (`upload-pending`, `APPEND_OR_REPLACE`) and requires a connected network. It retries while `failed > 0`, up to 5 attempts.
+This upload path came in #111 (merged to `main` 2026-10-07) and is not known to be in a release (versionCode is still 13; check Play Console). The released app may still upload the older way, sending submissions before their measurements.
+
+- Triggers: `MeasureViewModel.handleMeasurementComplete` and `MapActivity.onCreate` both call [UploadWorker.enqueue](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/UploadWorker.kt). The work is unique (`upload-pending`, `APPEND_OR_REPLACE`) and requires a connected network. It retries while `failed > 0`, up to 5 retries.
 - [MeasurementUploader.uploadPending](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/MeasurementUploader.kt) runs under a mutex:
   1. **Measurements first.** Each unsynced measurement goes to `rpc("insert_measurement", …)`, with at most 3 requests in flight. A `DuplicateKeyError` counts as success, because `insert_measurement` is a single transaction: if the ID is on the server, everything for it is. Each success sets `uploadTime` in Room.
   2. **Submissions second.** A submission is sent only when all three of its group's measurements have an `uploadTime`; the rest are counted as `waiting`. One TCP tuple is fetched per run and copied onto every ready submission: `sourceIp`, `sourcePort`, `serverTimestamp`, and (**pending**) `tupleLocalPort`. If the tuple request fails, no submission uploads in that run.
@@ -132,7 +134,7 @@ Full details: [supabase/fcc-submission-pipeline](../supabase/fcc-submission-pipe
 
 | Symptom | Where | Cause in code |
 |---|---|---|
-| Group never leaves the phone | `MeasurementUploader` | Network or registration failure; after 5 failed attempts the work ends until the next enqueue (new test or opening the map). |
+| Group never leaves the phone | `MeasurementUploader` | Network or registration failure; after 5 failed retries the work ends until the next enqueue (new test or opening the map). |
 | Submission held on phone (`waiting`) | `measurementsUploaded()` | One of the 3 measurements has not uploaded. |
 | No submission uploads at all | `getTcpTuple()` | The tuple service is unreachable or returned a non-200 response. |
 | Queue row `pending` forever | `fcc_submission_is_ready` | Server never received all 3 measurements (e.g., from older app versions). |

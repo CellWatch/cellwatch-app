@@ -2,7 +2,13 @@
 
 CellWatch is an Android app that runs cellular speed tests (latency, download and upload) against M-Lab servers. It stores the results on the phone and uploads them to a Supabase (Postgres) backend. In FCC Challenge mode, the backend forwards each qualifying test to the FCC Broadband Data Collection (BDC) as a mobile speed test challenge.
 
-These pages describe the code in this repository as it stands on the branch they were written from. Changes that are written but not merged or deployed are marked **pending**. Facts the authors could not confirm from the code are marked `> TODO: verify`.
+These pages are added by PR #136 and describe the code on `main` plus the fixes in #136. Work that is not on `main` is marked **pending**, and each mention says where it is (uncommitted on the `client-port-header` branch, an unpushed local branch, or an open PR). Facts the authors could not confirm from the code are marked `> TODO: verify`.
+
+**Merged to `main` is not in prod.** An app change reaches users only in a Play Store release. A Supabase change is live only once its migration has been pushed to the prod project ("CellWatch Server"); pushes are manual. Status lines use these stages: local branch → open PR → merged to `main` → released (app) or pushed (Supabase).
+
+- **App:** the Play Store build is versionCode 13 (versionName 1.0.0). `versionCode` has been 13 since #109 (2025-10-13), and the repo does not record which commit that build came from, so app changes merged after #109 are not known to be released (check Play Console). The last git release tag is v1.0.0 (2024-11-21, versionCode 8).
+- **Supabase:** on 2026-10-22, prod's `public`, `private` and `published` schemas matched [full_schema.sql](../supabase/full_schema.sql) plus migration `202610070001` (cron jobs were not compared). The migrations in #136, in other open PRs, on local branches and in uncommitted work are not pushed.
+- **Test project:** a second Supabase project, "CellWatch Test Database", mirrors prod's schema with FCC posting disabled (auto-post trigger off, no pg_cron).
 
 ## Reading order for new contributors
 
@@ -54,7 +60,7 @@ These pages describe the code in this repository as it stands on the branch they
 | [dev/local-setup](dev/local-setup.md) | Prerequisites, `cellwatch.properties` keys, local Supabase, emulator networking, fallbacks |
 | [dev/testing](dev/testing.md) | Unit, database and instrumented tests, plus their side effects |
 | [ops/runbooks](ops/runbooks.md) | Read-only prod SQL, schema sync, cron recreation, retry queue, stuck devices, prod dumps |
-| [ops/release-checklist](ops/release-checklist.md) | Ordered steps to ship an app build safely |
+| [ops/release-checklist](ops/release-checklist.md) | Ordered steps to release an app build safely |
 
 Related files at the repo root: [README.md](../README.md) and [CONTRIBUTING.md](../CONTRIBUTING.md). The prod deploy runbook (`prod-deploy-runbook.md`) and the BDC spec PDF (`bdc-mobile-speed-test-data-specifications.pdf`) are local files kept out of git.
 
@@ -68,17 +74,18 @@ Related files at the repo root: [README.md](../README.md) and [CONTRIBUTING.md](
 | **BDC** | The FCC's Broadband Data Collection. Its mobile speed test API receives consumer challenge tests. See [bdc-spec-mapping](fcc/bdc-spec-mapping.md). |
 | **Collection mode** | `FCC_CHALLENGE` or `TESTING`. It decides whether a group becomes an FCC submission. |
 | **MSAK / M-Lab** | Measurement Lab's Multi-Stream Achievable Kernel throughput protocol and the servers that run it. The app picks prod, staging or local servers from BuildConfig. |
-| **TCP tuple service** | An external echo service on EC2 that reports the public IP, port and clock it saw. It fills the FCC server-side source fields. It is being replaced by the app reporting its own local port (**pending**). |
+| **TCP tuple service** | An external echo service on EC2 that reports the public IP, port and clock it saw. It fills the FCC server-side source fields. A replacement is being evaluated: uncommitted work on the `client-port-header` branch has the app report its own local port for comparison (**pending**; see [ADR-013](architecture/decisions.md#adr-013-app-reports-its-own-tcp-local-port-pending)). |
 | **Device secret** | A per-install secret, encrypted with an Android Keystore key and sent in `X-Device-*` headers. The server checks it with bcrypt in `private.verified_device_id()`. See [identity-and-security](architecture/identity-and-security.md). |
 | **Retry queue** | `private.fcc_submission_retry_queue`. A pg_cron job drains it every 2 minutes, posting to the BDC with exponential backoff. |
 | **`published` schema** | A world-readable copy of selected measurements, filled by `publish_data`. |
 | **H3 hex** | Uber's hexagonal grid. The map draws resolution-8 and resolution-9 cells, and `hex_res`/`hex_ancestor` operate on H3 indexes in SQL. |
-| **anon key** | The Supabase public API key shipped in the app. Requests run as the `anon` role, and RLS plus device headers decide what they can do. |
+| **anon key** | The Supabase public API key built into the APK. Requests run as the `anon` role, and RLS plus device headers decide what they can do. |
 | **Pooler** | Supabase's connection pooler. It is the route for read-only prod SQL, and it ignores `PGOPTIONS`. See [runbooks](ops/runbooks.md). |
 
 ## Keeping these docs current
 
 - When you change a table, function, trigger or cron job, update the matching `supabase/` page in the same PR.
 - When you add a request-body field or an RPC overload, follow the server-first rule in [migrations-and-deploy](supabase/migrations-and-deploy.md).
+- When you write a status, name the stage (local branch, open PR, merged to `main`, released, pushed). When an app build is released or a migration is pushed to prod, update the status lines that mention it.
 - Draw diagrams in Mermaid so they render on GitHub and stay diffable.
 - Never paste keys, tokens, hosts with credentials, device IDs or contact details into these pages.

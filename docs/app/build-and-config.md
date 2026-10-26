@@ -37,7 +37,9 @@ Files: [build.gradle](../../build.gradle), [settings.gradle](../../settings.grad
 
 `versionName` has stayed `1.0.0`; it is what the app reports as `app_version` on measurements and submissions, so server data cannot tell builds apart by that field. Bump it (and `versionCode`) for each release; see [release-checklist.md](../ops/release-checklist.md).
 
-> Pending upgrade: Google Play now requires `targetSdk 36` for app updates, so `compileSdk`/`targetSdk` must move to 36. Related: with AGP 8.1.x, connected (instrumented) tests abort on API 36 emulators; AGP 8.2 or later fixes this. See [../dev/testing.md](../dev/testing.md).
+Release history as far as the repo records it: git release tags stop at `v1.0.0` (2024-11-21, versionCode 8). #109 (2025-10-13) set `versionCode` to 13, and it has not been bumped since. The Play Store build is versionCode 13; the repo does not record which commit it was built from. So app changes merged to main after #109 (for example c51980e on 2026-07-14, #111 and #112 on 2026-10-07) are on main but not known to be in a release (check Play Console), and changes in open PRs or local branches are neither merged nor released. The next release needs a `versionCode` bump.
+
+> Target API: the next release also needs `compileSdk`/`targetSdk` 36, because Google Play requires new app updates to target API 36 (check Play Console for the current deadline for updates that still target 35). That upgrade is in open PR #135 (not merged, not released). Related: with AGP 8.1.x, connected (instrumented) tests abort on API 36 emulators; AGP 8.2 or later fixes this. See [../dev/testing.md](../dev/testing.md).
 
 ## Build types and backend selection
 
@@ -59,7 +61,7 @@ Standard fields used by code: `BuildConfig.VERSION_NAME` (user agent, `appVersio
 
 ## `cellwatch.properties`
 
-The build reads **`cellwatch.properties` at the repository root** (`rootProject.file(...)` in `app/build.gradle`; `file(...)` in `settings.gradle`). It is git-ignored (`/cellwatch.properties` in the root `.gitignore`). Values are pasted verbatim into `buildConfigField`, so String values must include their double quotes and Boolean/Integer values must not. Every key referenced by a build type should be present.
+The build reads **`cellwatch.properties` at the repository root** (`rootProject.file(...)` in `app/build.gradle`; `file(...)` in `settings.gradle`). It is git-ignored: main's root `.gitignore` has `/cellwatch.properties` (root only); #136 changes the entry to `cellwatch.properties`, which ignores the file in every directory. Values are pasted verbatim into `buildConfigField`, so String values must include their double quotes and Boolean/Integer values must not. Every key referenced by a build type should be present.
 
 Key names (never commit values):
 
@@ -79,7 +81,7 @@ Other config inputs:
 | `app/google-services.json` | Firebase project config for the google-services plugin (Crashlytics). Required to build. Tracked in git. |
 | `res/values/strings.xml` key `mapbox_access_token` | Mapbox runtime access token read by the Mapbox SDK. |
 | `local.properties` | Android SDK path (standard, git-ignored). |
-| `app/cellwatch.properties` | An old copy the build never read. Removed from git in #136; `cellwatch.properties` is now gitignored in every directory. |
+| `app/cellwatch.properties` | An old copy the build never read. Still tracked on main; #136 untracks it (the file stays on disk) and gitignores `cellwatch.properties` in every directory. |
 
 `gradle.properties` also defines `ktor_version` and `supabase_version`, but `app/build.gradle` hard-codes its versions and does not read them.
 
@@ -96,7 +98,7 @@ Other config inputs:
 | Area | Artifact | Version | Notes |
 |---|---|---|---|
 | Backend client | `io.github.jan-tennert.supabase:postgrest-kt` | 1.0.3 | JSON: `ignoreUnknownKeys = true`, `encodeDefaults = false`; default request timeout 10 s. See [sync-and-upload.md](sync-and-upload.md#serialization-rule-important-when-adding-fields). |
-| Ktor engine | `io.ktor:ktor-client-okhttp` | 2.3.0 | Pending (not yet merged/deployed): replaces `ktor-client-cio` 2.3.0 so `LocalPortHeaders` can see the socket. |
+| Ktor engine | `io.ktor:ktor-client-cio` | 2.3.0 | The only Ktor engine on the classpath. Uncommitted work on the `client-port-header` branch replaces it with `ktor-client-okhttp` 2.3.0 so `LocalPortHeaders` can see the socket. |
 | Serialization | `org.jetbrains.kotlinx:kotlinx-serialization-json` | 1.5.0 | `kotlinx-datetime` comes in transitively. |
 | Speed tests | `com.github.CellWatch:msak-android` (JitPack) | 0.1.3 | M-Lab MSAK throughput1/latency1 client and locate. |
 | TLS | `org.conscrypt:conscrypt-android` | 2.5.2 | Installed as provider #1 in `CellWatchApp` for msak byte counting. |

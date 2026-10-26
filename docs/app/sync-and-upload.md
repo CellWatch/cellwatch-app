@@ -6,6 +6,8 @@ Related: [layout](layout.md) · [local-storage](local-storage.md) · [measuremen
 
 Code: [`data/core/sync/`](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/), [`MeasurementRepository.kt`](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/repositories/MeasurementRepository.kt), [`data/network/`](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/).
 
+Status: the `UploadWorker` / `MeasurementUploader` path described here was merged to main in #111 (2026-10-07). `versionCode` is still 13, so it is not known to be in a release (check Play Console); phones on an older build upload with whatever code that build shipped.
+
 ## Overview
 
 ```mermaid
@@ -26,12 +28,12 @@ flowchart LR
 
 | Trigger | Code |
 |---|---|
-| App opens the map (launcher activity), after the onboarding check | `UploadWorker.enqueue(this)` in [MapActivity.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MapActivity.kt) `onCreate` |
+| `MapActivity` (launcher, `singleTask`) is created (usually at app launch), after the onboarding check | `UploadWorker.enqueue(this)` in [MapActivity.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MapActivity.kt) `onCreate` |
 | A test sequence finishes successfully | `UploadWorker.enqueue(...)` in [MeasureViewModel.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureViewModel.kt) `handleMeasurementComplete` |
 
-There is no periodic or connectivity-change trigger in this checkout. Rows recorded while offline wait until the next map open or the next completed test (the enqueued work itself waits for a network).
+There is no periodic or connectivity-change trigger on main or in #136. Rows recorded while offline wait until `MapActivity` is next created or the next test completes (the enqueued work itself waits for a network).
 
-> Not in this checkout: hourly/foreground upload triggers and a 60 s upload timeout exist on a separate unmerged local branch. TODO: update this page when that work lands.
+> Not on main: hourly/foreground upload triggers and a 60 s upload timeout exist only on the unpushed local branch `background-upload` (not in a PR, not merged, not released). TODO: update this page when that work merges.
 
 ## `UploadWorker` (WorkManager)
 
@@ -59,7 +61,7 @@ Submissions that are only *waiting* for their measurements do not cause a retry.
    - *ready*: the group has a `latency`, `download` and `upload` measurement that all have `uploadTime` set;
    - *waiting*: everything else (counted in `Summary.waiting`, logged).
 3. If any are ready, **one** tuple request (`remote.getTcpTuple()`) is made for the whole batch. On failure every ready submission counts as failed for this run.
-4. Each ready submission gets `sourceIp = tuple.remoteAddress`, `sourcePort = tuple.remotePort`, `serverTimestamp = tuple.timestamp` (epoch ms) and, pending, `tupleLocalPort = tuple.localPort`; then `remote.insertFccSubmission` (again max 3 in parallel).
+4. Each ready submission gets `sourceIp = tuple.remoteAddress`, `sourcePort = tuple.remotePort`, `serverTimestamp = tuple.timestamp` (epoch ms) (uncommitted work on the `client-port-header` branch also sets `tupleLocalPort = tuple.localPort`); then `remote.insertFccSubmission` (again max 3 in parallel).
 
 Consequences worth knowing:
 
@@ -98,6 +100,8 @@ The object passed in is the **server's returned copy** (decoded response) on suc
 - A Ktor client plugin adds `X-Device-ID` and `X-Device-Secret` to every request of the main client. The server-side checks are described in [identity-and-security.md](../architecture/identity-and-security.md).
 - The device id and secret are read once when the client is created and cached for the process lifetime.
 
+> Known issue (on main and on Supabase prod): `register_device` makes the secret on the server and raises `device id … already registered` on a second call for the same id, so a phone that lost the first response can never register or upload. A fix exists only on the unpushed local branch `register-device-retry` (not in a PR, not merged, not released): the app makes its own secret and calls a new `register_device(device_id, device_secret)` overload from migration `202610220001`, which is not pushed to Supabase prod. PostgREST picks an overload by argument names, so that migration must be pushed before any app release that includes the branch.
+
 ### Calls
 
 | App method | Supabase call | Body / result |
@@ -123,7 +127,7 @@ DTOs live in [`data/network/model/`](../../app/src/main/java/edu/gatech/cc/cellw
 
 | Request | Timeout |
 |---|---|
-| Supabase calls | supabase-kt 1.0.3 default `requestTimeout` of 10 s (not overridden). With the pending OkHttp engine, OkHttp's own defaults (10 s connect/read/write) also apply. |
+| Supabase calls | supabase-kt 1.0.3 default `requestTimeout` of 10 s (not overridden), on the Ktor CIO engine (`ktor-client-cio` 2.3.0), whose own `endpoint.connectTimeout` default of 5 s also limits connecting. Uncommitted work on the `client-port-header` branch switches to the OkHttp engine, where OkHttp's own defaults (10 s connect/read/write) also apply. |
 | Tuple request | default `OkHttpClient` (10 s connect/read/write). |
 | Whole upload run | no explicit limit; WorkManager stops a worker after its 10-minute execution window. |
 
@@ -133,15 +137,15 @@ supabase-kt's JSON is configured with `ignoreUnknownKeys = true` and `encodeDefa
 
 - **Responses**: extra columns from the server are ignored, so the server can add columns without breaking old apps.
 - **Requests**: a property equal to its default (`null` for nearly every DTO field) is **omitted** from the body. Fields without a default (`type`, `connection_type`, `cellular_data_enabled` on `NetworkMeasurement`) are always sent.
-- Therefore a new request-body field is invisible to the server while it is null, but as soon as the app sends a non-null value the server must already know the column/argument. **Deploy the server migration before shipping an app version that sends a new field.** See [migrations-and-deploy.md](../supabase/migrations-and-deploy.md).
+- Therefore a new request-body field is invisible to the server while it is null, but as soon as the app sends a non-null value the server must already know the column/argument. The same goes for a new RPC overload: PostgREST picks an overload by its argument names. **Push the server migration to Supabase prod before releasing an app version that sends a new field or calls a new overload.** Merging the app change to main is not the deadline; the Play Store release is. See [migrations-and-deploy.md](../supabase/migrations-and-deploy.md).
 
 ## Tuple request (`getPubicTCPTuple`)
 
 In `MeasurementRepository`. A `GET` to `BuildConfig.TCP_TUPLE_URL` (an HTTP service outside Supabase, the "tuple service") with the app's `User-Agent`. A 200 response is parsed with Gson into [`TcpTuple`](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/TcpTuple.kt) `{remoteAddress, remotePort, timestamp}`: the public IP and port the service saw, and its clock. Non-200 or a parse error fails the batch (logged as an unexpected error); transport failures are `IOException`s.
 
-## Pending: local port and transport reporting (pending: not yet merged/deployed)
+## Not on main: local port and transport reporting (`client-port-header`)
 
-Uncommitted on branch `client-port-header`. Goal: find out whether the phone's own source port can replace the tuple service's view (the service sees the port after carrier NAT).
+Uncommitted work on the local `client-port-header` branch: not in a PR, not merged to main, not released, and its migration is not pushed to Supabase prod. None of these files or changes are on main or in #136. Goal: find out whether the phone's own source port can replace the tuple service's view (the service sees the port after carrier NAT).
 
 | Change | File |
 |---|---|
@@ -152,7 +156,7 @@ Uncommitted on branch `client-port-header`. Goal: find out whether the phone's o
 | Tests: `LocalPortHeadersTest`, updated `MeasurementUploaderTest`. | `app/src/test/...` |
 | Server side: `202610130001_record_local_ports.sql` adds `tuple_local_port`, `upload_local_port`, `upload_transport`, `upload_ip` to `fcc_submissions` plus a before-insert trigger reading the headers. | see [triggers-and-cron.md](../supabase/triggers-and-cron.md) |
 
-Per the serialization rule, `tuple_local_port` is sent whenever the tuple request saw a port, so **that migration must be deployed before an app build with this change ships**. The headers themselves are harmless to an older server.
+Per the serialization rule, `tuple_local_port` is sent whenever the tuple request saw a port, so **migration `202610130001` must be pushed to Supabase prod before an app release that includes this change**. The headers themselves are harmless to an older server.
 
 ## Other paths that touch Supabase data
 

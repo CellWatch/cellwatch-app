@@ -109,7 +109,7 @@ Every table also has `createdOn` / `updatedOn` columns. The app does not set the
 
 The relation from a submission to its measurements is by convention only: `FccSubmissionEntity.id == MeasurementEntity.groupId` (used by `FccSubmissionWithMeasurements` and `MeasurementRepository.getMeasurementGroups`).
 
-The pending `tupleLocalPort` field on `FccSubmission` (pending: not yet merged/deployed) is **not** stored in Room; it is set in memory just before upload.
+The `tupleLocalPort` field that uncommitted work on the `client-port-header` branch adds to `FccSubmission` is **not** stored in Room; it is set in memory just before upload.
 
 ### DAOs and key queries
 
@@ -149,7 +149,7 @@ The pending `tupleLocalPort` field on `FccSubmission` (pending: not yet merged/d
 | 16 -> 17 | `AutoMigration` **and** manual `MIGRATION_ADD_SUBMISSION_RESPONSE` | `ALTER TABLE FccSubmissionEntity ADD COLUMN submissionResponse TEXT` |
 | 17 -> 18 | `AutoMigration` **and** manual `MIGRATION_ADD_BYTES_PER_SEC` | `ALTER TABLE UploadDownloadDataEntity ADD COLUMN bytesPerSec REAL` and `applicationBytesPerSec REAL` (old rows left null on purpose) |
 
-> TODO: verify which wins when both an `AutoMigration` and a manual `Migration` cover the same range in Room 2.5.2 (Room is documented to prefer the manual one).
+When both an `AutoMigration` and a manual `Migration` cover the same range, the manual one runs: in Room 2.5.2, `RoomDatabase.init` adds an auto-migration only if no manual migration is registered for the same start and end versions (checked in the room-runtime 2.5.2 bytecode). So 16 -> 17 and 17 -> 18 use `MIGRATION_ADD_SUBMISSION_RESPONSE` and `MIGRATION_ADD_BYTES_PER_SEC`.
 
 There is no migration path below version 15 and no `fallbackToDestructiveMigration()`, so an install with a DB older than 15 would fail to open. When adding a column: bump `version`, add an `AutoMigration` (or a manual `Migration` for anything Room cannot infer), and commit the new `NN.json` schema file.
 

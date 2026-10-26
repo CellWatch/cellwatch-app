@@ -4,7 +4,7 @@ Every SQL/PL/pgSQL function in the CellWatch database: signature, security mode,
 
 **Related:** [schema](schema.md) · [triggers-and-cron](triggers-and-cron.md) · [fcc-submission-pipeline](fcc-submission-pipeline.md) · [performance-notes](performance-notes.md) · [sync-and-upload](../app/sync-and-upload.md) · [identity-and-security](../architecture/identity-and-security.md)
 
-Definitions are in [full_schema.sql](../../supabase/full_schema.sql) unless a migration is named. "Invoker" means `SECURITY INVOKER` (the default): RLS and grants of the calling role apply. "Definer" functions run as their owner, `postgres`, and bypass RLS.
+Definitions are in [full_schema.sql](../../supabase/full_schema.sql) unless a migration is named. Prod matches `full_schema.sql` plus migration `202610070001` (read-only catalog check, 2026-10-22); #136's migrations are not pushed to prod yet. "Invoker" means `SECURITY INVOKER` (the default): RLS and grants of the calling role apply. "Definer" functions run as their owner, `postgres`, and bypass RLS.
 
 ## How the app calls Supabase
 
@@ -15,11 +15,11 @@ The app uses supabase-kt 1.0.3 (`postgrest-kt`) from [NetworkMeasurementDatasour
 | `rpc("register_device", {device_id})` | `POST /rest/v1/rpc/register_device` | No (separate client without the header plugin) | `getClient()`, the first time no secret is stored |
 | `rpc("insert_measurement", {in_measurement, in_measurement_data, in_latency_data, in_locations, in_cells})` | `POST /rest/v1/rpc/insert_measurement` | Yes | `MeasurementUploader.uploadMeasurements` |
 | `postgrest["fcc_submissions"].insert(...)` | `POST /rest/v1/fcc_submissions` (returns the row) | Yes | `MeasurementUploader.uploadSubmissions` |
-| `postgrest["measurements"].select("*,upload_download_data(*),latency_data(*),locations(*),cells(*)")` | `GET /rest/v1/measurements?...` | Yes | `getMeasurementById`, which has no caller in this checkout |
+| `postgrest["measurements"].select("*,upload_download_data(*),latency_data(*),locations(*),cells(*)")` | `GET /rest/v1/measurements?...` | Yes | `getMeasurementById`, which has no caller on main |
 
 Headers on every request from the main client:
 - `X-Device-ID`, `X-Device-Secret`: read by `private.verified_device_id()` and the RLS policies.
-- **Pending (uncommitted):** `X-Local-Port` and `X-Transport`, added by the OkHttp network interceptor `LocalPortHeaders.kt` and stored by the `_310` trigger.
+- **Not on main:** `X-Local-Port` and `X-Transport`, added by the OkHttp network interceptor `LocalPortHeaders.kt` and stored by the `_310` trigger. Both are uncommitted on the `client-port-header` branch (main's client uses the Ktor CIO engine), and the trigger's migration, `202610130001`, is not pushed to prod.
 
 A unique-violation error (`duplicate key value violates unique constraint`) becomes `DuplicateKeyError`, which the uploader treats as "already on the server". The app also calls the EC2 tuple service for FCC source IP/port. That service is not Supabase; see [data-flow](../architecture/data-flow.md).
 
@@ -27,12 +27,12 @@ A unique-violation error (`duplicate key value violates unique constraint`) beco
 
 ### `register_device`
 
-`public.register_device(device_id uuid) RETURNS text`. **Definer.** No `SET search_path` (**fixed in #136**, which pins it). Grants: `anon`, `authenticated`.
+`public.register_device(device_id uuid) RETURNS text`. **Definer.** No `SET search_path` (**fixed in #136**, which pins it; live once migration `202610220102` is pushed to prod). Grants: `anon`, `authenticated`.
 
 - Makes a random 32-byte secret (`gen_random_bytes`, base64) and inserts `(device_id, crypt(secret, gen_salt('bf')))` into `private.devices` with `ON CONFLICT DO NOTHING`.
 - Returns the plaintext secret **once**. If the id already exists, it raises `device id % already registered`.
 - No auth required: anyone with the anon key can register a new id.
-- If the phone loses the response, that device id can never be registered again. A fix is in progress (not deployed). Once it lands, its server migration must be deployed before the app that uses it ([migrations-and-deploy](migrations-and-deploy.md#ordering-rule-server-first)).
+- If the phone loses the response, that device id can never be registered again. A fix is on an unpushed local branch, `register-device-retry` (migration `202610220001_retry_safe_device_registration.sql`, which adds a `register_device(device_id, device_secret)` overload; not on main, not pushed to prod). That migration must be pushed to prod before any app release that includes the fix ([migrations-and-deploy](migrations-and-deploy.md#ordering-rule-server-first)).
 
 ### `insert_measurement`
 
@@ -56,13 +56,15 @@ A unique-violation error (`duplicate key value violates unique constraint`) beco
 | `private.verified_device_id_or_null()` | uuid | Definer, plpgsql, VOLATILE | `SELECT` policies that also allow the dashboard | Same check, but returns null instead of raising |
 | `private.is_dashboard_request()` | boolean | Definer, sql, STABLE | `SELECT` policies | True when the `x-dashboard-secret` header equals `private.dashboard_settings.shared_secret` |
 
+None of the three sets `search_path` on prod; #136 pins it on all three (live once migration `202610220102` is pushed to prod).
+
 Each bcrypt check takes about 5 ms on prod. Policies that do not wrap these calls in `(SELECT ...)` run them once per row; see [performance-notes](performance-notes.md).
 
 ## Map / dashboard functions
 
-These serve the web dashboard. The dashboard's code is not in this repo. > TODO: verify where it lives and which of these it calls.
+These serve the web dashboard. The dashboard's code is not in this repo: its backend is the Flask app in CellWatch/demo-dashboard, hosted on Render. It calls `rpc_map_points` and `rpc_group_detail` and sends `x-dashboard-secret` on both once its `DASHBOARD_SECRET` setting is set; it does not call `rpc_group_summaries`.
 
-> **Security note:** `rpc_map_points`, `rpc_group_summaries`, and `rpc_group_detail` are **Definer** functions granted to `anon`, and none of them checks `is_dashboard_request()`. Anyone with the anon key (which ships in the app) can call them and read per-group location, carrier, and speed data for all devices, bypassing RLS.
+> **Security note:** `rpc_map_points`, `rpc_group_summaries`, and `rpc_group_detail` are **Definer** functions granted to `anon`, and on prod none of them checks `is_dashboard_request()`. Anyone with the anon key (which ships in the app) can call them and read per-group location, carrier, and speed data for all devices, bypassing RLS. Fixed in #136, which makes all three require the dashboard secret; live once migration `202610220101` is pushed to prod. `DASHBOARD_SECRET` must be set on the dashboard backend first, or its map stops loading.
 
 ### `rpc_map_points`
 
@@ -70,21 +72,21 @@ These serve the web dashboard. The dashboard's code is not in this repo. > TODO:
 
 - For each measurement, takes the latest location and latest cell (`DISTINCT ON` over the **whole** `locations` and `cells` tables), plus throughput and latency.
 - Groups by `group_id`: averages lat/lon, takes the max of each speed, and sets `conn_tag` from `max(network_generation)` (`NR`/`5` → `5G`, `LTE`/`4` → `4G`, else `Other`).
-- Then filters by bounding box, time, providers, conn tags, and min/max ranges. `lim` is clamped to 1..20000.
+- Then filters by bounding box, time, providers, conn tags, and min/max ranges (`lat_min` / `lat_max` bound latency, not latitude). `lim` is clamped to 1..20000.
 - Row shape: `{group_id, provider, conn_tag, timestamp, center:[lon,lat], stats:{down_mbps, up_mbps, ping_ms, jitter_ms, loss_pct}}`.
-- Mbps = `coalesce(bytes_per_sec, application_bytes_per_sec, bytes/duration) * 8 / 1e6`. `ping_ms` and `jitter_ms` here are `rtt / 1000` and `jitter / 1000`.
+- Mbps = `coalesce(bytes_per_sec, application_bytes_per_sec, bytes/duration) * 8 / 1e6`. `duration` is in microseconds, so the `bytes/duration` fallback (used only when both rates are null) comes out 10⁶ too small; #136 leaves it as is. `ping_ms` and `jitter_ms` here are `rtt / 1000` and `jitter / 1000`.
 
 ### `rpc_group_summaries`
 
-Same parameters as `rpc_map_points` (default `lim` 50000, clamped to 1..200000). Same computation, but `ping_ms` / `jitter_ms` are the raw `rtt` / `jitter` (**not** divided by 1000, unlike `rpc_map_points`). The stored values are microseconds, so `rpc_map_points` is right and these "ms" values are 1000× too large. **Fixed in #136** converts them in `rpc_group_summaries` and `rpc_group_detail`. Flat row: `{group_id, provider, conn_tag, timestamp, lon, lat, accuracy_m, dl_mbps, ul_mbps, ping_ms, jitter_ms, loss_pct}`.
+Same parameters as `rpc_map_points` (default `lim` 50000, clamped to 1..200000). Same computation, but `ping_ms` / `jitter_ms` are the raw `rtt` / `jitter` (**not** divided by 1000, unlike `rpc_map_points`). The stored values are microseconds, so `rpc_map_points` is right and these "ms" values are 1000× too large. **Fixed in #136**, which converts them in `rpc_group_summaries` and `rpc_group_detail`; live once migration `202610220101` is pushed to prod. Flat row: `{group_id, provider, conn_tag, timestamp, lon, lat, accuracy_m, dl_mbps, ul_mbps, ping_ms, jitter_ms, loss_pct}`.
 
 ### `rpc_group_detail`
 
-`public.rpc_group_detail(group_id text) RETURNS jsonb`. Definer, sql STABLE.
+`public.rpc_group_detail(group_id text) RETURNS jsonb`. Definer, sql STABLE, `search_path = public`.
 
 Returns `{group_id, timestamp, provider, location:{lat, lon, accuracy_m}, cell:{network_generation, rsrp, sinr}, tests:{download:{mbps}, upload:{mbps}, latency:{rtt_ms, jitter_ms, loss_pct}}}`.
 
-> **Confirmed bug** (reproduced in `supabase/db_tests/dashboard_rpcs_test.sql`; **fixed in #136**): the filter `where group_id = group_id::uuid` has a parameter with the same name as the column. In SQL functions the column wins, so this compares the column with itself and matches every measurement with a non-null `group_id`. Only the output `group_id` field uses the parameter. Fix by qualifying it as `rpc_group_detail.group_id`.
+> **Confirmed bug** (**fixed in #136**; live once migration `202610220101` is pushed to prod. `supabase/db_tests/dashboard_rpcs_test.sql` checks that the fixed version returns only the requested group): the filter `where group_id = group_id::uuid` has a parameter with the same name as the column. In SQL functions the column wins, so this compares the column with itself and matches every measurement with a non-null `group_id`. Only the output `group_id` field uses the parameter. Fix by qualifying it as `rpc_group_detail.group_id`.
 
 ### `measurements_in_hex`
 
@@ -110,13 +112,13 @@ Caller: an offline publishing process. > TODO: verify what calls it and with whi
 |---|---|---|
 | `get_header(item text)` | text | `request.headers ->> item`. Used by `fcc_submission_update_source_ip` and `log_user_data` |
 | `get_raw_header()` | json | All request headers. Granted to `anon`, which makes it a handy way to see what headers reach Postgres |
-| `get_raw_header(item text)` | text | Ignores `item` and returns all headers as text (bug; **fixed in #136**) |
+| `get_raw_header(item text)` | text | Ignores `item` and returns all headers as text (bug; **fixed in #136**; live once migration `202610220102` is pushed to prod) |
 | `hex_res(hex bigint)` | bigint | H3 resolution (bits 52–55). IMMUTABLE |
 | `hex_ancestor(hex bigint, res bigint)` | bigint | H3 parent at `res`: sets the resolution bits and fills the lower digits with 7 (unused). IMMUTABLE |
 | `any_uuid_agg(uuid, uuid)` | uuid | `coalesce($1, $2)`. State function of the aggregate `any_uuid(uuid)`, which returns the first non-null value. Used by `published.measurement_groups` |
-| `log_user_data()` | trigger | Writes to a non-existent `log_table`. Unused (dropped in #136) |
+| `log_user_data()` | trigger | Writes to a non-existent `log_table`. Unused (dropped in #136; gone from prod once migration `202610220102` is pushed) |
 
-Trigger functions (`set_updated_on`, `force_created_on`, `fix_jitter`, `fcc_submission_update_source_ip`, pending `fcc_submission_record_local_ports`, `private.auto_post_fcc_submission`) are covered in [triggers-and-cron](triggers-and-cron.md).
+Trigger functions (`set_updated_on`, `force_created_on`, `fix_jitter`, `fcc_submission_update_source_ip`, `fcc_submission_record_local_ports` (from `202610130001`, not on main), `private.auto_post_fcc_submission`) are covered in [triggers-and-cron](triggers-and-cron.md).
 
 ## FCC functions (`private`)
 
@@ -124,11 +126,11 @@ Full flow: [fcc-submission-pipeline](fcc-submission-pipeline.md).
 
 | Function | Mode | Caller | Behaviour |
 |---|---|---|---|
-| `private.fcc_submission_is_ready(sub_id uuid) RETURNS boolean` | Invoker, sql STABLE, `search_path = public, private, extensions` | `post_fcc_submission`, `process_fcc_submission_retries` | True when the group `sub_id` has exactly 3 measurements, one each of latency/download/upload, each with its data row. A failed test still counts (presence, not success). Defined in [202607140001](../../supabase/migrations/202607140001_repair_fcc_submission_functions.sql) |
+| `private.fcc_submission_is_ready(sub_id uuid) RETURNS boolean` | Invoker, sql STABLE, `search_path = public, private, extensions` | `post_fcc_submission`, `process_fcc_submission_retries` | True when exactly 3 of group `sub_id`'s measurements have their data row, one each of latency/download/upload (measurements without a data row are not counted). A failed test still counts (presence, not success). Defined in [202607140001](../../supabase/migrations/202607140001_repair_fcc_submission_functions.sql) |
 | `private.post_fcc_submission(sub_id uuid, fcc_env text) RETURNS boolean` | Invoker (runs as `postgres` when called from the retry job) | `process_fcc_submission_retries`; manual | Checks readiness, loads the URL and Vault secret for `fcc_env`, builds the payload from `fcc_submissions_view`, checks that `tests` has all three keys, POSTs with `http()`, raises on a non-2xx response, then sets `submitted`, `submission`, `submitted_on`, `submission_response` |
-| `private.process_fcc_submission_retries(p_batch_size int = 1) RETURNS integer` | Definer; `EXECUTE` revoked from `PUBLIC` | pg_cron job `fcc-submission-retries` | Works through due `pending` queue entries (at most 10), with backoff and blocking. The live snapshot and [202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql) differ; see the pipeline doc |
-| `private.auto_post_fcc_submission() RETURNS trigger` | Definer | `AFTER INSERT` on `fcc_submissions` | Live: upserts a `pending` queue entry (`fcc_env = 'prod'`) when `submitted` is false. The copies in `202607140001` and `post_fcc_submission_func.sql` post synchronously instead (older design) |
+| `private.process_fcc_submission_retries(p_batch_size int = 1) RETURNS integer` | Definer; `EXECUTE` revoked from `PUBLIC` | pg_cron job `fcc-submission-retries` | Works through due `pending` queue entries (at most 10), with backoff and blocking. Prod runs the [202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql) version (pushed); `full_schema.sql` still has the earlier one. See the pipeline doc |
+| `private.auto_post_fcc_submission() RETURNS trigger` | Definer | `AFTER INSERT` on `fcc_submissions` | On prod (and in `full_schema.sql`): upserts a `pending` queue entry (`fcc_env = 'prod'`) when `submitted` is false. The copies in `202607140001` and `post_fcc_submission_func.sql` post synchronously instead (older design) |
 
 ## Overloads and PostgREST
 
-PostgREST picks a function overload by the **names** of the JSON keys in the request body. Adding an overload, such as a second `register_device` signature, changes which function old app builds hit only if the key sets overlap. A new signature that a new app build needs must be live before that build ships. See [migrations-and-deploy](migrations-and-deploy.md#ordering-rule-server-first).
+PostgREST picks a function overload by the **names** of the JSON keys in the request body. Adding an overload, such as a second `register_device` signature, changes which function old app builds hit only if the key sets overlap. A new signature that a new app build needs must be pushed to prod before the app release that calls it. See [migrations-and-deploy](migrations-and-deploy.md#ordering-rule-server-first).

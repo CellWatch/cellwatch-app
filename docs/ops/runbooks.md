@@ -33,8 +33,8 @@ Gotchas:
 - **`PGOPTIONS` is ignored by the pooler.** `PGOPTIONS='-c default_transaction_read_only=on'` silently leaves the session read-write, so always use the in-session `SET`.
 - Read-only transactions reject `CREATE TEMP VIEW`/`TABLE`. Use CTEs.
 - The pooler session's timezone is **UTC**.
-- `app_version` is always `'1.0.0'` (the version name has never been bumped), so you can't use it to tell builds apart. Use `created_on` ranges or fields only newer builds send (for example `tuple_local_port`, once *pending* `202610130001` is deployed).
-- Don't read `private.devices.hashed_secret` or `vault.decrypted_secrets`, and don't `SET ROLE anon` on prod. To test RLS, use a local copy ([Local setup](../dev/local-setup.md#when-docker-is-unavailable)).
+- `app_version` is always `'1.0.0'` (the version name has never been bumped), so you can't use it to tell builds apart. Use `created_on` ranges or fields only newer builds send (for example `tuple_local_port`, once `202610130001`, uncommitted on the `client-port-header` branch, is pushed to prod and an app that sends it is released).
+- Don't read `private.devices.hashed_secret` or `vault.decrypted_secrets`, and don't `SET ROLE anon` on prod. To test RLS, use a local copy ([Local setup](../dev/local-setup.md#when-docker-is-unavailable)) or the CellWatch Test Database project (see [Release checklist](release-checklist.md#1-server-push-to-prod) for its cautions).
 - Don't `select *` from `public.fcc_submissions` (contact PII).
 
 ## Refreshing the local schema snapshot
@@ -45,24 +45,24 @@ Gotchas:
 |---|---|---|
 | A (read remote) | 1. dump roles → `~/cellwatch-remote-dump/roles.sql`; 2. dump schema → `supabase/migrations/<UTC timestamp>_remote_baseline.sql` and copy to [`supabase/full_schema.sql`](../../supabase/full_schema.sql); 3. dump data → `~/cellwatch-remote-dump/data.sql` (mode 600) | Prod read only |
 | Safety gate | Aborts if either dump is under 1000 bytes; the CLI can "succeed" with an empty file | none |
-| B (local, destructive) | Asks you to type `yes`, then 4. `supabase stop --no-backup` + `supabase start` (to get PG17); 5. `supabase db reset`; 6. load `data.sql` into the local DB container | Local DB only |
+| B (local, destructive) | Asks you to type `yes`, then 4. `supabase stop --no-backup` + `supabase start` (meant to get PG17 like prod, but `supabase start` follows `major_version` in [config.toml](../../supabase/config.toml), which is 15 on main; the change to 17 is uncommitted on the `client-port-header` branch); 5. `supabase db reset`; 6. load `data.sql` into the local DB container | Local DB only |
 
 Notes:
 - It uses the session pooler with a percent-encoded password. It reads the password from the login keychain item the Supabase CLI created, or prompts silently. The script hard-codes the project directory, project ref and pooler host. > TODO: parameterize them.
-- **Phase A also writes a new `*_remote_baseline.sql` into `supabase/migrations/`.** Decide whether to commit it; usually you commit only the refreshed `full_schema.sql`.
+- **Phase A also writes a new `*_remote_baseline.sql` into `supabase/migrations/`.** Decide whether to commit it; usually you commit only the refreshed `full_schema.sql`. > TODO: verify step 5. `db reset` applies migrations in version order, so `202607140001` runs before the new baseline and may fail the same way as a fresh reset (see [Local setup](../dev/local-setup.md#local-supabase)).
 - `full_schema.sql` doesn't include pg_cron jobs. Refresh [`cron_jobs.sql`](../../supabase/cron_jobs.sql) by hand: `select jobname, schedule, command from cron.job;`.
 - Step 3 pulls production rows with PII onto your machine. See [Prod dumps](#handling-prod-dumps).
-- *Pending:* the `board-docs` branch (#134) adds `supabase/check_drift.sh`, which diffs and refreshes the snapshot without the destructive local rebuild.
+- Open PR #134 (`board-docs`) adds `supabase/check_drift.sh`, which diffs and refreshes the snapshot without the destructive local rebuild. It isn't on main yet.
 
 ## Recreating cron jobs
 
 pg_cron jobs live in `cron.job` rows, not in the schema dump. The single job:
 
-| Job | Schedule | Command (current) |
+| Job | Schedule | Command (expected) |
 |---|---|---|
 | `fcc-submission-retries` | `*/2 * * * *` | `select private.process_fcc_submission_retries(10);` |
 
-[`cron_jobs.sql`](../../supabase/cron_jobs.sql) is a 2026-09-30 snapshot and still shows batch size `1`. Migration [`202610070001`](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql) re-schedules it with batch `10`. To recreate:
+[`cron_jobs.sql`](../../supabase/cron_jobs.sql) is a 2026-09-30 snapshot and still shows batch size `1`. Migration [`202610070001`](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql), which is pushed to prod, re-schedules it with batch `10` where pg_cron is installed. The batch size in prod's `cron.job` row hasn't been verified, so check it with the query below. To recreate:
 
 ```sql
 -- cron.schedule upserts by job name
@@ -87,11 +87,11 @@ select cron.alter_job(jobid, active := false) from cron.job where jobname = 'fcc
 select cron.alter_job(jobid, active := true)  from cron.job where jobname = 'fcc-submission-retries';
 ```
 
-Never commit a job command that contains a key or token. *Pending (#133):* `202610210103` changes the command to `call private.run_fcc_submission_retries(10);`. See `prod-deploy-runbook.md` (local file, not in git) for the fallback if `CALL` can't commit under pg_cron.
+Never commit a job command that contains a key or token. In open PR #133 (not pushed to prod), `202610210103` changes the command to `call private.run_fcc_submission_retries(10);`. See `prod-deploy-runbook.md` (local file, not in git) for the fallback if `CALL` can't commit under pg_cron.
 
 ## Inspecting and draining a stuck FCC retry queue
 
-How the job behaves after [`202610070001`](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql): every 2 minutes it takes up to 10 due `pending` entries and **stops taking new ones after 60 s**. Entries still waiting for measurements are re-checked every 5 minutes, or hourly once queued for more than a day. Entries with a blank `provider` become `blocked` ("Missing provider") and are never re-checked. A 4xx response other than 408/429, or 6 failed attempts, also blocks an entry.
+How the job behaves with [`202610070001`](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql), which is pushed to prod: every 2 minutes it takes up to 10 due `pending` entries (the batch size the job passes; see above) and **stops taking new ones after 60 s**. Entries still waiting for measurements are re-checked every 5 minutes, or hourly once queued for more than a day. Entries with a blank `provider` become `blocked` ("Missing provider") and are never re-checked. A 4xx response other than 408/429, or 6 failed attempts, also blocks an entry.
 
 ### 1. Look (read-only)
 
@@ -122,16 +122,16 @@ where not coalesce(s.submitted, false)
   and not exists (select 1 from private.fcc_submission_retry_queue q where q.submission_id = s.id);
 ```
 
-Also check the cron history above. Each run can take long, because building one payload through `private.fcc_submissions_view` scans every location and cell row. That has caused `statement_timeout` rollbacks **after** the BDC had accepted a POST, which later produces `duplicate_test_id`. The fix is pending in #133 (`202610210101`); see [Performance notes](../supabase/performance-notes.md).
+Also check the cron history above. Each run can take long, because building one payload through `private.fcc_submissions_view` scans every location and cell row. That has caused `statement_timeout` rollbacks **after** the BDC had accepted a POST, which later produces `duplicate_test_id`. The fix (`202610210101`) is in open PR #133, not pushed to prod; see [Performance notes](../supabase/performance-notes.md).
 
 ### 2. Fix the cause first
 
 | Reason | Fix |
 |---|---|
-| `Missing provider` | Backfill `fcc_submissions.provider` (pending `202610210102` derives it from SIM codes), then re-pend. |
+| `Missing provider` | Backfill `fcc_submissions.provider` (`202610210102` in open PR #133 derives it from SIM codes once pushed to prod), then re-pend. |
 | Waiting for data | Nothing on the server: the phone has to upload. See [A device that never uploads](#a-device-that-never-uploads). |
 | BDC 4xx (`null_properties`, `null_net_mobile_country_code`, …) | A data problem. Re-posting the same payload fails again. Decide with the FCC first. |
-| `duplicate_test_id` | The BDC already has the test. In this checkout it stays a failure; the pending pipeline records it as sent. |
+| `duplicate_test_id` | The BDC already has the test. On prod (and main) it stays a failure; the pipeline in open PR #133 records it as sent once pushed to prod. |
 | 5xx / transport errors | Retried automatically. Blocked only after 6 attempts. |
 
 ### 3. Drain or re-queue (prod writes that post to the FCC; explicit approval required)
@@ -168,9 +168,9 @@ select count(*), max(created_on) from public.fcc_submissions where device_id = :
 
 | Finding | Likely cause | What to do |
 |---|---|---|
-| Not registered, or registered with nothing ever received | `register_device` lockout: the phone lost the first response and every retry gets "already registered". | *Pending:* migration `202610220001` (branch `register-device-retry`) makes registration retry-safe and lets a device with no uploads re-register. Deploy it **before** an app that uses the two-argument `register_device`. |
-| Registered, last upload long ago, user still testing | Uploads only run after a finished test or on a cold start (`UploadWorker.enqueue` in `MeasureViewModel` / `MapActivity`). The 10 s client timeout plus slow upload RLS on devices with long histories make each attempt fail. | Server: deploy the RLS fix `202610210001` (#132). App: hourly and foreground uploads with 60 s timeouts are on unmerged branches. Ask the user to open the app on a good connection. |
-| Submissions without measurements | Older app versions uploaded the submission row first. | Results are still on the phone, or lost if the app was uninstalled. |
+| Not registered, or registered with nothing ever received | `register_device` lockout: the phone lost the first response and every retry gets "already registered". | Not fixed on prod or main. Migration `202610220001` on the unpushed local branch `register-device-retry` makes registration retry-safe and lets a device with no uploads re-register. Once pushed to prod, it also rescues phones on the current Play build without an app update. Push it **before** releasing an app that uses the two-argument `register_device`. |
+| Registered, last upload long ago, user still testing | Uploads only run after a finished test or on a cold start (on main: `UploadWorker.enqueue` in `MeasureViewModel` / `MapActivity`). The 10 s client timeout plus slow upload RLS on devices with long histories make each attempt fail. | Server: push the RLS fix `202610210001` (open PR #132) to prod. App: hourly and foreground uploads with 60 s timeouts are on the unpushed local branch `background-upload`, so they need a merge and a release. Meanwhile, ask the user to open the app on a good connection. |
+| Submissions without measurements | App builds without #111 uploaded the submission row first. #111 is merged to main (2026-10-07) but not known to be released, so the current Play build may still do this. | Results are still on the phone, or lost if the app was uninstalled. |
 
 Crashlytics non-fatals carry the device id as a custom key (`device_id`), which helps match server state with client errors.
 

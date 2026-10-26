@@ -4,7 +4,7 @@ Purpose: a repeatable playbook for answering "did this user's tests reach the BD
 
 Related: [BDC spec mapping](bdc-spec-mapping.md) · [FCC submission pipeline](../supabase/fcc-submission-pipeline.md) · [Runbooks](../ops/runbooks.md) · [Sync and upload](../app/sync-and-upload.md) · [Performance notes](../supabase/performance-notes.md)
 
-A past inquiry write-up is at `bdc-inquiry-issues.md` in the repo root. **It contains PII and is kept out of git** (root `.md` files other than `README.md` are gitignored): don't commit it, and don't quote it in issues or PRs.
+A past inquiry write-up is at `bdc-inquiry-issues.md` in the repo root. **It contains PII and is kept out of git** (#136 gitignores root-level `.md` files other than `README.md`): don't commit it, and don't quote it in issues or PRs.
 
 ## Ground rules
 
@@ -89,7 +89,7 @@ group by type;
 
 A large gap between `last_test` and `last_received`, or tests the user remembers that are missing entirely, means the results were stuck on the phone.
 
-> `measurements` has no index on `device_id` in this checkout, so these scans are slow on prod. The index is pending in migration `202610210001` (PR #132).
+> `measurements` has no index on `device_id` on prod (or main), so these scans are slow. The index is in migration `202610210001` in open PR #132, not yet pushed to prod.
 
 ### 3. Bucket every submission by outcome
 
@@ -130,7 +130,7 @@ group by s.id
 having count(m.id) < 3;
 ```
 
-Locations per test object (the spec wants at least two; see the [decision](bdc-spec-mapping.md#decision-2026-10-22-two-locations-per-test-decided-pending-merge)):
+Locations per test object (the spec wants at least two; see the [decision](bdc-spec-mapping.md#decision-2026-10-22-two-locations-per-test-not-on-main)):
 
 ```sql
 select l_count as locations, count(*) as test_objects
@@ -188,14 +188,14 @@ Build a per-test list (test id, test time, carrier, outcome) with the queries ab
 
 | Cause | Symptom | Notes |
 |---|---|---|
-| **Uploads never ran** | Tests missing on the server, or arriving weeks late | The released app uploads only after a finished test or on a cold start, sends every unsynced row at once, and uses supabase-kt's default 10 s timeout. Slow RLS checks on large histories make each attempt time out. Fixes are pending: RLS in `202610210001`, plus app branches for hourly/foreground uploads and 60 s timeouts. |
-| **Device registration failed** | `registered = false`; nothing ever uploaded | `register_device` raised "already registered" when the phone had lost the first response, which locked the phone out permanently. A retry-safe fix is pending (migration `202610220001`, branch `register-device-retry`). |
-| **Submission without results** | `fcc_submissions` row but fewer than 3 measurements | Older app versions uploaded submissions before their measurements. The queue keeps waiting (hourly after a day). |
-| **Missing provider** | `blocked`, "Missing provider" | Older builds sent a blank carrier. Blocked entries are never re-checked; a pending migration backfills from SIM codes. |
-| **Missing locations** | BDC rejection `null_properties` | Seen for tests with zero locations. Holding tests with fewer than two is decided, pending merge. |
+| **Uploads never ran** | Tests missing on the server, or arriving weeks late | The Play build (versionCode 13) uploads only after a finished test or on a cold start, sends every unsynced row at once, and uses supabase-kt's default 10 s timeout. Slow RLS checks on large histories make each attempt time out. Main limits uploads to 3 in flight (#111, merged 2026-10-07, not known to be released) but has the same triggers and timeout. Fixes not yet in prod: the RLS fix `202610210001` is in open PR #132 (not pushed); hourly/foreground uploads and 60 s timeouts are on the unpushed local branch `background-upload` (not merged or released). |
+| **Device registration failed** | `registered = false`; nothing ever uploaded | `register_device` raised "already registered" when the phone had lost the first response, which locked the phone out permanently. A retry-safe fix (migration `202610220001`) is on the unpushed local branch `register-device-retry`; once pushed to prod it also rescues phones on the Play build. |
+| **Submission without results** | `fcc_submissions` row but fewer than 3 measurements | App builds without #111 uploaded submissions before their measurements. #111 is merged to main but not known to be released, so the Play build may still do this. The queue keeps waiting (hourly after a day). |
+| **Missing provider** | `blocked`, "Missing provider" | Builds without main's carrier fallback (c51980e, merged 2026-07-14, not known to be released) send a blank carrier when the phone reports no operator name. Blocked entries are never re-checked; `202610210102` in open PR #133 backfills them from SIM codes once pushed to prod. |
+| **Missing locations** | BDC rejection `null_properties` | Seen for tests with zero locations. Holding tests with fewer than two was decided on 2026-10-22 but isn't on main; see the [decision](bdc-spec-mapping.md#decision-2026-10-22-two-locations-per-test-not-on-main) for which parts are in open PRs and which are unpushed. |
 | **Null network codes** | BDC rejection `null_net_mobile_country_code` | The payload has no `connection_type`, so the BDC treats the test as cellular and requires the codes. |
-| **Already accepted** | BDC rejection `duplicate_test_id` | Happens when a post succeeded at the BDC but our transaction rolled back (for example on `statement_timeout`), and the job posted again. This checkout treats it as a permanent failure; the pending pipeline branch records it as sent. |
-| **Retry queue clog** | Many `pending` rows; new tests post hours late | Before `202610070001` the job took one entry every 2 min and re-checked waiting entries every 5 min. Check `cron.job` for batch size 10 and the 60 s cap. Building the payload view is slow on prod (tens of seconds per post), which also limits throughput. |
+| **Already accepted** | BDC rejection `duplicate_test_id` | Happens when a post succeeded at the BDC but our transaction rolled back (for example on `statement_timeout`), and the job posted again. Prod (and main) treats it as a permanent failure; the pipeline in open PR #133 records it as sent once pushed to prod. |
+| **Retry queue clog** | Many `pending` rows; new tests post hours late | Before `202610070001` (pushed to prod) the job took one entry every 2 min and re-checked waiting entries every 5 min. Check `cron.job` for batch size 10 (not yet verified on prod) and `process_fcc_submission_retries` for the 60 s cap ([Runbooks](../ops/runbooks.md#1-look-read-only)). Building the payload view is slow on prod (tens of seconds per post), which also limits throughput; the fix (`202610210101`) is in open PR #133. |
 | **Manual hold** | `blocked` with an explanatory `last_error` and a far-future `next_attempt_at` | Set by hand during incident handling. Read `last_error` before re-queuing. |
 
 **Caution on old success rows:** `fcc_submission_failures` rows marked `succeeded` with an empty response from before the July 2026 repair (`202607140001`) do not prove the BDC accepted the test.

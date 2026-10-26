@@ -21,14 +21,14 @@ sequenceDiagram
         API->>DB: SECURITY DEFINER
         DB->>DB: secret = base64(gen_random_bytes(32))<br/>insert private.devices(id, crypt(secret, gen_salt('bf')))
         DB-->>App: secret (returned once, only the bcrypt hash is kept)
-        App->>DS: saveDeviceSecret(Encryptor.encrypt(secret))
+        App->>DS: saveDeviceSecret(secret) (encrypts with Encryptor)
     end
     App->>App: build supabase client that adds X-Device-ID and X-Device-Secret to every request
 ```
 
 - The device ID is a random UUID created on first use by [SettingsRepository.getDeviceId](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/repositories/SettingsRepository.kt). It is not a hardware ID.
 - `register_device` raises `device id … already registered` if the ID already exists. A phone that loses the response, or loses its stored secret, can never register again and cannot upload. Client creation is serialized with a mutex in [NetworkMeasurementDatasource.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/NetworkMeasurementDatasource.kt) so two threads in one process don't race.
-  > A fix (retry-safe registration with a client-made secret) exists on a local branch that is not in this checkout. TODO: link the PR once one is opened.
+  > A fix (retry-safe registration with a client-made secret) is on the unpushed local branch `register-device-retry`; there is no PR yet. Its migration `202610220001` is not pushed to prod, and it must be pushed before any app build with the fix is released. TODO: link the PR once one is opened.
 - Anyone with the anon key can register new device IDs and insert data under them. That data is limited to IDs the caller registered (commit 12c442c accepts this risk).
 
 ## How the secret is stored and sent
@@ -37,7 +37,7 @@ sequenceDiagram
 |---|---|---|
 | Device ID | DataStore `device_id` | Plain text. Also sent to Crashlytics as custom key `device_id` ([Log.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/core/util/Log.kt), [LocalDataStore.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/datastore/LocalDataStore.kt)). |
 | Device secret | DataStore `device_secret` | Encrypted by [Encryptor.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/core/util/Encryptor.kt): AES-256-GCM with a 128-bit tag, key alias `cellwatch-device-key` in `AndroidKeyStore`, randomized IV. Stored as base64 of `[ivLen][iv][ciphertext]`. The key cannot be exported. |
-| Secret in transit | HTTP headers `X-Device-ID`, `X-Device-Secret` | Added to every Supabase request by a Ktor client plugin (`DeviceHeaderPlugin`) and protected by HTTPS. supabase-kt also sends the anon key (`apikey`, and `Authorization: Bearer` by default; TODO: verify the latter for supabase-kt 1.0.3). |
+| Secret in transit | HTTP headers `X-Device-ID`, `X-Device-Secret` | Added to every Supabase request by a Ktor client plugin (`DeviceHeaderPlugin`) and protected by HTTPS. supabase-kt also sends the anon key as `apikey`. It sends no `Authorization` header: 1.0.3's Postgrest plugin adds `Authorization: Bearer` only for a configured JWT or a GoTrue session, and the app has neither. |
 | Secret on server | `private.devices.hashed_secret` | bcrypt (`crypt(..., gen_salt('bf'))`, pgcrypto). |
 
 `android:allowBackup="false"` and `fullBackupContent="false"` are set in the [manifest](../../app/src/main/AndroidManifest.xml). [data_extraction_rules.xml](../../app/src/main/res/xml/data_extraction_rules.xml) is still the empty template.
@@ -55,7 +55,7 @@ Both functions read `current_setting('request.headers')`, which PostgREST fills 
 
 Every call runs a bcrypt comparison, and policies can call it once per row.
 
-> A per-row RLS cost problem and its fix are tracked on an unmerged server branch. TODO: link [supabase/performance-notes](../supabase/performance-notes.md).
+> The per-row cost is described in [supabase/performance-notes](../supabase/performance-notes.md). Its fix is in open PR #132 (migration `202610210001`): not merged, not pushed to prod.
 
 ### Dashboard access
 
@@ -74,7 +74,7 @@ RLS is enabled on all six `public` tables and all four `published` tables in [fu
 
 There are no UPDATE or DELETE policies, so `anon` cannot change or delete rows through RLS even though table grants include `UPDATE` and `DELETE`.
 
-> Note: the grants to `anon` on `public` tables also include `TRUNCATE`, which RLS does not cover. PostgREST has no TRUNCATE operation, so this is not reachable through the API, but the grant is broader than needed. **Fixed in #136** revokes it from `anon` and `authenticated`.
+> Note: the grants to `anon` on `public` tables also include `TRUNCATE`, which RLS does not cover. PostgREST has no TRUNCATE operation, so this is not reachable through the API, but the grant is broader than needed. **Fixed in #136**: migration `202610220102` revokes it from `anon` and `authenticated`. Live once `202610220102` is pushed to prod; prod still grants it (2026-10-22).
 
 ### SECURITY DEFINER functions
 
@@ -87,11 +87,13 @@ These run with the owner's (`postgres`) rights and bypass RLS:
 | `private.verified_device_id*`, `private.is_dashboard_request` | through policies | Read-only checks. |
 | `private.auto_post_fcc_submission` (trigger), `private.process_fcc_submission_retries` (cron; `EXECUTE` revoked from `PUBLIC`) | no | FCC pipeline. |
 
-> Decided 2026-10-22: the dashboard RPCs are dashboard-only. **Fixed in #136**: all three raise `42501` unless the request carries `x-dashboard-secret`. The dashboard must send that header on these calls before the migration is deployed.
+> Decided 2026-10-22: the dashboard RPCs are dashboard-only. **Fixed in #136**: migration `202610220101` makes all three raise `42501` unless the request carries the correct `x-dashboard-secret`. Live once `202610220101` is pushed to prod. Before it is pushed, the dashboard backend (the CellWatch/demo-dashboard Flask app on Render) must send `x-dashboard-secret`, from its `DASHBOARD_SECRET` env var, on these calls.
+>
+> `register_device`, `verified_device_id`, `verified_device_id_or_null` and `is_dashboard_request` have no fixed `search_path` on prod. #136 (`202610220102`) pins one; live once pushed.
 
 ## Header trust
 
-PostgREST exposes request headers as JSON in `request.headers`. Helpers: `public.get_header(item)`, which returns one header; `public.get_raw_header()`, which returns all headers as JSON and is callable by `anon`; and an overload `get_raw_header(item)` that ignores its argument and also returns everything.
+PostgREST exposes request headers as JSON in `request.headers`. Helpers: `public.get_header(item)`, which returns one header; `public.get_raw_header()`, which returns all headers as JSON and is callable by `anon`; and an overload `get_raw_header(item)` that ignores its argument and also returns everything. #136 (`202610220102`) makes the overload return only the named header; live once pushed to prod.
 
 | Header | Trust | Why |
 |---|---|---|
@@ -133,4 +135,4 @@ The tuple service itself is unauthenticated plain HTTP. Its answer (IP, port, ti
 - If any message in an exception's cause chain (up to 10 deep) contains a secret, the exception is rebuilt as `RedactedException`s with scrubbed messages and the original stack traces. Exceptions with nothing to redact pass through unchanged. Tests: [RedactSecretsTest.kt](../../app/src/test/java/edu/gatech/cc/cellwatch/core/util/RedactSecretsTest.kt).
 - Not scrubbed: the device ID (deliberately a custom key), measurement and submission IDs, hostnames, IP addresses inside messages.
 
-This was added in commit d795dad (2026-10-07) because Supabase client errors include every request header in their message.
+This was merged to `main` in #112 (commit d795dad, 2026-10-07) because Supabase client errors include every request header in their message. It is not known to be in a release (versionCode is still 13; check Play Console), so the released build may still send secrets to Crashlytics.

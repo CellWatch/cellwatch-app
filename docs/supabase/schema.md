@@ -4,7 +4,7 @@ Every table, view, and custom type in the CellWatch Postgres database, grouped b
 
 **Related:** [rpc-reference](rpc-reference.md) · [triggers-and-cron](triggers-and-cron.md) · [fcc-submission-pipeline](fcc-submission-pipeline.md) · [performance-notes](performance-notes.md) · [migrations-and-deploy](migrations-and-deploy.md) · [identity-and-security](../architecture/identity-and-security.md)
 
-Source of truth: [full_schema.sql](../../supabase/full_schema.sql), a `supabase db dump` of the live project (snapshot committed 2026-10-07). Changes made since then live in [migrations/](../../supabase/migrations/). Anything marked **pending** comes from the uncommitted `202610130001_record_local_ports.sql` and is **not yet deployed**.
+Source of truth: [full_schema.sql](../../supabase/full_schema.sql), a `supabase db dump` of the prod project, "CellWatch Server" (snapshot committed 2026-10-07). A read-only catalog check of prod on 2026-10-22 found that prod matches `full_schema.sql` plus migration `202610070001` exactly (the only difference was Postgres 17's `MAINTAIN` bit in table grants), so this page describes prod as of that date. Changes not yet pushed to prod are in [migrations/](../../supabase/migrations/) (#136's two) and in other PRs and branches; see [migrations-and-deploy](migrations-and-deploy.md). Anything marked **pending** comes from `202610130001_record_local_ports.sql`, which is uncommitted on the `client-port-header` branch: it is not on main and not pushed to prod.
 
 ## Schemas at a glance
 
@@ -29,7 +29,7 @@ Roles that appear in grants: `anon` (the app and the dashboard both use the anon
 
 ## `public` schema
 
-All six tables have **RLS enabled**. `anon` and `authenticated` hold `SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER`; `readonly_user` holds `SELECT`. With RLS on, only the policies below grant row access, and all of them are `TO anon`. There are no `UPDATE` or `DELETE` policies, so phones cannot change or remove rows through the API. (`TRUNCATE` bypasses RLS but PostgREST does not expose it.)
+All six tables have **RLS enabled**. `anon` and `authenticated` hold `SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER`; `readonly_user` holds `SELECT`. With RLS on, only the policies below grant row access, and all of them are `TO anon`. There are no `UPDATE` or `DELETE` policies, so phones cannot change or remove rows through the API. (`TRUNCATE` bypasses RLS but PostgREST does not expose it. #136 revokes `TRUNCATE` from `anon` and `authenticated`; live once migration `202610220102` is pushed to prod.)
 
 Every table has `created_on` / `updated_on` (`timestamptz`, default `now()`), maintained by the `_100_*` / `_200_*` triggers ([triggers-and-cron](triggers-and-cron.md)).
 
@@ -52,7 +52,7 @@ One row per test (download, upload, or latency). Three rows with the same `group
 | `device_manufacturer`, `device_model`, `device_os_name`, `device_os_version`, `app_name`, `app_version` | text | Device and app metadata. `app_version` is always `1.0.0` in practice (versionName was never bumped), so it cannot tell builds apart |
 | `extra_data` | jsonb | Free-form extras |
 
-- **PK:** `measurements_pkey (id)`. **No index on `device_id` or `group_id`** in this snapshot; see [performance-notes](performance-notes.md).
+- **PK:** `measurements_pkey (id)`. **No index on `device_id` or `group_id`** on prod (open PRs #132 and #133 add them; neither is pushed); see [performance-notes](performance-notes.md).
 - **Policies (anon):** `Allow inserting own measurements` (`WITH CHECK (SELECT private.verified_device_id()) = device_id`); `Allow viewing own measurements` (`USING private.is_dashboard_request() OR private.verified_device_id_or_null() = device_id`).
 
 ### `public.upload_download_data`
@@ -79,7 +79,7 @@ Latency result for a `latency` measurement (at most one per measurement).
 |---|---|---|
 | `id` | uuid PK | |
 | `measurement_id` | uuid UNIQUE, FK → `measurements.id` `ON DELETE CASCADE` | |
-| `rtt`, `jitter` | numeric | Round-trip time and jitter. `jitter` is square-rooted on insert for pre-alpha.5 builds (`fix_jitter` trigger). > TODO: verify units (`rpc_map_points` divides by 1000, the other dashboard RPCs do not) |
+| `rtt`, `jitter` | numeric | Round-trip time and jitter. `jitter` is square-rooted on insert for pre-alpha.5 builds (`fix_jitter` trigger). Both are in microseconds: the app displays `rtt / 1000` as ms (`Measurement.kt`). `rpc_map_points` divides by 1000; on prod the other two dashboard RPCs do not (fixed in #136; live once migration `202610220101` is pushed to prod) |
 | `sent`, `received` | numeric | Packet counts (loss = (sent − received) / sent) |
 | `servers` | text[] | Test targets |
 
@@ -310,5 +310,5 @@ erDiagram
 ## Things that look wrong (left as-is in the live schema)
 
 - `public.measurements` has three `BEFORE UPDATE` triggers that all call `set_updated_on` (`_100_cell_set_updated_on`, `_100_challenge_data_set_updated_on`, `_100_measurement_set_updated_on`), and `public.cells` has none. The "cell" one was probably meant for `cells`.
-- `public.log_user_data()` inserts into `log_table`, which does not exist. No trigger uses it. (**fixed in #136**, which drops it.)
-- `public.get_raw_header(item text)` ignores `item` and returns all headers. (**fixed in #136**.)
+- `public.log_user_data()` inserts into `log_table`, which does not exist. No trigger uses it. (**Fixed in #136**, which drops it; live once migration `202610220102` is pushed to prod.)
+- `public.get_raw_header(item text)` ignores `item` and returns all headers. (**Fixed in #136**; live once migration `202610220102` is pushed to prod.)

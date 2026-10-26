@@ -4,7 +4,7 @@ Every trigger on CellWatch tables and every scheduled pg_cron job: when each one
 
 **Related:** [schema](schema.md) · [rpc-reference](rpc-reference.md) · [fcc-submission-pipeline](fcc-submission-pipeline.md) · [migrations-and-deploy](migrations-and-deploy.md) · [runbooks](../ops/runbooks.md)
 
-Sources: [full_schema.sql](../../supabase/full_schema.sql) (triggers), [cron_jobs.sql](../../supabase/cron_jobs.sql) (jobs), [migrations/](../../supabase/migrations/).
+Sources: [full_schema.sql](../../supabase/full_schema.sql) (triggers), [cron_jobs.sql](../../supabase/cron_jobs.sql) (jobs), [migrations/](../../supabase/migrations/). A read-only catalog check on 2026-10-22 found the same triggers on prod as in `full_schema.sql`, all enabled. It did not read `cron.job`.
 
 ## Triggers
 
@@ -29,12 +29,14 @@ Postgres fires triggers with the same timing and event **in name order**, which 
 | `fcc_submissions` | `_100_fcc_submission_set_updated_on` | BEFORE UPDATE | | `set_updated_on()` | |
 | `fcc_submissions` | `_200_fcc_submission_force_created_on` | BEFORE INSERT | `created_on IS NULL` | `force_created_on()` | |
 | `fcc_submissions` | `_300_fcc_submission_update_source_ip` | BEFORE INSERT | `new.source_ip IS NULL` | `fcc_submission_update_source_ip()` | Sets `source_ip` to the first entry of `x-forwarded-for`. That entry can be set by the client; `cf-connecting-ip` is the trustworthy header. The app normally sends `source_ip` from the tuple service, so this rarely fires |
-| `fcc_submissions` | `_310_fcc_submission_record_local_ports` | BEFORE INSERT | | `fcc_submission_record_local_ports()` | **Pending, not deployed** (`202610130001`). Stores `X-Local-Port` → `upload_local_port`, `X-Transport` → `upload_transport`, `cf-connecting-ip` → `upload_ip`. Checks each value's format and stores null rather than failing the insert. Range-checks `tuple_local_port` |
+| `fcc_submissions` | `_310_fcc_submission_record_local_ports` | BEFORE INSERT | | `fcc_submission_record_local_ports()` | **Not on main, not pushed to prod**: from `202610130001`, uncommitted on the `client-port-header` branch. Stores `X-Local-Port` → `upload_local_port`, `X-Transport` → `upload_transport`, `cf-connecting-ip` → `upload_ip`. Checks each value's format and stores null rather than failing the insert. Range-checks `tuple_local_port` |
 | `fcc_submissions` | `trg_auto_post_fcc_submission` | AFTER INSERT | | `private.auto_post_fcc_submission()` | If `submitted` is false, upserts a `pending` entry into `private.fcc_submission_retry_queue` (`fcc_env = 'prod'`, due now). It does **not** call the FCC itself. See [fcc-submission-pipeline](fcc-submission-pipeline.md) |
 
 Why the `_200` triggers matter: `insert_measurement` inserts whole composite rows, and supabase-kt leaves null fields out of the JSON. So `created_on` arrives as an explicit null and the column default never applies. The trigger fills it before the `NOT NULL` check.
 
-Order on a single `fcc_submissions` insert: `_200` → `_300` → (`_310`, pending) → row stored → `trg_auto_post_fcc_submission`.
+Order on a single `fcc_submissions` insert: `_200` → `_300` → (`_310`, not on main) → row stored → `trg_auto_post_fcc_submission`.
+
+On the test project ("CellWatch Test Database"), `trg_auto_post_fcc_submission` is deliberately disabled, so inserts there queue nothing. Don't re-enable it: that project's `private.fcc_submission_info` still has a prod row.
 
 ### `published` tables
 
@@ -53,7 +55,7 @@ The `published` insert triggers always overwrite `created_on` / `updated_on` wit
 |---|---|---|
 | Original | [post_fcc_submission_func.sql](../../supabase/post_fcc_submission_func.sql) | Called `post_fcc_submission(new.id, 'prod')` **inside the app's INSERT** and logged the outcome to `fcc_submission_failures` |
 | 2026-07-14 | [202607140001](../../supabase/migrations/202607140001_repair_fcc_submission_functions.sql) | Same synchronous design, with readiness and payload checks added |
-| Live snapshot | [full_schema.sql](../../supabase/full_schema.sql) | Only queues the submission; the cron job posts it. This change is not in any migration in this checkout |
+| On prod | [full_schema.sql](../../supabase/full_schema.sql) | Only queues the submission; the cron job posts it. Made by hand on prod; not in any migration on main (#134's `202609300001`, open and not pushed, records it) |
 
 > Warning: re-running `202607140001` or `post_fcc_submission_func.sql` against prod would put back the synchronous trigger and undo the queue design.
 
@@ -67,8 +69,8 @@ Jobs are rows in `cron.job`, so **schema dumps (`full_schema.sql`) do not includ
 | | | After [202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql): `select private.process_fcc_submission_retries(10);` | | Same, up to 10 entries per run |
 
 Notes:
-- `202610070001` reschedules the job with `cron.schedule('fcc-submission-retries', ...)`, which updates the job of that name in place. It skips this step when `pg_cron` is not installed (for example a fresh local DB).
-- `202610070001` is live on prod: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked. The prod deploy runbook (`prod-deploy-runbook.md`, a local file not in git) Step 0 checks both (the function source contains `60 seconds`, and the job command uses `(10)`). `cron_jobs.sql` predates it. After any job change, refresh `cron_jobs.sql`.
+- `202610070001` reschedules the job with `cron.schedule('fcc-submission-retries', ...)`, which updates the job of that name in place. It skips this step when `pg_cron` is not installed (for example a fresh local DB, or the test project).
+- `202610070001` is pushed to prod: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked. The prod deploy runbook (`prod-deploy-runbook.md`, a local file not in git) Step 0 checks both (the function source contains `60 seconds`, and the job command uses `(10)`). `cron_jobs.sql` predates it. After any job change, refresh `cron_jobs.sql`.
 - A job's whole command runs in **one transaction**. If a run is cancelled (for example by `statement_timeout`), every database change from that run rolls back. FCC POSTs already sent are not undone, so a submission can be accepted by the FCC and still look unsent locally. PL/pgSQL `exception when others` does not catch `query_canceled`.
 - Run history is in `cron.job_run_details` (`status`, `return_message`, `start_time`, `end_time`).
 

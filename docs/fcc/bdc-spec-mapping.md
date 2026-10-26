@@ -6,7 +6,7 @@ Related: [Inquiries and reconciliation](inquiries-and-reconciliation.md) · [FCC
 
 **Spec version:** *Broadband Data Collection: Data Specifications for Mobile Speed Test Data*, revision 2.2 (2025-07-28), kept locally as `bdc-mobile-speed-test-data-specifications.pdf` at the repo root (not in git). Section numbers below are the spec's; page numbers are PDF pages. CellWatch submits the **Consumer Challenge** category, so "Required?" means required for that category.
 
-**Checkout:** branch `client-port-header`, including uncommitted working-tree changes (marked *pending*).
+**Code described:** `main` (#136, which holds these docs, doesn't change the mappings on this page). Work that isn't on main is labelled with its stage: in an open PR, on an unpushed local branch, or uncommitted on the `client-port-header` branch. Being on main doesn't mean being in prod. A migration is in prod only once it is pushed: on 2026-10-22 prod matched [full_schema.sql][schema] plus [`202610070001`][unclog], and #136's own migrations aren't pushed. App code reaches phones only with a Play release, and app changes merged since #109 (2025-10-13) are not known to be released (see [Release checklist](../ops/release-checklist.md)).
 
 ## How a test becomes a BDC payload
 
@@ -56,7 +56,7 @@ All submission-level values are copied onto `FccSubmission` in `MeasurementManag
 | `device_timestamp` | 5.1.2 | Yes | ISO-8601 with seconds and offset | `Clock.System.now()` when the test sequence finishes | `device_timestamp` | The spec defines it as the moment the data was sent to the app's servers. The app stamps it when the test ends, which can be hours or weeks before the upload. |
 | `server_timestamp` | 5.1.2 | Yes for Consumer Challenge | ISO-8601 | TCP tuple service clock (epoch ms) from `getPubicTCPTuple()`, set by `MeasurementUploader` just before upload | `server_timestamp` (default `now()`) | Measured on the tuple service's own GET, not on the upload request. |
 | `server_source_ip_address` | 5.1.2 | Yes for Consumer Challenge | IPv4/IPv6 string | `TcpTuple.remoteAddress` | `source_ip` | If the app sends null, trigger `_300_fcc_submission_update_source_ip` fills it from the first `x-forwarded-for` entry, which a client can spoof. |
-| `server_source_port` | 5.1.2 | Yes for Consumer Challenge | integer | `TcpTuple.remotePort` | `source_port` | The port of the tuple GET's connection, not the upload's. *Pending:* migration `202610130001_record_local_ports.sql` adds `tuple_local_port`, `upload_local_port`, `upload_transport` and `upload_ip` to compare ports. None of these are sent to the FCC. |
+| `server_source_port` | 5.1.2 | Yes for Consumer Challenge | integer | `TcpTuple.remotePort` | `source_port` | The port of the tuple GET's connection, not the upload's. Uncommitted on the `client-port-header` branch: migration `202610130001_record_local_ports.sql` adds `tuple_local_port`, `upload_local_port`, `upload_transport` and `upload_ip` to compare ports. None of these are sent to the FCC. |
 | `device_imei` | 5.1.2 | No (null allowed for Consumer Challenge) | 15-digit string | never set | `device_imei` (always null) | |
 | `device_type` | 5.1.2 | Yes; `iOS` or `Android` for consumers | enum | constant `"Android"` | `device_type` | |
 | `manufacturer` | 5.1.2 | Yes | string | `EasyDeviceMod.manufacturer` (via `Measurement.deviceManufacturer`) | `device_manufacturer` | |
@@ -66,7 +66,7 @@ All submission-level values are copied onto `FccSubmission` in `MeasurementManag
 | `device_id` | 5.1.2 | Yes | string | install UUID from `SettingsRepository.getDeviceId()` | `device_id` (uuid) | Also the RLS identity (`X-Device-ID` header). |
 | `app_name` | 5.1.2 | Yes; must match the FCC-approved name | string | `EasyAppMod.appName` | `app_name` | > TODO: verify the string sent matches the FCC-approved app name. |
 | `app_version` | 5.1.2 | Yes; must match an approved version | string | `EasyAppMod.appVersion` (= `versionName`) | `app_version` | `versionName` is still `"1.0.0"` ([app/build.gradle][bg]), so every build reports the same version. |
-| `provider_name` | 5.1.2 | Yes | string | `TelephonyInfoManager.getProviderName()`: network operator name, else SIM operator name, else `"unknown"`, lowercased | `provider` | Blank values (older builds) are blocked by the retry queue as `Missing provider`. |
+| `provider_name` | 5.1.2 | Yes | string | `TelephonyInfoManager.getProviderName()`: network operator name, else SIM operator name, else `"unknown"`, lowercased | `provider` | This fallback is on main (c51980e, 2026-07-14) but not known to be released. Builds without it send a blank name when the phone reports no network operator name, and the retry queue blocks those as `Missing provider`. |
 | `sim_mobile_country_code` / `sim_mobile_network_code` | 5.1.2 | Yes; null allowed when not connected | numeric string | `getSimMobileCountryCode()` / `…NetworkCode()` | `sim_country_code` / `sim_network_code` | |
 | `net_mobile_country_code` / `net_mobile_network_code` | 5.1.2 | Yes on Android (null allowed on iOS only) | numeric string | `getNetworkMobileCountryCode()` / `…NetworkCode()` | `net_country_code` / `net_network_code` | The BDC has rejected tests with null network codes (`null_net_mobile_country_code`). |
 | `in_vehicle_flag` | 5.1.2 | Yes | boolean | user's choice on the pre-measure screen (`MeasurementService` extra) | `in_vehicle` | |
@@ -148,7 +148,7 @@ The USF flavour (§5.1.8.2) is not produced.
 
 ## Validation rules
 
-### App side (this checkout)
+### App side (on main)
 
 | Rule | Where |
 |---|---|
@@ -158,9 +158,9 @@ The USF flavour (§5.1.8.2) is not produced.
 | If the TCP tuple request fails, no submission uploads in that run. | `MeasurementUploader.uploadSubmissions` |
 | The FCC fails a test that switches generation, so the app marks it unsuccessful. | [MeasurementTest.kt][mt] |
 
-There is no app-side location-count or completeness check on this branch. An `isFccSubmittable` check exists only on the unmerged app branch (see the decision below).
+There is no app-side location-count or completeness check on main. An `isFccSubmittable` check exists only in open PR #130 (see the decision below).
 
-### Server side (this checkout, [full_schema.sql][schema] plus [migrations](../../supabase/migrations/))
+### Server side (on prod and main: [full_schema.sql][schema] plus [`202610070001`][unclog])
 
 | Step | Rule | Outcome |
 |---|---|---|
@@ -172,29 +172,29 @@ There is no app-side location-count or completeness check on this branch. An `is
 | Post | BDC HTTP status: 2xx means success. 4xx other than 408/429 means a permanent failure. Anything else is retried with backoff `60 s × 2^(n−1)`, capped at 1 h. | `blocked` on a permanent failure or after 6 attempts |
 | Success | `fcc_submissions.submitted = true`; `submission` (the payload) and `submission_response` (the BDC body) are stored; a `succeeded` row goes into `private.fcc_submission_failures`. | Queue row deleted |
 
-The server has no location, network-code or field-format check in this checkout. Such rows are posted and rejected by the BDC.
+The server on prod (and main) has no location, network-code or field-format check. Such rows are posted and rejected by the BDC.
 
-### Decision 2026-10-22: two locations per test (decided, pending merge)
+### Decision 2026-10-22: two locations per test (not on main)
 
-Spec §5.1 (PDF p. 13) says each download, upload and latency object "contains at least two Location Objects". §5.1.7 says these are the fixes at the start and end of the test. On 2026-10-22 the team decided to **require at least two locations per test object**. This is implemented on unmerged branches only:
+Spec §5.1 (PDF p. 13) says each download, upload and latency object "contains at least two Location Objects". §5.1.7 says these are the fixes at the start and end of the test. On 2026-10-22 the team decided to **require at least two locations per test object**. None of it is on main, pushed to prod or released:
 
-- **Server** (`fcc-pipeline-fixes`, PR #133): `private.fcc_payload_hold_reason` holds entries with a "No locations" reason, plus a separate "One location" reason so those entries can be released on their own if the FCC accepts one fix.
-- **App** (`app-fcc-data-fixes`, PR #130): `isFccSubmittable` requires two. Location capture retries for a fresh fix when the start and end fixes are the same one, and falls back to listing the repeated fix twice.
+- **Server** (`fcc-pipeline-fixes`, open PR #133): `private.fcc_payload_hold_reason` holds entries with a "No locations" reason. A separate "One location" reason, so those entries can be released on their own if the FCC accepts one fix, is an unpushed local commit (75289ca) on that branch.
+- **App** (`app-fcc-data-fixes`, open PR #130): adds `isFccSubmittable`. Requiring two locations, and retrying for a fresh fix when the start and end fixes are the same one (falling back to listing the repeated fix twice), is an unpushed local commit (6ecfcaa) on that branch.
 
 Both count the same fix listed twice as two locations, which follows the spec's wording. The BDC intake itself has only been **observed to reject empty location lists** (response code `null_properties`); a posted one-location test was accepted. If the FCC confirms one location is enough, the "One location" hold should be reverted and the held entries released.
 
-> TODO: once #130/#133 merge, update this page with the final hold-reason names and the app rule.
+> TODO: once #130/#133 merge (and #133 is pushed to prod), update this page with the final hold-reason names and the app rule.
 
-## Known gaps vs the spec (this checkout)
+## Known gaps vs the spec (on main; server parts also on prod)
 
 | Gap | Impact | Status |
 |---|---|---|
 | `connection_type` not sent | BDC treats null as `cell`, so null network codes are rejected | Open question for the FCC |
 | `device_timestamp` set at test end, not upload | Diverges from the spec's definition | Open |
-| `server_*` tuple from a separate GET to the tuple service | Port doesn't match the upload connection | Comparison data being collected (*pending* `202610130001`) |
+| `server_*` tuple from a separate GET to the tuple service | Port doesn't match the upload connection | A port comparison (`202610130001` plus app changes) is uncommitted on the `client-port-header` branch; nothing is being collected yet |
 | `spectrum_bandwidth` sentinel `2147483` | Bogus value posted | Open |
 | `carrier_aggregation_flag` not null on 3G | Spec says null for 3G | Open |
-| Locations may be < 2 | Spec wants ≥ 2 | Decided, pending merge |
+| Locations may be < 2 | Spec wants ≥ 2 | Decided; in open PRs and unpushed local commits (see above) |
 | Lat/lon sent as numbers | Trailing zeros dropped | Open |
 
 [fs]: ../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/FccSubmission.kt

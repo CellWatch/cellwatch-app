@@ -38,7 +38,7 @@ flowchart TD
     Drawer --> About[AboutActivity]
 ```
 
-The `NavigationDrawer` (side menu) is in the Map, Measure, History, Settings and About layouts. Its buttons start the target activity unless it is the current one; they do not finish the current activity, so the back stack grows as the user navigates.
+The `NavigationDrawer` (side menu) is in the Map, Measure, History, Settings and About layouts. Its buttons start the target activity unless it is the current one; they do not finish the current activity, so the back stack grows as the user navigates (except that going to Map returns to the existing `singleTask` `MapActivity` and clears the activities above it).
 
 ## Activities
 
@@ -65,7 +65,7 @@ The `NavigationDrawer` (side menu) is in the Map, Measure, History, Settings and
 
 > Notes from the code:
 > - If the user denies a permission, nothing happens (`// TODO: Handle the case where permissions are denied`); onboarding cannot finish until both are granted.
-> - A left swipe calls `goNext()` even on `PERMISSIONS` and `READ_MORE`, where `Screen.next()` throws `RuntimeException` and crashes onboarding. **Fixed in #136**: `next()` returns null there and the swipe does nothing.
+> - On main, a left swipe calls `goNext()` even on `PERMISSIONS` and `READ_MORE`, where `Screen.next()` throws `RuntimeException` and crashes onboarding. **Fixed in #136; reaches users with the next app release**: `next()` returns null there and the swipe does nothing (`OnboardingScreenTest`).
 > - `SettingsSetupFragment.kt` has no `package` line (default package).
 
 ## Measure flow
@@ -103,7 +103,7 @@ Engine details: [measurement-engine.md](measurement-engine.md).
   - `submissions`: one [`FccSubmissionExport`](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/FccExportExtensions.kt) per group **that has an FCC submission**, with `test_id` = the latency (else download, else upload) measurement's id, `environment_code` 1 if in vehicle else 0, and download/upload/latency test objects with locations and cells.
 - The export is local only; it is not uploaded.
 
-> Known bug: the activity opens the file descriptor in a `use { model.exportData(fd) }` block, but `exportData` launches a coroutine and returns immediately, so the descriptor is closed before the write; the write error escapes `viewModelScope`. **Fixed in #136**: `exportData` is a suspend function and the activity keeps the stream open until it returns.
+> Known bug on main: the activity opens the file descriptor in a `use { model.exportData(fd) }` block, but `exportData` launches a coroutine and returns immediately, so the descriptor is closed before the write; the write error escapes `viewModelScope`. **Fixed in #136; reaches users with the next app release**: `exportData` is a suspend function that takes an `OutputStream`, and the activity opens the stream in a coroutine and keeps it open until `exportData` returns; a failure shows the "Export failed" toast.
 
 ## Custom views, adapter and small ViewModels
 
@@ -131,13 +131,13 @@ Declared in [AndroidManifest.xml](../../app/src/main/AndroidManifest.xml):
 |---|---|---|---|
 | `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE` | normal | no | tests, uploads, connection type |
 | `ACCESS_FINE_LOCATION` | dangerous | yes, onboarding permissions step | location at test start/end, map centering, cell info |
-| `ACCESS_COARSE_LOCATION` | dangerous | yes, with fine location in the onboarding permissions step (since #136) | `PermissionManager.checkLocationPermission()` requires both fine and coarse |
+| `ACCESS_COARSE_LOCATION` | dangerous | in #136 only: requested with fine location in the onboarding permissions step (main does not request it) | `PermissionManager.checkLocationPermission()` requires both fine and coarse |
 | `READ_PHONE_STATE` | dangerous | yes, onboarding permissions step | cells, data-enabled, network type |
 | `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION` | normal | no (checked on API 34+; if missing, user is sent to app settings) | `MeasurementService` |
 | `WAKE_LOCK` | normal | no | keep CPU on during a test |
 
 Not declared: background location, `POST_NOTIFICATIONS` (so on Android 13+ the foreground-service notification may not be shown; the service still runs).
 
-> Known bug: platform docs say a request for `ACCESS_FINE_LOCATION` without `ACCESS_COARSE_LOCATION` is ignored when targeting API 31+. **Fixed in #136**: onboarding requests both.
+> Known bug on main: onboarding requests `ACCESS_FINE_LOCATION` without `ACCESS_COARSE_LOCATION`, and platform docs say such a request is ignored when targeting API 31+. **Fixed in #136; reaches users with the next app release**: onboarding requests both.
 
 Other manifest settings: `usesCleartextTraffic="true"` (the tuple service and local dev servers use plain HTTP), `allowBackup="false"`.

@@ -20,7 +20,7 @@ Package root: `app/src/main/java/edu/gatech/cc/cellwatch/` (namespace and applic
 | `data/datastore` | `LocalDataStore`: Jetpack DataStore (Preferences) for device id/secret, settings and contact info. |
 | `data/core/repositories` | `MeasurementRepository` (Room + upload), `SettingsRepository` (DataStore). |
 | `data/core/sync` | `UploadWorker` (WorkManager) and `MeasurementUploader` (upload logic). See [sync-and-upload.md](sync-and-upload.md). |
-| `data/network` | `NetworkMeasurementDatasource` (supabase-kt client), `LocalPortHeaders` (pending), network DTOs in `data/network/model`. |
+| `data/network` | `NetworkMeasurementDatasource` (supabase-kt client), network DTOs in `data/network/model`. (`LocalPortHeaders` exists only as uncommitted work on the `client-port-header` branch.) |
 | `ui/main` | Activities, ViewModels, custom views and the RecyclerView adapter. Also hosts `OnboardingActivity`. See [ui-and-screens.md](ui-and-screens.md). |
 | `ui/onboarding` | Onboarding fragments hosted by `OnboardingActivity`. |
 
@@ -101,7 +101,12 @@ Wiring chain: `CellWatchApp.measurementRepository = MeasurementRepository(databa
 
 ## Every Kotlin file
 
-Status "pending" means the file or change exists only in the working tree of branch `client-port-header` (pending: not yet merged/deployed).
+The tables list the Kotlin files on `doc-audit-fixes`, the branch of open PR #136 (main plus #136's fixes). Status labels:
+
+- **#136**: the labeled file or detail was added or changed in open PR #136. Not merged to main, not released.
+- **client-port-header**: exists only as uncommitted work on the local `client-port-header` branch, not on main or in #136. Not in a PR, not merged, not released, and its migration `202610130001` is not pushed to Supabase prod.
+
+Unlabeled files are on main. #136 also carries bug fixes in `MeasurementService`, `MeasurementManager`, `OnboardingActivity`, `SettingsSetupFragment` and `MeasureHistoryActivity`/`MeasureHistoryViewModel`; the topic pages describe each one. Being on main does not mean a change is released: an app change reaches users only in a Play Store release (see [build-and-config.md](build-and-config.md#android-settings-appbuildgradle)).
 
 ### `(root)`
 
@@ -116,7 +121,7 @@ Status "pending" means the file or change exists only in the working tree of bra
 | [ContactInfoValidator.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/core/util/ContactInfoValidator.kt) | Normalizes US phone numbers to `NNN-NNN-NNNN`; validates email via commons-validator. |
 | [Encryptor.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/core/util/Encryptor.kt) | AES-256-GCM with an Android Keystore key (alias `cellwatch-device-key`); used for the device secret. |
 | [HttpUtil.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/core/util/HttpUtil.kt) | Extracts an HTTP status (`code=NNN`) from an exception string (used to detect M-Lab 429s). |
-| [Log.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/core/util/Log.kt) | Logger used app-wide and by msak; INFO+ to Crashlytics log, WARN+ as non-fatal, logcat only in debug; redacts device secret/API key headers and JWTs. |
+| [Log.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/core/util/Log.kt) | Logger used app-wide and by msak; INFO+ to Crashlytics log, WARN+ as non-fatal, logcat only in debug; redacts device secret/API key headers and JWTs (redaction merged to main in #112, 2026-10-07; not known to be in a release). |
 | [PermissionManager.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/core/util/PermissionManager.kt) | Checks READ_PHONE_STATE and fine+coarse location grants. |
 | [SingletonHolder.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/core/util/SingletonHolder.kt) | Double-checked-locking singleton-with-argument helper (used by the Room DB). |
 | [setCopyOnClick.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/core/util/setCopyOnClick.kt) | `View.setCopyOnClick` extension: copy text to clipboard and toast. |
@@ -127,6 +132,7 @@ Status "pending" means the file or change exists only in the working tree of bra
 |---|---|
 | [MeasurementService.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementService.kt) | Foreground service (type `location`) that runs one test sequence with a wake lock and exposes progress via a `Binder`. |
 | [MeasurementManager.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementManager.kt) | Runs locate -> latency -> download -> upload, stores each result, creates the FCC submission. |
+| [ServerSelection.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ServerSelection.kt) | #136: `closestServer()` picks the throughput server with the lowest ping RTT; a server whose ping throws ranks last. |
 | [MeasurementTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementTest.kt) | Base class: captures locations, cells, device/network metadata around `measure()` and builds a `Measurement`. |
 | [LatencyTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/LatencyTest.kt) | Wraps msak `LatencyTest`; computes mean RTT and jitter (std dev). |
 | [ThroughputTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ThroughputTest.kt) | Wraps msak `ThroughputTest` (3 streams); splits warmup/active periods and aggregates bytes/s. |
@@ -149,14 +155,14 @@ Status "pending" means the file or change exists only in the working tree of bra
 |---|---|
 | [Measurement.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/Measurement.kt) | One latency, download or upload test result with metadata; mappers to entity and network DTOs; `displayValue`, `centerLatLon`. |
 | [MeasurementGroup.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/MeasurementGroup.kt) | latency + download + upload (+ optional FCC submission) sharing one group id; validates consistency. |
-| [FccSubmission.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/FccSubmission.kt) | FCC challenge metadata for a group (id = group id); mappers. Pending: `tupleLocalPort`. |
+| [FccSubmission.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/FccSubmission.kt) | FCC challenge metadata for a group (id = group id); mappers. client-port-header adds `tupleLocalPort`. |
 | [FccExportExtensions.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/FccExportExtensions.kt) | Serializable FCC-style JSON export (`FccSubmissionExport`, `TestSet`, ...), used by History export. |
 | [Cell.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/Cell.kt) | One observed cell (ids, generation, subtype, RSRP/RSRQ/SINR, band, ARFCN...). |
 | [Location.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/Location.kt) | Lat/lon fix with accuracy, speed, heading; `fromAndroidLocation`. |
 | [LatencyData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/LatencyData.kt) | RTT, jitter, packets sent/received, servers. |
 | [UploadDownloadData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/UploadDownloadData.kt) | Warmup/active bytes and durations, bytes/s, servers. |
 | [CollectionMode.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/CollectionMode.kt) | `FCC_CHALLENGE` or `TESTING`. |
-| [TcpTuple.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/TcpTuple.kt) | Response of the tuple service (public IP, port, server timestamp). Pending: `localPort`. |
+| [TcpTuple.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/TcpTuple.kt) | Response of the tuple service (public IP, port, server timestamp). client-port-header adds `localPort`. |
 | [ChallengeData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/ChallengeData.kt) | Unused: contact/category model; its entity is not registered in the Room DB. |
 | [Device.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/Device.kt) | Unused: device metadata model; its entity is not registered in the Room DB. |
 
@@ -191,11 +197,11 @@ Status "pending" means the file or change exists only in the working tree of bra
 | File | Description |
 |---|---|
 | [NetworkMeasurementDatasource.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/NetworkMeasurementDatasource.kt) | supabase-kt client; `register_device`, `insert_measurement`, insert into `fcc_submissions`; error mapping. |
-| `LocalPortHeaders.kt` | Pending: OkHttp network interceptor adding `X-Local-Port` and `X-Transport`. |
+| `LocalPortHeaders.kt` | client-port-header only (not on main or in #136): OkHttp network interceptor adding `X-Local-Port` and `X-Transport`. |
 | [NetworkRestResult.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/NetworkRestResult.kt) | Unused data class (measurement + optional `RestException`). |
 | [model/NetworkMeasurement.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkMeasurement.kt) | Snake-case DTO for `measurements`. |
 | [model/NetworkMeasurementWithData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkMeasurementWithData.kt) | `insert_measurement` RPC body (`in_measurement`, `in_measurement_data`, `in_latency_data`, `in_locations`, `in_cells`). |
-| [model/NetworkFccSubmission.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkFccSubmission.kt) | DTO for `fcc_submissions`. Pending: `tuple_local_port`. |
+| [model/NetworkFccSubmission.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkFccSubmission.kt) | DTO for `fcc_submissions`. client-port-header adds `tuple_local_port`. |
 | [model/NetworkUploadDownloadData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkUploadDownloadData.kt), [model/NetworkLatencyData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkLatencyData.kt), [model/NetworkLocation.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkLocation.kt), [model/NetworkCell.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkCell.kt) | Child DTOs. |
 | [model/NetworkChallengeData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkChallengeData.kt), [model/NetworkFccSubmissionWithMeasurements.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkFccSubmissionWithMeasurements.kt) | DTOs not used by any upload path. |
 
@@ -210,7 +216,7 @@ Status "pending" means the file or change exists only in the working tree of bra
 | [PreMeasureFragment.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/PreMeasureFragment.kt) | Stationary/moving choice, permission and cellular checks, starts the service. |
 | [MeasureFragment.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureFragment.kt) | In-progress and result view. |
 | [MeasureHistoryActivity.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureHistoryActivity.kt) | List of past groups; JSON export via SAF. |
-| [MeasureHistoryViewModel.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureHistoryViewModel.kt) | Loads groups; writes the FCC-style export bundle. |
+| [MeasureHistoryViewModel.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureHistoryViewModel.kt) | Loads groups; writes the FCC-style export bundle. #136 makes `exportData` a suspend function that writes to an `OutputStream` the activity keeps open. |
 | [MeasurementAdapter.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementAdapter.kt) | RecyclerView adapter of `MeasurementGroupItem`s (newest first). |
 | [MeasurementGroupItem.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementGroupItem.kt) | Custom view: one group (date, carrier, type, upload status, 3 results). |
 | [MeasurementGroupItemViewModel.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementGroupItemViewModel.kt) | Remembers which group items are expanded. |
@@ -235,7 +241,7 @@ Status "pending" means the file or change exists only in the working tree of bra
 
 | Location | Contents |
 |---|---|
-| [app/src/test](../../app/src/test/java/edu/gatech/cc/cellwatch/) | JVM unit tests: `RedactSecretsTest`, `MeasurementUploaderTest`, `LocalPortHeadersTest` (pending). |
+| [app/src/test](../../app/src/test/java/edu/gatech/cc/cellwatch/) | JVM unit tests: `RedactSecretsTest`, `MeasurementUploaderTest`; `ServerSelectionTest` and `OnboardingScreenTest` (#136). `LocalPortHeadersTest` is client-port-header only. |
 | [app/src/androidTest](../../app/src/androidTest/java/edu/gatech/cc/cellwatch/) | Instrumented: DAO tests, serialization, cells, latency/throughput tests. |
 
 See [../dev/testing.md](../dev/testing.md) for how to run them.
