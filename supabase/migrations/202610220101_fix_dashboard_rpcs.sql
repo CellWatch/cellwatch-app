@@ -1,3 +1,5 @@
+begin;
+
 -- Fixes for the map dashboard's RPCs.
 --
 -- rpc_group_detail(group_id): its parameter has the same name as the measurements.group_id
@@ -362,3 +364,5 @@ select jsonb_build_object(
 )
 from f;
 $$;
+
+commit;

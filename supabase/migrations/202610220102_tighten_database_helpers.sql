@@ -1,3 +1,5 @@
+begin;
+
 -- Small fixes to database helpers and grants.
 
 -- public.log_user_data() inserts into a log_table that does not exist, and no trigger uses it.
@@ -31,3 +33,5 @@ revoke truncate on table
 from anon, authenticated;
 
 alter default privileges for role postgres in schema public revoke truncate on tables from anon, authenticated;
+
+commit;
