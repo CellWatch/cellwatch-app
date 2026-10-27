@@ -1,5 +1,5 @@
 -- Tests for the FCC retry queue after the 2026-10-21 migrations: per-entry commits and
--- duplicate_test_id (#117), the provider block reason (#118), holding submissions the FCC
+-- duplicate_test_id (#117), blocking a blank provider (#118), holding submissions the FCC
 -- rejects (#124, #125), and expiry, health views and the digest (#119). Run by
 -- supabase/db_tests/run.sh in a throwaway container. The real posting code runs, but a
 -- stand-in replaces the HTTP request, so nothing is sent anywhere.
@@ -8,7 +8,6 @@ set client_min_messages = notice;
 
 \i /db_tests/lib/fcc_schema.sql
 \i /migrations/202610210101_build_fcc_payload_per_submission.sql
-\i /migrations/202610210102_fill_blank_fcc_provider_from_sim.sql
 \i /migrations/202610210103_fcc_retry_queue_processing.sql
 \i /migrations/202610210104_fcc_queue_health.sql
 
@@ -99,7 +98,6 @@ language sql as $$
         private.fcc_submission_failures, public.measurements, public.latency_data,
         public.upload_download_data, public.locations, public.cells,
         test_fcc_reply, test_http_log;
-    delete from private.carrier_by_plmn where provider like 'test %';
 $$;
 
 -- Submission ids are passed between the psql steps below as settings.
@@ -271,18 +269,18 @@ begin
 end;
 $$;
 
--- #118: provider checks happen once the data is complete, and say which code is unknown.
+-- #118: provider checks happen once the data is complete, and a blank provider is never
+-- filled in.
 do $$
 declare
     waiting uuid;
-    unknown_code uuid;
-    no_code uuid;
-    sent text;
+    blank uuid;
+    no_provider uuid;
 begin
     perform test_reset();
-    waiting := test_submission(ready => false, provider => '', sim_mnc => '999');
-    unknown_code := test_submission(provider => '', sim_mnc => '999');
-    no_code := test_submission(provider => null, sim_mcc => null, sim_mnc => null);
+    waiting := test_submission(ready => false, provider => '');
+    blank := test_submission(provider => ' ');
+    no_provider := test_submission(provider => null);
 
     perform private.process_fcc_submission_retries(10);
 
@@ -291,27 +289,18 @@ begin
          from private.fcc_submission_retry_queue where submission_id = waiting),
         'an entry without a provider that is still waiting for data keeps waiting');
     perform expect(
-        (select state = 'blocked' and last_error = 'Missing provider (SIM 310/999 not in private.carrier_by_plmn)'
-         from private.fcc_submission_retry_queue where submission_id = unknown_code),
-        'a complete entry with an unknown SIM code is blocked, naming the code');
+        (select state = 'blocked' and last_error = 'Missing provider'
+         from private.fcc_submission_retry_queue where submission_id = blank),
+        'a complete entry with a blank provider is blocked');
     perform expect(
-        (select state = 'blocked' and last_error = 'Missing provider (no SIM code)'
-         from private.fcc_submission_retry_queue where submission_id = no_code),
-        'a complete entry without a SIM code is blocked, saying so');
+        (select state = 'blocked' and last_error = 'Missing provider'
+         from private.fcc_submission_retry_queue where submission_id = no_provider),
+        'a complete entry with a null provider is blocked');
+    perform expect(
+        (select provider = ' ' from public.fcc_submissions where id = blank)
+        and (select provider is null from public.fcc_submissions where id = no_provider),
+        'the job leaves a blank provider as the app sent it');
     perform expect(not exists (select 1 from test_http_log), 'nothing is posted without a provider');
-
-    -- Someone adds the code and releases the entry.
-    insert into private.carrier_by_plmn values ('310', '999', 'test wireless');
-    update private.fcc_submission_retry_queue
-    set state = 'pending', next_attempt_at = now() - interval '1 minute'
-    where submission_id = unknown_code;
-
-    perform private.process_fcc_submission_retries(10);
-
-    select body into sent from test_http_log where submission_id = unknown_code;
-    perform expect(sent::jsonb #>> '{submissions,0,provider_name}' = 'test wireless'
-                   and (select provider = 'test wireless' from public.fcc_submissions where id = unknown_code),
-        'once the code is known, the job fills the provider and posts it');
 end;
 $$;
 
@@ -550,7 +539,7 @@ begin
     perform expect(
         (select entries = 1 from private.fcc_queue_health
          where state = 'blocked' and device_id = device_b
-           and reason = 'Missing provider (SIM 310/999 not in private.carrier_by_plmn)'),
+           and reason = 'Missing provider'),
         'health: blocked entries are counted with their reason');
     perform expect(
         (select entries = 1 from private.fcc_queue_health
@@ -570,7 +559,7 @@ begin
     raise notice 'digest example:%', E'\n' || digest;
     perform expect(digest like 'FCC submission queue, %' and digest like '%In the queue: 3 pending, 1 held, 1 blocked, 2 expired%',
         'digest: counts by state');
-    perform expect(digest like format('%%Blocked, needs a person (1):%%- %s (device %s, queued %%): Missing provider (SIM 310/999 not in private.carrier_by_plmn)%%',
+    perform expect(digest like format('%%Blocked, needs a person (1):%%- %s (device %s, queued %%): Missing provider%%',
                                       blocked, left(device_b::text, 8)),
         'digest: lists each blocked entry with its reason');
     perform expect(digest like format('%%Pending for more than 3 days (2):%%- device %s: 2, oldest queued %%: Waiting for complete%%', left(device_a::text, 8)),

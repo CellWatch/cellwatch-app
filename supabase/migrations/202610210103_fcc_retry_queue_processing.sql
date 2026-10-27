@@ -24,9 +24,8 @@ begin;
 --     The submission is marked submitted, with a note in submission_response, and leaves
 --     the queue instead of being blocked.
 --   * Readiness is checked before the provider, so an entry whose measurements never
---     arrive isn't blocked as needing a human (#119). A blank provider is filled from
---     private.carrier_by_plmn when the SIM code is known by now; otherwise the block reason
---     names the code (#118).
+--     arrive isn't blocked as needing a human (#119). A complete entry with a blank provider
+--     is still blocked as 'Missing provider'; the provider is never filled in (#118).
 --   * New queue state 'held': complete submissions the FCC is known to reject, or that fall
 --     short of the spec, kept until there is a way to send them. They aren't posted or
 --     checked again until someone sets them back to 'pending'. 'blocked' still means a person
@@ -170,7 +169,6 @@ declare
     item private.fcc_submission_retry_queue%rowtype;
     sub record;
     hold_reason text;
-    filled_provider text;
     error_text text;
     response_text text;
     new_attempt_count integer;
@@ -243,39 +241,20 @@ begin
         end if;
 
         -- A missing provider requires repair, not repeated FCC requests.
-        select s.provider, s.sim_country_code, s.sim_network_code
+        select s.provider
         into sub
         from public.fcc_submissions s
         where s.id = item.submission_id;
 
         if nullif(btrim(sub.provider), '') is null then
-            -- Changed: fill it if the SIM code has been added to the table since the
-            -- submission arrived, and otherwise say which code is unknown.
-            filled_provider := private.fcc_provider_for_sim(sub.sim_country_code, sub.sim_network_code);
+            update private.fcc_submission_retry_queue
+            set
+                state = 'blocked',
+                last_error = 'Missing provider',
+                updated_on = now()
+            where submission_id = item.submission_id;
 
-            if filled_provider is null then
-                update private.fcc_submission_retry_queue
-                set
-                    state = 'blocked',
-                    last_error = case
-                        when nullif(btrim(sub.sim_country_code), '') is null
-                          or nullif(btrim(sub.sim_network_code), '') is null
-                            then 'Missing provider (no SIM code)'
-                        else format(
-                            'Missing provider (SIM %s/%s not in private.carrier_by_plmn)',
-                            btrim(sub.sim_country_code),
-                            btrim(sub.sim_network_code)
-                        )
-                    end,
-                    updated_on = now()
-                where submission_id = item.submission_id;
-
-                return 'blocked';
-            end if;
-
-            update public.fcc_submissions
-            set provider = filled_provider
-            where id = item.submission_id;
+            return 'blocked';
         end if;
 
         if private.post_fcc_submission(

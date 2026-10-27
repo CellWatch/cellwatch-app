@@ -8,7 +8,6 @@ set client_min_messages = notice;
 -- these scenarios run through process_fcc_submission_retries, which is kept for manual use.
 \i /db_tests/lib/fcc_schema.sql
 \i /migrations/202610210101_build_fcc_payload_per_submission.sql
-\i /migrations/202610210102_fill_blank_fcc_provider_from_sim.sql
 \i /migrations/202610210103_fcc_retry_queue_processing.sql
 
 -- These tests queue entries themselves.
