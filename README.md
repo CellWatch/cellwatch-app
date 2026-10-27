@@ -43,7 +43,7 @@ cd cellwatch-app
 ```bash
 cd supabase
 supabase start
-supabase db reset   # loads full_schema.sql and seed.sql
+supabase db reset   # applies supabase/migrations and seed.sql; see supabase/README.md, "Local stack"
 ```
 
 ### Build & install Android app
@@ -118,7 +118,9 @@ supabase start
 supabase db reset
 ```
 
-> `full_schema.sql` creates tables/views/indexes; `post_fcc_submission_func.sql` registers server-side logic for grouping/exports; `seed.sql` adds minimal sample data.
+> `full_schema.sql` is a snapshot of the live schema, and `supabase db reset` doesn't load it. Changes to the
+> live database are migrations in `supabase/migrations`, tested with `supabase/db_tests/run.sh`.
+> `supabase/check_drift.sh` compares the live project with the repo. See supabase/README.md.
 
 **Safety tip:** If you generate or update migration dumps, inspect for unintended data:
 ```bash
@@ -189,6 +191,74 @@ ggshield secret scan repo .
 
 # CI will run: ggshield secret scan ci
 ```
+
+---
+
+## Versioning
+
+The app has two version fields in `app/build.gradle`:
+
+| Field | Who sees it | Rule |
+|---|---|---|
+| `versionCode` | Google Play | Integer. Increase by 1 for every build uploaded to Play; Play rejects a code it has already seen. |
+| `versionName` | The FCC, users, our server | Sent as `app_version` in every measurement and FCC submission, shown in Settings, and used in the User-Agent (`CellWatch/<versionName>`). |
+
+`app_version` is read from `BuildConfig.VERSION_NAME` in `MeasurementTest.kt` and from the installed package's
+`versionName` (via `EasyAppMod`) in `MeasurementManager.kt`. Both resolve to `versionName`.
+
+### Why `versionName` is constrained
+
+BDC spec §5.1.2 (Data Specifications for Mobile Speed Test Data, rev. 2.2, July 2025) says `app_version` is
+required and "must match an approved App Version string" when `submission_category` is Consumer Challenge or
+Consumer Crowdsourced. CellWatch submits Consumer Challenge. A `versionName` the FCC doesn't recognise can get
+every submission rejected.
+
+What we know about the approved strings:
+- During approval (#97) the FCC set the **Demo** allow list to `1.*`.
+- The repo has no record of the **Prod** allow list, or of whether a new `1.x` string needs approval.
+
+### History
+
+- `1.0.0-alpha.0` to `1.0.0-beta.2` (2024): `versionName` bumped and tagged (`v1.0.0-alpha.1` ... `v1.0.0-beta.2`)
+  with every release.
+- `1.0.0` (versionCode 8, Nov 2024, tag `v1.0.0`).
+- versionCodes 9-13 (the last one in Oct 2025) all kept `1.0.0` and have no tags. As a result, server rows since
+  Nov 2024 can't be traced to a build.
+- `public.fix_jitter()` (supabase/full_schema.sql) treats `app_version` null or `1.0.0-alpha.2`/`.3`/`.4` as old
+  builds and corrects their jitter. Never reuse those strings.
+
+### Policy (proposal, pending team sign-off and the FCC's answer below)
+
+`versionName` follows `MAJOR.MINOR.PATCH`. The bump depends on whether the change touches what the FCC approved:
+
+- **MAJOR**: changes the measurement methodology or the submitted data. Examples: the test protocol or servers,
+  test durations, how throughput, latency or `success_flag` are computed, which fields are collected, or how a
+  submission is formed. The FCC/OET must review it before release, and it will need a new approved string,
+  because `2.*` doesn't match `1.*`.
+- **MINOR**: user-visible features that don't change measurement or submission semantics, such as UI, history,
+  export or translations.
+- **PATCH**: fixes that leave measurement semantics alone, such as upload reliability, crashes, or filling a
+  required field the spec already defines (for example, the carrier-name fallback).
+- `versionCode` increases by 1 with every Play upload, including uploads where `versionName` doesn't change.
+- Pre-release suffixes (`-beta.N`) are only for builds that never submit to the FCC's production system. We
+  don't know how the FCC matches `1.*` against suffixed strings.
+
+**Open question for the FCC** (blocks #122): does a new `versionName` inside `1.x` (for example `1.0.1` or
+`1.1.0`) need approval, and does the Prod allow list match `1.*` like Demo? **Until they answer, bump only
+`versionCode` and keep `versionName` at `1.0.0`.** That release then can't be told apart from earlier builds
+in the server data. Record its `versionCode` in the Git tag instead (see below).
+
+### Tagging a release
+
+Make one commit that bumps the version, with the subject `Release v<versionName> (versionCode <N>)`, and add an
+annotated tag:
+
+```bash
+git tag -a v1.0.0+14 -m "versionCode 14: upload and carrier fixes"   # versionName unchanged: add +<versionCode>
+git tag -a v1.0.1 -m "..."                                            # versionName changed
+```
+
+See CONTRIBUTING.md, "Release & tagging".
 
 ---
 
