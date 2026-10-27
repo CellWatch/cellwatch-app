@@ -32,7 +32,7 @@ Migrations that are not on main. None of them is pushed to prod:
 |---|---|
 | `202609300001_track_live_fcc_queue_and_role_settings.sql` | Open PR #134. Records the queue table, queue-only trigger, and role settings that were made by hand on prod |
 | `202610210001_fast_upload_rls.sql` | Open PR #132. Upload RLS fix and `measurements(device_id)` index ([performance-notes](performance-notes.md#1-upload-cost-grows-with-device-history)) |
-| `202610210101` to `202610210104` | Open PR #133. Per-submission FCC payload and `measurements(group_id)` index, provider fill from SIM codes, queue processing, queue health |
+| `202610210101`, `0103`, `0104` | Open PR #133. Per-submission FCC payload and `measurements(group_id)` index, queue processing, queue health (no `0102`: blank carrier names are not filled in) |
 | `202610130001_record_local_ports.sql` | Uncommitted on the `client-port-header` branch, with its test `db_tests/local_ports_test.sql` |
 | `202610220001_retry_safe_device_registration.sql` | Unpushed local branch `register-device-retry`. Must be pushed to prod before any app release that includes the matching app change |
 

@@ -190,7 +190,7 @@ set state = 'pending', next_attempt_at = now(), updated_on = now()
 where submission_id = '<id>';
 ```
 
-Further queue changes (queue-health views, per-submission payload build, provider fill from SIM codes) are in open PR #133 (migrations `202610210101` to `202610210104`). They are not on main and not pushed to prod; the prod deploy runbook (`prod-deploy-runbook.md`, a local file not in git) describes pushing them.
+Further queue changes (queue-health views, per-submission payload build, per-post commits, held and expired states) are in open PR #133 (migrations `202610210101`, `0103` and `0104`; it no longer has a `0102`, since blank carrier names are not filled in). They are not on main and not pushed to prod; the prod deploy runbook (`prod-deploy-runbook.md`, a local file not in git) describes pushing them.
 
 ## History
 
