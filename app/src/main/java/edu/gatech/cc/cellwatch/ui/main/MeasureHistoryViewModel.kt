@@ -4,15 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.data.model.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
-import java.io.FileDescriptor
-import java.io.FileOutputStream
+import java.io.OutputStream
 import edu.gatech.cc.cellwatch.data.core.repositories.SettingsRepository
 
 @Serializable
@@ -40,28 +41,27 @@ class MeasureHistoryViewModel : ViewModel() {
         }
     }
 
-    fun exportData(fd: FileDescriptor) {
-        viewModelScope.launch {
-            val validGroups = groups.value.filter { it.submission != null }
-            val exports = validGroups.mapNotNull { it.toFccSubmissionExport() }
+    /** Writes the FCC export JSON to [out]. The caller keeps [out] open until this returns. */
+    suspend fun exportData(out: OutputStream) {
+        val validGroups = groups.value.filter { it.submission != null }
+        val exports = validGroups.mapNotNull { it.toFccSubmissionExport() }
 
-            val representative = validGroups.firstOrNull()?.submission
+        val representative = validGroups.firstOrNull()?.submission
 
-            val exportBundle = FccSubmissionExportBundle(
-                contact = Contact(
-                    name = CellWatchApp.settingsRepository.getName(),
-                    email = CellWatchApp.settingsRepository.getEmail(),
-                    phone = CellWatchApp.settingsRepository.getPhoneNumber()
-                ),
-                submission_category = representative?.submission ?: "Consumer Challenge",
-                submissions = exports
-            )
+        val exportBundle = FccSubmissionExportBundle(
+            contact = Contact(
+                name = CellWatchApp.settingsRepository.getName(),
+                email = CellWatchApp.settingsRepository.getEmail(),
+                phone = CellWatchApp.settingsRepository.getPhoneNumber()
+            ),
+            submission_category = representative?.submission ?: "Consumer Challenge",
+            submissions = exports
+        )
 
-            FileOutputStream(fd).use {
-                Json { prettyPrint = true
-                       encodeDefaults = true
-                       explicitNulls = true  }.encodeToStream(exportBundle, it)
-            }
+        withContext(Dispatchers.IO) {
+            Json { prettyPrint = true
+                   encodeDefaults = true
+                   explicitNulls = true  }.encodeToStream(exportBundle, out)
         }
     }
 }

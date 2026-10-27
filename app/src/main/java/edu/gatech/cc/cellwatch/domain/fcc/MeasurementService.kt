@@ -137,10 +137,9 @@ MeasurementService: Service() {
             Log.e(TAG, "running test failed", e)
             lastErrorMessage = e.message ?: e.toString()
             lastErrorCode = HttpUtil.code(e, lastErrorMessage)
-            releaseWakeLock()
         } finally {
+            // The wake lock is released once, by onStartCommand, after this returns.
             state.update { State.DONE }
-            wakeLock.release()
         }
     }
 
