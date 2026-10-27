@@ -31,7 +31,7 @@ class MeasureActivity : AppCompatActivity() {
     private val TAG = this::class.simpleName
     private lateinit var binding: ActivityMeasureBinding
     private lateinit var model: MeasureViewModel
-    private var backPressedCallback: OnBackPressedCallback? = null
+    private lateinit var backPressedCallback: OnBackPressedCallback
     private var boundToService = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,6 +48,7 @@ class MeasureActivity : AppCompatActivity() {
         binding.toolbar.setNavigationOnClickListener {binding.root.openDrawer(GravityCompat.START) }
 
         model = ViewModelProvider(this)[MeasureViewModel::class.java]
+        backPressedCallback = onBackPressedDispatcher.addCallback(this, enabled = false) { /* do nothing! */ }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 model.state.collect { handleMeasureStateUpdate(it.progress) }
@@ -111,13 +112,16 @@ class MeasureActivity : AppCompatActivity() {
         when (progress) {
             MeasureViewModel.MeasureProgress.PRE -> if (currentFragment !is PreMeasureFragment) {
                 supportFragmentManager.commit { replace(R.id.fragment_container, PreMeasureFragment()) }
-                backPressedCallback?.remove()
             }
             else -> if (currentFragment !is MeasureFragment){
-                backPressedCallback = onBackPressedDispatcher.addCallback { /* do nothing! */ }
                 supportFragmentManager.commit { replace(R.id.fragment_container, MeasureFragment()) }
             }
         }
+
+        // Back does nothing from the start of a test until the next one is set up. This follows the
+        // state rather than the fragment change, so it still holds when the activity is recreated
+        // mid-test, e.g. when it's rotated on a large screen, where Android 16 ignores the portrait lock.
+        backPressedCallback.isEnabled = progress != MeasureViewModel.MeasureProgress.PRE
 
         binding.toolbar.isVisible = progress === MeasureViewModel.MeasureProgress.PRE
     }

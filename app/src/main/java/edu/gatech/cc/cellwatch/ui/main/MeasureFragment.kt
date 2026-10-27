@@ -16,6 +16,10 @@ import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.databinding.FragmentMeasureBinding
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class MeasureFragment : Fragment() {
@@ -42,6 +46,19 @@ class MeasureFragment : Fragment() {
             collectionMode = CellWatchApp.settingsRepository.getCollectionMode()
 
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // The time left counts down even when the state does not change, so redraw the
+                // steps twice a second while a measurement runs. Once it has ended the screen stays
+                // still (redrawing it forever kept accessibility tools from seeing it settle).
+                launch {
+                    model.state.map { MeasureSteps.isRunning(it.progress) }
+                        .distinctUntilChanged()
+                        .collectLatest { running ->
+                            while (running) {
+                                renderSteps()
+                                delay(STEP_TICK_MILLIS)
+                            }
+                        }
+                }
                 model.state.collect { handleStateUpdate(it) }
             }
         }
@@ -87,5 +104,18 @@ class MeasureFragment : Fragment() {
         }
 
         binding.item.updateUploadTime(state.uploadTime)
+        renderSteps()
+    }
+
+    private fun renderSteps() {
+        val progress = model.state.value.progress
+        if (progress == MeasureViewModel.MeasureProgress.PRE) {
+            return
+        }
+        binding.steps.render(progress, model.stepProgress())
+    }
+
+    private companion object {
+        const val STEP_TICK_MILLIS = 500L
     }
 }

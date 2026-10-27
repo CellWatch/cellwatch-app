@@ -12,6 +12,7 @@ import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurement
 import edu.gatech.cc.cellwatch.data.network.model.NetworkMeasurementWithData
 import edu.gatech.cc.cellwatch.data.network.model.asExternalModel
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.SupabaseClientBuilder
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.exceptions.HttpRequestException
 import io.github.jan.supabase.exceptions.RestException
@@ -19,11 +20,16 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.api.createClientPlugin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import okhttp3.OkHttpClient
 import java.io.IOException
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * NetworkMeasurementDatasource is a singleton object representing a network data source with
@@ -41,11 +47,9 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
     private var _client: SupabaseClient? = null // use getClient(), not this field!
     private val clientLock = Mutex()
     private suspend fun getClient(): SupabaseClient {
-        // Only allow one attempt to create a client at a time to avoid registration errors (i.e.,
-        // one thread registers and then another also tries to register but gets an error because
-        // the same id was already registered by the first thread). Once the lock is acquired, do a
-        // second check for a non-null _client just in case another thread set it while we were
-        // waiting.
+        // Only allow one attempt to create a client at a time, so two threads don't each make and
+        // register a secret. Once the lock is acquired, do a second check for a non-null _client
+        // just in case another thread set it while we were waiting.
         return _client ?: clientLock.withLock {
             var client = _client
             if (client != null) {
@@ -53,13 +57,14 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
             }
 
             val deviceId = localDataStore.getDeviceId.first()
-            val deviceSecret = localDataStore.getDeviceSecret.first() ?: registerDevice(deviceId)
+            val deviceSecret = registeredDeviceSecret(credentials) { registerDevice(deviceId, it) }
 
             client = createSupabaseClient(
                 supabaseUrl = supabaseUrl,
                 supabaseKey = supabaseApiKey
             ) {
                 install(Postgrest)
+                allowSlowRequests()
 
                 httpConfig {
                     install(createClientPlugin("DeviceHeaderPlugin") {
@@ -76,15 +81,21 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
         }
     }
 
-    private suspend fun registerDevice(id: String): String {
+    private val credentials = object : DeviceCredentials {
+        override suspend fun secret() = localDataStore.getDeviceSecret.first()
+        override suspend fun saveSecret(secret: String) = localDataStore.saveDeviceSecret(secret)
+        override suspend fun isRegistered() = localDataStore.getDeviceRegistered.first()
+        override suspend fun markRegistered() = localDataStore.saveDeviceRegistered(true)
+    }
+
+    private suspend fun registerDevice(id: String, secret: String) {
         try {
-            val client = createSupabaseClient(supabaseUrl, supabaseApiKey) { install(Postgrest) }
-            val secret = client.postgrest
-                .rpc("register_device", mapOf("device_id" to id))
-                .decodeAs<String>()
-            localDataStore.saveDeviceSecret(secret)
+            val client = createSupabaseClient(supabaseUrl, supabaseApiKey) {
+                install(Postgrest)
+                allowSlowRequests()
+            }
+            requestDeviceRegistration(client, id, secret)
             Log.i(TAG, "device registered with id $id")
-            return secret
         } catch (e: Exception) {
             Log.i(TAG, "device registration failed for id $id", e)
             throw e
@@ -157,4 +168,34 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
     class NetworkError(cause: Exception? = null): IOException(cause)
     class DuplicateKeyError(cause: Exception? = null): Exception(cause)
     class NotFoundError(cause: Exception? = null): Exception(cause)
+}
+
+/**
+ * How long a request made while uploading may take, connecting included: the Supabase requests,
+ * and the TCP tuple fetch before FCC submissions. supabase-kt and OkHttp give up after 10 s, which
+ * uploads over a weak signal or to a slow server often need more than, so the same records failed
+ * and were resent run after run. A minute leaves room for both, while a request that has stalled
+ * still frees its upload slot well within WorkManager's 10 minute limit on a run.
+ */
+private val REQUEST_TIMEOUT = 60.seconds
+
+internal fun SupabaseClientBuilder.allowSlowRequests(timeout: Duration = REQUEST_TIMEOUT) {
+    requestTimeout = timeout
+    httpConfig {
+        // Ktor's CIO engine otherwise gives up connecting after 5 s. Ktor merges this with the
+        // HttpTimeout settings supabase-kt installs, so the request timeout above still applies.
+        install(HttpTimeout) { connectTimeoutMillis = timeout.inWholeMilliseconds }
+    }
+}
+
+/**
+ * The same limit for an OkHttp client. OkHttp otherwise gives up after 10 s connecting, or after 10 s
+ * without data while sending or receiving, and sets no limit on the whole call.
+ */
+internal fun OkHttpClient.Builder.allowSlowRequests(timeout: Duration = REQUEST_TIMEOUT): OkHttpClient.Builder {
+    val millis = timeout.inWholeMilliseconds
+    return connectTimeout(millis, TimeUnit.MILLISECONDS)
+        .readTimeout(millis, TimeUnit.MILLISECONDS)
+        .writeTimeout(millis, TimeUnit.MILLISECONDS)
+        .callTimeout(millis, TimeUnit.MILLISECONDS)
 }

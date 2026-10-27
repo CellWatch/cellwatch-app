@@ -15,12 +15,12 @@ cellwatchProperties.load(new FileInputStream(cellwatchPropertiesFile))
 
 android {
     namespace 'edu.gatech.cc.cellwatch'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "edu.gatech.cc.cellwatch"
         minSdk 29
-        targetSdk 35
+        targetSdk 36
         versionCode 13
         versionName "1.0.0"
 
@@ -72,6 +72,7 @@ android {
     }
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
 
     packagingOptions {
@@ -103,6 +104,8 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_version"
     // LiveData
     implementation "androidx.lifecycle:lifecycle-livedata-ktx:$lifecycle_version"
+    // Uploading when the app comes to the foreground
+    implementation "androidx.lifecycle:lifecycle-process:$lifecycle_version"
     // Background uploads
     implementation "androidx.work:work-runtime-ktx:2.9.1"
 

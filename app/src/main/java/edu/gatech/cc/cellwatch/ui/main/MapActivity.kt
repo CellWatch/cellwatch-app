@@ -14,6 +14,7 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.graphics.drawable.toBitmap
@@ -87,7 +88,6 @@ import com.mapbox.search.ui.view.SearchResultsView
 import edu.gatech.cc.cellwatch.CellWatchApp
 import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.core.util.Log
-import edu.gatech.cc.cellwatch.data.core.sync.UploadWorker
 import edu.gatech.cc.cellwatch.databinding.ActivityMapBinding
 import edu.gatech.cc.cellwatch.domain.map.managers.H3Manager
 import kotlinx.coroutines.CoroutineScope
@@ -144,6 +144,10 @@ class MapActivity : AppCompatActivity() {
 
         binding = ActivityMapBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Back hides the search results and otherwise stays on the map. This was an onBackPressed()
+        // override, which Android 16 no longer calls for apps that target it.
+        onBackPressedDispatcher.addCallback(this) { hideSearchResultsView() }
 
         model = ViewModelProvider(this)[MapViewModel::class.java]
         groupItemModel = ViewModelProvider(this)[MeasurementGroupItemViewModel::class.java]
@@ -231,8 +235,6 @@ class MapActivity : AppCompatActivity() {
                 toggleHexGrid(binding.h3ToggleSwitch.isChecked)
             }
         }
-
-        UploadWorker.enqueue(this)
 
         // Search Implementation
         searchResultsView = binding.searchResultsView.apply {
@@ -362,10 +364,6 @@ class MapActivity : AppCompatActivity() {
                 startActivity(intent)
             }
         })
-    }
-
-    override fun onBackPressed() {
-        hideSearchResultsView()
     }
 
     private fun hideSearchResultsView() {

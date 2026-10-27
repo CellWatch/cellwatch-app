@@ -20,7 +20,9 @@ import edu.gatech.cc.cellwatch.data.model.MeasurementGroup
 import edu.gatech.cc.cellwatch.data.model.TcpTuple
 import edu.gatech.cc.cellwatch.data.model.asEntity
 import edu.gatech.cc.cellwatch.data.model.asEntityWithData
+import edu.gatech.cc.cellwatch.data.model.uploadTime
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
+import edu.gatech.cc.cellwatch.data.network.allowSlowRequests
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -119,27 +121,10 @@ class MeasurementRepository(
     }
 
     @WorkerThread
-    suspend fun getUploadTime(group: MeasurementGroup): Instant? {
-        val measurementId = group.latency?.id ?: group.download?.id ?: group.upload?.id
-        val submissionId = group.submission?.id
-
-        val measurementTime = measurementId?.let { measurementDao.getMeasurementById(it).uploadTime }
-        val submissionTime = submissionId?.let { submissionDao.getFccSubmissionById(it).uploadTime }
-
-        if (measurementId == null) {
-            return submissionTime
-        }
-
-        if (submissionId == null) {
-            return measurementTime
-        }
-
-        if (measurementTime == null || submissionTime == null) {
-            return null
-        }
-
-        return maxOf(measurementTime, submissionTime)
-    }
+    suspend fun getUploadTime(group: MeasurementGroup): Instant? = group.uploadTime(
+        measurementUploadTime = { measurementDao.getMeasurementById(it.id).uploadTime },
+        submissionUploadTime = { submissionDao.getFccSubmissionById(it.id).uploadTime },
+    )
 
     /**
      * Emits the group's upload time whenever local upload state changes, which is null until the
@@ -192,13 +177,12 @@ class MeasurementRepository(
     private suspend fun getPubicTCPTuple(
         serviceUrl: String = BuildConfig.TCP_TUPLE_URL,
     ): TcpTuple = suspendCoroutine { continuation ->
-        val client = OkHttpClient.Builder().build()
         val request = Request.Builder()
             .url(serviceUrl)
             .header("User-Agent", CellWatchApp.userAgent)
             .build()
 
-        client.newCall(request).enqueue(object : Callback {
+        tcpTupleClient.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.i(TAG, "tcp tuple request failure: $call", e)
                 continuation.resumeWithException(e)
@@ -225,3 +209,9 @@ class MeasurementRepository(
         })
     }
 }
+
+/**
+ * The client for the TCP tuple fetch before FCC submissions, which waits as long as the Supabase
+ * requests do. One client for every fetch, as OkHttp recommends.
+ */
+internal val tcpTupleClient: OkHttpClient by lazy { OkHttpClient.Builder().allowSlowRequests().build() }

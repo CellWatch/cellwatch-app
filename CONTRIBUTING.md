@@ -20,12 +20,12 @@ Thanks for considering a contribution! This guide explains how to set up your en
 
 ## Project layout
 ```
-/app        Android app (Kotlin, Gradle, minSdk 29, targetSdk 34)
+/app        Android app (Kotlin, Gradle, minSdk 29, targetSdk 36)
 /supabase   Local Supabase project (config.toml, full_schema.sql, post_fcc_submission_func.sql, seed.sql)
 ```
 
 ## Prerequisites
-- Android Studio Giraffe+ with JDK 17
+- Android Studio Meerkat (2024.3.1 Patch 1) or newer, with JDK 17
 - Docker + Supabase CLI (`supabase >= 1.180`)
 
 ## Local setup

@@ -91,6 +91,22 @@
     <string name="cancel">Cancel</string>
     <string name="measurement_complete">Measurement complete</string>
     <string name="measurement_failed">Measurement failed</string>
+    <!-- step indicator on the measure screen; %3$s is one of latency/download/upload above -->
+    <string name="measure_steps_current">Step %1$d of %2$d: %3$s</string>
+    <string name="measure_steps_preparing">Getting ready</string>
+    <string name="measure_steps_seconds_left">About %1$d seconds left</string>
+    <string name="measure_steps_almost_done">Almost done</string>
+    <string name="measure_steps_all_done">All steps complete</string>
+    <string name="measure_steps_some_failed">Some steps did not succeed</string>
+    <string name="measure_steps_stopped_at">Stopped at step %1$d of %2$d: %3$s</string>
+    <string name="measure_steps_stopped">Measurement stopped</string>
+    <string name="measure_steps_progress">Measurement progress</string>
+    <!-- read by screen readers for each step, e.g. "Step 2, Download: in progress" -->
+    <string name="measure_step_description">Step %1$d, %2$s: %3$s</string>
+    <string name="measure_step_pending">not started</string>
+    <string name="measure_step_running">in progress</string>
+    <string name="measure_step_done">done</string>
+    <string name="measure_step_failed">failed</string>
     <string name="hex_index">Hex %1$s</string>
     <string name="latlon">%1$.6f, %2$.6f</string>
     <string name="no">No</string>

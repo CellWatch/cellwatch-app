@@ -125,13 +125,7 @@ object TelephonyInfoManager {
     }
 
     fun getProviderName(): String {
-        return (telephonyManager.networkOperatorName
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?: telephonyManager.simOperatorName
-                ?.trim()
-                ?.takeIf { it.isNotEmpty() }
-            ?: "unknown").lowercase()
+        return telephonyManager.networkOperatorName?.lowercase()?.trim() ?: "unknown"
     }
 
     fun getConnectionType(): NetworkConnectionType {

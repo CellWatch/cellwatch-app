@@ -22,6 +22,7 @@ class LocalDataStore(private val context: Context) {
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("data_store")
         private val DEVICE_ID = stringPreferencesKey("device_id")
         private val DEVICE_SECRET = stringPreferencesKey("device_secret")
+        private val DEVICE_REGISTERED = booleanPreferencesKey("device_registered")
         private val COLLECTION_MODE = stringPreferencesKey("collection_mode")
         private val FCC_POLICY_AGREED = booleanPreferencesKey("fcc_policy_agreed")
         private val USER_NAME = stringPreferencesKey("user_name")
@@ -48,6 +49,17 @@ class LocalDataStore(private val context: Context) {
     suspend fun saveDeviceSecret(secret: String) {
         context.dataStore.edit { preferences ->
             preferences[DEVICE_SECRET] = Encryptor.encrypt(secret)
+        }
+    }
+
+    /** Whether the server has confirmed the device secret. */
+    val getDeviceRegistered: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[DEVICE_REGISTERED] ?: false
+    }
+
+    suspend fun saveDeviceRegistered(registered: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[DEVICE_REGISTERED] = registered
         }
     }
 
