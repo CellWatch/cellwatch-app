@@ -33,6 +33,7 @@ A unique-violation error (`duplicate key value violates unique constraint`) beco
 - Returns the plaintext secret **once**. If the id already exists, it raises `device id % already registered`.
 - No auth required: anyone with the anon key can register a new id.
 - If the phone loses the response, that device id can never be registered again. A fix is on an unpushed local branch, `register-device-retry` (migration `202610220001_retry_safe_device_registration.sql`, which adds a `register_device(device_id, device_secret)` overload; not on main, not pushed to prod). That migration must be pushed to prod before any app release that includes the fix ([migrations-and-deploy](migrations-and-deploy.md#ordering-rule-server-first)).
+- With `202610220001`, both versions replace the secret of a device that has never uploaded anything (no measurements, no FCC submissions), after waiting for that device's uploads in progress (see [identity-and-security](../architecture/identity-and-security.md)). `private.device_has_uploaded(uuid)`, which they use, is not callable by other roles.
 
 ### `insert_measurement`
 
