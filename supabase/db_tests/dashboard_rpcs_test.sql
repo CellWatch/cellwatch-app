@@ -182,6 +182,37 @@ begin
     raise notice 'ok: dashboard RPCs report latency in milliseconds';
 end $$;
 
+-- Speed fallback: a row with only bytes and duration (duration in microseconds, as the app
+-- stores it) must be converted to seconds. Group C: 25 MB downloaded in 10 s = 20 Mbit/s.
+-- (From PR #149.)
+insert into public.measurements values
+    ('c0000000-0000-0000-0000-00000000000d', 'cccccccc-0000-0000-0000-000000000000', 'Carrier C', 'download', '2026-10-03 12:00+00');
+insert into public.locations (measurement_id, lat, lon, accuracy) values
+    ('c0000000-0000-0000-0000-00000000000d', 33.79, -84.41, 5);
+insert into public.upload_download_data (measurement_id, duration, bytes) values
+    ('c0000000-0000-0000-0000-00000000000d', 10000000, 25000000);
+
+do $$
+declare
+    d jsonb := public.rpc_group_detail('cccccccc-0000-0000-0000-000000000000');
+    s jsonb;
+    p jsonb;
+begin
+    select x into s from public.rpc_group_summaries(-180, -90, 180, 90) x
+        where x->>'group_id' = 'cccccccc-0000-0000-0000-000000000000';
+    select x into p from public.rpc_map_points(-180, -90, 180, 90) x
+        where x->>'group_id' = 'cccccccc-0000-0000-0000-000000000000';
+
+    if (d->'tests'->'download'->>'mbps')::numeric <> 20
+        or (s->>'dl_mbps')::numeric <> 20
+        or (p->'stats'->>'down_mbps')::numeric <> 20
+    then
+        raise exception 'bytes/duration fallback is not 20 Mbit/s: detail %, summary %, point %',
+            d->'tests'->'download'->>'mbps', s->>'dl_mbps', p->'stats'->>'down_mbps';
+    end if;
+    raise notice 'ok: speeds computed from bytes and duration (microseconds) are correct';
+end $$;
+
 -- Any login role may call the RPCs, and readonly_user can read the dashboard secret. A
 -- caller's temporary types must not run as the RPCs' owner.
 do $$ begin create role test_caller login; exception when duplicate_object then null; end $$;
