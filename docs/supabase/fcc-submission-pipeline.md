@@ -131,6 +131,7 @@ Retried: HTTP 408, 429, 5xx, transport errors, and errors before the POST. Block
 - To send to a test environment:
   1. Add a row for it (the setup comment in `post_fcc_submission_func.sql` shows a `demo` env pointing at the FCC BDC demo host, with the secret created by `vault.create_secret`).
   2. Then either set a queue entry's `fcc_env` to that env, or call `select private.post_fcc_submission('<id>', 'demo');` as a privileged role.
+- With `202610210103`, a direct `post_fcc_submission(<id>, 'prod')` refuses anything the queue would hold or block: it raises `FCC submission <id> is held: <reason>` or `FCC submission <id> has no provider name` before sending. Other environments still take anything, so the FCC's answer to a held payload can be tried on `demo`.
 - Never put the hash value in a migration, a doc, or `cron_jobs.sql`. Keep it in Vault only.
 - The test Supabase project ("CellWatch Test Database", same org) is not an FCC sandbox. Its schema was brought up to match prod on 2026-10-22, except that `trg_auto_post_fcc_submission` is deliberately disabled and pg_cron and pg_graphql aren't installed, so nothing there posts to the FCC. Its `fcc_submission_info` still has a prod row: don't re-enable the trigger there, and don't run the retry function by hand.
 - > TODO: verify which `env` rows exist on the live project (query `select env, url from private.fcc_submission_info`; it is safe because the secret stays in Vault).

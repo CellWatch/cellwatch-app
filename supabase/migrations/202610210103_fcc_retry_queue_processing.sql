@@ -47,6 +47,8 @@ begin;
 --         test we posted (March 2026), but it is short of the spec, so it waits for the FCC
 --         to say one is enough. The same fix listed twice counts as two: that meets the
 --         spec's wording, and the released app lists one fix twice for about 6% of tests.
+--   * private.post_fcc_submission refuses to send the production BDC anything the queue
+--     would hold or block, so a direct call can't post it either.
 --   * New queue state 'expired' (#119): an entry still waiting for its measurements 30
 --     days after it was queued stops being checked. Waiting entries are re-checked hourly
 --     and each check takes one of the job's 10 places per run, so a few hundred entries
@@ -163,6 +165,102 @@ $$
         ),
         ''
     );
+$$;
+
+-- 202610210101's post_fcc_submission with one change: for the 'prod' environment it refuses
+-- what the queue would hold or block (fcc_payload_hold_reason, or a blank provider name),
+-- so a direct call (docs/supabase/fcc-submission-pipeline.md describes one) can't send it
+-- either. Other environments, such as 'demo', still take anything, so the FCC's answer to a
+-- held payload can be tried there. The retry job checks both before it calls this, and
+-- records such an entry as held or blocked instead.
+create or replace function private.post_fcc_submission(sub_id uuid, fcc_env text)
+returns boolean
+language plpgsql
+set search_path = public, private, extensions, pg_temp
+as
+$$
+declare
+    info record;
+    payload jsonb;
+    tests_payload jsonb;
+    hold_reason text;
+    response record;
+begin
+    if not exists (
+        select 1
+        from public.fcc_submissions s
+        where s.id = sub_id
+    ) then
+        raise exception 'no FCC submission found with id %', sub_id;
+    end if;
+
+    if not private.fcc_submission_is_ready(sub_id) then
+        raise exception 'FCC submission % is incomplete; latency, download, and upload data are required', sub_id;
+    end if;
+
+    select i.url, s.decrypted_secret into info
+    from private.fcc_submission_info i
+        join vault.decrypted_secrets s on i.hash_secret_id = s.id
+    where i.env = fcc_env;
+
+    if not found then
+        raise exception 'missing FCC submission info for env %', fcc_env;
+    end if;
+
+    payload := private.fcc_submission_payload(sub_id);
+
+    if payload is null then
+        raise exception 'no FCC submission payload found with id %', sub_id;
+    end if;
+
+    tests_payload := payload #> '{submissions,0,tests}';
+    if jsonb_typeof(tests_payload) is distinct from 'object'
+       or not (tests_payload ?& array['latency', 'download', 'upload']) then
+        raise exception 'FCC submission % produced an incomplete tests payload', sub_id;
+    end if;
+
+    -- Changed: nothing the queue would hold or block goes to the production BDC.
+    if fcc_env = 'prod' then
+        hold_reason := private.fcc_payload_hold_reason(payload);
+        if hold_reason is not null then
+            raise exception 'FCC submission % is held: %', sub_id, hold_reason;
+        end if;
+
+        if nullif(btrim(payload #>> '{submissions,0,provider_name}'), '') is null then
+            raise exception 'FCC submission % has no provider name', sub_id;
+        end if;
+    end if;
+
+    -- Do not log the payload: it contains contact, device, and location data.
+    raise info 'posting FCC submission_id=% env=%', sub_id, fcc_env;
+
+    select h.status, h.content into response
+    from private.fcc_http_post(info.url, info.decrypted_secret, payload::text) h;
+
+    if response.status is null then
+        raise exception 'FCC submission % returned no HTTP status', sub_id;
+    end if;
+
+    if response.status < 200 or response.status >= 300 then
+        raise exception 'FCC HTTP status % for submission %: %',
+            response.status,
+            sub_id,
+            left(coalesce(response.content, ''), 500);
+    end if;
+
+    update public.fcc_submissions set
+        submitted = true,
+        submission = payload,
+        submitted_on = now(),
+        submission_response = response.content
+    where id = sub_id;
+
+    if not found then
+        raise exception 'FCC submission % disappeared before it could be marked submitted', sub_id;
+    end if;
+
+    return true;
+end;
 $$;
 
 -- True when a posting error is the FCC saying it already has this test_id.

@@ -576,6 +576,50 @@ begin
 end;
 $$;
 
+-- A direct call to post_fcc_submission refuses, for prod, what the queue holds or blocks;
+-- the demo environment takes anything.
+insert into vault.secrets (id, name, secret)
+values ('00000000-0000-0000-0000-0000000de300', 'fcc_demo_hash', 'test-demo-hash-value');
+insert into private.fcc_submission_info (env, url, hash_secret_id)
+values ('demo', 'https://bdc-demo.example.invalid/api/challenge', '00000000-0000-0000-0000-0000000de300');
+
+do $$
+declare
+    one_location uuid;
+    no_network uuid;
+    no_provider uuid;
+    refusal text;
+    attempt text[];
+begin
+    perform test_reset();
+    one_location := test_submission(locations_per_test => 1);
+    no_network := test_submission(net_mcc => null, net_mnc => null);
+    no_provider := test_submission(provider => ' ');
+
+    -- Each: the submission, and how the refusal should read after 'FCC submission <id> '.
+    foreach attempt slice 1 in array array[
+        [one_location::text, 'is held: One location:%'],
+        [no_network::text, 'is held: No network registration:%'],
+        [no_provider::text, 'has no provider name']
+    ] loop
+        begin
+            perform private.post_fcc_submission(attempt[1]::uuid, 'prod');
+            refusal := 'posted';
+        exception when others then
+            refusal := sqlerrm;
+        end;
+        perform expect(refusal like format('FCC submission %s %s', attempt[1], attempt[2]),
+            format('a direct post to prod refuses it (%s)', refusal));
+    end loop;
+    perform expect(not exists (select 1 from public.fcc_submissions where submitted)
+                   and not exists (select 1 from test_http_log),
+        'and sends and marks nothing');
+
+    perform expect(private.post_fcc_submission(one_location, 'demo'),
+        'the demo environment takes a payload the queue would hold');
+end;
+$$;
+
 -- readonly_user may run the digest, which runs as its owner. A caller's temporary types must
 -- not run as that owner, in the digest or in fcc_submission_is_ready, which it calls through
 -- fcc_queue_attention for expired entries.
