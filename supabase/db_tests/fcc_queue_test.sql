@@ -576,6 +576,33 @@ begin
 end;
 $$;
 
+-- readonly_user may run the digest, which runs as its owner. A caller's temporary types must
+-- not run as that owner, in the digest or in fcc_submission_is_ready, which it calls through
+-- fcc_queue_attention for expired entries.
+do $$
+declare
+    sub uuid;
+begin
+    perform test_reset();
+    sub := test_submission();
+    update private.fcc_submission_retry_queue set state = 'expired' where submission_id = sub;
+end;
+$$;
+do $$ begin create role test_caller login; exception when duplicate_object then null; end $$;
+grant test_caller to postgres;   -- postgres isn't a superuser in this image, so it needs this to set role
+grant usage on schema private to test_caller;
+grant execute on function private.fcc_queue_digest() to test_caller;
+select current_database() as test_db \gset
+\c :test_db
+set role test_caller;
+\i /db_tests/lib/shadow_types.sql
+select private.fcc_queue_digest() like '%Expired, but their measurements are complete now (1)%' as listed \gset
+select pg_temp.test_shadow_ran_as_owner() as escalated \gset
+reset role;
+\c :test_db
+select expect(:'listed' and not :'escalated',
+    'a caller''s temporary types do not run as the owner of fcc_queue_digest or fcc_submission_is_ready') as ok \gset
+
 -- pg_cron runs each job's command at the top level, so the procedure can commit there.
 -- Checked with pg_cron itself where the image has it (it can only be installed in the
 -- postgres database, and runs jobs in other databases with schedule_in_database).

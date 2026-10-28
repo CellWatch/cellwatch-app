@@ -77,7 +77,7 @@ supabase/db_tests/run.sh      # needs Docker
 |---|---|
 | `fcc_retry_queue_test.sql` | `202610070001`: waiting entries (5 min / 1 h recheck, not counted as attempts), batch of 10, cap at 10, blank provider → blocked, already-sent entries removed, 400 → blocked, 503 → retried in 60 s, 60 s per-run cap, logging |
 | `local_ports_test.sql` (not on main; uncommitted on `client-port-header`) | `202610130001`: header parsing, malformed values → null, `tuple_local_port` range check, `source_port_comparison` counts |
-| `dashboard_rpcs_test.sql` | `202610220101` (#136): detail returns only its group, all three refuse without the dashboard secret, latency in ms |
+| `dashboard_rpcs_test.sql` | `202610220101` (#136): detail returns only its group, all three refuse without the dashboard secret, latency in ms, a caller's temporary types don't run as their owner |
 | `database_helpers_test.sql` | `202610220102` (#136): `log_user_data` dropped, `get_raw_header(item)`, pinned `search_path`, no `TRUNCATE` for app roles |
 
 App-side checks are in [testing](../dev/testing.md).

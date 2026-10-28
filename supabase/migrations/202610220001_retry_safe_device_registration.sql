@@ -28,7 +28,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public, private
+set search_path = public, private, pg_temp
 as
 $$
     select exists (select 1 from public.measurements m where m.device_id = device)
@@ -42,8 +42,10 @@ returns text
 language plpgsql
 security definer
 -- Changed: a fixed search_path, as security definer functions should have. crypt(),
--- gen_salt() and gen_random_bytes() are in extensions.
-set search_path = public, private, extensions
+-- gen_salt() and gen_random_bytes() are in extensions. pg_temp comes last (here and in the
+-- other two functions): otherwise Postgres looks up type names in the caller's temporary
+-- schema first, and a temporary domain named text would run the caller's code as the owner.
+set search_path = public, private, extensions, pg_temp
 as
 $$
 declare
@@ -78,7 +80,7 @@ create or replace function public.register_device(device_id uuid, device_secret 
 returns void
 language plpgsql
 security definer
-set search_path = public, private, extensions
+set search_path = public, private, extensions, pg_temp
 as
 $$
 declare

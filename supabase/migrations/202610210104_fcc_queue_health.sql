@@ -94,12 +94,22 @@ where q.state = 'blocked'
 -- 13:00 UTC is 9:00 in Atlanta during daylight saving time. Without the where clause it
 -- sends every day, even when nothing needs attention. For email, post the same text to
 -- the chosen email API instead.
+--
+-- The digest runs as its owner for whoever calls it (readonly_user), so its search_path ends
+-- in pg_temp: otherwise Postgres looks up type names in the caller's temporary schema first,
+-- and a temporary domain named text would run the caller's code as the owner. Through
+-- fcc_queue_attention it also calls private.fcc_submission_is_ready, whose own search_path
+-- (from the live schema) has the same gap for its m.type::text, so that one gets pg_temp
+-- last too.
+alter function private.fcc_submission_is_ready(uuid)
+    set search_path = public, private, extensions, pg_temp;
+
 create or replace function private.fcc_queue_digest()
 returns text
 language plpgsql
 stable
 security definer
-set search_path = public, private
+set search_path = public, private, pg_temp
 as
 $$
 declare

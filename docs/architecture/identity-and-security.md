@@ -90,6 +90,8 @@ These run with the owner's (`postgres`) rights and bypass RLS:
 > Decided 2026-10-22: the dashboard RPCs are dashboard-only. **Fixed in #136**: migration `202610220101` makes all three raise `42501` unless the request carries the correct `x-dashboard-secret`. Live once `202610220101` is pushed to prod. Before it is pushed, the dashboard backend (the CellWatch/demo-dashboard Flask app on Render) must send `x-dashboard-secret`, from its `DASHBOARD_SECRET` env var, on these calls.
 >
 > `register_device`, `verified_device_id`, `verified_device_id_or_null` and `is_dashboard_request` have no fixed `search_path` on prod. #136 (`202610220102`) pins one; live once pushed.
+>
+> Every SECURITY DEFINER function the 2026-10 migrations add or replace lists `pg_temp` **last** in its `search_path`. If `pg_temp` isn't listed, Postgres searches the caller's temporary schema *first* for table and type names, so any database login that may call the function (`readonly_user`, or any role for `register_device`) could create a temporary domain named `text` or `jsonb` and have its own code run as the function's owner. The db tests reproduce that attack for each function (`db_tests/lib/shadow_types.sql`).
 
 ## Header trust
 

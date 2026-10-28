@@ -157,12 +157,14 @@ $$;
 -- Handles the queue entry that has been due longest and returns what happened to it:
 -- 'waiting', 'expired', 'held', 'blocked', 'posted', 'already_at_fcc' or 'failed'; null when
 -- no entry is due.
--- Changes from the loop body of the 202610070001 version are marked "Changed".
+-- Changes from the loop body of the 202610070001 version are marked "Changed". Like every
+-- security definer function in this file, its search_path ends in pg_temp (see
+-- 202610210101_build_fcc_payload_per_submission.sql for why).
 create or replace function private.process_next_fcc_submission_retry()
 returns text
 language plpgsql
 security definer
-set search_path = public, private, extensions
+set search_path = public, private, extensions, pg_temp
 as
 $$
 declare
@@ -396,7 +398,7 @@ create or replace function private.revive_expired_fcc_submission_retries()
 returns integer
 language plpgsql
 security definer
-set search_path = public, private, extensions
+set search_path = public, private, extensions, pg_temp
 as
 $$
 declare
@@ -427,7 +429,7 @@ create or replace function private.process_fcc_submission_retries(p_batch_size i
 returns integer
 language plpgsql
 security definer
-set search_path to 'public', 'private', 'extensions'
+set search_path to 'public', 'private', 'extensions', 'pg_temp'
 as
 $$
 declare

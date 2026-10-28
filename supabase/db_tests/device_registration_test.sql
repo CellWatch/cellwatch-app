@@ -197,3 +197,20 @@ begin
         'the app''s anonymous role may call the new function');
 end;
 $$;
+
+-- Any login role may call register_device. Its temporary types must not run as the
+-- functions' owner (the second call with the same secret reaches the `hashed text` variable).
+do $$ begin create role test_caller login; exception when duplicate_object then null; end $$;
+grant test_caller to postgres;   -- postgres isn't a superuser in this image, so it needs this to set role
+select current_database() as test_db, gen_random_uuid() as shadow_device \gset
+\c :test_db
+set role test_caller;
+\i /db_tests/lib/shadow_types.sql
+select public.register_device(:'shadow_device', repeat('s', 64)) as ignored \gset
+select public.register_device(:'shadow_device', repeat('s', 64)) as ignored \gset
+select public.register_device(gen_random_uuid()) is not null as released \gset
+select pg_temp.test_shadow_ran_as_owner() as escalated \gset
+reset role;
+\c :test_db
+select expect(:'released' and not :'escalated',
+    'a caller''s temporary types do not run as the owner of register_device') as ok \gset

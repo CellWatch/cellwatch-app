@@ -387,3 +387,28 @@ begin
     end;
 end;
 $$;
+
+-- An unprivileged role that may build payloads (as readonly_user may) must not be able to
+-- run its own code as the function's owner by shadowing a type with a temporary object.
+do $$ begin create role test_caller login; exception when duplicate_object then null; end $$;
+grant test_caller to postgres;   -- postgres isn't a superuser in this image, so it needs this to set role
+grant usage on schema private to test_caller;
+grant execute on function private.fcc_submission_payload(uuid) to test_caller;
+-- Latency only, so the payload falls back to an empty object for the throughput tests, the
+-- one place it names a type ('{}'::jsonb).
+do $$
+begin
+    perform test_latency(test_measurement(test_submission('latency only'), 'latency', '2026-07-11 08:00:00-07'));
+end;
+$$;
+select current_database() as test_db,
+       (select sub_id from test_case where name = 'latency only') as shadow_sub \gset
+\c :test_db
+set role test_caller;
+\i /db_tests/lib/shadow_types.sql
+select private.fcc_submission_payload(:'shadow_sub') is not null as built \gset
+select pg_temp.test_shadow_ran_as_owner() as escalated \gset
+reset role;
+\c :test_db
+select expect(:'built' and not :'escalated',
+    'a caller''s temporary types do not run as the owner of fcc_submission_payload') as ok \gset

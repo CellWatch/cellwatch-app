@@ -11,7 +11,10 @@ begin;
 -- All three are SECURITY DEFINER (they bypass row-level security) and are granted to anon, so
 -- anyone holding the anon key that ships in the app could read every device's locations and
 -- results. They now refuse to run unless the request carries the dashboard's shared secret
--- (x-dashboard-secret), the same check the dashboard RLS policies use.
+-- (x-dashboard-secret), the same check the dashboard RLS policies use. Their search_path now
+-- ends in pg_temp: otherwise Postgres looks up table and type names in the caller's temporary
+-- schema first, and a database login that knows the secret could run its own code as their
+-- owner with a temporary domain named text.
 --
 -- latency_data.rtt and .jitter are in microseconds (the app stores MSAK's values, and the FCC
 -- payload uses the same unit). rpc_map_points already converted them to the milliseconds its
@@ -34,7 +37,7 @@ revoke all on function private.require_dashboard_request() from public;
 
 CREATE OR REPLACE FUNCTION "public"."rpc_group_detail"("group_id" "text") RETURNS "jsonb"
     LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
+    SET "search_path" TO 'public', 'pg_temp'
     AS $$
 select private.require_dashboard_request();
 with m as (
@@ -146,7 +149,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION "public"."rpc_group_summaries"("min_lng" double precision, "min_lat" double precision, "max_lng" double precision, "max_lat" double precision, "t_from" timestamp with time zone DEFAULT NULL::timestamp with time zone, "t_to" timestamp with time zone DEFAULT NULL::timestamp with time zone, "providers" "text"[] DEFAULT NULL::"text"[], "conn" "text"[] DEFAULT NULL::"text"[], "dl_min" double precision DEFAULT NULL::double precision, "dl_max" double precision DEFAULT NULL::double precision, "ul_min" double precision DEFAULT NULL::double precision, "ul_max" double precision DEFAULT NULL::double precision, "lat_min" double precision DEFAULT NULL::double precision, "lat_max" double precision DEFAULT NULL::double precision, "lim" integer DEFAULT 50000) RETURNS SETOF "jsonb"
     LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
+    SET "search_path" TO 'public', 'pg_temp'
     AS $$
 select private.require_dashboard_request();
 with latest_loc as (
@@ -257,7 +260,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION "public"."rpc_map_points"("min_lng" double precision, "min_lat" double precision, "max_lng" double precision, "max_lat" double precision, "t_from" timestamp with time zone DEFAULT NULL::timestamp with time zone, "t_to" timestamp with time zone DEFAULT NULL::timestamp with time zone, "providers" "text"[] DEFAULT NULL::"text"[], "conn" "text"[] DEFAULT NULL::"text"[], "dl_min" double precision DEFAULT NULL::double precision, "dl_max" double precision DEFAULT NULL::double precision, "ul_min" double precision DEFAULT NULL::double precision, "ul_max" double precision DEFAULT NULL::double precision, "lat_min" double precision DEFAULT NULL::double precision, "lat_max" double precision DEFAULT NULL::double precision, "lim" integer DEFAULT 2000) RETURNS SETOF "jsonb"
     LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
+    SET "search_path" TO 'public', 'pg_temp'
     AS $$
 select private.require_dashboard_request();
 with latest_loc as (

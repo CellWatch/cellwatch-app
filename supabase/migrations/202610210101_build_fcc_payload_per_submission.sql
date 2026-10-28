@@ -28,13 +28,16 @@ create index if not exists measurements_group_id_idx
 
 -- Security definer so it can read every measurement regardless of RLS, like the view did
 -- (the view runs as its owner). Only the posting functions and readonly_user (which can
--- already read every payload through the view) may call it.
+-- already read every payload through the view) may call it. pg_temp comes last in its
+-- search_path: otherwise Postgres looks up type names in the caller's temporary schema first,
+-- and a caller could make it run their own code as its owner with a temporary domain named
+-- jsonb. The same goes for every function below that sets search_path.
 create or replace function private.fcc_submission_payload(sub_id uuid)
 returns jsonb
 language sql
 stable
 security definer
-set search_path = public, private, extensions
+set search_path = public, private, extensions, pg_temp
 as
 $$
     with
@@ -241,7 +244,7 @@ create or replace function private.fcc_http_post(
     out content text
 )
 language plpgsql
-set search_path = public, private, extensions
+set search_path = public, private, extensions, pg_temp
 as
 $$
 begin
@@ -266,7 +269,7 @@ revoke all on function private.fcc_http_post(text, text, text) from public;
 create or replace function private.post_fcc_submission(sub_id uuid, fcc_env text)
 returns boolean
 language plpgsql
-set search_path = public, private, extensions
+set search_path = public, private, extensions, pg_temp
 as
 $$
 declare

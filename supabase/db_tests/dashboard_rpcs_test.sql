@@ -181,3 +181,27 @@ begin
     end if;
     raise notice 'ok: dashboard RPCs report latency in milliseconds';
 end $$;
+
+-- Any login role may call the RPCs, and readonly_user can read the dashboard secret. A
+-- caller's temporary types must not run as the RPCs' owner.
+do $$ begin create role test_caller login; exception when duplicate_object then null; end $$;
+grant test_caller to postgres;   -- postgres isn't a superuser in this image, so it needs this to set role
+select current_database() as test_db \gset
+\c :test_db
+set role test_caller;
+\i /db_tests/lib/shadow_types.sql
+select set_config('request.headers', '{"x-dashboard-secret": "test-dashboard-secret"}', false) as ignored \gset
+select public.rpc_group_detail('aaaaaaaa-0000-0000-0000-000000000000') is not null
+       and (select count(*) from public.rpc_group_summaries(-180, -90, 180, 90)) > 0
+       and (select count(*) from public.rpc_map_points(-180, -90, 180, 90)) > 0
+       and not pg_temp.test_shadow_ran_as_owner() as shadow_ok \gset
+reset role;
+\c :test_db
+set test.shadow_ok = :'shadow_ok';
+do $$
+begin
+    if current_setting('test.shadow_ok') <> 't' then
+        raise exception 'a caller''s temporary types ran as the owner of the dashboard RPCs';
+    end if;
+    raise notice 'ok: a caller''s temporary types do not run as the owner of the dashboard RPCs';
+end $$;

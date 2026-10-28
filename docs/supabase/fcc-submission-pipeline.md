@@ -73,7 +73,7 @@ Retried: HTTP 408, 429, 5xx, transport errors, and errors before the POST. Block
 
 ## 4. Payload construction
 
-`post_fcc_submission(sub_id, fcc_env)` (Invoker, `search_path = public, private, extensions`):
+`post_fcc_submission(sub_id, fcc_env)` (Invoker, `search_path = public, private, extensions`; `202610210101` adds `pg_temp` last):
 
 1. Raises if the submission does not exist, or if `fcc_submission_is_ready` is false.
 2. Looks up `url` and the decrypted secret: `private.fcc_submission_info` joined to `vault.decrypted_secrets` on `hash_secret_id`, `where env = fcc_env`. Raises if there is no row for that env.
