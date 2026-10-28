@@ -17,6 +17,11 @@ begin;
 -- payload uses the same unit). rpc_map_points already converted them to the milliseconds its
 -- ping_ms/jitter_ms names promise; rpc_group_detail and rpc_group_summaries now do too, so
 -- their lat_min/lat_max filters are also in milliseconds.
+--
+-- Speeds: when a row has neither bytes_per_sec nor application_bytes_per_sec, all three fell back
+-- to bytes / duration. duration is in microseconds (as in the FCC payload view, which divides by
+-- duration / 1e6), so that fallback came out a million times too small. It now converts to
+-- seconds first.
 
 create or replace function private.require_dashboard_request() returns void
     language plpgsql stable security definer
@@ -80,7 +85,7 @@ parts as (
     lc.sinr,
     case
       when m.type in ('download','upload') then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as mbps,
     case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,
@@ -174,12 +179,12 @@ meas as (
     lc.network_generation,
     case
       when m.type = 'download' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as dl_mbps,
     case
       when m.type = 'upload' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as ul_mbps,
     case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,
@@ -285,12 +290,12 @@ meas as (
     lc.network_generation,
     case
       when m.type = 'download' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as dl_mbps,
     case
       when m.type = 'upload' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as ul_mbps,
     case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,

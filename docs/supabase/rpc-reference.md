@@ -74,7 +74,7 @@ These serve the web dashboard. The dashboard's code is not in this repo: its bac
 - Groups by `group_id`: averages lat/lon, takes the max of each speed, and sets `conn_tag` from `max(network_generation)` (`NR`/`5` → `5G`, `LTE`/`4` → `4G`, else `Other`).
 - Then filters by bounding box, time, providers, conn tags, and min/max ranges (`lat_min` / `lat_max` bound latency, not latitude). `lim` is clamped to 1..20000.
 - Row shape: `{group_id, provider, conn_tag, timestamp, center:[lon,lat], stats:{down_mbps, up_mbps, ping_ms, jitter_ms, loss_pct}}`.
-- Mbps = `coalesce(bytes_per_sec, application_bytes_per_sec, bytes/duration) * 8 / 1e6`. `duration` is in microseconds, so the `bytes/duration` fallback (used only when both rates are null) comes out 10⁶ too small; #136 leaves it as is. `ping_ms` and `jitter_ms` here are `rtt / 1000` and `jitter / 1000`.
+- Mbps = `coalesce(bytes_per_sec, application_bytes_per_sec, bytes/duration) * 8 / 1e6`. `duration` is in microseconds, so on prod the `bytes/duration` fallback (used only when both rates are null) comes out 10⁶ too small. Fixed in #136, which divides by `duration / 1e6` as the FCC payload view does; live once `202610220101` is pushed to prod. `ping_ms` and `jitter_ms` here are `rtt / 1000` and `jitter / 1000`.
 
 ### `rpc_group_summaries`
 
