@@ -29,8 +29,8 @@ begin;
 set local lock_timeout = '3s';
 
 -- Security definer so it can read every measurement regardless of RLS, like the view did
--- (the view runs as its owner). Only the posting functions and readonly_user (which can
--- already read every payload through the view) may call it. pg_temp comes last in its
+-- (the view runs as its owner). Only the posting functions and the roles that could read every
+-- payload through the view already may call it (see the grants below). pg_temp comes last in its
 -- search_path: otherwise Postgres looks up type names in the caller's temporary schema first,
 -- and a caller could make it run their own code as its owner with a temporary domain named
 -- jsonb. The same goes for every function below that sets search_path.
@@ -225,7 +225,10 @@ select
     private.fcc_submission_payload(s.id) as data
 from public.fcc_submissions s;
 
--- Views call functions with the privileges of the user querying the view.
+-- Views call functions with the privileges of the user querying the view, so whoever could
+-- read the view's data before needs to be able to call the function: readonly_user, which has
+-- SELECT on the view, and members of pg_read_all_data, which can read every table and view
+-- (on Supabase, supabase_read_only_user and supabase_etl_admin).
 do $$
 begin
     if exists (select 1 from pg_roles where rolname = 'readonly_user') then
@@ -233,6 +236,8 @@ begin
     end if;
 end;
 $$;
+
+grant execute on function private.fcc_submission_payload(uuid) to pg_read_all_data;
 
 -- Readiness checks (private.fcc_submission_is_ready) and the payload both look up a
 -- submission's measurements by group_id, which had no index and was read with a full scan

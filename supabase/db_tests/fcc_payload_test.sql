@@ -423,6 +423,24 @@ begin
 end;
 $$;
 
+-- Roles that could read the view's payloads before (pg_read_all_data members, such as
+-- Supabase's supabase_read_only_user) still can.
+do $$ begin create role test_reader login; exception when duplicate_object then null; end $$;
+grant pg_read_all_data to test_reader;
+grant test_reader to postgres;   -- postgres isn't a superuser in this image, so it needs this to set role
+do $$
+declare
+    sub uuid := (select sub_id from test_case where name = 'complete group, several locations and cells');
+    expected text := private.fcc_submission_payload(sub)::text;
+    seen text;
+begin
+    set local role test_reader;
+    select v.data::text into seen from private.fcc_submissions_view v where v.submission_id = sub;
+    reset role;
+    perform expect(seen = expected, 'a pg_read_all_data member can still read payloads through the view');
+end;
+$$;
+
 -- An unprivileged role that may build payloads (as readonly_user may) must not be able to
 -- run its own code as the function's owner by shadowing a type with a temporary object.
 do $$ begin create role test_caller login; exception when duplicate_object then null; end $$;
