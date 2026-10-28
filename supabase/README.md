@@ -7,7 +7,7 @@ settings.
 | File | What it is |
 |---|---|
 | `full_schema.sql` | Snapshot of the live schema (`supabase db dump`). It's a record, not something to apply. |
-| `cron_jobs.sql` | Snapshot of the live pg_cron jobs. Schema dumps leave them out. |
+| `cron_jobs.sql` | The pg_cron jobs as the migrations leave them; run it to recreate them. Schema dumps leave them out. |
 | `role_settings.sql` | Expected per-role timeouts. Schema dumps leave them out too. |
 | `migrations/` | Every change made to the live database since July 2026, in order. |
 | `db_tests/` | Tests for the migrations. They run in a throwaway container. |
@@ -89,7 +89,7 @@ keychain entry, or a prompt.
 Run it before writing a migration, after applying one, and at least monthly. It hasn't been run against the
 live project yet; it was dry-run against a local container with stubbed `supabase`/`psql` commands. Expect the
 first real run to show:
-- the cron job's batch size, if 202610070001 is live (`cron_jobs.sql` still shows the 2026-09-30 value of 1);
+- the cron job's command until 202610210103 is pushed (`cron_jobs.sql` has the `call private.run_fcc_submission_retries(10);` that 202610210103 schedules);
 - any role timeout that `role_settings.sql` guessed wrong.
 
 Review, then `--write` and commit.
@@ -103,7 +103,7 @@ These were created directly on the live project and only appeared in the repo wi
 | `trg_auto_post_fcc_submission` and its enqueue-only `private.auto_post_fcc_submission()` | `202609300001_track_live_fcc_queue_and_role_settings.sql` |
 | `private.fcc_submission_retry_queue` | `202609300001_...` (`create table if not exists`, with the live constraints) |
 | `private.process_fcc_submission_retries()` | `202610070001_unclog_fcc_retry_queue.sql`, which defines it in full |
-| `fcc-submission-retries` cron job | `202610070001_...` (`cron.schedule`, batch 10) and `cron_jobs.sql` |
+| `fcc-submission-retries` cron job | `202610070001_...` (`cron.schedule`, batch 10), then `202610210103_...` (`call private.run_fcc_submission_retries(10)`), and `cron_jobs.sql` |
 | `anon` `statement_timeout` = 2min | `202609300001_...` and `role_settings.sql`. Supabase's default is 3s, so this is the one real hand change. |
 | `authenticator` `statement_timeout` and `lock_timeout` = 8s | Same files. These match Supabase's defaults (they're in the stock image), so they weren't hand changes. |
 | Dashboard RLS policies, `private.is_dashboard_request()`, `private.verified_device_id_or_null()` | **Snapshot only.** See below. |

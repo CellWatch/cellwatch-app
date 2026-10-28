@@ -60,14 +60,16 @@ pg_cron jobs live in `cron.job` rows, not in the schema dump. The single job:
 
 | Job | Schedule | Command (expected) |
 |---|---|---|
-| `fcc-submission-retries` | `*/2 * * * *` | `select private.process_fcc_submission_retries(10);` |
+| `fcc-submission-retries` | `*/2 * * * *` | `call private.run_fcc_submission_retries(10);` once [`202610210103`](../../supabase/migrations/202610210103_fcc_retry_queue_processing.sql) is pushed; until then `select private.process_fcc_submission_retries(10);` |
 
-[`cron_jobs.sql`](../../supabase/cron_jobs.sql) is a 2026-09-30 snapshot and still shows batch size `1`. Migration [`202610070001`](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql), which is pushed to prod, re-schedules it with batch `10` where pg_cron is installed. The batch size in prod's `cron.job` row hasn't been verified, so check it with the query below. To recreate:
+[`cron_jobs.sql`](../../supabase/cron_jobs.sql) has the job as the migrations leave it. Recreate it with the command for what is live: the `call` once `private.run_fcc_submission_retries` exists, the old `select` before that. The old function runs the whole batch in one transaction, so putting it back after `202610210103` would bring back the lost-record problem (#117).
 
 ```sql
 -- cron.schedule upserts by job name
 select cron.schedule('fcc-submission-retries', '*/2 * * * *',
-                     'select private.process_fcc_submission_retries(10);');
+                     case when to_regprocedure('private.run_fcc_submission_retries(integer, integer)') is not null
+                          then 'call private.run_fcc_submission_retries(10);'
+                          else 'select private.process_fcc_submission_retries(10);' end);
 ```
 
 Check (read-only):
@@ -87,7 +89,7 @@ select cron.alter_job(jobid, active := false) from cron.job where jobname = 'fcc
 select cron.alter_job(jobid, active := true)  from cron.job where jobname = 'fcc-submission-retries';
 ```
 
-Never commit a job command that contains a key or token. In open PR #133 (not pushed to prod), `202610210103` changes the command to `call private.run_fcc_submission_retries(10);`. See `prod-deploy-runbook.md` (local file, not in git) for the fallback if `CALL` can't commit under pg_cron.
+Never commit a job command that contains a key or token. `202610210103` (on main, not pushed to prod) changes the command to `call private.run_fcc_submission_retries(10);`. See `prod-deploy-runbook.md` (local file, not in git) for the fallback if `CALL` can't commit under pg_cron.
 
 ## Inspecting and draining a stuck FCC retry queue
 
