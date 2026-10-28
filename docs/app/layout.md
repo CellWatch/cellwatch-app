@@ -132,7 +132,6 @@ Unlabeled files are on main. #136 also carries bug fixes in `MeasurementService`
 |---|---|
 | [MeasurementService.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementService.kt) | Foreground service (type `location`) that runs one test sequence with a wake lock and exposes progress via a `Binder`. |
 | [MeasurementManager.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementManager.kt) | Runs locate -> latency -> download -> upload, stores each result, creates the FCC submission. |
-| [ServerSelection.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ServerSelection.kt) | #136: `closestServer()` picks the throughput server with the lowest ping RTT; a server whose ping throws ranks last. |
 | [MeasurementTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementTest.kt) | Base class: captures locations, cells, device/network metadata around `measure()` and builds a `Measurement`. |
 | [LatencyTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/LatencyTest.kt) | Wraps msak `LatencyTest`; computes mean RTT and jitter (std dev). |
 | [ThroughputTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ThroughputTest.kt) | Wraps msak `ThroughputTest` (3 streams); splits warmup/active periods and aggregates bytes/s. |
@@ -241,7 +240,7 @@ Unlabeled files are on main. #136 also carries bug fixes in `MeasurementService`
 
 | Location | Contents |
 |---|---|
-| [app/src/test](../../app/src/test/java/edu/gatech/cc/cellwatch/) | JVM unit tests: `RedactSecretsTest`, `MeasurementUploaderTest`; `ServerSelectionTest` and `OnboardingScreenTest` (#136). `LocalPortHeadersTest` is client-port-header only. |
+| [app/src/test](../../app/src/test/java/edu/gatech/cc/cellwatch/) | JVM unit tests: `RedactSecretsTest`, `MeasurementUploaderTest`; `OnboardingScreenTest` (#136). `LocalPortHeadersTest` is client-port-header only. |
 | [app/src/androidTest](../../app/src/androidTest/java/edu/gatech/cc/cellwatch/) | Instrumented: DAO tests, serialization, cells, latency/throughput tests. |
 
 See [../dev/testing.md](../dev/testing.md) for how to run them.

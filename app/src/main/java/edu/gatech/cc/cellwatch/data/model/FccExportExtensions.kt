@@ -43,10 +43,7 @@ fun MeasurementGroup.toFccSubmissionExport(): FccSubmissionExport? {
     val submission = submission ?: return null
 
     return FccSubmissionExport(
-        // The server posts this test with test_id = fcc_submissions.id (the group ID), a uuid that
-        // Postgres writes in lowercase. Using the same ID lets the BDC recognise a re-upload of the
-        // export as the same test instead of a duplicate.
-        test_id = submission.id.lowercase(),
+        test_id = representative.id,
         device_id = representative.deviceId,
         manufacturer = representative.deviceManufacturer,
         model = representative.deviceModel,
