@@ -36,7 +36,7 @@ flowchart TD
 | Waiting | Queue row `pending`, `last_error` "Waiting for complete latency/download/upload data". |
 | Blocked | Queue row `blocked`, with the reason in `last_error`. |
 | Rejected | `private.fcc_submission_failures` rows with `succeeded = false`; the BDC body is in `error_message` / `response_snippet`. |
-| Accepted | `fcc_submissions.submitted = true`, `submitted_on`, and `submission_response` (the BDC response body). |
+| Accepted | `fcc_submissions.submitted = true`, `submitted_on`, and `submission_response` (the BDC response body). After `202610210103`, a test the BDC already had (`duplicate_test_id`) is recorded the same way, but with `submitted_on` null and `submission_response` starting `Not posted again:`. |
 
 ## Tables
 
@@ -194,7 +194,7 @@ Build a per-test list (test id, test time, carrier, outcome) with the queries ab
 | **Missing provider** | `blocked`, "Missing provider" | Builds without main's carrier fallback (c51980e, merged 2026-07-14, not known to be released) send a blank carrier when the phone reports no operator name. Blocked entries are never re-checked. Blank carrier names are not filled in (decided 2026-10-27): open PR #133 keeps blocking them. |
 | **Missing locations** | BDC rejection `null_properties` | Seen for tests with zero locations. Holding tests with fewer than two was decided on 2026-10-22 but isn't on main; see the [decision](bdc-spec-mapping.md#decision-2026-10-22-two-locations-per-test-not-on-main) for which parts are in open PRs and which are unpushed. |
 | **Null network codes** | BDC rejection `null_net_mobile_country_code` | The payload has no `connection_type`, so the BDC treats the test as cellular and requires the codes. |
-| **Already accepted** | BDC rejection `duplicate_test_id` | Happens when a post succeeded at the BDC but our transaction rolled back (for example on `statement_timeout`), and the job posted again. Prod (and main) treats it as a permanent failure; the pipeline in open PR #133 records it as sent once pushed to prod. |
+| **Already accepted** | BDC rejection `duplicate_test_id` | Happens when a post succeeded at the BDC but our transaction rolled back (for example on `statement_timeout`), and the job posted again. Prod treats it as a permanent failure. `202610210103` (on main, not pushed to prod) records it as sent: `submitted = true`, the rebuilt payload in `submission`, `submitted_on` null (the earlier post's time is unknown), and a `submission_response` starting `Not posted again:`. It matches the code anywhere in a 4xx body, in any case. A submission someone recorded as sent in the meantime keeps that record. |
 | **Retry queue clog** | Many `pending` rows; new tests post hours late | Before `202610070001` (pushed to prod) the job took one entry every 2 min and re-checked waiting entries every 5 min. Check `cron.job` for batch size 10 (not yet verified on prod) and `process_fcc_submission_retries` for the 60 s cap ([Runbooks](../ops/runbooks.md#1-look-read-only)). Building the payload view is slow on prod (tens of seconds per post), which also limits throughput; the fix (`202610210101`) is in open PR #133. |
 | **Manual hold** | `blocked` with an explanatory `last_error` and a far-future `next_attempt_at` | Set by hand during incident handling. Read `last_error` before re-queuing. |
 

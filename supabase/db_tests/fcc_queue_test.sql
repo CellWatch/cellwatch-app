@@ -214,43 +214,92 @@ declare
     s record;
 begin
     select * into s from public.fcc_submissions where id = test_id('c');
-    perform expect(s.submitted and s.submitted_on is not null,
-        'a duplicate_test_id answer marks the submission sent');
+    perform expect(s.submitted, 'a duplicate_test_id answer marks the submission sent');
+    perform expect(s.submission = private.fcc_submission_payload(test_id('c')),
+        'with the payload, as for any post');
+    perform expect(s.submitted_on is null, 'and no time, since the earlier post''s wasn''t recorded');
     perform expect(s.submission_response like 'Not posted again: the FCC answered duplicate_test_id%'
                    and s.submission_response like '%FCC HTTP status 400 for submission%duplicate_test_id%',
         'the stored response says why, with the FCC''s answer');
     perform expect(not exists (select 1 from private.fcc_submission_retry_queue where submission_id = test_id('c')),
         'and the entry leaves the queue instead of being blocked');
     perform expect(
-        (select succeeded and error_message like 'FCC HTTP status 400%'
+        (select succeeded and error_message is null and response_snippet like 'FCC HTTP status 400%duplicate_test_id%'
          from private.fcc_submission_failures where submission_id = test_id('c')),
-        'it is logged as a success, with the FCC''s answer');
+        'it is logged as a success, with the FCC''s answer as the response');
     perform expect(current_setting('test.processed') = '1', 'it counts as processed');
 end;
 $$;
 
 do $$
-declare
-    sub text := '6f1c2d3e-0000-4000-8000-000000000001';
 begin
-    perform expect(private.fcc_error_is_duplicate_test_id(
-            format('FCC HTTP status 400 for submission %s: {"errors":[{"code":"duplicate_test_id"}]}', sub)),
+    perform expect(private.fcc_response_is_duplicate_test_id(400, '{"errors":[{"code":"duplicate_test_id"}]}'),
         'duplicate_test_id in a 400 answer is recognised');
-    perform expect(private.fcc_error_is_duplicate_test_id(
-            format(E'FCC HTTP status 409 for submission %s: {"errors":[\n{"code":"other"},\n{"code":"duplicate_test_id"}]}', sub)),
+    perform expect(private.fcc_response_is_duplicate_test_id(409, E'{"errors":[\n{"code":"other"},\n{"code":"duplicate_test_id"}]}'),
         'among other errors, and across lines');
-    perform expect(not private.fcc_error_is_duplicate_test_id(
-            format('FCC HTTP status 503 for submission %s: duplicate_test_id', sub)),
+    perform expect(private.fcc_response_is_duplicate_test_id(400, '{"errors":[{"code":"DUPLICATE_TEST_ID"}]}'),
+        'in any case');
+    perform expect(private.fcc_response_is_duplicate_test_id(400,
+            '{"errors":[' || repeat('{"code":"other","message":"x"},', 20) || '{"code":"duplicate_test_id"}]}'),
+        'past the first 500 characters');
+    perform expect(not private.fcc_response_is_duplicate_test_id(503, 'duplicate_test_id'),
         'not in a 5xx answer');
-    perform expect(not private.fcc_error_is_duplicate_test_id(
-            format('FCC HTTP status 400 for submission %s: {"errors":[{"code":"null_properties"}]}', sub)),
+    perform expect(not private.fcc_response_is_duplicate_test_id(400, '{"errors":[{"code":"null_properties"}]}'),
         'not for other validation errors');
-    perform expect(not private.fcc_error_is_duplicate_test_id(
-            format('FCC HTTP status 400 for submission %s: {"errors":[{"code":"duplicate_test_ids"}]}', sub)),
+    perform expect(not private.fcc_response_is_duplicate_test_id(400, '{"errors":[{"code":"duplicate_test_ids"}]}'),
         'not for a longer word');
-    perform expect(not private.fcc_error_is_duplicate_test_id('duplicate_test_id')
-                   and not private.fcc_error_is_duplicate_test_id(null),
-        'not for errors that did not come from the FCC');
+    perform expect(not private.fcc_response_is_duplicate_test_id(400, null)
+                   and not private.fcc_response_is_duplicate_test_id(null, 'duplicate_test_id'),
+        'not without a body or a status');
+end;
+$$;
+
+-- The same through a run: an answer whose duplicate_test_id comes after the 500 characters the
+-- error message keeps, and one for a submission that someone posts by hand, in another
+-- session, while the job's post of it is in flight (the job's post takes 3 seconds; the other
+-- session records its answer after 1).
+create table test_other_session (done_at timestamptz);
+
+do $$
+begin
+    perform test_reset();
+    perform test_set_id('long', test_submission(due_ago => interval '2 minutes'));
+    perform test_set_id('meanwhile', test_submission(due_ago => interval '1 minute'));
+    insert into test_fcc_reply (submission_id, status, content) values (
+        test_id('long'), 400,
+        '{"status":"error","errors":[' || repeat('{"field":"x","code":"other","message":"some other problem"},', 10)
+            || '{"field":"test_id","code":"duplicate_test_id"}]}');
+    insert into test_fcc_reply (submission_id, status, content, delay_seconds) values (
+        test_id('meanwhile'), 400, '{"errors":[{"code":"duplicate_test_id"}]}', 3);
+end;
+$$;
+
+select current_database() as test_db, current_setting('test.meanwhile') as meanwhile_id \gset
+\setenv TEST_DB :test_db
+\setenv MEANWHILE_ID :meanwhile_id
+\! psql -U postgres -d "$TEST_DB" -X -q -c "select pg_sleep(1)" -c "update public.fcc_submissions set submitted = true, submitted_on = now(), submission_response = '{\"status\":\"ok\",\"refId\":\"REAL-REF-123\"}' where id = '$MEANWHILE_ID'" -c "insert into test_other_session values (clock_timestamp())" >/dev/null 2>&1 &
+call private.run_fcc_submission_retries(10) \gset
+select clock_timestamp() as run_done \gset
+set test.run_done = :'run_done';
+
+do $$
+begin
+    for i in 1 .. 100 loop
+        exit when exists (select 1 from test_other_session);
+        perform pg_sleep(0.05);
+    end loop;
+    perform expect((select done_at < current_setting('test.run_done')::timestamptz from test_other_session),
+        'setup: the other session recorded its post while the job''s post was in flight');
+    perform expect(
+        (select submitted and submission_response like 'Not posted again%'
+         from public.fcc_submissions where id = test_id('long'))
+        and not exists (select 1 from private.fcc_submission_retry_queue where submission_id = test_id('long')),
+        'duplicate_test_id past the first 500 characters of the answer is recognised');
+    perform expect(
+        (select submitted and submission_response = '{"status":"ok","refId":"REAL-REF-123"}'
+         from public.fcc_submissions where id = test_id('meanwhile'))
+        and not exists (select 1 from private.fcc_submission_retry_queue where submission_id = test_id('meanwhile')),
+        'a submission recorded as sent meanwhile keeps that record');
 end;
 $$;
 

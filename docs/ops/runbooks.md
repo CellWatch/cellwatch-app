@@ -133,7 +133,7 @@ Also check the cron history above. Each run can take long, because building one 
 | `Missing provider` | Leave it blocked. Blank carrier names are not filled in (decided 2026-10-27); a fix belongs in the app. |
 | Waiting for data | Nothing on the server: the phone has to upload. See [A device that never uploads](#a-device-that-never-uploads). |
 | BDC 4xx (`null_properties`, `null_net_mobile_country_code`, …) | A data problem. Re-posting the same payload fails again. Decide with the FCC first. |
-| `duplicate_test_id` | The BDC already has the test. On prod (and main) it stays a failure; the pipeline in open PR #133 records it as sent once pushed to prod. |
+| `duplicate_test_id` | The BDC already has the test. On prod it stays a failure; `202610210103` (on main, not pushed to prod) records it as sent, with `submitted_on` null because the earlier post's time is unknown. |
 | 5xx / transport errors | Retried automatically. Blocked only after 6 attempts. |
 
 ### 3. Drain or re-queue (prod writes that post to the FCC; explicit approval required)

@@ -21,8 +21,8 @@ begin;
 --   * process_fcc_submission_retries(batch_size) still works for anyone who calls it by
 --     hand, but runs the whole batch in one transaction, like before.
 --   * A 4xx answer whose body says duplicate_test_id means the FCC already has the test.
---     The submission is marked submitted, with a note in submission_response, and leaves
---     the queue instead of being blocked.
+--     The submission is marked submitted, with the payload and a note in
+--     submission_response, and leaves the queue instead of being blocked.
 --   * Readiness is checked before the provider, so an entry whose measurements never
 --     arrive isn't blocked as needing a human (#119). A complete entry with a blank provider
 --     is still blocked as 'Missing provider'; the provider is never filled in (#118).
@@ -167,12 +167,27 @@ $$
     );
 $$;
 
--- 202610210101's post_fcc_submission with one change: for the 'prod' environment it refuses
--- what the queue would hold or block (fcc_payload_hold_reason, or a blank provider name),
--- so a direct call (docs/supabase/fcc-submission-pipeline.md describes one) can't send it
--- either. Other environments, such as 'demo', still take anything, so the FCC's answer to a
--- held payload can be tried there. The retry job checks both before it calls this, and
--- records such an entry as held or blocked instead.
+-- True when an FCC answer says it already has this test_id: a 4xx whose body names the
+-- duplicate_test_id error code, anywhere in the body, in any case.
+create or replace function private.fcc_response_is_duplicate_test_id(status integer, body text)
+returns boolean
+language sql
+immutable
+as
+$$
+    select coalesce(status between 400 and 499 and body ~* '\mduplicate_test_id\M', false);
+$$;
+
+-- 202610210101's post_fcc_submission with two changes (marked "Changed"):
+--   * For the 'prod' environment it refuses what the queue would hold or block
+--     (fcc_payload_hold_reason, or a blank provider name), so a direct call
+--     (docs/supabase/fcc-submission-pipeline.md describes one) can't send it either. Other
+--     environments, such as 'demo', still take anything, so the FCC's answer to a held
+--     payload can be tried there. The retry job checks both before it calls this, and
+--     records such an entry as held or blocked instead.
+--   * When the FCC answers that it already has the test, the error has SQLSTATE FCDUP. The
+--     message is unchanged, with the body cut to 500 characters, so this is decided here,
+--     from the whole body.
 create or replace function private.post_fcc_submission(sub_id uuid, fcc_env text)
 returns boolean
 language plpgsql
@@ -245,7 +260,13 @@ begin
         raise exception 'FCC HTTP status % for submission %: %',
             response.status,
             sub_id,
-            left(coalesce(response.content, ''), 500);
+            left(coalesce(response.content, ''), 500)
+            -- Changed: a separate SQLSTATE for "the FCC already has this test".
+            using errcode = case
+                when private.fcc_response_is_duplicate_test_id(response.status, response.content)
+                    then 'FCDUP'
+                else 'P0001'
+            end;
     end if;
 
     update public.fcc_submissions set
@@ -261,21 +282,6 @@ begin
 
     return true;
 end;
-$$;
-
--- True when a posting error is the FCC saying it already has this test_id.
--- post_fcc_submission raises 'FCC HTTP status NNN for submission <id>: <response body>',
--- with the body cut to 500 characters.
-create or replace function private.fcc_error_is_duplicate_test_id(error_text text)
-returns boolean
-language sql
-immutable
-as
-$$
-    select coalesce(
-        error_text ~ '^FCC HTTP status 4[0-9]{2} for submission [0-9a-f-]+: .*\mduplicate_test_id\M',
-        false
-    );
 $$;
 
 -- Handles the queue entry that has been due longest and returns what happened to it:
@@ -422,18 +428,26 @@ begin
 
         -- Changed: the FCC already has this test, from an earlier post whose record was lost
         -- (a run that timed out after posting, or a request that timed out after the FCC
-        -- had accepted it). Record it as submitted instead of blocking it. The success row
-        -- keeps the FCC's answer in error_message.
-        if private.fcc_error_is_duplicate_test_id(error_text) then
+        -- had accepted it). post_fcc_submission raises SQLSTATE FCDUP for that answer.
+        -- Record it as submitted instead of blocking it:
+        --   * submission is the payload as built now, the same as the earlier post's unless
+        --     the data changed in between;
+        --   * submitted_on stays null, since the earlier post's time wasn't recorded;
+        --   * the success row has the FCC's answer as its response, and no error;
+        --   * a submission another session has recorded as sent meanwhile (someone posting
+        --     it by hand) keeps that session's record.
+        if sqlstate = 'FCDUP' then
             update public.fcc_submissions
             set
                 submitted = true,
-                submitted_on = now(),
+                submission = private.fcc_submission_payload(item.submission_id),
+                submitted_on = null,
                 submission_response =
                     'Not posted again: the FCC answered duplicate_test_id, so it already has '
-                    || 'this test from an earlier post whose response was not recorded. '
+                    || 'this test from an earlier post whose response and time were not recorded. '
                     || 'FCC answer: ' || error_text
-            where id = item.submission_id;
+            where id = item.submission_id
+              and not coalesce(submitted, false);
 
             insert into private.fcc_submission_failures (
                 submission_id,
@@ -446,7 +460,7 @@ begin
             values (
                 item.submission_id,
                 item.submission_id,
-                error_text,
+                null,
                 true,
                 item.fcc_env,
                 left(error_text, 500)
