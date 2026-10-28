@@ -42,6 +42,7 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
   6. Refresh and commit the schema snapshot, and record the versions in the migration history if that table exists.
 - [ ] Migrations the runbook doesn't cover:
   - #136's `202610220101` (dashboard RPCs) and `202610220102` (database helpers). Before pushing `202610220101`, set `DASHBOARD_SECRET` on the dashboard backend (the CellWatch/demo-dashboard Flask service on Render) to the shared secret in `private.dashboard_settings`. Otherwise the dashboard's RPC calls are refused and its map breaks.
+  - `202610270001` (dashboard speed fallback): push it after `202610220101`.
   - `202610130001` (uncommitted on the `client-port-header` branch): push it before releasing an app that sends `tuple_local_port`.
   - `202610220001` (unpushed local branch `register-device-retry`): push it before releasing an app built with that branch.
 - [ ] Re-run [db tests](../dev/testing.md#database-tests) on the release commit.

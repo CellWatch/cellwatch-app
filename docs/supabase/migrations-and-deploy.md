@@ -23,8 +23,9 @@ Migrations in `supabase/migrations/` (the first two are on main; #136 adds the l
 |---|---|
 | `202607140001_repair_fcc_submission_functions.sql` | On main; superseded on prod. Its `fcc_submission_is_ready` and `post_fcc_submission` have the same text as prod's (`full_schema.sql`) apart from line endings (prod's copies have CRLF endings). Its `auto_post_fcc_submission` has since been replaced on prod by the queue version, so **do not re-apply** |
 | `202610070001_unclog_fcc_retry_queue.sql` | On main; **pushed to prod: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked**; check it with runbook Step 0 |
-| `202610220101_fix_dashboard_rpcs.sql` | **In #136; not pushed to prod.** Fixes `rpc_group_detail`'s filter, requires `x-dashboard-secret` on the three dashboard RPCs, reports latency in ms. **Before pushing it, set `DASHBOARD_SECRET` on the dashboard backend** (CellWatch/demo-dashboard, Flask on Render; it sends `x-dashboard-secret` on `rpc_map_points` and `rpc_group_detail` and doesn't call `rpc_group_summaries`), or its map stops loading. Passed a rolled-back check on the test project on 2026-10-22 |
-| `202610220102_tighten_database_helpers.sql` | **In #136; not pushed to prod.** Drops `log_user_data`, fixes `get_raw_header(item)`, pins `search_path` on the device/dashboard checks, revokes `TRUNCATE` from `anon`/`authenticated`. Passed a rolled-back check on the test project on 2026-10-22 |
+| `202610220101_fix_dashboard_rpcs.sql` | **Merged to main in #136 (2026-10-27); not known to be pushed to prod.** Fixes `rpc_group_detail`'s filter, requires `x-dashboard-secret` on the three dashboard RPCs, reports latency in ms. **Before pushing it, set `DASHBOARD_SECRET` on the dashboard backend** (CellWatch/demo-dashboard, Flask on Render; it sends `x-dashboard-secret` on `rpc_map_points` and `rpc_group_detail` and doesn't call `rpc_group_summaries`), or its map stops loading. Passed a rolled-back check on the test project on 2026-10-22 |
+| `202610220102_tighten_database_helpers.sql` | **Merged to main in #136 (2026-10-27); not known to be pushed to prod.** Drops `log_user_data`, fixes `get_raw_header(item)`, pins `search_path` on the device/dashboard checks, revokes `TRUNCATE` from `anon`/`authenticated`. Passed a rolled-back check on the test project on 2026-10-22 |
+| `202610270001_fix_dashboard_speed_fallback.sql` | **Not pushed to prod.** Recreates the three dashboard RPCs with the `bytes/duration` speed fallback converted from microseconds (it came out 10⁶ too small); otherwise identical to `202610220101`'s versions. Push it after `202610220101`, which creates the `private.require_dashboard_request()` it calls |
 
 Migrations that are not on main. None of them is pushed to prod:
 
@@ -77,7 +78,7 @@ supabase/db_tests/run.sh      # needs Docker
 |---|---|
 | `fcc_retry_queue_test.sql` | `202610070001`: waiting entries (5 min / 1 h recheck, not counted as attempts), batch of 10, cap at 10, blank provider → blocked, already-sent entries removed, 400 → blocked, 503 → retried in 60 s, 60 s per-run cap, logging |
 | `local_ports_test.sql` (not on main; uncommitted on `client-port-header`) | `202610130001`: header parsing, malformed values → null, `tuple_local_port` range check, `source_port_comparison` counts |
-| `dashboard_rpcs_test.sql` | `202610220101` (#136): detail returns only its group, all three refuse without the dashboard secret, latency in ms |
+| `dashboard_rpcs_test.sql` | `202610220101` (#136) and `202610270001`: detail returns only its group, all three refuse without the dashboard secret, latency in ms, speed fallback from bytes and duration |
 | `database_helpers_test.sql` | `202610220102` (#136): `log_user_data` dropped, `get_raw_header(item)`, pinned `search_path`, no `TRUNCATE` for app roles |
 
 App-side checks are in [testing](../dev/testing.md).
