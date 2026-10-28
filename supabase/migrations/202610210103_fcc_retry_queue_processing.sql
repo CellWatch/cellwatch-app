@@ -604,10 +604,12 @@ $$;
 -- What the cron job runs. Commits after each entry. A procedure can't commit if it is
 -- security definer or has a SET clause, so this one has neither and names our tables and
 -- functions with their schema; the work happens in the security definer function above.
--- Returns the same count as process_fcc_submission_retries, in `processed`.
+-- Returns the same count as process_fcc_submission_retries, in `processed`. It stops taking
+-- entries once the run has taken p_time_limit (a minute unless given; the tests use less).
 create or replace procedure private.run_fcc_submission_retries(
     p_batch_size integer default 10,
-    inout processed integer default null
+    inout processed integer default null,
+    p_time_limit interval default interval '60 seconds'
 )
 language plpgsql
 as
@@ -637,7 +639,7 @@ begin
     for i in 1 .. batch_size loop
         -- Leave the rest of the batch for the next run once this one has taken a minute,
         -- since each FCC request can take up to two minutes to fail.
-        exit when clock_timestamp() - started_at > interval '60 seconds';
+        exit when clock_timestamp() - started_at > coalesce(p_time_limit, interval '60 seconds');
 
         outcome := private.process_next_fcc_submission_retry();
         exit when outcome is null;
@@ -652,7 +654,7 @@ begin
 end;
 $$;
 
-revoke all on procedure private.run_fcc_submission_retries(integer, integer) from public;
+revoke all on procedure private.run_fcc_submission_retries(integer, integer, interval) from public;
 
 -- Run the procedure from the cron job. cron.schedule updates the existing job with this
 -- name. Skipped where pg_cron isn't installed, such as a fresh local database.

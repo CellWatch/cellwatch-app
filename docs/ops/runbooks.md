@@ -67,7 +67,7 @@ pg_cron jobs live in `cron.job` rows, not in the schema dump. The single job:
 ```sql
 -- cron.schedule upserts by job name
 select cron.schedule('fcc-submission-retries', '*/2 * * * *',
-                     case when to_regprocedure('private.run_fcc_submission_retries(integer, integer)') is not null
+                     case when exists (select 1 from pg_proc where proname = 'run_fcc_submission_retries')
                           then 'call private.run_fcc_submission_retries(10);'
                           else 'select private.process_fcc_submission_retries(10);' end);
 ```

@@ -333,10 +333,18 @@ create table test_http_log (url text, hash_value text, body text, at timestamptz
 create table test_http_reply (status integer, content text);
 insert into test_http_reply values (200, '{"status":"ok","refId":"test-1"}');
 
+-- Counts the requests sent. A sequence, because nextval() isn't undone when the caller's
+-- transaction rolls back: test_http_log is, so it can't show that nothing was sent by a call
+-- that then failed.
+create sequence test_post_counter;
+create function test_posts_sent() returns bigint
+language sql as $$ select case when is_called then last_value else 0 end from test_post_counter $$;
+
 create or replace function private.fcc_http_post(
     p_url text, p_hash_value text, p_body text, out status integer, out content text)
 language plpgsql as $$
 begin
+    perform nextval('test_post_counter');
     insert into test_http_log (url, hash_value, body) values (p_url, p_hash_value, p_body);
     select r.status, r.content into status, content from test_http_reply r;
 end;
@@ -400,16 +408,18 @@ $$;
 do $$
 declare
     sub uuid := (select sub_id from test_case where name = 'latency and download only');
+    sent_before bigint := test_posts_sent();
+    refusal text;
 begin
     update test_http_reply set status = 200, content = 'ok';
-    truncate test_http_log;
     begin
         perform private.post_fcc_submission(sub, 'prod');
-        perform expect(false, 'an incomplete group is refused');
+        refusal := 'posted';
     exception when others then
-        perform expect(sqlerrm like '%is incomplete%' and not exists (select 1 from test_http_log),
-            'an incomplete group is refused before anything is sent');
+        refusal := sqlerrm;
     end;
+    perform expect(refusal like '%is incomplete%' and test_posts_sent() = sent_before,
+        'an incomplete group is refused before anything is sent');
 end;
 $$;
 

@@ -19,6 +19,12 @@ create table test_fcc_reply (
     delay_seconds numeric not null default 0
 );
 create table test_http_log (submission_id uuid, body text);
+-- Counts the requests sent. A sequence, because nextval() isn't undone when the caller's
+-- transaction rolls back: test_http_log is, so it can't show that nothing was sent by a run
+-- that then failed.
+create sequence test_post_counter;
+create function test_posts_sent() returns bigint
+language sql as $$ select case when is_called then last_value else 0 end from test_post_counter $$;
 
 create or replace function private.fcc_http_post(
     p_url text, p_hash_value text, p_body text, out status integer, out content text)
@@ -27,6 +33,7 @@ declare
     sub uuid := (p_body::jsonb #>> '{submissions,0,test_id}')::uuid;
     reply record;
 begin
+    perform nextval('test_post_counter');
     select * into reply from test_fcc_reply r where r.submission_id = sub;
     if found then
         perform pg_sleep(reply.delay_seconds);
@@ -141,6 +148,7 @@ begin
 end;
 $$;
 
+select test_posts_sent() as sent_before \gset
 \set LAST_ERROR_SQLSTATE none
 \echo 'Next: a CALL inside a transaction block (an "invalid transaction termination" error is expected).'
 \set ON_ERROR_STOP off
@@ -149,12 +157,13 @@ call private.run_fcc_submission_retries(10);
 rollback;
 \set ON_ERROR_STOP on
 set test.last_sqlstate = :'LAST_ERROR_SQLSTATE';
+set test.sent_before = :'sent_before';
 
 do $$
 begin
     perform expect(current_setting('test.last_sqlstate') = '2D000',
         'a CALL inside a transaction block fails with invalid transaction termination');
-    perform expect(not exists (select 1 from test_http_log)
+    perform expect(test_posts_sent() = current_setting('test.sent_before')::bigint
                    and (select state = 'pending' and attempt_count = 0
                         from private.fcc_submission_retry_queue where submission_id = test_id('a')),
         'it fails before posting anything');
@@ -300,6 +309,93 @@ begin
          from public.fcc_submissions where id = test_id('meanwhile'))
         and not exists (select 1 from private.fcc_submission_retry_queue where submission_id = test_id('meanwhile')),
         'a submission recorded as sent meanwhile keeps that record');
+end;
+$$;
+
+-- run_fcc_submission_retries has its own copy of the batch loop (process_fcc_submission_retries
+-- below runs the same steps in one transaction, for manual use), so check its steps here: the
+-- cap of 10, the cleanup of entries sent some other way, putting expired entries whose data has
+-- arrived back in line, which outcomes count, and the time limit.
+do $$
+begin
+    perform test_reset();
+    perform test_submission() from generate_series(1, 12);
+end;
+$$;
+call private.run_fcc_submission_retries(20) \gset
+set test.processed = :'processed';
+do $$
+begin
+    perform expect(current_setting('test.processed') = '10'
+                   and (select count(*) from private.fcc_submission_retry_queue) = 2,
+        'the procedure takes at most 10 entries, even when asked for more');
+    perform test_reset();
+    perform test_submission() from generate_series(1, 11);
+end;
+$$;
+call private.run_fcc_submission_retries(null) \gset
+set test.processed = :'processed';
+do $$
+begin
+    perform expect(current_setting('test.processed') = '10', 'and 10 when the batch size is null');
+end;
+$$;
+
+do $$
+begin
+    perform test_reset();
+    perform test_set_id('sent_elsewhere', test_submission());
+    update public.fcc_submissions set submitted = true, submission_response = 'sent by hand'
+    where id = test_id('sent_elsewhere');
+    perform test_set_id('expired_complete', test_submission(queued_ago => interval '40 days'));
+    update private.fcc_submission_retry_queue set state = 'expired'
+    where submission_id = test_id('expired_complete');
+    perform test_submission(ready => false);
+    perform test_submission(locations_per_test => 0);
+    perform test_submission(provider => '');
+    perform test_set_id('unavailable', test_submission());
+    insert into test_fcc_reply (submission_id, status, content) values (test_id('unavailable'), 503, 'try later');
+    perform test_set_id('duplicate', test_submission());
+    insert into test_fcc_reply (submission_id, status, content)
+    values (test_id('duplicate'), 400, '{"errors":[{"code":"duplicate_test_id"}]}');
+end;
+$$;
+select test_posts_sent() as sent_before \gset
+call private.run_fcc_submission_retries(10) \gset
+set test.processed = :'processed';
+set test.sent_before = :'sent_before';
+do $$
+begin
+    perform expect(
+        not exists (select 1 from private.fcc_submission_retry_queue where submission_id = test_id('sent_elsewhere'))
+        and (select submission_response = 'sent by hand' from public.fcc_submissions where id = test_id('sent_elsewhere')),
+        'the procedure drops the entry of a submission sent some other way, and leaves its record alone');
+    perform expect((select submitted from public.fcc_submissions where id = test_id('expired_complete')),
+        'it puts an expired entry whose data has arrived back in line, and posts it');
+    perform expect(test_posts_sent() - current_setting('test.sent_before')::bigint = 3,
+        'it posts only the entries that can be posted');
+    perform expect(current_setting('test.processed') = '3',
+        'and counts the posted, failed and already-at-the-FCC entries, not the waiting, held or blocked ones');
+end;
+$$;
+
+do $$
+begin
+    perform test_reset();
+    perform test_set_id('slow1', test_submission(due_ago => interval '3 minutes'));
+    perform test_set_id('slow2', test_submission(due_ago => interval '2 minutes'));
+    perform test_set_id('slow3', test_submission(due_ago => interval '1 minute'));
+    insert into test_fcc_reply (submission_id, status, content, delay_seconds)
+    select test_id(n), 200, '{"status":"ok"}', 1 from unnest(array['slow1', 'slow2', 'slow3']) n;
+end;
+$$;
+call private.run_fcc_submission_retries(10, null, interval '1.5 seconds') \gset
+set test.processed = :'processed';
+do $$
+begin
+    perform expect(current_setting('test.processed') = '2'
+                   and (select count(*) from private.fcc_submission_retry_queue) = 1,
+        'it stops taking entries once the run has taken its time limit (1 s posts, 1.5 s limit)');
 end;
 $$;
 
