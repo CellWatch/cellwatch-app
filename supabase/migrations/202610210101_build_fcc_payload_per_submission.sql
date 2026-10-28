@@ -12,11 +12,14 @@ begin;
 --
 -- private.fcc_submission_payload(sub_id) builds the same JSON from only that submission's
 -- measurements, locations and cells. The JSON is the same as the view's: same keys, values,
--- number formatting and rounding (supabase/db_tests/fcc_payload_test.sql compares the two).
--- One difference: the view's jsonb_agg calls had no ORDER BY, so the order of the
--- locations and cells arrays was whatever order the plan read the rows in (in practice the
--- order they were inserted, which is the order the phone recorded them). The function
--- orders them by timestamp, then id, so the same submission always gives the same payload.
+-- number formatting and rounding, and the same order (supabase/db_tests/fcc_payload_test.sql
+-- compares the two). The view's jsonb_agg calls had no ORDER BY, so they listed locations
+-- and cells in the order its scans read the rows, which is the order they are stored: the
+-- order they were inserted, as the phone recorded them. The function orders them by ctid
+-- (where each row is stored), so it lists them in that same order whatever plan Postgres
+-- picks. Sorting by timestamp instead would change the payloads posted to the FCC: the cells
+-- from one scan share a timestamp, so most tests with several cells would come out in a
+-- different order.
 
 -- Readiness checks (private.fcc_submission_is_ready) and the payload both look up a
 -- submission's measurements by group_id, which had no index and was read with a full scan
@@ -59,7 +62,7 @@ $$
                     'speed', l.speed,
                     'speed_accuracy', l.speed_accuracy
                 )
-                order by l.timestamp, l.id
+                order by l.ctid
             ) as locations
         from public.locations l
         where l.measurement_id in (select gm.id from group_measurements gm)
@@ -90,7 +93,7 @@ $$
                     'spectrum_bandwidth', c.spectrum_bandwidth,
                     'arfcn', c.arfcn
                 )
-                order by c.timestamp, c.id
+                order by c.ctid
             ) as cells
         from public.cells c
         where c.measurement_id in (select gm.id from group_measurements gm)

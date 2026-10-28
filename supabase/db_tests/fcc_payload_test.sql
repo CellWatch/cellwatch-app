@@ -217,14 +217,13 @@ begin
 end;
 $$;
 
--- The one intended difference: arrays are ordered by timestamp, whatever order the rows
--- were inserted in.
+-- Locations and cells are listed in the order they were inserted, as the old view listed
+-- them, even when that isn't time order.
 do $$
 declare
     sub uuid := test_submission('locations inserted out of order');
     m uuid := test_measurement(sub, 'latency', '2026-07-14 08:00:00-07');
     stamps text[];
-    old_stamps text[];
 begin
     perform test_latency(m);
     insert into public.locations (measurement_id, "timestamp", lat, lon)
@@ -235,14 +234,40 @@ begin
     select array_agg(e ->> 'timestamp' order by n) into stamps
     from jsonb_array_elements(private.fcc_submission_payload(sub) #> '{submissions,0,tests,latency,locations}')
         with ordinality as x(e, n);
-    select array_agg(e ->> 'timestamp' order by e ->> 'timestamp') into old_stamps
-    from test_ref.fcc_submissions_view v,
-        jsonb_array_elements(v.data #> '{submissions,0,tests,latency,locations}') e
-    where v.submission_id = sub;
 
-    perform expect(stamps = array['2026-07-14T08:00:01-07:00', '2026-07-14T08:00:02-07:00', '2026-07-14T08:00:03-07:00'],
-        'locations are listed in time order');
-    perform expect(stamps = old_stamps, 'they are the same locations the old view listed');
+    perform expect(stamps = array['2026-07-14T08:00:03-07:00', '2026-07-14T08:00:01-07:00', '2026-07-14T08:00:02-07:00'],
+        'locations are listed in the order they were inserted, not sorted by time');
+    perform expect(
+        private.fcc_submission_payload(sub)::text
+            = (select v.data::text from test_ref.fcc_submissions_view v where v.submission_id = sub),
+        'locations inserted out of order: payload is byte for byte the same as the old view''s');
+end;
+$$;
+
+-- The cells from one scan share a timestamp. Sorting by (timestamp, id) would put these in
+-- reverse; the payload keeps the order they were inserted in.
+do $$
+declare
+    sub uuid := test_submission('cells from one scan');
+    m uuid := test_measurement(sub, 'latency', '2026-07-15 08:00:00-07');
+    ids numeric[];
+begin
+    perform test_latency(m);
+    insert into public.cells (id, measurement_id, "timestamp", cell_id)
+    values ('30000000-0000-0000-0000-000000000000', m, '2026-07-15 08:00:01-07', 1),
+           ('20000000-0000-0000-0000-000000000000', m, '2026-07-15 08:00:01-07', 2),
+           ('10000000-0000-0000-0000-000000000000', m, '2026-07-15 08:00:01-07', 3);
+
+    select array_agg((e ->> 'cell_id')::numeric order by n) into ids
+    from jsonb_array_elements(private.fcc_submission_payload(sub) #> '{submissions,0,tests,latency,cells}')
+        with ordinality as x(e, n);
+
+    perform expect(ids = array[1, 2, 3]::numeric[],
+        'cells with the same timestamp are listed in the order they were inserted');
+    perform expect(
+        private.fcc_submission_payload(sub)::text
+            = (select v.data::text from test_ref.fcc_submissions_view v where v.submission_id = sub),
+        'cells from one scan: payload is byte for byte the same as the old view''s');
 end;
 $$;
 
