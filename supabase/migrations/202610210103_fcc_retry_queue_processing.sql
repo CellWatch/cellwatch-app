@@ -66,6 +66,32 @@ begin;
 -- from psql. Called inside a transaction block, the procedure stops with "invalid
 -- transaction termination" before it does anything.
 
+-- Deploying. Changing the state check needs an ACCESS EXCLUSIVE lock on the queue, which the
+-- app's FCC submission uploads write to (the insert trigger queues each one), and a waiting
+-- lock request makes those uploads wait behind it until they fail at the API's 8 second
+-- lock_timeout. A running retry job holds the queue for its whole run, so pause the job and
+-- let a running run end first. The lock is taken with NOWAIT and retries, as in
+-- 202610210001, so this never makes an upload wait; it gives up after a minute.
+set local lock_timeout = '3s';
+do $$
+declare
+    give_up_at constant timestamptz := clock_timestamp() + interval '1 minute';
+begin
+    loop
+        begin
+            lock table private.fcc_submission_retry_queue in access exclusive mode nowait;
+            exit;
+        exception when lock_not_available then
+            if clock_timestamp() > give_up_at then
+                raise exception 'gave up after a minute waiting for a moment when nothing was using the FCC retry queue'
+                    using hint = 'Pause the fcc-submission-retries cron job, then run this migration again.';
+            end if;
+            perform pg_sleep(0.1);
+        end;
+    end loop;
+end;
+$$;
+
 alter table private.fcc_submission_retry_queue
     drop constraint if exists fcc_submission_retry_queue_state_check,
     add constraint fcc_submission_retry_queue_state_check

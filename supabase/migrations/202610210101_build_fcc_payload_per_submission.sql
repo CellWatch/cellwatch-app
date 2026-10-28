@@ -20,14 +20,13 @@ begin;
 -- picks. Sorting by timestamp instead would change the payloads posted to the FCC: the cells
 -- from one scan share a timestamp, so most tests with several cells would come out in a
 -- different order.
+--
+-- Deploying: pause the fcc-submission-retries job first and wait for a running run to end.
+-- The view below can't be replaced while a run is reading it, and lock_timeout makes this
+-- migration give up after 3 seconds rather than wait; nothing is changed then, so run it
+-- again.
 
--- Readiness checks (private.fcc_submission_is_ready) and the payload both look up a
--- submission's measurements by group_id, which had no index and was read with a full scan
--- of public.measurements. The index is built without CONCURRENTLY, which can't run inside
--- the migration's transaction, so uploads of new measurements wait while it builds. At the
--- live table's size that should take seconds.
-create index if not exists measurements_group_id_idx
-    on public.measurements using btree (group_id);
+set local lock_timeout = '3s';
 
 -- Security definer so it can read every measurement regardless of RLS, like the view did
 -- (the view runs as its owner). Only the posting functions and readonly_user (which can
@@ -234,6 +233,54 @@ begin
     end if;
 end;
 $$;
+
+-- Readiness checks (private.fcc_submission_is_ready) and the payload both look up a
+-- submission's measurements by group_id, which had no index and was read with a full scan
+-- of public.measurements. The index is built without CONCURRENTLY, which can't run inside
+-- the migration's transaction, so uploads of new measurements wait while it builds. At the
+-- live table's size that should take seconds.
+--
+-- Deploying. The build needs a SHARE lock on measurements, and while that request waits for
+-- uploads in progress, every upload that arrives meanwhile waits behind it. So it is taken
+-- here, after the view (which can wait for a cron run that is reading it without holding up
+-- uploads), with NOWAIT and retries, as in 202610210001: it never makes uploads wait for
+-- anything but the build itself. A leftover invalid index from a failed concurrent build is
+-- dropped and built again, which needs an ACCESS EXCLUSIVE lock instead.
+do $$
+declare
+    give_up_at constant timestamptz := clock_timestamp() + interval '1 minute';
+    leftover constant boolean := exists (
+        select 1
+        from pg_index i
+        where i.indexrelid = to_regclass('public.measurements_group_id_idx')
+          and not i.indisvalid
+    );
+begin
+    loop
+        begin
+            if leftover then
+                lock table public.measurements in access exclusive mode nowait;
+            else
+                lock table public.measurements in share mode nowait;
+            end if;
+            exit;
+        exception when lock_not_available then
+            if clock_timestamp() > give_up_at then
+                raise exception 'gave up after a minute waiting for a moment when no upload was writing to measurements'
+                    using hint = 'Run this migration again.';
+            end if;
+            perform pg_sleep(0.1);
+        end;
+    end loop;
+
+    if leftover then
+        drop index public.measurements_group_id_idx;
+    end if;
+end;
+$$;
+
+create index if not exists measurements_group_id_idx
+    on public.measurements using btree (group_id);
 
 -- The one place that talks to the FCC. post_fcc_submission called http() directly; going
 -- through this function lets the database tests replace the request with a stand-in, so

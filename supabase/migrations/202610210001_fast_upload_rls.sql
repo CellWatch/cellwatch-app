@@ -31,6 +31,38 @@ begin;
 -- "Allow viewing own ..." policies on cells, latency_data, locations and upload_download_data,
 -- "Allow inserting own measurements", and both policies on fcc_submissions.
 
+-- Deploying. Each ALTER POLICY below needs an ACCESS EXCLUSIVE lock on its table, and a lock
+-- request that has to wait makes every later request on that table wait behind it. Taken one
+-- statement at a time, the migration could hold measurements while it waited for a cron run
+-- or a dashboard query to finish with another table; every upload meanwhile would wait behind
+-- it and fail at the API's 8 second lock_timeout, and a dashboard query could deadlock with it
+-- and roll it back. So take all five locks first, with NOWAIT: either they are all free and
+-- this gets them at once, or it gets none and tries again a moment later, without making
+-- anyone wait. It gives up after a minute (pause the fcc-submission-retries job and run it
+-- again). Once it has them, the rest takes well under a second; lock_timeout makes any other
+-- lock it has to wait for fail fast instead.
+set local lock_timeout = '3s';
+do $$
+declare
+    give_up_at constant timestamptz := clock_timestamp() + interval '1 minute';
+begin
+    loop
+        begin
+            lock table public.measurements, public.latency_data, public.locations,
+                public.upload_download_data, public.cells
+                in access exclusive mode nowait;
+            exit;
+        exception when lock_not_available then
+            if clock_timestamp() > give_up_at then
+                raise exception 'gave up after a minute waiting for a moment when nothing was using the upload tables'
+                    using hint = 'Pause the fcc-submission-retries cron job, then run this migration again.';
+            end if;
+            perform pg_sleep(0.1);
+        end;
+    end loop;
+end;
+$$;
+
 alter policy "Allow viewing own measurements" on public.measurements
     using ((select private.is_dashboard_request())
            or (select private.verified_device_id_or_null()) = device_id);
@@ -76,7 +108,22 @@ alter policy "dashboard can select locations" on public.locations
 -- locally, the index took 0.05 seconds on 100k rows and 0.3 seconds on 1M, so uploads that
 -- arrive meanwhile just wait a moment. If the table has grown much larger, first run
 --     create index concurrently if not exists measurements_device_id_idx on public.measurements (device_id);
--- by hand outside a transaction; this statement then does nothing.
+-- by hand outside a transaction; this statement then does nothing. A concurrent build that
+-- fails or is cancelled leaves an invalid index behind, which `if not exists` would keep, so
+-- the lookups would still read the whole table. Such a leftover is dropped and built again.
+do $$
+begin
+    if exists (
+        select 1
+        from pg_index i
+        where i.indexrelid = to_regclass('public.measurements_device_id_idx')
+          and not i.indisvalid
+    ) then
+        drop index public.measurements_device_id_idx;
+    end if;
+end;
+$$;
+
 create index if not exists measurements_device_id_idx on public.measurements (device_id);
 
 commit;
