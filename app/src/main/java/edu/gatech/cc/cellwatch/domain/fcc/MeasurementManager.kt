@@ -226,10 +226,12 @@ object MeasurementManager {
                 throw Exception("no throughput servers found")
             }
 
-            val throughputServer = closestServer(
-                throughputServers,
-                onError = { server, t -> Log.i(TAG, "pinging ${server.machine} failed", t) },
-            ) { ping(it.machine) }
+            val throughputServer = try {
+                throughputServers.maxBy { ping(it.machine) }
+            } catch (t: Throwable) {
+                Log.i(TAG, "pinging available servers failed", t)
+                throughputServers[0]
+            }
 
             val latencyServers = manager.locateLatencyServers(throughputServer)
 

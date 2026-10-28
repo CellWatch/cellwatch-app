@@ -90,11 +90,11 @@ Any exception from a test (other than the tolerated network errors described bel
 Selection steps:
 
 1. `locateThroughputServers()`; empty list -> exception "no throughput servers found" (run fails).
-2. Ping every candidate's `machine` with [ping.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ping.kt) (5 ICMP pings, 5 ms apart, IPv4 preferred; uses `com.spectrum.android.ping.Ping` from `lib/AndroidPing.aar`) and pick the lowest average RTT with `closestServer()` in [ServerSelection.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ServerSelection.kt) (#136). A server whose ping throws ranks last; if every ping fails, the first server in locate's order wins.
+2. Ping every candidate's `machine` with [ping.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ping.kt) (5 ICMP pings, 5 ms apart, IPv4 preferred; uses `com.spectrum.android.ping.Ping` from `lib/AndroidPing.aar`) and pick one with `maxBy { ping(...) }`. If any ping throws, the first server in locate's order is used.
 3. `locateLatencyServers(throughputServer)`; prefer the entry on the same machine, else the first. Empty -> exception.
 4. If locate throws an `IOException` (no connectivity), both servers become an [`UnreachableServer`](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/UnreachableServer.kt) for the locate host. Tests against it return immediately with `success = false` and zero metrics, so a failed group is still recorded (the FCC counts failed tests).
 
-> Note: main picks with `maxBy { ping(...) }`, which selects the candidate with the *highest* latency (`ping()` returns the average RTT in ms, so this is the slowest server), and falls back to the first server if any ping throws. **Fixed in #136; reaches users with the next app release**: `closestServer()` picks the lowest RTT, and an unreachable server ranks last (`ServerSelectionTest`).
+> Note: `maxBy` selects the candidate with the *highest* latency (`ping()` returns the average RTT in ms, so this is the slowest server). This is the FCC-approved, released behaviour. A fix (`closestServer()`, lowest RTT; an unreachable server ranks last) was merged in #136 and then taken back out of main, because it changes which server a test runs against. It waits on the local branch `measurement-process-changes` for FCC review.
 
 ## What every test captures (`MeasurementTest.run`)
 

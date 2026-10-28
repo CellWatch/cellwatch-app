@@ -7,21 +7,14 @@ import org.junit.Test
 class FccExportExtensionsTest {
     private val groupId = "3f2c9a8e-1b4d-4c6e-9f00-a1b2c3d4e5f6"
 
+    // The released app exports test_id as the latency measurement's id. Changing it to the
+    // submission id changes FCC data, so that change waits for FCC review (branch
+    // measurement-process-changes).
     @Test
-    fun testIdIsTheSubmissionIdTheServerPostsNotAMeasurementId() {
+    fun testIdIsTheLatencyMeasurementIdAsReleased() {
         val group = group(groupId, FccSubmission(id = groupId))
 
-        val export = group.toFccSubmissionExport()
-
-        assertEquals(groupId, export?.test_id)
-    }
-
-    @Test
-    fun testIdIsLowercaseLikePostgresWritesAUuid() {
-        val upper = groupId.uppercase()
-        val group = group(upper, FccSubmission(id = upper))
-
-        assertEquals(groupId, group.toFccSubmissionExport()?.test_id)
+        assertEquals("latency-measurement", group.toFccSubmissionExport()?.test_id)
     }
 
     @Test
