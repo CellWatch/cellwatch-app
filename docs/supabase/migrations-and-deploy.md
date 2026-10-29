@@ -38,7 +38,7 @@ Migrations that are not on main. None of them is pushed to prod:
 
 ## Local stack
 
-From [config.toml](../../supabase/config.toml): API on `54321`, Postgres on `54322`, Studio on `54323`, Inbucket on `54324`. The REST API exposes `public`, `storage`, `graphql_public`. On main, `[db].major_version` is still `15`, but prod runs Postgres 17; set it to `17` before `supabase start` (that change is uncommitted on the `client-port-header` branch). `sync_from_remote.sh` assumes the local stack runs 17.
+From [config.toml](../../supabase/config.toml): API on `54321`, Postgres on `54322`, Studio on `54323`, Inbucket on `54324`. The REST API exposes `public`, `storage`, `graphql_public`. `[db].major_version` is `17`, matching prod; `sync_from_remote.sh` and `check_drift.sh` need that, since the CLI's `pg_dump` follows it and refuses to dump a newer server.
 
 ```bash
 supabase start        # bring up the local stack (Docker)
