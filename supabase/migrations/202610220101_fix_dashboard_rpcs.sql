@@ -11,12 +11,21 @@ begin;
 -- All three are SECURITY DEFINER (they bypass row-level security) and are granted to anon, so
 -- anyone holding the anon key that ships in the app could read every device's locations and
 -- results. They now refuse to run unless the request carries the dashboard's shared secret
--- (x-dashboard-secret), the same check the dashboard RLS policies use.
+-- (x-dashboard-secret), the same check the dashboard RLS policies use. Their search_path now
+-- ends in pg_temp: otherwise Postgres looks up table and type names in the caller's temporary
+-- schema first, and a database login that knows the secret could run its own code as their
+-- owner with a temporary domain named text.
 --
 -- latency_data.rtt and .jitter are in microseconds (the app stores MSAK's values, and the FCC
 -- payload uses the same unit). rpc_map_points already converted them to the milliseconds its
 -- ping_ms/jitter_ms names promise; rpc_group_detail and rpc_group_summaries now do too, so
 -- their lat_min/lat_max filters are also in milliseconds.
+--
+-- When a row has neither bytes_per_sec nor application_bytes_per_sec, all three fall back to
+-- bytes / duration. upload_download_data.duration is in microseconds too (the FCC payload
+-- divides by duration / 1e6), so that fallback came out a million times too small, and the
+-- dl_min/ul_min filters dropped those groups. It now converts duration to seconds first.
+-- (This was PR #149's 202610270001, folded in here before either was pushed.)
 
 create or replace function private.require_dashboard_request() returns void
     language plpgsql stable security definer
@@ -34,7 +43,7 @@ revoke all on function private.require_dashboard_request() from public;
 
 CREATE OR REPLACE FUNCTION "public"."rpc_group_detail"("group_id" "text") RETURNS "jsonb"
     LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
+    SET "search_path" TO 'public', 'pg_temp'
     AS $$
 select private.require_dashboard_request();
 with m as (
@@ -80,7 +89,7 @@ parts as (
     lc.sinr,
     case
       when m.type in ('download','upload') then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as mbps,
     case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,
@@ -146,7 +155,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION "public"."rpc_group_summaries"("min_lng" double precision, "min_lat" double precision, "max_lng" double precision, "max_lat" double precision, "t_from" timestamp with time zone DEFAULT NULL::timestamp with time zone, "t_to" timestamp with time zone DEFAULT NULL::timestamp with time zone, "providers" "text"[] DEFAULT NULL::"text"[], "conn" "text"[] DEFAULT NULL::"text"[], "dl_min" double precision DEFAULT NULL::double precision, "dl_max" double precision DEFAULT NULL::double precision, "ul_min" double precision DEFAULT NULL::double precision, "ul_max" double precision DEFAULT NULL::double precision, "lat_min" double precision DEFAULT NULL::double precision, "lat_max" double precision DEFAULT NULL::double precision, "lim" integer DEFAULT 50000) RETURNS SETOF "jsonb"
     LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
+    SET "search_path" TO 'public', 'pg_temp'
     AS $$
 select private.require_dashboard_request();
 with latest_loc as (
@@ -174,12 +183,12 @@ meas as (
     lc.network_generation,
     case
       when m.type = 'download' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as dl_mbps,
     case
       when m.type = 'upload' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as ul_mbps,
     case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,
@@ -257,7 +266,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION "public"."rpc_map_points"("min_lng" double precision, "min_lat" double precision, "max_lng" double precision, "max_lat" double precision, "t_from" timestamp with time zone DEFAULT NULL::timestamp with time zone, "t_to" timestamp with time zone DEFAULT NULL::timestamp with time zone, "providers" "text"[] DEFAULT NULL::"text"[], "conn" "text"[] DEFAULT NULL::"text"[], "dl_min" double precision DEFAULT NULL::double precision, "dl_max" double precision DEFAULT NULL::double precision, "ul_min" double precision DEFAULT NULL::double precision, "ul_max" double precision DEFAULT NULL::double precision, "lat_min" double precision DEFAULT NULL::double precision, "lat_max" double precision DEFAULT NULL::double precision, "lim" integer DEFAULT 2000) RETURNS SETOF "jsonb"
     LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
+    SET "search_path" TO 'public', 'pg_temp'
     AS $$
 select private.require_dashboard_request();
 with latest_loc as (
@@ -285,12 +294,12 @@ meas as (
     lc.network_generation,
     case
       when m.type = 'download' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as dl_mbps,
     case
       when m.type = 'upload' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as ul_mbps,
     case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,

@@ -33,6 +33,7 @@ A unique-violation error (`duplicate key value violates unique constraint`) beco
 - Returns the plaintext secret **once**. If the id already exists, it raises `device id % already registered`.
 - No auth required: anyone with the anon key can register a new id.
 - If the phone loses the response, that device id can never be registered again. A fix is on an unpushed local branch, `register-device-retry` (migration `202610220001_retry_safe_device_registration.sql`, which adds a `register_device(device_id, device_secret)` overload; not on main, not pushed to prod). That migration must be pushed to prod before any app release that includes the fix ([migrations-and-deploy](migrations-and-deploy.md#ordering-rule-server-first)).
+- With `202610220001`, both versions replace the secret of a device that has never uploaded anything (no measurements, no FCC submissions), after waiting for that device's uploads in progress (see [identity-and-security](../architecture/identity-and-security.md)). `private.device_has_uploaded(uuid)`, which they use, is not callable by other roles.
 
 ### `insert_measurement`
 
@@ -68,13 +69,13 @@ These serve the web dashboard. The dashboard's code is not in this repo: its bac
 
 ### `rpc_map_points`
 
-`public.rpc_map_points(min_lng, min_lat, max_lng, max_lat double precision, t_from timestamptz = null, t_to timestamptz = null, providers text[] = null, conn text[] = null, dl_min, dl_max, ul_min, ul_max, lat_min, lat_max double precision = null, lim int = 2000) RETURNS SETOF jsonb`. Definer, sql STABLE, `search_path = public`.
+`public.rpc_map_points(min_lng, min_lat, max_lng, max_lat double precision, t_from timestamptz = null, t_to timestamptz = null, providers text[] = null, conn text[] = null, dl_min, dl_max, ul_min, ul_max, lat_min, lat_max double precision = null, lim int = 2000) RETURNS SETOF jsonb`. Definer, sql STABLE, `search_path = public` on prod; `202610220101` makes it `public, pg_temp`.
 
 - For each measurement, takes the latest location and latest cell (`DISTINCT ON` over the **whole** `locations` and `cells` tables), plus throughput and latency.
 - Groups by `group_id`: averages lat/lon, takes the max of each speed, and sets `conn_tag` from `max(network_generation)` (`NR`/`5` → `5G`, `LTE`/`4` → `4G`, else `Other`).
 - Then filters by bounding box, time, providers, conn tags, and min/max ranges (`lat_min` / `lat_max` bound latency, not latitude). `lim` is clamped to 1..20000.
 - Row shape: `{group_id, provider, conn_tag, timestamp, center:[lon,lat], stats:{down_mbps, up_mbps, ping_ms, jitter_ms, loss_pct}}`.
-- Mbps = `coalesce(bytes_per_sec, application_bytes_per_sec, bytes/duration) * 8 / 1e6`. `duration` is in microseconds, so the `bytes/duration` fallback (used only when both rates are null) comes out 10⁶ too small; #136 leaves it as is. `ping_ms` and `jitter_ms` here are `rtt / 1000` and `jitter / 1000`.
+- Mbps = `coalesce(bytes_per_sec, application_bytes_per_sec, bytes/duration) * 8 / 1e6`. `duration` is in microseconds, so on prod the `bytes/duration` fallback (used only when both rates are null) comes out 10⁶ too small. `202610220101` divides by `duration / 1e6` instead, as the FCC payload does. `ping_ms` and `jitter_ms` here are `rtt / 1000` and `jitter / 1000`.
 
 ### `rpc_group_summaries`
 
@@ -82,7 +83,7 @@ Same parameters as `rpc_map_points` (default `lim` 50000, clamped to 1..200000).
 
 ### `rpc_group_detail`
 
-`public.rpc_group_detail(group_id text) RETURNS jsonb`. Definer, sql STABLE, `search_path = public`.
+`public.rpc_group_detail(group_id text) RETURNS jsonb`. Definer, sql STABLE, `search_path = public` on prod; `202610220101` makes it `public, pg_temp`.
 
 Returns `{group_id, timestamp, provider, location:{lat, lon, accuracy_m}, cell:{network_generation, rsrp, sinr}, tests:{download:{mbps}, upload:{mbps}, latency:{rtt_ms, jitter_ms, loss_pct}}}`.
 
@@ -126,7 +127,7 @@ Full flow: [fcc-submission-pipeline](fcc-submission-pipeline.md).
 
 | Function | Mode | Caller | Behaviour |
 |---|---|---|---|
-| `private.fcc_submission_is_ready(sub_id uuid) RETURNS boolean` | Invoker, sql STABLE, `search_path = public, private, extensions` | `post_fcc_submission`, `process_fcc_submission_retries` | True when exactly 3 of group `sub_id`'s measurements have their data row, one each of latency/download/upload (measurements without a data row are not counted). A failed test still counts (presence, not success). Defined in [202607140001](../../supabase/migrations/202607140001_repair_fcc_submission_functions.sql) |
+| `private.fcc_submission_is_ready(sub_id uuid) RETURNS boolean` | Invoker, sql STABLE, `search_path = public, private, extensions` (`202610210104` adds `pg_temp` last, since `fcc_queue_digest()` and `fcc_queue_entry_is_ready()` call it as their owner) | `post_fcc_submission`, `process_fcc_submission_retries` | True when exactly 3 of group `sub_id`'s measurements have their data row, one each of latency/download/upload (measurements without a data row are not counted). A failed test still counts (presence, not success). Defined in [202607140001](../../supabase/migrations/202607140001_repair_fcc_submission_functions.sql) |
 | `private.post_fcc_submission(sub_id uuid, fcc_env text) RETURNS boolean` | Invoker (runs as `postgres` when called from the retry job) | `process_fcc_submission_retries`; manual | Checks readiness, loads the URL and Vault secret for `fcc_env`, builds the payload from `fcc_submissions_view`, checks that `tests` has all three keys, POSTs with `http()`, raises on a non-2xx response, then sets `submitted`, `submission`, `submitted_on`, `submission_response` |
 | `private.process_fcc_submission_retries(p_batch_size int = 1) RETURNS integer` | Definer; `EXECUTE` revoked from `PUBLIC` | pg_cron job `fcc-submission-retries` | Works through due `pending` queue entries (at most 10), with backoff and blocking. Prod runs the [202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql) version (pushed); `full_schema.sql` still has the earlier one. See the pipeline doc |
 | `private.auto_post_fcc_submission() RETURNS trigger` | Definer | `AFTER INSERT` on `fcc_submissions` | On prod (and in `full_schema.sql`): upserts a `pending` queue entry (`fcc_env = 'prod'`) when `submitted` is false. The copies in `202607140001` and `post_fcc_submission_func.sql` post synchronously instead (older design) |

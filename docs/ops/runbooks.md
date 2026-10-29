@@ -60,14 +60,16 @@ pg_cron jobs live in `cron.job` rows, not in the schema dump. The single job:
 
 | Job | Schedule | Command (expected) |
 |---|---|---|
-| `fcc-submission-retries` | `*/2 * * * *` | `select private.process_fcc_submission_retries(10);` |
+| `fcc-submission-retries` | `*/2 * * * *` | `call private.run_fcc_submission_retries(10);` once [`202610210103`](../../supabase/migrations/202610210103_fcc_retry_queue_processing.sql) is pushed; until then `select private.process_fcc_submission_retries(10);` |
 
-[`cron_jobs.sql`](../../supabase/cron_jobs.sql) is a 2026-09-30 snapshot and still shows batch size `1`. Migration [`202610070001`](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql), which is pushed to prod, re-schedules it with batch `10` where pg_cron is installed. The batch size in prod's `cron.job` row hasn't been verified, so check it with the query below. To recreate:
+[`cron_jobs.sql`](../../supabase/cron_jobs.sql) has the job as the migrations leave it. Recreate it with the command for what is live: the `call` once `private.run_fcc_submission_retries` exists, the old `select` before that. The old function runs the whole batch in one transaction, so putting it back after `202610210103` would bring back the lost-record problem (#117).
 
 ```sql
 -- cron.schedule upserts by job name
 select cron.schedule('fcc-submission-retries', '*/2 * * * *',
-                     'select private.process_fcc_submission_retries(10);');
+                     case when exists (select 1 from pg_proc where proname = 'run_fcc_submission_retries')
+                          then 'call private.run_fcc_submission_retries(10);'
+                          else 'select private.process_fcc_submission_retries(10);' end);
 ```
 
 Check (read-only):
@@ -87,7 +89,7 @@ select cron.alter_job(jobid, active := false) from cron.job where jobname = 'fcc
 select cron.alter_job(jobid, active := true)  from cron.job where jobname = 'fcc-submission-retries';
 ```
 
-Never commit a job command that contains a key or token. In open PR #133 (not pushed to prod), `202610210103` changes the command to `call private.run_fcc_submission_retries(10);`. See `prod-deploy-runbook.md` (local file, not in git) for the fallback if `CALL` can't commit under pg_cron.
+Never commit a job command that contains a key or token. `202610210103` (on main, not pushed to prod) changes the command to `call private.run_fcc_submission_retries(10);`. See `prod-deploy-runbook.md` (local file, not in git) for the fallback if `CALL` can't commit under pg_cron.
 
 ## Inspecting and draining a stuck FCC retry queue
 
@@ -128,11 +130,12 @@ Also check the cron history above. Each run can take long, because building one 
 
 | Reason | Fix |
 |---|---|
-| `Missing provider` | Leave it blocked. Blank carrier names are not filled in (decided 2026-10-27); a fix belongs in the app. |
+| `Missing provider` | Leave it blocked. Blank carrier names are not filled in (decided 2026-10-27); a fix belongs in the app. `202610210103` (on main, not pushed to prod) holds new ones as `held` instead, so they stop showing up as needing a person; entries blocked before it stay blocked. |
 | Waiting for data | Nothing on the server: the phone has to upload. See [A device that never uploads](#a-device-that-never-uploads). |
 | BDC 4xx (`null_properties`, `null_net_mobile_country_code`, …) | A data problem. Re-posting the same payload fails again. Decide with the FCC first. |
-| `duplicate_test_id` | The BDC already has the test. On prod (and main) it stays a failure; the pipeline in open PR #133 records it as sent once pushed to prod. |
+| `duplicate_test_id` | The BDC already has the test. On prod it stays a failure; `202610210103` (on main, not pushed to prod) records it as sent, with `submitted_on` null because the earlier post's time is unknown. |
 | 5xx / transport errors | Retried automatically. Blocked only after 6 attempts. |
+| 401 / 403 / 404 | The FCC refused the request, not the test: check the hash value in Vault and the URL in `private.fcc_submission_info`, then re-pend. On prod these block the entry right away. `202610210103` (on main, not pushed to prod) retries them like 5xx and ends each run at the first failure that isn't a rejection, so a bad key or URL costs one request per run instead of blocking every ready entry. |
 
 ### 3. Drain or re-queue (prod writes that post to the FCC; explicit approval required)
 

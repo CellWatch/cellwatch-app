@@ -29,6 +29,8 @@ sequenceDiagram
 - The device ID is a random UUID created on first use by [SettingsRepository.getDeviceId](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/repositories/SettingsRepository.kt). It is not a hardware ID.
 - `register_device` raises `device id … already registered` if the ID already exists. A phone that loses the response, or loses its stored secret, can never register again and cannot upload. Client creation is serialized with a mutex in [NetworkMeasurementDatasource.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/NetworkMeasurementDatasource.kt) so two threads in one process don't race.
   > A fix (retry-safe registration with a client-made secret) is on the unpushed local branch `register-device-retry`; there is no PR yet. Its migration `202610220001` is not pushed to prod, and it must be pushed before any app build with the fix is released. TODO: link the PR once one is opened.
+  >
+  > `202610220001` also lets a device that has never uploaded anything register again with a new secret, which rescues phones that lost the first response, the released app included (an owner decision). The cost: anyone who knows such a device's id can take it over, and that phone can then no longer upload, since neither app version registers again once it holds a secret. The id is random but not secret: the app reports it to Crashlytics and shows it in Settings. Replacing a secret waits for that device's uploads in progress, through a per-device advisory lock that `register_device` takes exclusively and `private.verified_device_id()` takes in shared mode before it reads the secret. Without the lock, a replacement during the phone's first upload would leave the device counted as uploaded under the other secret, and the server's rescue could never apply to it again.
 - Anyone with the anon key can register new device IDs and insert data under them. That data is limited to IDs the caller registered (commit 12c442c accepts this risk).
 
 ## How the secret is stored and sent
@@ -90,6 +92,8 @@ These run with the owner's (`postgres`) rights and bypass RLS:
 > Decided 2026-10-22: the dashboard RPCs are dashboard-only. **Fixed in #136**: migration `202610220101` makes all three raise `42501` unless the request carries the correct `x-dashboard-secret`. Live once `202610220101` is pushed to prod. Before it is pushed, the dashboard backend (the CellWatch/demo-dashboard Flask app on Render) must send `x-dashboard-secret`, from its `DASHBOARD_SECRET` env var, on these calls.
 >
 > `register_device`, `verified_device_id`, `verified_device_id_or_null` and `is_dashboard_request` have no fixed `search_path` on prod. #136 (`202610220102`) pins one; live once pushed.
+>
+> Every SECURITY DEFINER function the 2026-10 migrations add or replace lists `pg_temp` **last** in its `search_path`. If `pg_temp` isn't listed, Postgres searches the caller's temporary schema *first* for table and type names, so any database login that may call the function (`readonly_user`, or any role for `register_device`) could create a temporary domain named `text` or `jsonb` and have its own code run as the function's owner. The db tests reproduce that attack for each function (`db_tests/lib/shadow_types.sql`).
 
 ## Header trust
 

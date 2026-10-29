@@ -217,14 +217,13 @@ begin
 end;
 $$;
 
--- The one intended difference: arrays are ordered by timestamp, whatever order the rows
--- were inserted in.
+-- Locations and cells are listed in the order they were inserted, as the old view listed
+-- them, even when that isn't time order.
 do $$
 declare
     sub uuid := test_submission('locations inserted out of order');
     m uuid := test_measurement(sub, 'latency', '2026-07-14 08:00:00-07');
     stamps text[];
-    old_stamps text[];
 begin
     perform test_latency(m);
     insert into public.locations (measurement_id, "timestamp", lat, lon)
@@ -235,14 +234,40 @@ begin
     select array_agg(e ->> 'timestamp' order by n) into stamps
     from jsonb_array_elements(private.fcc_submission_payload(sub) #> '{submissions,0,tests,latency,locations}')
         with ordinality as x(e, n);
-    select array_agg(e ->> 'timestamp' order by e ->> 'timestamp') into old_stamps
-    from test_ref.fcc_submissions_view v,
-        jsonb_array_elements(v.data #> '{submissions,0,tests,latency,locations}') e
-    where v.submission_id = sub;
 
-    perform expect(stamps = array['2026-07-14T08:00:01-07:00', '2026-07-14T08:00:02-07:00', '2026-07-14T08:00:03-07:00'],
-        'locations are listed in time order');
-    perform expect(stamps = old_stamps, 'they are the same locations the old view listed');
+    perform expect(stamps = array['2026-07-14T08:00:03-07:00', '2026-07-14T08:00:01-07:00', '2026-07-14T08:00:02-07:00'],
+        'locations are listed in the order they were inserted, not sorted by time');
+    perform expect(
+        private.fcc_submission_payload(sub)::text
+            = (select v.data::text from test_ref.fcc_submissions_view v where v.submission_id = sub),
+        'locations inserted out of order: payload is byte for byte the same as the old view''s');
+end;
+$$;
+
+-- The cells from one scan share a timestamp. Sorting by (timestamp, id) would put these in
+-- reverse; the payload keeps the order they were inserted in.
+do $$
+declare
+    sub uuid := test_submission('cells from one scan');
+    m uuid := test_measurement(sub, 'latency', '2026-07-15 08:00:00-07');
+    ids numeric[];
+begin
+    perform test_latency(m);
+    insert into public.cells (id, measurement_id, "timestamp", cell_id)
+    values ('30000000-0000-0000-0000-000000000000', m, '2026-07-15 08:00:01-07', 1),
+           ('20000000-0000-0000-0000-000000000000', m, '2026-07-15 08:00:01-07', 2),
+           ('10000000-0000-0000-0000-000000000000', m, '2026-07-15 08:00:01-07', 3);
+
+    select array_agg((e ->> 'cell_id')::numeric order by n) into ids
+    from jsonb_array_elements(private.fcc_submission_payload(sub) #> '{submissions,0,tests,latency,cells}')
+        with ordinality as x(e, n);
+
+    perform expect(ids = array[1, 2, 3]::numeric[],
+        'cells with the same timestamp are listed in the order they were inserted');
+    perform expect(
+        private.fcc_submission_payload(sub)::text
+            = (select v.data::text from test_ref.fcc_submissions_view v where v.submission_id = sub),
+        'cells from one scan: payload is byte for byte the same as the old view''s');
 end;
 $$;
 
@@ -308,10 +333,18 @@ create table test_http_log (url text, hash_value text, body text, at timestamptz
 create table test_http_reply (status integer, content text);
 insert into test_http_reply values (200, '{"status":"ok","refId":"test-1"}');
 
+-- Counts the requests sent. A sequence, because nextval() isn't undone when the caller's
+-- transaction rolls back: test_http_log is, so it can't show that nothing was sent by a call
+-- that then failed.
+create sequence test_post_counter;
+create function test_posts_sent() returns bigint
+language sql as $$ select case when is_called then last_value else 0 end from test_post_counter $$;
+
 create or replace function private.fcc_http_post(
     p_url text, p_hash_value text, p_body text, out status integer, out content text)
 language plpgsql as $$
 begin
+    perform nextval('test_post_counter');
     insert into test_http_log (url, hash_value, body) values (p_url, p_hash_value, p_body);
     select r.status, r.content into status, content from test_http_reply r;
 end;
@@ -375,15 +408,60 @@ $$;
 do $$
 declare
     sub uuid := (select sub_id from test_case where name = 'latency and download only');
+    sent_before bigint := test_posts_sent();
+    refusal text;
 begin
     update test_http_reply set status = 200, content = 'ok';
-    truncate test_http_log;
     begin
         perform private.post_fcc_submission(sub, 'prod');
-        perform expect(false, 'an incomplete group is refused');
+        refusal := 'posted';
     exception when others then
-        perform expect(sqlerrm like '%is incomplete%' and not exists (select 1 from test_http_log),
-            'an incomplete group is refused before anything is sent');
+        refusal := sqlerrm;
     end;
+    perform expect(refusal like '%is incomplete%' and test_posts_sent() = sent_before,
+        'an incomplete group is refused before anything is sent');
 end;
 $$;
+
+-- Roles that could read the view's payloads before (pg_read_all_data members, such as
+-- Supabase's supabase_read_only_user) still can.
+do $$ begin create role test_reader login; exception when duplicate_object then null; end $$;
+grant pg_read_all_data to test_reader;
+grant test_reader to postgres;   -- postgres isn't a superuser in this image, so it needs this to set role
+do $$
+declare
+    sub uuid := (select sub_id from test_case where name = 'complete group, several locations and cells');
+    expected text := private.fcc_submission_payload(sub)::text;
+    seen text;
+begin
+    set local role test_reader;
+    select v.data::text into seen from private.fcc_submissions_view v where v.submission_id = sub;
+    reset role;
+    perform expect(seen = expected, 'a pg_read_all_data member can still read payloads through the view');
+end;
+$$;
+
+-- An unprivileged role that may build payloads (as readonly_user may) must not be able to
+-- run its own code as the function's owner by shadowing a type with a temporary object.
+do $$ begin create role test_caller login; exception when duplicate_object then null; end $$;
+grant test_caller to postgres;   -- postgres isn't a superuser in this image, so it needs this to set role
+grant usage on schema private to test_caller;
+grant execute on function private.fcc_submission_payload(uuid) to test_caller;
+-- Latency only, so the payload falls back to an empty object for the throughput tests, the
+-- one place it names a type ('{}'::jsonb).
+do $$
+begin
+    perform test_latency(test_measurement(test_submission('latency only'), 'latency', '2026-07-11 08:00:00-07'));
+end;
+$$;
+select current_database() as test_db,
+       (select sub_id from test_case where name = 'latency only') as shadow_sub \gset
+\c :test_db
+set role test_caller;
+\i /db_tests/lib/shadow_types.sql
+select private.fcc_submission_payload(:'shadow_sub') is not null as built \gset
+select pg_temp.test_shadow_ran_as_owner() as escalated \gset
+reset role;
+\c :test_db
+select expect(:'built' and not :'escalated',
+    'a caller''s temporary types do not run as the owner of fcc_submission_payload') as ok \gset

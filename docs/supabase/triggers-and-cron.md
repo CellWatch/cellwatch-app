@@ -61,16 +61,17 @@ The `published` insert triggers always overwrite `created_on` / `updated_on` wit
 
 ## pg_cron jobs
 
-Jobs are rows in `cron.job`, so **schema dumps (`full_schema.sql`) do not include them**. [cron_jobs.sql](../../supabase/cron_jobs.sql) is the source of truth for recreating them. It was pulled from the remote on 2026-09-30. Never commit a job command that contains a key or token.
+Jobs are rows in `cron.job`, so **schema dumps (`full_schema.sql`) do not include them**. [cron_jobs.sql](../../supabase/cron_jobs.sql) is the source of truth for recreating them: it has the jobs as the migrations leave them. Never commit a job command that contains a key or token.
 
 | Job name | Schedule | Command | Runs as | Purpose |
 |---|---|---|---|---|
 | `fcc-submission-retries` | `*/2 * * * *` (every 2 min) | `cron_jobs.sql`: `select private.process_fcc_submission_retries(1);` | `postgres`, database `postgres` | Posts queued FCC submissions, with retry and backoff |
-| | | After [202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql): `select private.process_fcc_submission_retries(10);` | | Same, up to 10 entries per run |
+| | | After [202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql) (live on prod): `select private.process_fcc_submission_retries(10);` | | Same, up to 10 entries per run |
+| | | After [202610210103](../../supabase/migrations/202610210103_fcc_retry_queue_processing.sql) (`cron_jobs.sql`; not pushed to prod yet): `call private.run_fcc_submission_retries(10);` | | Same, but each post commits on its own |
 
 Notes:
 - `202610070001` reschedules the job with `cron.schedule('fcc-submission-retries', ...)`, which updates the job of that name in place. It skips this step when `pg_cron` is not installed (for example a fresh local DB, or the test project).
-- `202610070001` is pushed to prod: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked. The prod deploy runbook (`prod-deploy-runbook.md`, a local file not in git) Step 0 checks both (the function source contains `60 seconds`, and the job command uses `(10)`). `cron_jobs.sql` predates it. After any job change, refresh `cron_jobs.sql`.
+- `202610070001` is pushed to prod: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked. The prod deploy runbook (`prod-deploy-runbook.md`, a local file not in git) Step 0 checks both (the function source contains `60 seconds`, and the job command uses `(10)`). After any job change, refresh `cron_jobs.sql`. Don't recreate the job with the old `select private.process_fcc_submission_retries(...)` command once `202610210103` is live: that function runs a whole batch in one transaction, so a run that times out loses the record of posts the FCC already accepted (#117).
 - A job's whole command runs in **one transaction**. If a run is cancelled (for example by `statement_timeout`), every database change from that run rolls back. FCC POSTs already sent are not undone, so a submission can be accepted by the FCC and still look unsent locally. PL/pgSQL `exception when others` does not catch `query_canceled`.
 - Run history is in `cron.job_run_details` (`status`, `return_message`, `start_time`, `end_time`).
 

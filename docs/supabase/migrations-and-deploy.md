@@ -77,8 +77,9 @@ supabase/db_tests/run.sh      # needs Docker
 |---|---|
 | `fcc_retry_queue_test.sql` | `202610070001`: waiting entries (5 min / 1 h recheck, not counted as attempts), batch of 10, cap at 10, blank provider → blocked, already-sent entries removed, 400 → blocked, 503 → retried in 60 s, 60 s per-run cap, logging |
 | `local_ports_test.sql` (not on main; uncommitted on `client-port-header`) | `202610130001`: header parsing, malformed values → null, `tuple_local_port` range check, `source_port_comparison` counts |
-| `dashboard_rpcs_test.sql` | `202610220101` (#136): detail returns only its group, all three refuse without the dashboard secret, latency in ms |
+| `dashboard_rpcs_test.sql` | `202610220101` (#136): detail returns only its group, all three refuse without the dashboard secret, latency in ms, speed fallback from bytes and duration, a caller's temporary types don't run as their owner |
 | `database_helpers_test.sql` | `202610220102` (#136): `log_user_data` dropped, `get_raw_header(item)`, pinned `search_path`, no `TRUNCATE` for app roles |
+| `migration_deploy_test.sql` | `202610210001`, `0101`, `0103` while other sessions hold their tables: uploads that arrive meanwhile don't wait for the migration, and leftover invalid indexes from a failed concurrent build are rebuilt. Starts the other sessions with psql's `\!` |
 
 App-side checks are in [testing](../dev/testing.md).
 
@@ -89,8 +90,10 @@ Migrations are pushed to prod **by hand with `psql`**, one migration file at a t
 The step-by-step procedure, with pre-checks, pausing the cron job, per-migration checks, and rollback notes, is in **`prod-deploy-runbook.md`** at the repo root (a local file, not in git). Its outline:
 
 1. Read-only pre-checks (is the previous migration pushed, current cron job, queue state).
-2. Pause `fcc-submission-retries` (`cron.alter_job(..., active := false)`) if the change touches the FCC pipeline.
+2. Pause `fcc-submission-retries` (`cron.alter_job(..., active := false)`) if the change touches the FCC pipeline or the upload tables, and wait for a run in progress to end (pausing doesn't stop it).
 3. `psql -v ON_ERROR_STOP=1 -f supabase/migrations/<file>.sql` for each migration, in order, checking after each one.
+
+A migration that needs a strong lock on a table the app writes to must not wait for it in line: while a lock request waits, every later request on that table waits behind it, so uploads stall and fail at the API's 8 second `lock_timeout`. `202610210001`, `0101` and `0103` take their locks up front with `LOCK TABLE ... NOWAIT` in a retry loop (giving up after a minute) and set `lock_timeout = '3s'` for anything else. If one gives up, nothing has changed; run it again. `db_tests/migration_deploy_test.sql` checks that an upload arriving while one of them waits for a busy table goes straight through.
 4. Resume the job and watch one run in `cron.job_run_details`.
 5. Refresh `full_schema.sql` and `cron_jobs.sql` and commit them.
 

@@ -133,8 +133,8 @@ One row per FCC BDC Consumer Challenge submission. **Contains contact PII** (nam
 | `sim_country_code`, `sim_network_code`, `net_country_code`, `net_network_code` | varchar | PLMN codes |
 | `in_vehicle`, `external_antenna` | boolean | FCC flags |
 | `submitted` | boolean, default false | Set true by `post_fcc_submission` after a 2xx |
-| `submitted_on` | timestamptz | When it was posted |
-| `submission` | jsonb | The exact payload posted |
+| `submitted_on` | timestamptz | When it was posted. Null when the retry job (`202610210103`) recorded a `duplicate_test_id` answer: the BDC already had the test from an earlier post whose time wasn't recorded |
+| `submission` | jsonb | The exact payload posted. For a `duplicate_test_id` answer, the payload as rebuilt when the job got that answer |
 | `submission_response` | text | FCC response body |
 | `tuple_local_port` | integer | **Pending.** Local port the phone used for its tuple-service request |
 | `upload_local_port`, `upload_transport`, `upload_ip` | integer, text, text | **Pending.** Filled by the `_310` trigger from `X-Local-Port`, `X-Transport`, and `cf-connecting-ip` |

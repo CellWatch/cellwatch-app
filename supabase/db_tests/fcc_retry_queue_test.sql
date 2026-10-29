@@ -123,9 +123,9 @@ begin
     perform private.process_fcc_submission_retries(10);
 
     perform expect(
-        (select state = 'blocked' and last_error like 'Missing provider%'
+        (select state = 'held' and last_error like 'Missing provider%'
          from private.fcc_submission_retry_queue where submission_id = sub),
-        'an entry without a carrier name is blocked');
+        'an entry without a carrier name is held');
 end;
 $$;
 

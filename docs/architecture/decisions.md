@@ -236,5 +236,5 @@ Merged to `main` is not in prod: app changes need a Play Store release, and Supa
   - Server side: a separate "one location" hold reason in the submission pipeline.
 - **Consequences:**
   - Some tests that would have been accepted are held back.
-  - If the FCC confirms one location is enough, the server hold can be reverted and the held entries released.
+  - If the FCC confirms one location is enough, the server hold can be reverted. The retry job checks held entries again daily (`202610210103`), so it then releases them within a day, or at once with `select private.recheck_held_fcc_submission_retries(true);`.
 - **Status:** decided, not merged. The work is unpushed local commits on the branches of open PRs #130 (app) and #133 (server); neither PR contains it yet. Nothing on `main` or prod enforces it: `fcc_submission_is_ready` does not count locations.
