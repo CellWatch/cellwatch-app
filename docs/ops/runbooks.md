@@ -135,6 +135,7 @@ Also check the cron history above. Each run can take long, because building one 
 | BDC 4xx (`null_properties`, `null_net_mobile_country_code`, …) | A data problem. Re-posting the same payload fails again. Decide with the FCC first. |
 | `duplicate_test_id` | The BDC already has the test. On prod it stays a failure; `202610210103` (on main, not pushed to prod) records it as sent, with `submitted_on` null because the earlier post's time is unknown. |
 | 5xx / transport errors | Retried automatically. Blocked only after 6 attempts. |
+| 401 / 403 / 404 | The FCC refused the request, not the test: check the hash value in Vault and the URL in `private.fcc_submission_info`, then re-pend. On prod these block the entry right away. `202610210103` (on main, not pushed to prod) retries them like 5xx and ends each run at the first failure that isn't a rejection, so a bad key or URL costs one request per run instead of blocking every ready entry. |
 
 ### 3. Drain or re-queue (prod writes that post to the FCC; explicit approval required)
 

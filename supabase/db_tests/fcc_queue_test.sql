@@ -358,8 +358,9 @@ begin
     perform test_submission(ready => false);
     perform test_submission(locations_per_test => 0);
     perform test_submission(provider => '');
-    perform test_set_id('unavailable', test_submission());
-    insert into test_fcc_reply (submission_id, status, content) values (test_id('unavailable'), 503, 'try later');
+    perform test_set_id('rejected', test_submission());
+    insert into test_fcc_reply (submission_id, status, content)
+    values (test_id('rejected'), 400, '{"errors":[{"code":"null_properties"}]}');
     perform test_set_id('duplicate', test_submission());
     insert into test_fcc_reply (submission_id, status, content)
     values (test_id('duplicate'), 400, '{"errors":[{"code":"duplicate_test_id"}]}');
@@ -382,7 +383,100 @@ begin
     perform expect(test_posts_sent() - current_setting('test.sent_before')::bigint = 4,
         'it posts only the entries that can be posted');
     perform expect(current_setting('test.processed') = '4',
-        'and counts the posted, failed and already-at-the-FCC entries, not the waiting, held or blocked ones');
+        'and counts the posted, rejected and already-at-the-FCC entries, not the waiting or held ones');
+    perform expect(
+        (select state = 'blocked' and attempt_count = 1
+         from private.fcc_submission_retry_queue where submission_id = test_id('rejected')),
+        'a rejection blocks its entry, and the run goes on');
+end;
+$$;
+
+-- #14: a failure that isn't the FCC rejecting the test (an outage, a rotated hash value, a
+-- wrong URL) ends the run, so it costs one request per run, not one per ready entry.
+do $$
+begin
+    perform test_reset();
+    perform test_set_id('first', test_submission(due_ago => interval '5 minutes'));
+    perform test_submission(due_ago => interval '4 minutes') from generate_series(1, 4);
+    insert into test_fcc_reply (submission_id, status, content)
+    select q.submission_id, 401, '{"message":"invalid hash_value"}' from private.fcc_submission_retry_queue q;
+end;
+$$;
+select test_posts_sent() as sent_before \gset
+call private.run_fcc_submission_retries(10) \gset
+set test.processed = :'processed';
+set test.sent_before = :'sent_before';
+do $$
+begin
+    perform expect(test_posts_sent() - current_setting('test.sent_before')::bigint = 1
+                   and current_setting('test.processed') = '1',
+        'the procedure stops after a 401: one request, one entry processed');
+    perform expect(
+        (select state = 'pending' and attempt_count = 1
+         from private.fcc_submission_retry_queue where submission_id = test_id('first')),
+        'the 401 is retried, not blocked');
+    perform expect(
+        (select count(*) from private.fcc_submission_retry_queue where state = 'pending' and attempt_count = 0) = 4,
+        'the other entries wait for the next run, with no attempt counted');
+
+end;
+$$;
+
+-- The same in the function kept for manual use. (A failed post's test_http_log row is rolled
+-- back with the error, so requests are counted with the sequence.)
+do $$
+declare
+    sent_before bigint;
+begin
+    perform test_reset();
+    perform test_submission() from generate_series(1, 3);
+    insert into test_fcc_reply (submission_id, status, content)
+    select q.submission_id, 503, 'try later' from private.fcc_submission_retry_queue q;
+    sent_before := test_posts_sent();
+    perform expect(private.process_fcc_submission_retries(10) = 1 and test_posts_sent() - sent_before = 1,
+        'process_fcc_submission_retries stops after a 503 too');
+end;
+$$;
+
+-- Which answers block an entry on its first attempt.
+do $$
+declare
+    answer integer;
+    sub uuid;
+begin
+    foreach answer in array array[401, 403, 404, 405, 408, 429, 500, 502, 503] loop
+        perform test_reset();
+        sub := test_submission();
+        insert into test_fcc_reply (submission_id, status, content) values (sub, answer, 'not about the test');
+        perform private.process_fcc_submission_retries(10);
+        perform expect(
+            (select state = 'pending' and attempt_count = 1
+             from private.fcc_submission_retry_queue where submission_id = sub),
+            format('a %s answer is retried', answer));
+    end loop;
+
+    foreach answer in array array[400, 409, 413, 422] loop
+        perform test_reset();
+        sub := test_submission();
+        insert into test_fcc_reply (submission_id, status, content)
+        values (sub, answer, '{"errors":[{"code":"null_properties"}]}');
+        perform private.process_fcc_submission_retries(10);
+        perform expect(
+            (select state = 'blocked' and attempt_count = 1
+             from private.fcc_submission_retry_queue where submission_id = sub),
+            format('a %s answer rejects the test and blocks it', answer));
+    end loop;
+
+    -- Retried answers still block an entry at its 6th attempt.
+    perform test_reset();
+    sub := test_submission();
+    insert into test_fcc_reply (submission_id, status, content) values (sub, 401, 'invalid hash_value');
+    update private.fcc_submission_retry_queue set attempt_count = 5 where submission_id = sub;
+    perform private.process_fcc_submission_retries(10);
+    perform expect(
+        (select state = 'blocked' and attempt_count = 6
+         from private.fcc_submission_retry_queue where submission_id = sub),
+        'a retried answer blocks the entry at the 6th attempt');
 end;
 $$;
 

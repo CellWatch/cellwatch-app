@@ -23,6 +23,12 @@ begin;
 --   * A 4xx answer whose body says duplicate_test_id means the FCC already has the test.
 --     The submission is marked submitted, with the payload and a note in
 --     submission_response, and leaves the queue instead of being blocked.
+--   * Only an answer that rejects the test itself (400, 409, 413, 422) blocks an entry on
+--     the first attempt. Other 4xx, such as 401, 403 or 404 after a rotated hash value or
+--     with a wrong URL, are retried like 5xx and blocked after the 6th attempt. A failure
+--     other than a rejection also ends the run, so an outage on the FCC's side costs one
+--     request per run. Before, a run went on to the next entry, and a 401 blocked every
+--     ready entry within a few runs.
 --   * Readiness is checked before the provider, so an entry whose measurements never
 --     arrive isn't held or blocked (#119). A complete entry with a blank provider is held as
 --     'Missing provider', not blocked: the provider is never filled in (#118), so there is
@@ -295,8 +301,9 @@ end;
 $$;
 
 -- Handles the queue entry that has been due longest and returns what happened to it:
--- 'waiting', 'expired', 'held', 'posted', 'already_at_fcc' or 'failed'; null when
--- no entry is due.
+-- 'waiting', 'expired', 'held', 'posted', 'already_at_fcc', 'rejected' (the FCC refused the
+-- test; blocked) or 'failed' (anything else; retried, or blocked after the 6th attempt); null
+-- when no entry is due.
 -- Changes from the loop body of the 202610070001 version are marked "Changed". Like every
 -- security definer function in this file, its search_path ends in pg_temp (see
 -- 202610210101_build_fcc_payload_per_submission.sql for why).
@@ -314,7 +321,7 @@ declare
     response_text text;
     new_attempt_count integer;
     delay_seconds integer;
-    permanent_failure boolean;
+    rejected boolean;
 begin
     -- skip locked: an overlapping run leaves alone the entry this one is posting.
     select q.*
@@ -468,11 +475,12 @@ begin
 
         new_attempt_count := item.attempt_count + 1;
 
-        -- Retry 408, 429, 5xx, and transport errors.
-        -- Block other 4xx validation errors.
-        permanent_failure :=
-            error_text ~ 'FCC HTTP status 4[0-9][0-9]'
-            and error_text !~ 'FCC HTTP status (408|429)';
+        -- Changed: block right away only when the FCC rejects the test itself (400, 409, 413,
+        -- 422). Any other failure is retried and blocked after the 6th attempt: 408, 429, 5xx
+        -- and transport errors as before, and now also the other 4xx. A 401, 403 or 404 comes
+        -- from a rotated hash value or a wrong URL, not from this test, and used to block every
+        -- entry the job reached.
+        rejected := error_text ~ 'FCC HTTP status (400|409|413|422) for submission';
 
         insert into private.fcc_submission_failures (
             submission_id,
@@ -504,7 +512,7 @@ begin
         update private.fcc_submission_retry_queue
         set
             state = case
-                when permanent_failure
+                when rejected
                   or new_attempt_count >= 6
                     then 'blocked'
                 else 'pending'
@@ -517,7 +525,8 @@ begin
             updated_on = now()
         where submission_id = item.submission_id;
 
-        return 'failed';
+        -- Changed: a rejection is reported apart from other failures, which end the run.
+        return case when rejected then 'rejected' else 'failed' end;
     end;
 end;
 $$;
@@ -604,7 +613,7 @@ revoke all on function private.recheck_held_fcc_submission_retries(boolean) from
 -- For manual use; the cron job uses the procedure below. Same results as before, but
 -- everything happens in the caller's transaction, so a run that fails or times out part way
 -- loses the record of posts the FCC has already accepted. Returns the number of entries
--- posted or failed; entries that were only checked (waiting, held, expired) don't
+-- posted, rejected or failed; entries that were only checked (waiting, held, expired) don't
 -- count.
 create or replace function private.process_fcc_submission_retries(p_batch_size integer default 1)
 returns integer
@@ -636,9 +645,12 @@ begin
         outcome := private.process_next_fcc_submission_retry();
         exit when outcome is null;
 
-        if outcome in ('posted', 'already_at_fcc', 'failed') then
+        if outcome in ('posted', 'already_at_fcc', 'rejected', 'failed') then
             processed := processed + 1;
         end if;
+
+        -- See run_fcc_submission_retries.
+        exit when outcome = 'failed';
     end loop;
 
     return processed;
@@ -689,12 +701,17 @@ begin
         outcome := private.process_next_fcc_submission_retry();
         exit when outcome is null;
 
-        if outcome in ('posted', 'already_at_fcc', 'failed') then
+        if outcome in ('posted', 'already_at_fcc', 'rejected', 'failed') then
             processed := processed + 1;
         end if;
 
         -- Record this entry's outcome before taking the next one.
         commit;
+
+        -- A failure that isn't a rejection of the test (the FCC down, a rotated hash value, a
+        -- wrong URL, no network) would most likely fail the next entries too. Leave them for
+        -- the next run, so it costs one attempt per run rather than one for every entry.
+        exit when outcome = 'failed';
     end loop;
 end;
 $$;
