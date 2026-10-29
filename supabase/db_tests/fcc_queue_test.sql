@@ -874,22 +874,125 @@ begin
     raise notice 'digest example:%', E'\n' || digest;
     perform expect(digest like 'FCC submission queue, %' and digest like '%In the queue: 3 pending, 2 held, 1 blocked, 2 expired%',
         'digest: counts by state');
-    perform expect(digest like format('%%Blocked, needs a person (1):%%- %s (device %s, queued %%): FCC HTTP status 400%%',
+    perform expect(digest like '%Last 24 hours: 0 posted, 0 already at the FCC (duplicate_test_id), 1 failed attempts%',
+        'digest: counts the last day''s posts and failed attempts');
+    perform expect(digest like format('%%Blocked, needs a person (1, newest first):%%- %s (device %s, queued %%): FCC HTTP status 400%%',
                                       blocked, left(device_b::text, 8)),
         'digest: lists each blocked entry with its reason');
     perform expect(digest like format('%%Pending for more than 3 days (2):%%- device %s: 2, oldest queued %%: Waiting for complete%%', left(device_a::text, 8)),
         'digest: groups long-pending entries by device');
-    perform expect(digest like format('%%Expired, but their measurements are complete now (1). To post them:%%- %s (device%%', expired_complete),
+    perform expect(digest like format('%%Expired, but their measurements are complete now (1).%%  select private.revive_expired_fcc_submission_retries();%%- %s (device%%', expired_complete),
         'digest: lists expired entries whose data has arrived, with how to release them');
     perform expect(digest like '%Held until there is a way to send them (2):%- Missing provider%: 1%- No locations%: 1%',
         'digest: counts held entries by reason');
     perform expect(digest not like '%Nothing needs attention%', 'digest: does not say all is well');
+
+    -- What the digest says to run puts the entry back in line with a current reason.
+    perform private.revive_expired_fcc_submission_retries();
+    perform expect(
+        (select state = 'pending' and last_error = 'Measurements arrived after the entry expired'
+                and updated_on = now()
+         from private.fcc_submission_retry_queue where submission_id = expired_complete),
+        'digest: the statement it gives for expired entries leaves no stale Expired reason');
 
     perform test_reset();
     digest := private.fcc_queue_digest();
     perform expect(digest like '%The queue is empty.%Nothing needs attention.', 'digest: says so when nothing needs attention');
 end;
 $$;
+
+-- #15: the digest groups long-pending entries without their submission ids, says how many
+-- groups it left out, lists new blocked entries first, and counts duplicate_test_id answers
+-- apart from posts.
+do $$
+declare
+    device uuid := gen_random_uuid();
+    old_block uuid;
+    new_block uuid;
+    sub uuid;
+    digest text;
+begin
+    perform test_reset();
+
+    -- 25 entries from one device, retrying for days after the same 503.
+    for i in 1 .. 25 loop
+        sub := test_submission(queued_ago => interval '5 days');
+        update public.fcc_submissions set device_id = device where id = sub;
+        update private.fcc_submission_retry_queue
+        set attempt_count = 1, next_attempt_at = now() + interval '1 hour',
+            last_error = format('FCC HTTP status 503 for submission %s: try later', sub)
+        where submission_id = sub;
+    end loop;
+    -- 21 more devices with one waiting entry each: 22 device-and-reason groups in all.
+    for i in 1 .. 21 loop
+        sub := test_submission(ready => false, queued_ago => interval '4 days');
+        update public.fcc_submissions set device_id = gen_random_uuid() where id = sub;
+    end loop;
+    -- Blocked long ago, and blocked just now (but queued earlier).
+    old_block := test_submission(queued_ago => interval '10 days');
+    update private.fcc_submission_retry_queue
+    set state = 'blocked', last_error = 'blocked long ago', updated_on = now() - interval '9 days'
+    where submission_id = old_block;
+    new_block := test_submission(queued_ago => interval '20 days');
+    update private.fcc_submission_retry_queue
+    set state = 'blocked', last_error = 'blocked just now', updated_on = now()
+    where submission_id = new_block;
+
+    digest := private.fcc_queue_digest();
+
+    perform expect(
+        digest like format('%%- device %s: 25, oldest queued %%: FCC HTTP status 503 for submission <id>: try later%%',
+                           left(device::text, 8))
+        and digest not like '%FCC HTTP status 503%FCC HTTP status 503%',
+        'digest: pending entries that failed the same way make one line');
+    perform expect(digest like '%Pending for more than 3 days (46):%- and 2 more devices or reasons%',
+        'digest: says how many device-and-reason groups it left out');
+    perform expect(digest like '%Blocked, needs a person (2, newest first):%'
+                   and position(new_block::text in digest) < position(old_block::text in digest),
+        'digest: the entry blocked last comes first');
+
+    perform test_reset();
+    perform test_submission();
+    sub := test_submission();
+    insert into test_fcc_reply (submission_id, status, content)
+    values (sub, 400, '{"errors":[{"code":"duplicate_test_id"}]}');
+    perform private.process_fcc_submission_retries(10);
+    perform expect(
+        private.fcc_queue_digest() like '%Last 24 hours: 1 posted, 1 already at the FCC (duplicate_test_id), 0 failed attempts%',
+        'digest: a duplicate_test_id answer is not counted as posted');
+end;
+$$;
+
+-- #15: fcc_queue_attention lists expired entries that are complete for a role that row level
+-- security keeps from reading measurements (readonly_user on prod; here a member of
+-- pg_read_all_data, which 202610210104 grants the readiness check to).
+do $$
+begin
+    perform test_reset();
+    perform test_set_id('expired_complete', test_submission());
+    update private.fcc_submission_retry_queue set state = 'expired'
+    where submission_id = test_id('expired_complete');
+end;
+$$;
+do $$ begin create role test_reader login; exception when duplicate_object then null; end $$;
+grant pg_read_all_data to test_reader;
+grant test_reader to postgres;   -- postgres isn't a superuser in this image, so it needs this to set role
+alter table public.measurements enable row level security;
+do $$
+declare
+    visible bigint;
+    listed uuid[];
+begin
+    set local role test_reader;
+    select count(*) into visible from public.measurements;
+    select array_agg(submission_id) into listed from private.fcc_queue_attention;
+    reset role;
+    perform expect(visible = 0, 'setup: row level security hides every measurement from the reader');
+    perform expect(listed = array[test_id('expired_complete')],
+        'attention: a reader that can''t see measurements still gets expired entries that are complete');
+end;
+$$;
+alter table public.measurements disable row level security;
 
 -- A direct call to post_fcc_submission refuses, for prod, what the queue holds or blocks;
 -- the demo environment takes anything.
