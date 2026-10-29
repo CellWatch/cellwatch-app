@@ -350,6 +350,11 @@ begin
     perform test_set_id('expired_complete', test_submission(queued_ago => interval '40 days'));
     update private.fcc_submission_retry_queue set state = 'expired'
     where submission_id = test_id('expired_complete');
+    -- Held for a reason that no longer applies, and due to be checked again.
+    perform test_set_id('held_released', test_submission());
+    update private.fcc_submission_retry_queue
+    set state = 'held', last_error = 'One location: an older rule', next_attempt_at = now() - interval '1 minute'
+    where submission_id = test_id('held_released');
     perform test_submission(ready => false);
     perform test_submission(locations_per_test => 0);
     perform test_submission(provider => '');
@@ -372,9 +377,11 @@ begin
         'the procedure drops the entry of a submission sent some other way, and leaves its record alone');
     perform expect((select submitted from public.fcc_submissions where id = test_id('expired_complete')),
         'it puts an expired entry whose data has arrived back in line, and posts it');
-    perform expect(test_posts_sent() - current_setting('test.sent_before')::bigint = 3,
+    perform expect((select submitted from public.fcc_submissions where id = test_id('held_released')),
+        'it checks due held entries again, and posts one that no reason applies to any more');
+    perform expect(test_posts_sent() - current_setting('test.sent_before')::bigint = 4,
         'it posts only the entries that can be posted');
-    perform expect(current_setting('test.processed') = '3',
+    perform expect(current_setting('test.processed') = '4',
         'and counts the posted, failed and already-at-the-FCC entries, not the waiting, held or blocked ones');
 end;
 $$;
@@ -514,23 +521,73 @@ begin
     perform expect(not exists (select 1 from private.fcc_submission_failures where not succeeded),
         'holding is not logged as a failed attempt');
 
-    -- Held entries are left alone by later runs.
-    update private.fcc_submission_retry_queue set next_attempt_at = now() - interval '1 hour'
-    where state = 'held';
+    -- Held entries are checked again once a day.
+    perform expect(
+        (select bool_and(next_attempt_at = now() + interval '1 day')
+         from private.fcc_submission_retry_queue where state = 'held'),
+        'a held entry is due to be checked again in a day');
     update private.fcc_submission_retry_queue set updated_on = now() - interval '1 day' where state = 'held';
     perform private.process_fcc_submission_retries(10);
     perform expect(
         (select count(*) from private.fcc_submission_retry_queue
          where state = 'held' and updated_on = now() - interval '1 day') = 6,
-        'later runs don''t pick up held entries');
+        'runs before then leave held entries alone');
 
-    -- Released without a fix, an entry is checked again and held again.
-    update private.fcc_submission_retry_queue set state = 'pending' where submission_id = no_net;
+    -- Due again, with the reasons still applying. One was stored in older wording.
+    update private.fcc_submission_retry_queue set next_attempt_at = now() - interval '1 minute'
+    where state = 'held';
+    update private.fcc_submission_retry_queue set last_error = 'Only one location'
+    where submission_id = one_location;
+    perform private.process_fcc_submission_retries(10);
+    perform expect(
+        (select count(*) from private.fcc_submission_retry_queue
+         where state = 'held' and next_attempt_at = now() + interval '1 day') = 6
+        and (select count(*) from test_http_log) = 1,
+        'a due held entry is checked again, and stays held while a reason applies');
+    perform expect(
+        (select last_error like 'One location: %' and updated_on = now()
+         from private.fcc_submission_retry_queue where submission_id = one_location)
+        and (select count(*) from private.fcc_submission_retry_queue
+             where state = 'held' and updated_on = now() - interval '1 day') = 5,
+        'a reason stored in older wording gets the current wording; the others are left as they were');
+
+    -- Released by hand without a fix, an entry is checked again and held again.
+    update private.fcc_submission_retry_queue set state = 'pending', next_attempt_at = now()
+    where submission_id = no_net;
     perform private.process_fcc_submission_retries(10);
     perform expect(
         (select state = 'held' from private.fcc_submission_retry_queue where submission_id = no_net)
         and (select count(*) from test_http_log) = 1,
         'a released entry is checked again before posting');
+
+    -- A reason stops applying: here the second fix turns up; a change to fcc_payload_hold_reason
+    -- once the FCC answers works the same way. The next check releases the entry, and the run
+    -- posts it.
+    insert into public.locations (measurement_id, "timestamp", lat, lon)
+    select m.id, now(), 33.7756, -84.3963 from public.measurements m where m.group_id = one_location;
+    update private.fcc_submission_retry_queue set next_attempt_at = now() - interval '1 minute'
+    where submission_id = one_location;
+    perform private.process_fcc_submission_retries(10);
+    perform expect(
+        (select submitted from public.fcc_submissions where id = one_location)
+        and not exists (select 1 from private.fcc_submission_retry_queue where submission_id = one_location),
+        'a held entry that no reason applies to any more is posted at its next check');
+
+    -- recheck_held_fcc_submission_retries(true) checks every held entry, due or not.
+    insert into public.locations (measurement_id, "timestamp", lat, lon)
+    select m.id, now() - n * interval '1 second', 33.7756, -84.3963
+    from public.measurements m, generate_series(1, 2) n
+    where m.group_id = no_locations;
+    perform expect(private.recheck_held_fcc_submission_retries() = 0,
+        'without p_all, entries not due are not checked');
+    perform expect(private.recheck_held_fcc_submission_retries(true) = 1,
+        'with p_all every held entry is checked, and the count released is returned');
+    perform expect(
+        (select state = 'pending' and next_attempt_at = now()
+                and last_error = 'Released: no hold reason applies any more'
+         from private.fcc_submission_retry_queue where submission_id = no_locations)
+        and (select count(*) from private.fcc_submission_retry_queue where state = 'held') = 4,
+        'the released entry is back in line, the rest stay held');
 end;
 $$;
 

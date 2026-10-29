@@ -28,9 +28,12 @@ begin;
 --     'Missing provider', not blocked: the provider is never filled in (#118), so there is
 --     nothing for a person to fix, and 'blocked' entries are the ones someone can act on.
 --   * New queue state 'held': complete submissions the FCC is known to reject, or that fall
---     short of the spec, kept until there is a way to send them. They aren't posted or
---     checked again until someone sets them back to 'pending'. 'blocked' still means a person
---     has to fix something. Four reasons so far (private.fcc_payload_hold_reason):
+--     short of the spec, kept until there is a way to send them. They aren't posted. Each
+--     run checks the held entries that are due again, each one once a day, and puts back in
+--     line those no reason applies to any more; the others get the current wording of their
+--     reason. So once private.fcc_payload_hold_reason changes (when the FCC answers), the
+--     entries it no longer holds go out without a manual step. 'blocked' still means a
+--     person has to fix something. Four reasons so far (private.fcc_payload_hold_reason):
 --       - No network registration (#124). The FCC rejects a test whose
 --         net_mobile_country_code or net_mobile_network_code is null "when at least one
 --         connection_type is null or equals cell" (null_net_mobile_country_code /
@@ -106,11 +109,11 @@ alter table private.fcc_submission_retry_queue
 -- Why the FCC would reject this payload or it falls short of the spec, or null if we know of
 -- no reason. Held entries say this in last_error. Several reasons are joined with '; '.
 --
--- When the FCC answers, change this function to match, then release the entries, e.g.
---     update private.fcc_submission_retry_queue
---     set state = 'pending', next_attempt_at = now(), updated_on = now()
---     where state = 'held' and last_error like '%No network registration%';
--- The job checks each one again before posting it.
+-- When the FCC answers, change this function to match. The retry job checks each held entry
+-- again within a day and releases those no reason applies to any more; to check them all at
+-- once instead, run
+--     select private.recheck_held_fcc_submission_retries(true);
+-- The job checks each released entry again before posting it.
 create or replace function private.fcc_payload_hold_reason(payload jsonb)
 returns text
 language sql
@@ -371,6 +374,8 @@ begin
             update private.fcc_submission_retry_queue
             set
                 state = 'held',
+                -- When recheck_held_fcc_submission_retries checks it again.
+                next_attempt_at = now() + interval '1 day',
                 last_error = hold_reason,
                 updated_on = now()
             where submission_id = item.submission_id;
@@ -547,6 +552,55 @@ $$;
 
 revoke all on function private.revive_expired_fcc_submission_retries() from public;
 
+-- Checks held entries again: those due (each is due once a day), or all of them with
+-- p_all. An entry no reason applies to any more goes back in line, and the job checks it
+-- again before posting it; the others keep waiting, with the reason as worded now. Returns
+-- how many went back in line. One statement, like the revival above, so held entries don't
+-- take places in the batch.
+create or replace function private.recheck_held_fcc_submission_retries(p_all boolean default false)
+returns integer
+language plpgsql
+security definer
+set search_path = public, private, extensions, pg_temp
+as
+$$
+declare
+    released integer;
+begin
+    with
+    due as (
+        select
+            q.submission_id,
+            q.last_error,
+            private.fcc_payload_hold_reason(private.fcc_submission_payload(q.submission_id)) as reason
+        from private.fcc_submission_retry_queue q
+        where q.state = 'held'
+          and (coalesce(p_all, false) or q.next_attempt_at <= now())
+        -- An overlapping run leaves alone the entries this one is checking.
+        for update of q skip locked
+    ),
+    checked as (
+        update private.fcc_submission_retry_queue q
+        set
+            state = case when d.reason is null then 'pending' else 'held' end,
+            next_attempt_at = case when d.reason is null then now() else now() + interval '1 day' end,
+            last_error = coalesce(d.reason, 'Released: no hold reason applies any more'),
+            updated_on = case
+                when d.reason is distinct from d.last_error then now()
+                else q.updated_on
+            end
+        from due d
+        where q.submission_id = d.submission_id
+        returning q.state
+    )
+    select count(*) filter (where state = 'pending') into released from checked;
+
+    return released;
+end;
+$$;
+
+revoke all on function private.recheck_held_fcc_submission_retries(boolean) from public;
+
 -- For manual use; the cron job uses the procedure below. Same results as before, but
 -- everything happens in the caller's transaction, so a run that fails or times out part way
 -- loses the record of posts the FCC has already accepted. Returns the number of entries
@@ -572,6 +626,7 @@ begin
       and coalesce(s.submitted, false) = true;
 
     perform private.revive_expired_fcc_submission_retries();
+    perform private.recheck_held_fcc_submission_retries();
 
     for i in 1 .. batch_size loop
         -- Leave the rest of the batch for the next run once this one has taken a minute,
@@ -622,6 +677,7 @@ begin
       and coalesce(s.submitted, false) = true;
 
     perform private.revive_expired_fcc_submission_retries();
+    perform private.recheck_held_fcc_submission_retries();
 
     commit;
 
