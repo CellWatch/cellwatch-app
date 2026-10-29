@@ -24,12 +24,13 @@ begin;
 --     The submission is marked submitted, with the payload and a note in
 --     submission_response, and leaves the queue instead of being blocked.
 --   * Readiness is checked before the provider, so an entry whose measurements never
---     arrive isn't blocked as needing a human (#119). A complete entry with a blank provider
---     is still blocked as 'Missing provider'; the provider is never filled in (#118).
+--     arrive isn't held or blocked (#119). A complete entry with a blank provider is held as
+--     'Missing provider', not blocked: the provider is never filled in (#118), so there is
+--     nothing for a person to fix, and 'blocked' entries are the ones someone can act on.
 --   * New queue state 'held': complete submissions the FCC is known to reject, or that fall
 --     short of the spec, kept until there is a way to send them. They aren't posted or
 --     checked again until someone sets them back to 'pending'. 'blocked' still means a person
---     has to fix something. Three reasons so far (private.fcc_payload_hold_reason):
+--     has to fix something. Four reasons so far (private.fcc_payload_hold_reason):
 --       - No network registration (#124). The FCC rejects a test whose
 --         net_mobile_country_code or net_mobile_network_code is null "when at least one
 --         connection_type is null or equals cell" (null_net_mobile_country_code /
@@ -47,8 +48,11 @@ begin;
 --         test we posted (March 2026), but it is short of the spec, so it waits for the FCC
 --         to say one is enough. The same fix listed twice counts as two: that meets the
 --         spec's wording, and the released app lists one fix twice for about 6% of tests.
+--       - Missing provider (#118). provider_name is required, and a blank one is not filled
+--         in from the SIM: the SIM's carrier isn't always the network the test ran on. It
+--         waits for a decision on what the app should send.
 --   * private.post_fcc_submission refuses to send the production BDC anything the queue
---     would hold or block, so a direct call can't post it either.
+--     would hold, so a direct call can't post it either.
 --   * New queue state 'expired' (#119): an entry still waiting for its measurements 30
 --     days after it was queued stops being checked. Waiting entries are re-checked hourly
 --     and each check takes one of the job's 10 places per run, so a few hundred entries
@@ -161,6 +165,13 @@ $$
                 )
                 then 'One location: a test has only one location fix (the spec requires at '
                      || 'least two)'
+            end,
+            case
+                when (
+                    select s is not null and nullif(btrim(s ->> 'provider_name'), '') is null
+                    from submission
+                )
+                then 'Missing provider: no carrier name (blank names are not filled in)'
             end
         ),
         ''
@@ -179,12 +190,12 @@ $$
 $$;
 
 -- 202610210101's post_fcc_submission with two changes (marked "Changed"):
---   * For the 'prod' environment it refuses what the queue would hold or block
---     (fcc_payload_hold_reason, or a blank provider name), so a direct call
+--   * For the 'prod' environment it refuses what the queue would hold
+--     (fcc_payload_hold_reason, which includes a blank provider name), so a direct call
 --     (docs/supabase/fcc-submission-pipeline.md describes one) can't send it either. Other
 --     environments, such as 'demo', still take anything, so the FCC's answer to a held
---     payload can be tried there. The retry job checks both before it calls this, and
---     records such an entry as held or blocked instead.
+--     payload can be tried there. The retry job checks this before it calls this function,
+--     and records such an entry as held instead.
 --   * When the FCC answers that it already has the test, the error has SQLSTATE FCDUP. The
 --     message is unchanged, with the body cut to 500 characters, so this is decided here,
 --     from the whole body.
@@ -234,15 +245,11 @@ begin
         raise exception 'FCC submission % produced an incomplete tests payload', sub_id;
     end if;
 
-    -- Changed: nothing the queue would hold or block goes to the production BDC.
+    -- Changed: nothing the queue would hold goes to the production BDC.
     if fcc_env = 'prod' then
         hold_reason := private.fcc_payload_hold_reason(payload);
         if hold_reason is not null then
             raise exception 'FCC submission % is held: %', sub_id, hold_reason;
-        end if;
-
-        if nullif(btrim(payload #>> '{submissions,0,provider_name}'), '') is null then
-            raise exception 'FCC submission % has no provider name', sub_id;
         end if;
     end if;
 
@@ -285,7 +292,7 @@ end;
 $$;
 
 -- Handles the queue entry that has been due longest and returns what happened to it:
--- 'waiting', 'expired', 'held', 'blocked', 'posted', 'already_at_fcc' or 'failed'; null when
+-- 'waiting', 'expired', 'held', 'posted', 'already_at_fcc' or 'failed'; null when
 -- no entry is due.
 -- Changes from the loop body of the 202610070001 version are marked "Changed". Like every
 -- security definer function in this file, its search_path ends in pg_temp (see
@@ -299,7 +306,6 @@ as
 $$
 declare
     item private.fcc_submission_retry_queue%rowtype;
-    sub record;
     hold_reason text;
     error_text text;
     response_text text;
@@ -355,8 +361,8 @@ begin
             return 'waiting';
         end if;
 
-        -- Changed: hold what the FCC is known to reject. Checked before the provider, since
-        -- fixing the provider wouldn't get these through.
+        -- Changed: hold what the FCC is known to reject, including a blank provider, which
+        -- used to block the entry.
         hold_reason := private.fcc_payload_hold_reason(
             private.fcc_submission_payload(item.submission_id)
         );
@@ -370,23 +376,6 @@ begin
             where submission_id = item.submission_id;
 
             return 'held';
-        end if;
-
-        -- A missing provider requires repair, not repeated FCC requests.
-        select s.provider
-        into sub
-        from public.fcc_submissions s
-        where s.id = item.submission_id;
-
-        if nullif(btrim(sub.provider), '') is null then
-            update private.fcc_submission_retry_queue
-            set
-                state = 'blocked',
-                last_error = 'Missing provider',
-                updated_on = now()
-            where submission_id = item.submission_id;
-
-            return 'blocked';
         end if;
 
         if private.post_fcc_submission(
@@ -561,7 +550,7 @@ revoke all on function private.revive_expired_fcc_submission_retries() from publ
 -- For manual use; the cron job uses the procedure below. Same results as before, but
 -- everything happens in the caller's transaction, so a run that fails or times out part way
 -- loses the record of posts the FCC has already accepted. Returns the number of entries
--- posted or failed; entries that were only checked (waiting, held, blocked, expired) don't
+-- posted or failed; entries that were only checked (waiting, held, expired) don't
 -- count.
 create or replace function private.process_fcc_submission_retries(p_batch_size integer default 1)
 returns integer

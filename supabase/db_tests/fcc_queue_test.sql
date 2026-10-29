@@ -415,7 +415,8 @@ end;
 $$;
 
 -- #118: provider checks happen once the data is complete, and a blank provider is never
--- filled in.
+-- filled in. Nobody can fix such an entry, so it is held rather than blocked: blocked entries
+-- are the ones a person should look at.
 do $$
 declare
     waiting uuid;
@@ -434,18 +435,21 @@ begin
          from private.fcc_submission_retry_queue where submission_id = waiting),
         'an entry without a provider that is still waiting for data keeps waiting');
     perform expect(
-        (select state = 'blocked' and last_error = 'Missing provider'
+        (select state = 'held' and last_error = 'Missing provider: no carrier name (blank names are not filled in)'
          from private.fcc_submission_retry_queue where submission_id = blank),
-        'a complete entry with a blank provider is blocked');
+        'a complete entry with a blank provider is held, with the reason');
     perform expect(
-        (select state = 'blocked' and last_error = 'Missing provider'
+        (select state = 'held' and last_error like 'Missing provider:%'
          from private.fcc_submission_retry_queue where submission_id = no_provider),
-        'a complete entry with a null provider is blocked');
+        'a complete entry with a null provider is held');
     perform expect(
         (select provider = ' ' from public.fcc_submissions where id = blank)
         and (select provider is null from public.fcc_submissions where id = no_provider),
         'the job leaves a blank provider as the app sent it');
     perform expect(not exists (select 1 from test_http_log), 'nothing is posted without a provider');
+    perform expect(not exists (select 1 from private.fcc_queue_attention)
+                   and private.fcc_queue_digest() like '%Nothing needs attention.',
+        'entries without a provider don''t count as needing a person');
 end;
 $$;
 
@@ -504,8 +508,9 @@ begin
          from private.fcc_submission_retry_queue where submission_id = incomplete),
         '#125: an incomplete submission keeps waiting for its data instead of being held');
     perform expect(
-        (select state = 'held' from private.fcc_submission_retry_queue where submission_id = held_and_no_provider),
-        'a held submission is not also reported as missing its provider');
+        (select state = 'held' and last_error like 'No network registration%; Missing provider:%'
+         from private.fcc_submission_retry_queue where submission_id = held_and_no_provider),
+        'a missing provider is given alongside the other reasons');
     perform expect(not exists (select 1 from private.fcc_submission_failures where not succeeded),
         'holding is not logged as a failed attempt');
 
@@ -531,7 +536,7 @@ $$;
 
 do $$
 declare
-    with_net jsonb := '{"submissions":[{"net_mobile_country_code":"310","net_mobile_network_code":"410","tests":{}}]}';
+    with_net jsonb := '{"submissions":[{"provider_name":"at&t","net_mobile_country_code":"310","net_mobile_network_code":"410","tests":{}}]}';
     test_ok jsonb := '{"locations":[{"latitude":1},{"latitude":2}]}';
 begin
     perform expect(private.fcc_payload_hold_reason(
@@ -566,6 +571,12 @@ begin
             jsonb_set(with_net, '{submissions,0,tests}',
                       jsonb_build_object('latency', '{"locations":[{"latitude":1},{"latitude":1}]}'::jsonb))) is null,
         'hold reason: the same fix listed twice counts as two');
+    perform expect(private.fcc_payload_hold_reason(jsonb_set(with_net, '{submissions,0,provider_name}', '" "'))
+                       = 'Missing provider: no carrier name (blank names are not filled in)'
+                   and private.fcc_payload_hold_reason(with_net #- '{submissions,0,provider_name}') like 'Missing provider%',
+        'hold reason: a blank or missing provider name');
+    perform expect(private.fcc_payload_hold_reason(null) is null,
+        'hold reason: none without a payload (posting raises its own error for that)');
 end;
 $$;
 
@@ -638,6 +649,7 @@ declare
     new_entry uuid;
     blocked uuid;
     held uuid;
+    no_provider uuid;
     expired_complete uuid;
     expired_incomplete uuid;
     digest text;
@@ -647,12 +659,15 @@ begin
     perform test_reset();
     stuck_1 := test_submission(ready => false, queued_ago => interval '5 days');
     stuck_2 := test_submission(ready => false, queued_ago => interval '4 days');
-    blocked := test_submission(provider => '', sim_mnc => '999', queued_ago => interval '2 days');
+    blocked := test_submission(queued_ago => interval '2 days');
+    insert into test_fcc_reply (submission_id, status, content)
+    values (blocked, 400, '{"errors":[{"code":"null_properties"}]}');
     held := test_submission(locations_per_test => 0);
+    no_provider := test_submission(provider => '', sim_mnc => '999');
     expired_complete := test_submission(ready => false, queued_ago => interval '45 days');
     expired_incomplete := test_submission(ready => false, queued_ago => interval '40 days');
     update public.fcc_submissions set device_id = device_a where id in (stuck_1, stuck_2);
-    update public.fcc_submissions set device_id = device_b where id in (blocked, held);
+    update public.fcc_submissions set device_id = device_b where id in (blocked, held, no_provider);
     update public.fcc_submissions set device_id = device_c where id in (expired_complete, expired_incomplete);
 
     perform private.process_fcc_submission_retries(10);
@@ -684,16 +699,20 @@ begin
     perform expect(
         (select entries = 1 from private.fcc_queue_health
          where state = 'blocked' and device_id = device_b
-           and reason = 'Missing provider'),
-        'health: blocked entries are counted with their reason');
+           and reason = 'FCC HTTP status 400 for submission <id>: {"errors":[{"code":"null_properties"}]}'),
+        'health: blocked entries are counted with their reason, without the submission id');
     perform expect(
         (select entries = 1 from private.fcc_queue_health
          where state = 'held' and device_id = device_b and reason like 'No locations%'),
         'health: held entries are counted with their reason');
     perform expect(
+        (select entries = 1 from private.fcc_queue_health
+         where state = 'held' and device_id = device_b and reason like 'Missing provider%'),
+        'health: entries without a provider are counted as held');
+    perform expect(
         (select entries = 2 from private.fcc_queue_health where state = 'expired' and device_id = device_c),
         'health: expired entries are counted');
-    perform expect((select sum(entries) from private.fcc_queue_health) = 7, 'health: every entry is counted once');
+    perform expect((select sum(entries) from private.fcc_queue_health) = 8, 'health: every entry is counted once');
 
     perform expect(
         (select array_agg(submission_id order by queued_on) from private.fcc_queue_attention)
@@ -702,16 +721,16 @@ begin
 
     digest := private.fcc_queue_digest();
     raise notice 'digest example:%', E'\n' || digest;
-    perform expect(digest like 'FCC submission queue, %' and digest like '%In the queue: 3 pending, 1 held, 1 blocked, 2 expired%',
+    perform expect(digest like 'FCC submission queue, %' and digest like '%In the queue: 3 pending, 2 held, 1 blocked, 2 expired%',
         'digest: counts by state');
-    perform expect(digest like format('%%Blocked, needs a person (1):%%- %s (device %s, queued %%): Missing provider%%',
+    perform expect(digest like format('%%Blocked, needs a person (1):%%- %s (device %s, queued %%): FCC HTTP status 400%%',
                                       blocked, left(device_b::text, 8)),
         'digest: lists each blocked entry with its reason');
     perform expect(digest like format('%%Pending for more than 3 days (2):%%- device %s: 2, oldest queued %%: Waiting for complete%%', left(device_a::text, 8)),
         'digest: groups long-pending entries by device');
     perform expect(digest like format('%%Expired, but their measurements are complete now (1). To post them:%%- %s (device%%', expired_complete),
         'digest: lists expired entries whose data has arrived, with how to release them');
-    perform expect(digest like '%Held until there is a way to send them (1):%- No locations%: 1%',
+    perform expect(digest like '%Held until there is a way to send them (2):%- Missing provider%: 1%- No locations%: 1%',
         'digest: counts held entries by reason');
     perform expect(digest not like '%Nothing needs attention%', 'digest: does not say all is well');
 
@@ -745,7 +764,7 @@ begin
     foreach attempt slice 1 in array array[
         [one_location::text, 'is held: One location:%'],
         [no_network::text, 'is held: No network registration:%'],
-        [no_provider::text, 'has no provider name']
+        [no_provider::text, 'is held: Missing provider:%']
     ] loop
         begin
             perform private.post_fcc_submission(attempt[1]::uuid, 'prod');

@@ -130,7 +130,7 @@ Also check the cron history above. Each run can take long, because building one 
 
 | Reason | Fix |
 |---|---|
-| `Missing provider` | Leave it blocked. Blank carrier names are not filled in (decided 2026-10-27); a fix belongs in the app. |
+| `Missing provider` | Leave it blocked. Blank carrier names are not filled in (decided 2026-10-27); a fix belongs in the app. `202610210103` (on main, not pushed to prod) holds new ones as `held` instead, so they stop showing up as needing a person; entries blocked before it stay blocked. |
 | Waiting for data | Nothing on the server: the phone has to upload. See [A device that never uploads](#a-device-that-never-uploads). |
 | BDC 4xx (`null_properties`, `null_net_mobile_country_code`, …) | A data problem. Re-posting the same payload fails again. Decide with the FCC first. |
 | `duplicate_test_id` | The BDC already has the test. On prod it stays a failure; `202610210103` (on main, not pushed to prod) records it as sent, with `submitted_on` null because the earlier post's time is unknown. |
