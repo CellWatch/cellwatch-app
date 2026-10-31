@@ -279,7 +279,7 @@ $$;
 ALTER FUNCTION "private"."fcc_payload_hold_reason"("payload" "jsonb") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "private"."fcc_queue_digest"() RETURNS "text"
+CREATE OR REPLACE FUNCTION "private"."fcc_queue_digest"("p_new_since" timestamp with time zone DEFAULT NULL::timestamp with time zone) RETURNS "text"
     LANGUAGE "plpgsql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public', 'private', 'pg_temp'
     AS $$
@@ -290,6 +290,7 @@ declare
     total integer;
     shown integer;
     groups integer;
+    older integer;
 begin
     lines := array[
         format('FCC submission queue, %s UTC',
@@ -320,7 +321,7 @@ begin
     );
 
     -- Blocked: one line per entry, newest first, so a new failure isn't hidden behind
-    -- entries blocked long ago.
+    -- entries blocked long ago. With p_new_since, only the entries changed since then.
     select count(*) into total from private.fcc_queue_attention a where a.state = 'blocked';
     if total > 0 then
         lines := lines || ''::text || format('Blocked, needs a person (%s, newest first):', total);
@@ -329,6 +330,7 @@ begin
             select a.*
             from private.fcc_queue_attention a
             where a.state = 'blocked'
+              and (p_new_since is null or a.last_changed_on >= p_new_since)
             order by a.last_changed_on desc, a.queued_on desc
             limit max_lines
         loop
@@ -339,8 +341,19 @@ begin
                 left(coalesce(entry.last_error, ''), 300));
             shown := shown + 1;
         end loop;
-        if total > shown then
-            lines := lines || format('- and %s more', total - shown);
+        older := 0;
+        if p_new_since is not null then
+            select count(*) into older
+            from private.fcc_queue_attention a
+            where a.state = 'blocked' and a.last_changed_on < p_new_since;
+        end if;
+        if total - older > shown then
+            lines := lines || format('- and %s more', total - older - shown);
+        end if;
+        if older > 0 then
+            lines := lines || format('- %s not listed: unchanged since before %s UTC (for the full list: '
+                                     'select private.fcc_queue_digest();)',
+                                     older, to_char(p_new_since at time zone 'UTC', 'YYYY-MM-DD HH24:MI'));
         end if;
     end if;
 
@@ -427,7 +440,7 @@ end;
 $$;
 
 
-ALTER FUNCTION "private"."fcc_queue_digest"() OWNER TO "postgres";
+ALTER FUNCTION "private"."fcc_queue_digest"("p_new_since" timestamp with time zone) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "private"."fcc_queue_entry_is_ready"("sub_id" "uuid") RETURNS boolean
@@ -1083,6 +1096,30 @@ $$;
 ALTER FUNCTION "private"."recheck_held_fcc_submission_retries"("p_all" boolean) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "private"."resend_http_post"("p_api_key" "text", "p_body" "text", OUT "status" integer, OUT "content" "text") RETURNS "record"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
+    AS $$
+begin
+    select r.status, r.content
+    into status, content
+    from http((
+        'POST',
+        'https://api.resend.com/emails',
+        array[
+            http_header('Authorization', 'Bearer ' || p_api_key),
+            http_header('User-Agent', 'cellwatch-fcc-digest/1.0')
+        ],
+        'application/json',
+        p_body
+    )::http_request) r;
+end;
+$$;
+
+
+ALTER FUNCTION "private"."resend_http_post"("p_api_key" "text", "p_body" "text", OUT "status" integer, OUT "content" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "private"."revive_expired_fcc_submission_retries"() RETURNS integer
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
@@ -1159,6 +1196,110 @@ $$;
 
 
 ALTER PROCEDURE "private"."run_fcc_submission_retries"(IN "p_batch_size" integer, INOUT "processed" integer, IN "p_time_limit" interval) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "private"."send_fcc_queue_digest"("p_force" boolean DEFAULT false) RETURNS "text"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'private', 'pg_temp'
+    AS $$
+declare
+    since timestamptz;
+    last_sent timestamptz;
+    n integer;
+    news text[] := '{}';
+    api_key text;
+    email_to text;
+    subject text;
+    intro text;
+    reply record;
+begin
+    -- One run at a time, so a run by hand and the job's can't both send.
+    perform pg_advisory_xact_lock(hashtextextended('cellwatch fcc digest', 0));
+
+    select coalesce(max(r.ran_at), now() - interval '1 day') into since from private.fcc_digest_runs r;
+    select max(r.ran_at) into last_sent from private.fcc_digest_runs r where r.sent;
+
+    select count(*) into n from private.fcc_submission_retry_queue q
+    where q.state = 'blocked' and q.updated_on > since;
+    if n > 0 then
+        news := news || format('%s newly blocked', n);
+    end if;
+
+    -- The daily re-check of held entries changes updated_on only when the reason changes.
+    select count(*) into n from private.fcc_submission_retry_queue q
+    where q.state = 'held' and q.updated_on > since;
+    if n > 0 then
+        news := news || format('%s newly held', n);
+    end if;
+
+    -- A duplicate_test_id answer counts as a success here, as in the digest.
+    select count(*) into n from private.fcc_submission_failures f
+    where not f.succeeded and f.occurred_on > since;
+    if n > 0 then
+        news := news || format('%s failed FCC post%s', n, case when n = 1 then '' else 's' end);
+    end if;
+
+    -- Entries that passed 3 days pending since the last run. The digest lists all of them.
+    select count(*) into n from private.fcc_submission_retry_queue q
+    where q.state = 'pending'
+      and q.created_on < now() - interval '3 days'
+      and q.created_on >= since - interval '3 days';
+    if n > 0 then
+        news := news || format('%s now pending over 3 days', n);
+    end if;
+
+    if cardinality(news) = 0 and not coalesce(p_force, false)
+       and last_sent > now() - interval '7 days' then
+        insert into private.fcc_digest_runs (sent, detail) values (false, 'Nothing new');
+        return 'nothing new';
+    end if;
+
+    select s.decrypted_secret into api_key
+    from vault.decrypted_secrets s where s.name = 'fcc_digest_resend_api_key';
+    select s.decrypted_secret into email_to
+    from vault.decrypted_secrets s where s.name = 'fcc_digest_email_to';
+    if coalesce(btrim(api_key), '') = '' or coalesce(btrim(email_to), '') = '' then
+        raise exception 'The FCC digest email is not set up: add the Vault secrets '
+                        'fcc_digest_resend_api_key and fcc_digest_email_to';
+    end if;
+
+    if cardinality(news) > 0 then
+        subject := 'CellWatch FCC queue: ' || array_to_string(news, ', ');
+        intro := format('New since %s UTC: %s.',
+                        to_char(since at time zone 'UTC', 'YYYY-MM-DD HH24:MI'), array_to_string(news, ', '));
+    elsif last_sent is null then
+        subject := 'CellWatch FCC queue: first email';
+        intro := 'Nothing new needs attention. This email comes when something is new, and at '
+                 'least once a week, so silence for longer than a week means it stopped working.';
+    else
+        subject := 'CellWatch FCC queue: nothing new this week';
+        intro := format('Nothing new since the last email (%s UTC). This weekly email shows that '
+                        'sending still works.', to_char(last_sent at time zone 'UTC', 'YYYY-MM-DD HH24:MI'));
+    end if;
+
+    select * into reply
+    from private.resend_http_post(
+        btrim(api_key),
+        jsonb_build_object(
+            'from', 'CellWatch FCC queue <onboarding@resend.dev>',
+            'to', jsonb_build_array(btrim(email_to)),
+            'subject', subject,
+            'text', intro || E'\n\n' || private.fcc_queue_digest(since)
+        )::text
+    );
+
+    if reply.status is null or reply.status not between 200 and 299 then
+        raise exception 'Resend did not send the FCC digest: HTTP % %',
+            reply.status, left(coalesce(reply.content, ''), 300);
+    end if;
+
+    insert into private.fcc_digest_runs (sent, detail) values (true, left(reply.content, 300));
+    return 'sent';
+end;
+$$;
+
+
+ALTER FUNCTION "private"."send_fcc_queue_digest"("p_force" boolean) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "private"."verified_device_id"() RETURNS "uuid"
@@ -2275,6 +2416,28 @@ CREATE TABLE IF NOT EXISTS "private"."devices" (
 ALTER TABLE "private"."devices" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "private"."fcc_digest_runs" (
+    "id" bigint NOT NULL,
+    "ran_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "sent" boolean NOT NULL,
+    "detail" "text"
+);
+
+
+ALTER TABLE "private"."fcc_digest_runs" OWNER TO "postgres";
+
+
+ALTER TABLE "private"."fcc_digest_runs" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "private"."fcc_digest_runs_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
 CREATE TABLE IF NOT EXISTS "private"."fcc_submission_retry_queue" (
     "submission_id" "uuid" NOT NULL,
     "fcc_env" "text" DEFAULT 'prod'::"text" NOT NULL,
@@ -2490,6 +2653,11 @@ ALTER TABLE ONLY "private"."dashboard_settings"
 
 ALTER TABLE ONLY "private"."devices"
     ADD CONSTRAINT "devices_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "private"."fcc_digest_runs"
+    ADD CONSTRAINT "fcc_digest_runs_pkey" PRIMARY KEY ("id");
 
 
 
@@ -5354,8 +5522,8 @@ REVOKE ALL ON FUNCTION "private"."fcc_http_post"("p_url" "text", "p_hash_value" 
 
 
 
-REVOKE ALL ON FUNCTION "private"."fcc_queue_digest"() FROM PUBLIC;
-GRANT ALL ON FUNCTION "private"."fcc_queue_digest"() TO "readonly_user";
+REVOKE ALL ON FUNCTION "private"."fcc_queue_digest"("p_new_since" timestamp with time zone) FROM PUBLIC;
+GRANT ALL ON FUNCTION "private"."fcc_queue_digest"("p_new_since" timestamp with time zone) TO "readonly_user";
 
 
 
@@ -5383,11 +5551,19 @@ REVOKE ALL ON FUNCTION "private"."recheck_held_fcc_submission_retries"("p_all" b
 
 
 
+REVOKE ALL ON FUNCTION "private"."resend_http_post"("p_api_key" "text", "p_body" "text", OUT "status" integer, OUT "content" "text") FROM PUBLIC;
+
+
+
 REVOKE ALL ON FUNCTION "private"."revive_expired_fcc_submission_retries"() FROM PUBLIC;
 
 
 
 REVOKE ALL ON PROCEDURE "private"."run_fcc_submission_retries"(IN "p_batch_size" integer, INOUT "processed" integer, IN "p_time_limit" interval) FROM PUBLIC;
+
+
+
+REVOKE ALL ON FUNCTION "private"."send_fcc_queue_digest"("p_force" boolean) FROM PUBLIC;
 
 
 
@@ -5638,6 +5814,14 @@ GRANT SELECT ON TABLE "private"."dashboard_settings" TO "readonly_user";
 
 
 GRANT SELECT ON TABLE "private"."devices" TO "readonly_user";
+
+
+
+GRANT SELECT ON TABLE "private"."fcc_digest_runs" TO "readonly_user";
+
+
+
+GRANT SELECT ON SEQUENCE "private"."fcc_digest_runs_id_seq" TO "readonly_user";
 
 
 
