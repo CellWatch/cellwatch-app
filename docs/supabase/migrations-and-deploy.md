@@ -9,7 +9,7 @@ How schema changes are written, tested, applied locally, and pushed to prod, and
 | File | What it is | Authoritative for |
 |---|---|---|
 | [migrations/](../../supabase/migrations/) | Forward-only SQL changes, named `YYYYMMDDNNNN_description.sql`. They use `create or replace` / `if not exists`, so there are no down migrations. Each file is one `begin; … commit;` transaction | Changes made since the snapshot |
-| [full_schema.sql](../../supabase/full_schema.sql) | `supabase db dump` of prod (schema only, no data). Last refreshed 2026-10-31 by `check_drift.sh --write` | Prod's schema. It includes every migration pushed through 2026-10-29 (`202610070001`, `202609300001`, `202610210001`, `0101`, `0103`, `0104`); their function bodies match the migration files exactly |
+| [full_schema.sql](../../supabase/full_schema.sql) | `supabase db dump` of prod (schema only, no data). Last refreshed 2026-10-31 by `check_drift.sh --write` | Prod's schema. It includes every migration on prod: `202607140001` and `202610070001` (applied by hand), `202609300001`, `202610210001`, `0101`, `0103`, `0104` (pushed 2026-10-29), and `202610220001`, `0102` (pushed 2026-10-31). Their function bodies match the migration files exactly |
 | [cron_jobs.sql](../../supabase/cron_jobs.sql) | `cron.schedule(...)` calls that recreate the pg_cron jobs. Jobs are rows in `cron.job` and are **not** in schema dumps | The jobs as pulled from prod on 2026-10-31 |
 | [role_settings.sql](../../supabase/role_settings.sql) | The `*_timeout` settings of the API roles and `postgres`. Role settings are **not** in schema dumps | The settings as pulled from prod on 2026-10-31 |
 | [post_fcc_submission_func.sql](../../supabase/post_fcc_submission_func.sql) | Original setup script for the FCC view, `fcc_submission_info`, and posting functions | History only; partly superseded. **Do not re-run** (it would bring back the synchronous auto-post trigger) |
@@ -18,24 +18,22 @@ How schema changes are written, tested, applied locally, and pushed to prod, and
 | [db_tests/](../../supabase/db_tests/) | SQL tests for individual migrations, run in a throwaway container | |
 | [config.toml](../../supabase/config.toml) | Local CLI stack config | |
 
-Migrations in `supabase/migrations/` (the first two are on main; #136 adds the last two):
+Migrations in `supabase/migrations/` on main, and where each stands (2026-10-31):
 
 | Migration | Status |
 |---|---|
-| `202607140001_repair_fcc_submission_functions.sql` | On main; superseded on prod. Its `fcc_submission_is_ready` and `post_fcc_submission` have the same text as prod's (`full_schema.sql`) apart from line endings (prod's copies have CRLF endings). Its `auto_post_fcc_submission` has since been replaced on prod by the queue version, so **do not re-apply** |
-| `202610070001_unclog_fcc_retry_queue.sql` | On main; **pushed to prod: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked**; check it with runbook Step 0 |
-| `202610220101_fix_dashboard_rpcs.sql` | **In #136; not pushed to prod.** Fixes `rpc_group_detail`'s filter, requires `x-dashboard-secret` on the three dashboard RPCs, reports latency in ms. **Before pushing it, set `DASHBOARD_SECRET` on the dashboard backend** (CellWatch/demo-dashboard, Flask on Render; it sends `x-dashboard-secret` on `rpc_map_points` and `rpc_group_detail` and doesn't call `rpc_group_summaries`), or its map stops loading. Passed a rolled-back check on the test project on 2026-10-22 |
-| `202610220102_tighten_database_helpers.sql` | **In #136; not pushed to prod.** Drops `log_user_data`, fixes `get_raw_header(item)`, pins `search_path` on the device/dashboard checks, revokes `TRUNCATE` from `anon`/`authenticated`. Passed a rolled-back check on the test project on 2026-10-22 |
+| `202607140001_repair_fcc_submission_functions.sql` | Applied to prod by hand before the October pushes. Its `auto_post_fcc_submission` was later replaced by `202609300001`'s queue version, so **never apply it again** |
+| `202609300001_track_live_fcc_queue_and_role_settings.sql` | **Pushed 2026-10-29** (#134). Records the queue table, queue-only trigger, and role settings that were made by hand on prod |
+| `202610070001_unclog_fcc_retry_queue.sql` | Applied to prod by hand on 2026-10-07 (#114) |
+| `202610210001_fast_upload_rls.sql` | **Pushed 2026-10-29** (#132). Upload RLS fix and `measurements(device_id)` index ([performance-notes](performance-notes.md#1-upload-cost-grows-with-device-history)) |
+| `202610210101`, `0103`, `0104` | **Pushed 2026-10-29** (#133, review fixes in #151). Per-submission FCC payload and `measurements(group_id)` index, queue processing, queue health. There is no `0102`: blank carrier names are not filled in |
+| `202610220001_retry_safe_device_registration.sql` | **Pushed 2026-10-31** (#148, review fixes in #151). Makes `register_device` safe to retry and adds `register_device(device_id, device_secret)`, which the app on main calls; it had to be live before any app release from main |
+| `202610220101_fix_dashboard_rpcs.sql` | **Merged (#136, #151); not pushed.** Fixes `rpc_group_detail`'s filter, requires `x-dashboard-secret` on the three dashboard RPCs, reports latency in ms, fixes the bytes/duration speed fallback. **Before pushing it, set `DASHBOARD_SECRET` on the dashboard backend** (CellWatch/demo-dashboard, Flask on Render; it sends `x-dashboard-secret` on `rpc_map_points` and `rpc_group_detail` and doesn't call `rpc_group_summaries`), or its map stops loading. |
+| `202610220102_tighten_database_helpers.sql` | **Pushed 2026-10-31** (#136, #151). Drops `log_user_data`, fixes `get_raw_header(item)`, pins `search_path` on the device/dashboard checks, revokes `TRUNCATE` from `anon`/`authenticated` |
 
-Migrations that are not on main. None of them is pushed to prod:
+Every version on prod is recorded in `supabase_migrations.schema_migrations`, the Supabase CLI's history (done 2026-10-31). Its newest entry is still `20991231235959`, so `supabase db push` refuses to run against prod. Push with psql as in the runbook, then add the version to that table.
 
-| Migration | Where |
-|---|---|
-| `202609300001_track_live_fcc_queue_and_role_settings.sql` | Open PR #134. Records the queue table, queue-only trigger, and role settings that were made by hand on prod |
-| `202610210001_fast_upload_rls.sql` | Open PR #132. Upload RLS fix and `measurements(device_id)` index ([performance-notes](performance-notes.md#1-upload-cost-grows-with-device-history)) |
-| `202610210101`, `0103`, `0104` | Open PR #133. Per-submission FCC payload and `measurements(group_id)` index, queue processing, queue health (no `0102`: blank carrier names are not filled in) |
-| `202610130001_record_local_ports.sql` | Uncommitted on the `client-port-header` branch, with its test `db_tests/local_ports_test.sql` |
-| `202610220001_retry_safe_device_registration.sql` | Unpushed local branch `register-device-retry`. Must be pushed to prod before any app release that includes the matching app change |
+Not on main: `202610130001_record_local_ports.sql` is uncommitted on the `client-port-header` branch, with its test `db_tests/local_ports_test.sql`. Not pushed.
 
 ## Local stack
 
