@@ -1,6 +1,4 @@
 
-\restrict KpPrRLmO8zOBLYEivKIhhwf6ZVSHohppE19ggB9HFlZXJcseXxvBha2XeySQDu8
-
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -180,9 +178,270 @@ $$;
 ALTER FUNCTION "private"."auto_post_fcc_submission"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "private"."fcc_http_post"("p_url" "text", "p_hash_value" "text", "p_body" "text", OUT "status" integer, OUT "content" "text") RETURNS "record"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
+    AS $$
+begin
+    select r.status, r.content
+    into status, content
+    from http((
+        'POST',
+        p_url,
+        array[http_header('hash_value', p_hash_value)],
+        'application/json',
+        p_body
+    )::http_request) r;
+end;
+$$;
+
+
+ALTER FUNCTION "private"."fcc_http_post"("p_url" "text", "p_hash_value" "text", "p_body" "text", OUT "status" integer, OUT "content" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "private"."fcc_payload_hold_reason"("payload" "jsonb") RETURNS "text"
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+    with
+    submission as (
+        select payload #> '{submissions,0}' as s
+    ),
+    tests as (
+        select t.value as test
+        from submission,
+            jsonb_each(case when jsonb_typeof(s -> 'tests') = 'object' then s -> 'tests' else '{}' end) t
+    )
+    select nullif(
+        concat_ws(
+            '; ',
+            case
+                when (
+                    select nullif(btrim(s ->> 'net_mobile_country_code'), '') is null
+                        or nullif(btrim(s ->> 'net_mobile_network_code'), '') is null
+                    from submission
+                )
+                and exists (
+                    select 1
+                    from tests
+                    where coalesce(lower(test ->> 'connection_type'), 'cell') = 'cell'
+                )
+                then 'No network registration: net MCC/MNC missing (the FCC rejects this as '
+                     || 'null_net_mobile_country_code)'
+            end,
+            case
+                when exists (
+                    select 1
+                    from tests
+                    where case
+                        when jsonb_typeof(test -> 'locations') = 'array'
+                            then jsonb_array_length(test -> 'locations') = 0
+                        else true
+                    end
+                )
+                then 'No locations: a test has no location fix (the FCC rejects this as '
+                     || 'null_properties)'
+            end,
+            case
+                when exists (
+                    select 1
+                    from tests
+                    where jsonb_typeof(test -> 'locations') = 'array'
+                      and jsonb_array_length(test -> 'locations') = 1
+                )
+                then 'One location: a test has only one location fix (the spec requires at '
+                     || 'least two)'
+            end,
+            case
+                when (
+                    select s is not null and nullif(btrim(s ->> 'provider_name'), '') is null
+                    from submission
+                )
+                then 'Missing provider: no carrier name (blank names are not filled in)'
+            end
+        ),
+        ''
+    );
+$$;
+
+
+ALTER FUNCTION "private"."fcc_payload_hold_reason"("payload" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "private"."fcc_queue_digest"() RETURNS "text"
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'pg_temp'
+    AS $$
+declare
+    max_lines constant integer := 20;
+    lines text[];
+    entry record;
+    total integer;
+    shown integer;
+    groups integer;
+begin
+    lines := array[
+        format('FCC submission queue, %s UTC',
+               to_char(now() at time zone 'UTC', 'YYYY-MM-DD HH24:MI'))
+    ];
+
+    lines := lines || coalesce(
+        (select 'In the queue: ' || string_agg(format('%s %s', n, state), ', ' order by sort_order)
+         from (
+             select q.state, count(*) as n,
+                    array_position(array['pending', 'held', 'blocked', 'expired'], q.state) as sort_order
+             from private.fcc_submission_retry_queue q
+             group by q.state
+         ) counts),
+        'The queue is empty.'
+    );
+
+    -- A duplicate_test_id answer is logged as a success whose response is our error message
+    -- ('FCC HTTP status 4xx for submission ...', see 202610210103); a real post's response is
+    -- the FCC's body. Those weren't posted in this period, so they're counted apart.
+    lines := lines || (
+        select format('Last 24 hours: %s posted, %s already at the FCC (duplicate_test_id), %s failed attempts',
+                      count(*) filter (where f.succeeded and coalesce(f.response_snippet, '') not like 'FCC HTTP status %'),
+                      count(*) filter (where f.succeeded and f.response_snippet like 'FCC HTTP status %'),
+                      count(*) filter (where not f.succeeded))
+        from private.fcc_submission_failures f
+        where f.occurred_on > now() - interval '1 day'
+    );
+
+    -- Blocked: one line per entry, newest first, so a new failure isn't hidden behind
+    -- entries blocked long ago.
+    select count(*) into total from private.fcc_queue_attention a where a.state = 'blocked';
+    if total > 0 then
+        lines := lines || ''::text || format('Blocked, needs a person (%s, newest first):', total);
+        shown := 0;
+        for entry in
+            select a.*
+            from private.fcc_queue_attention a
+            where a.state = 'blocked'
+            order by a.last_changed_on desc, a.queued_on desc
+            limit max_lines
+        loop
+            lines := lines || format('- %s (device %s, queued %s): %s',
+                entry.submission_id,
+                coalesce(left(entry.device_id::text, 8), 'unknown'),
+                to_char(entry.queued_on at time zone 'UTC', 'YYYY-MM-DD'),
+                left(coalesce(entry.last_error, ''), 300));
+            shown := shown + 1;
+        end loop;
+        if total > shown then
+            lines := lines || format('- and %s more', total - shown);
+        end if;
+    end if;
+
+    -- Pending for more than 3 days: one line per device and reason. The reason has submission
+    -- ids taken out (as in fcc_queue_health), or every failed post would be a group of its own.
+    select count(*) into total from private.fcc_queue_attention a where a.state = 'pending';
+    if total > 0 then
+        lines := lines || ''::text || format('Pending for more than 3 days (%s):', total);
+        shown := 0;
+        for entry in
+            select g.*, count(*) over () as groups
+            from (
+                select a.device_id,
+                       regexp_replace(coalesce(a.last_error, 'New'),
+                           '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', '<id>', 'gi') as reason,
+                       count(*) as n,
+                       min(a.queued_on) as oldest
+                from private.fcc_queue_attention a
+                where a.state = 'pending'
+                group by 1, 2
+            ) g
+            order by g.oldest
+            limit max_lines
+        loop
+            lines := lines || format('- device %s: %s, oldest queued %s: %s',
+                coalesce(left(entry.device_id::text, 8), 'unknown'), entry.n,
+                to_char(entry.oldest at time zone 'UTC', 'YYYY-MM-DD'), left(entry.reason, 300));
+            shown := shown + 1;
+            groups := entry.groups;
+        end loop;
+        if groups > shown then
+            lines := lines || format('- and %s more devices or reasons', groups - shown);
+        end if;
+    end if;
+
+    -- Expired, but complete by now.
+    select count(*) into total from private.fcc_queue_attention a where a.state = 'expired';
+    if total > 0 then
+        lines := lines || ''::text
+            || format('Expired, but their measurements are complete now (%s). The retry job puts '
+                      'these back in line on its next run, so check that it is running. To put them '
+                      'back in line by hand:', total)
+            || '  select private.revive_expired_fcc_submission_retries();'::text;
+        shown := 0;
+        for entry in
+            select a.*
+            from private.fcc_queue_attention a
+            where a.state = 'expired'
+            order by a.queued_on
+            limit max_lines
+        loop
+            lines := lines || format('- %s (device %s, queued %s)',
+                entry.submission_id,
+                coalesce(left(entry.device_id::text, 8), 'unknown'),
+                to_char(entry.queued_on at time zone 'UTC', 'YYYY-MM-DD'));
+            shown := shown + 1;
+        end loop;
+        if total > shown then
+            lines := lines || format('- and %s more', total - shown);
+        end if;
+    end if;
+
+    -- Held: counts by reason.
+    select count(*) into total from private.fcc_submission_retry_queue q where q.state = 'held';
+    if total > 0 then
+        lines := lines || ''::text || format('Held until there is a way to send them (%s):', total);
+        for entry in
+            select q.last_error as reason, count(*) as n
+            from private.fcc_submission_retry_queue q
+            where q.state = 'held'
+            group by 1
+            order by 2 desc, 1
+        loop
+            lines := lines || format('- %s: %s', entry.reason, entry.n);
+        end loop;
+    end if;
+
+    if not exists (select 1 from private.fcc_queue_attention) then
+        lines := lines || ''::text || 'Nothing needs attention.'::text;
+    end if;
+
+    return array_to_string(lines, E'\n');
+end;
+$$;
+
+
+ALTER FUNCTION "private"."fcc_queue_digest"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "private"."fcc_queue_entry_is_ready"("sub_id" "uuid") RETURNS boolean
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
+    AS $$
+    select private.fcc_submission_is_ready(sub_id);
+$$;
+
+
+ALTER FUNCTION "private"."fcc_queue_entry_is_ready"("sub_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "private"."fcc_response_is_duplicate_test_id"("status" integer, "body" "text") RETURNS boolean
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+    select coalesce(status between 400 and 499 and body ~* '\mduplicate_test_id\M', false);
+$$;
+
+
+ALTER FUNCTION "private"."fcc_response_is_duplicate_test_id"("status" integer, "body" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "private"."fcc_submission_is_ready"("sub_id" "uuid") RETURNS boolean
     LANGUAGE "sql" STABLE
-    SET "search_path" TO 'public', 'private', 'extensions'
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
     AS $$
     select count(*) = 3
        and count(distinct lower(m.type::text)) = 3
@@ -213,6 +472,185 @@ $$;
 ALTER FUNCTION "private"."fcc_submission_is_ready"("sub_id" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "private"."fcc_submission_payload"("sub_id" "uuid") RETURNS "jsonb"
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
+    AS $$
+    with
+    group_measurements as (
+        select m.*
+        from public.measurements m
+        where m.group_id = sub_id
+    ),
+
+    location_lists as (
+        select
+            l.measurement_id,
+            jsonb_agg(
+                jsonb_build_object(
+                    'timestamp', l.timestamp,
+                    'latitude', l.lat,
+                    'longitude', l.lon,
+                    'horizontal_accuracy', l.accuracy,
+                    'speed', l.speed,
+                    'speed_accuracy', l.speed_accuracy
+                )
+                order by l.ctid
+            ) as locations
+        from public.locations l
+        where l.measurement_id in (select gm.id from group_measurements gm)
+        group by l.measurement_id
+    ),
+
+    cell_lists as (
+        select
+            c.measurement_id,
+            jsonb_agg(
+                jsonb_build_object(
+                    'timestamp', c.timestamp,
+                    'cell_id', c.cell_id,
+                    'physical_cell_id', c.physical_cell_id,
+                    'cell_connection', c.cell_connection,
+                    'network_generation', c.network_generation,
+                    'network_subtype', c.network_subtype,
+                    'signal_strength', c.signal_strength,
+                    'rssi', c.rssi,
+                    'rsrp', c.rsrp,
+                    'rsrq', c.rsrq,
+                    'sinr', c.sinr,
+                    'csi_rsrp', c.csi_rsrp,
+                    'csi_rsrq', c.csi_rsrq,
+                    'csi_sinr', c.csi_sinr,
+                    'cqi', c.cqi,
+                    'spectrum_band', c.spectrum_band,
+                    'spectrum_bandwidth', c.spectrum_bandwidth,
+                    'arfcn', c.arfcn
+                )
+                order by c.ctid
+            ) as cells
+        from public.cells c
+        where c.measurement_id in (select gm.id from group_measurements gm)
+        group by c.measurement_id
+    ),
+
+    -- Keyed by measurement type, like the view: any measurement in the group with
+    -- upload/download data becomes a test under its own type.
+    throughput_tests as (
+        select
+            m.group_id,
+            jsonb_object_agg(
+                m.type,
+                jsonb_build_object(
+                    'timestamp', m.timestamp,
+                    'warmup_duration', d.warmup_duration,
+                    'warmup_bytes_transferred', d.warmup_bytes,
+                    'bytes_transferred', d.bytes,
+                    'bytes_sec', (
+                        case
+                            when d.duration = 0 and d.bytes = 0 then 0::double precision
+                            when d.duration = 0 then null::double precision
+                            else d.bytes::double precision / (d.duration::double precision / 1000000.0::double precision)
+                        end
+                    )::integer,
+                    'success', m.success,
+                    'duration', d.duration,
+                    'targets', d.servers,
+                    'locations', l.locations,
+                    'cells', c.cells,
+                    'success_flag', m.success,
+                    'carrier_aggregation_flag', m.carrier_aggregation,
+                    'network_connected_flag', m.network_connected,
+                    'network_available_flag', m.network_available,
+                    'network_roaming_flag', m.network_roaming
+                )
+            ) as upload_download_test
+        from group_measurements m
+            join public.upload_download_data d on d.measurement_id = m.id
+            left join location_lists l on l.measurement_id = m.id
+            left join cell_lists c on c.measurement_id = m.id
+        group by m.group_id
+    ),
+
+    latency_tests as (
+        select
+            m.group_id,
+            jsonb_object_agg(
+                m.type,
+                jsonb_build_object(
+                    'timestamp', m.timestamp,
+                    'duration', m.duration,
+                    'round_trip_time', ld.rtt,
+                    'jitter', ld.jitter,
+                    'packets_sent', ld.sent,
+                    'packets_received', ld.received,
+                    'locations', l.locations,
+                    'cells', c.cells,
+                    'targets', ld.servers,
+                    'success_flag', m.success,
+                    'carrier_aggregation_flag', m.carrier_aggregation,
+                    'network_connected_flag', m.network_connected,
+                    'network_available_flag', m.network_available,
+                    'network_roaming_flag', m.network_roaming
+                )
+            ) as latency_test
+        from group_measurements m
+            join public.latency_data ld on ld.measurement_id = m.id
+            left join location_lists l on l.measurement_id = m.id
+            left join cell_lists c on c.measurement_id = m.id
+        group by m.group_id
+    ),
+
+    -- As in the view, a group without latency data has no tests at all ("tests": null).
+    tests as (
+        select coalesce(lt.latency_test, '{}'::jsonb) || coalesce(tt.upload_download_test, '{}'::jsonb) as tests
+        from latency_tests lt
+            left join throughput_tests tt on tt.group_id = lt.group_id
+    )
+
+    select jsonb_build_object(
+        'submission_category', 'Consumer Challenge',
+        'contact', jsonb_build_object(
+            'name', s.contact_name,
+            'email', s.contact_email,
+            'phone', s.contact_phone
+        ),
+        'submissions', jsonb_build_array(
+            jsonb_build_object(
+                'test_id', s.id,
+                'device_timestamp', s.device_timestamp,
+                'server_timestamp', s.server_timestamp,
+                'server_source_ip_address', s.source_ip,
+                'server_source_port', s.source_port,
+                'device_imei', s.device_imei,
+                'device_type', s.device_type,
+                'manufacturer', s.device_manufacturer,
+                'model', s.device_model,
+                'operating_system', s.device_os,
+                'device_tac', s.device_tac,
+                'device_id', s.device_id,
+                'app_name', s.app_name,
+                'app_version', s.app_version,
+                'provider_name', s.provider,
+                'sim_mobile_country_code', s.sim_country_code,
+                'sim_mobile_network_code', s.sim_network_code,
+                'net_mobile_country_code', s.net_country_code,
+                'net_mobile_network_code', s.net_network_code,
+                'in_vehicle_flag', s.in_vehicle,
+                'external_antenna_flag', s.external_antenna,
+                'scheduled_test_flag', false,
+                'tests', t.tests
+            )
+        )
+    )
+    from public.fcc_submissions s
+        left join tests t on true
+    where s.id = sub_id;
+$$;
+
+
+ALTER FUNCTION "private"."fcc_submission_payload"("sub_id" "uuid") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "private"."is_dashboard_request"() RETURNS boolean
     LANGUAGE "sql" STABLE SECURITY DEFINER
     AS $$
@@ -229,13 +667,14 @@ ALTER FUNCTION "private"."is_dashboard_request"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "private"."post_fcc_submission"("sub_id" "uuid", "fcc_env" "text") RETURNS boolean
     LANGUAGE "plpgsql"
-    SET "search_path" TO 'public', 'private', 'extensions'
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
     AS $$
 declare
     info record;
     payload jsonb;
     tests_payload jsonb;
-    response http_response;
+    hold_reason text;
+    response record;
 begin
     if not exists (
         select 1
@@ -258,11 +697,9 @@ begin
         raise exception 'missing FCC submission info for env %', fcc_env;
     end if;
 
-    select v.data into payload
-    from private.fcc_submissions_view v
-    where v.submission_id = sub_id;
+    payload := private.fcc_submission_payload(sub_id);
 
-    if not found then
+    if payload is null then
         raise exception 'no FCC submission payload found with id %', sub_id;
     end if;
 
@@ -272,16 +709,19 @@ begin
         raise exception 'FCC submission % produced an incomplete tests payload', sub_id;
     end if;
 
+    -- Changed: nothing the queue would hold goes to the production BDC.
+    if fcc_env = 'prod' then
+        hold_reason := private.fcc_payload_hold_reason(payload);
+        if hold_reason is not null then
+            raise exception 'FCC submission % is held: %', sub_id, hold_reason;
+        end if;
+    end if;
+
     -- Do not log the payload: it contains contact, device, and location data.
     raise info 'posting FCC submission_id=% env=%', sub_id, fcc_env;
 
-    select * into response from http((
-        'POST',
-        info.url,
-        array[http_header('hash_value', info.decrypted_secret)],
-        'application/json',
-        payload::text
-    )::http_request);
+    select h.status, h.content into response
+    from private.fcc_http_post(info.url, info.decrypted_secret, payload::text) h;
 
     if response.status is null then
         raise exception 'FCC submission % returned no HTTP status', sub_id;
@@ -291,7 +731,13 @@ begin
         raise exception 'FCC HTTP status % for submission %: %',
             response.status,
             sub_id,
-            left(coalesce(response.content, ''), 500);
+            left(coalesce(response.content, ''), 500)
+            -- Changed: a separate SQLSTATE for "the FCC already has this test".
+            using errcode = case
+                when private.fcc_response_is_duplicate_test_id(response.status, response.content)
+                    then 'FCDUP'
+                else 'P0001'
+            end;
     end if;
 
     update public.fcc_submissions set
@@ -315,16 +761,13 @@ ALTER FUNCTION "private"."post_fcc_submission"("sub_id" "uuid", "fcc_env" "text"
 
 CREATE OR REPLACE FUNCTION "private"."process_fcc_submission_retries"("p_batch_size" integer DEFAULT 1) RETURNS integer
     LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public', 'private', 'extensions'
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
     AS $$
 declare
-    item record;
+    batch_size integer := greatest(1, least(coalesce(p_batch_size, 1), 10));
+    started_at timestamptz := clock_timestamp();
+    outcome text;
     processed integer := 0;
-    error_text text;
-    response_text text;
-    new_attempt_count integer;
-    delay_seconds integer;
-    permanent_failure boolean;
 begin
     -- Remove queue entries that were submitted manually or elsewhere.
     delete from private.fcc_submission_retry_queue q
@@ -332,61 +775,172 @@ begin
     where s.id = q.submission_id
       and coalesce(s.submitted, false) = true;
 
-    for item in
-        select q.*
-        from private.fcc_submission_retry_queue q
-        join public.fcc_submissions s
-          on s.id = q.submission_id
-        where q.state = 'pending'
-          and q.next_attempt_at <= clock_timestamp()
-          and coalesce(s.submitted, false) = false
-        order by q.next_attempt_at
-        limit greatest(1, least(coalesce(p_batch_size, 1), 10))
-        for update of q skip locked
-    loop
-        -- A missing provider requires repair, not repeated FCC requests.
-        if not exists (
-            select 1
-            from public.fcc_submissions s
-            where s.id = item.submission_id
-              and nullif(btrim(s.provider), '') is not null
-        ) then
-            update private.fcc_submission_retry_queue
-            set
-                state = 'blocked',
-                last_error = 'Missing provider',
-                updated_on = now()
-            where submission_id = item.submission_id;
+    perform private.revive_expired_fcc_submission_retries();
+    perform private.recheck_held_fcc_submission_retries();
 
-            continue;
+    for i in 1 .. batch_size loop
+        -- Leave the rest of the batch for the next run once this one has taken a minute,
+        -- since each FCC request can take up to two minutes to fail.
+        exit when clock_timestamp() - started_at > interval '60 seconds';
+
+        outcome := private.process_next_fcc_submission_retry();
+        exit when outcome is null;
+
+        if outcome in ('posted', 'already_at_fcc', 'rejected', 'failed') then
+            processed := processed + 1;
         end if;
 
+        -- See run_fcc_submission_retries.
+        exit when outcome = 'failed';
+    end loop;
+
+    return processed;
+end;
+$$;
+
+
+ALTER FUNCTION "private"."process_fcc_submission_retries"("p_batch_size" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "private"."process_next_fcc_submission_retry"() RETURNS "text"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
+    AS $$
+declare
+    item private.fcc_submission_retry_queue%rowtype;
+    hold_reason text;
+    error_text text;
+    response_text text;
+    new_attempt_count integer;
+    delay_seconds integer;
+    rejected boolean;
+begin
+    -- skip locked: an overlapping run leaves alone the entry this one is posting.
+    select q.*
+    into item
+    from private.fcc_submission_retry_queue q
+        join public.fcc_submissions s
+          on s.id = q.submission_id
+    where q.state = 'pending'
+      and q.next_attempt_at <= now()
+      and coalesce(s.submitted, false) = false
+    order by q.next_attempt_at
+    limit 1
+    for update of q skip locked;
+
+    if not found then
+        return null;
+    end if;
+
+    begin
         -- Wait for complete latency, download, and upload payloads.
         -- This does not count as a failed FCC attempt.
+        -- Changed: checked before the provider.
         if not private.fcc_submission_is_ready(item.submission_id) then
+            -- Changed: stop checking after 30 days.
+            if item.created_on < now() - interval '30 days' then
+                update private.fcc_submission_retry_queue
+                set
+                    state = 'expired',
+                    last_error = 'Expired: measurements still incomplete 30 days after queueing',
+                    updated_on = now()
+                where submission_id = item.submission_id;
+
+                return 'expired';
+            end if;
+
             update private.fcc_submission_retry_queue
             set
-                next_attempt_at = now() + interval '5 minutes',
+                next_attempt_at = now() + case
+                    when item.created_on < now() - interval '1 day' then interval '1 hour'
+                    else interval '5 minutes'
+                end,
                 last_error =
                     'Waiting for complete latency/download/upload data',
                 updated_on = now()
             where submission_id = item.submission_id;
 
-            continue;
+            return 'waiting';
         end if;
 
-        begin
-            if private.post_fcc_submission(
-                item.submission_id,
-                item.fcc_env
-            ) is distinct from true then
-                raise exception 'FCC posting function returned false';
-            end if;
+        -- Changed: hold what the FCC is known to reject, including a blank provider, which
+        -- used to block the entry.
+        hold_reason := private.fcc_payload_hold_reason(
+            private.fcc_submission_payload(item.submission_id)
+        );
 
-            select s.submission_response
-            into response_text
-            from public.fcc_submissions s
-            where s.id = item.submission_id;
+        if hold_reason is not null then
+            update private.fcc_submission_retry_queue
+            set
+                state = 'held',
+                -- When recheck_held_fcc_submission_retries checks it again.
+                next_attempt_at = now() + interval '1 day',
+                last_error = hold_reason,
+                updated_on = now()
+            where submission_id = item.submission_id;
+
+            return 'held';
+        end if;
+
+        if private.post_fcc_submission(
+            item.submission_id,
+            item.fcc_env
+        ) is distinct from true then
+            raise exception 'FCC posting function returned false';
+        end if;
+
+        select s.submission_response
+        into response_text
+        from public.fcc_submissions s
+        where s.id = item.submission_id;
+
+        insert into private.fcc_submission_failures (
+            submission_id,
+            measurement_group_id,
+            error_message,
+            succeeded,
+            fcc_env,
+            response_snippet
+        )
+        values (
+            item.submission_id,
+            item.submission_id,
+            null,
+            true,
+            item.fcc_env,
+            left(coalesce(response_text, ''), 500)
+        );
+
+        delete from private.fcc_submission_retry_queue
+        where submission_id = item.submission_id;
+
+        return 'posted';
+
+    exception when others then
+        error_text := sqlerrm;
+
+        -- Changed: the FCC already has this test, from an earlier post whose record was lost
+        -- (a run that timed out after posting, or a request that timed out after the FCC
+        -- had accepted it). post_fcc_submission raises SQLSTATE FCDUP for that answer.
+        -- Record it as submitted instead of blocking it:
+        --   * submission is the payload as built now, the same as the earlier post's unless
+        --     the data changed in between;
+        --   * submitted_on stays null, since the earlier post's time wasn't recorded;
+        --   * the success row has the FCC's answer as its response, and no error;
+        --   * a submission another session has recorded as sent meanwhile (someone posting
+        --     it by hand) keeps that session's record.
+        if sqlstate = 'FCDUP' then
+            update public.fcc_submissions
+            set
+                submitted = true,
+                submission = private.fcc_submission_payload(item.submission_id),
+                submitted_on = null,
+                submission_response =
+                    'Not posted again: the FCC answered duplicate_test_id, so it already has '
+                    || 'this test from an earlier post whose response and time were not recorded. '
+                    || 'FCC answer: ' || error_text
+            where id = item.submission_id
+              and not coalesce(submitted, false);
 
             insert into private.fcc_submission_failures (
                 submission_id,
@@ -402,77 +956,196 @@ begin
                 null,
                 true,
                 item.fcc_env,
-                left(coalesce(response_text, ''), 500)
+                left(error_text, 500)
             );
 
             delete from private.fcc_submission_retry_queue
             where submission_id = item.submission_id;
 
-            processed := processed + 1;
+            return 'already_at_fcc';
+        end if;
 
-        exception when others then
-            error_text := sqlerrm;
-            new_attempt_count := item.attempt_count + 1;
+        new_attempt_count := item.attempt_count + 1;
 
-            -- Retry 408, 429, 5xx, and transport errors.
-            -- Block other 4xx validation errors.
-            permanent_failure :=
-                error_text ~ 'FCC HTTP status 4[0-9][0-9]'
-                and error_text !~ 'FCC HTTP status (408|429)';
+        -- Changed: block right away only when the FCC rejects the test itself (400, 409, 413,
+        -- 422). Any other failure is retried and blocked after the 6th attempt: 408, 429, 5xx
+        -- and transport errors as before, and now also the other 4xx. A 401, 403 or 404 comes
+        -- from a rotated hash value or a wrong URL, not from this test, and used to block every
+        -- entry the job reached.
+        rejected := error_text ~ 'FCC HTTP status (400|409|413|422) for submission';
 
-            insert into private.fcc_submission_failures (
-                submission_id,
-                measurement_group_id,
-                error_message,
-                succeeded,
-                fcc_env,
-                response_snippet
-            )
-            values (
-                item.submission_id,
-                item.submission_id,
-                error_text,
-                false,
-                item.fcc_env,
-                left(error_text, 500)
-            );
+        insert into private.fcc_submission_failures (
+            submission_id,
+            measurement_group_id,
+            error_message,
+            succeeded,
+            fcc_env,
+            response_snippet
+        )
+        values (
+            item.submission_id,
+            item.submission_id,
+            error_text,
+            false,
+            item.fcc_env,
+            left(error_text, 500)
+        );
 
-            delay_seconds := least(
-                3600,
-                (
-                    60 * power(
-                        2,
-                        least(new_attempt_count - 1, 6)
-                    )
-                )::integer
-            );
+        delay_seconds := least(
+            3600,
+            (
+                60 * power(
+                    2,
+                    least(new_attempt_count - 1, 6)
+                )
+            )::integer
+        );
 
-            update private.fcc_submission_retry_queue
-            set
-                state = case
-                    when permanent_failure
-                      or new_attempt_count >= 6
-                        then 'blocked'
-                    else 'pending'
-                end,
-                attempt_count = new_attempt_count,
-                last_attempt_at = now(),
-                next_attempt_at =
-                    now() + make_interval(secs => delay_seconds),
-                last_error = error_text,
-                updated_on = now()
-            where submission_id = item.submission_id;
+        update private.fcc_submission_retry_queue
+        set
+            state = case
+                when rejected
+                  or new_attempt_count >= 6
+                    then 'blocked'
+                else 'pending'
+            end,
+            attempt_count = new_attempt_count,
+            last_attempt_at = now(),
+            next_attempt_at =
+                now() + make_interval(secs => delay_seconds),
+            last_error = error_text,
+            updated_on = now()
+        where submission_id = item.submission_id;
 
-            processed := processed + 1;
-        end;
-    end loop;
-
-    return processed;
+        -- Changed: a rejection is reported apart from other failures, which end the run.
+        return case when rejected then 'rejected' else 'failed' end;
+    end;
 end;
 $$;
 
 
-ALTER FUNCTION "private"."process_fcc_submission_retries"("p_batch_size" integer) OWNER TO "postgres";
+ALTER FUNCTION "private"."process_next_fcc_submission_retry"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "private"."recheck_held_fcc_submission_retries"("p_all" boolean DEFAULT false) RETURNS integer
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
+    AS $$
+declare
+    released integer;
+begin
+    with
+    due as (
+        select
+            q.submission_id,
+            q.last_error,
+            private.fcc_payload_hold_reason(private.fcc_submission_payload(q.submission_id)) as reason
+        from private.fcc_submission_retry_queue q
+        where q.state = 'held'
+          and (coalesce(p_all, false) or q.next_attempt_at <= now())
+        -- An overlapping run leaves alone the entries this one is checking.
+        for update of q skip locked
+    ),
+    checked as (
+        update private.fcc_submission_retry_queue q
+        set
+            state = case when d.reason is null then 'pending' else 'held' end,
+            next_attempt_at = case when d.reason is null then now() else now() + interval '1 day' end,
+            last_error = coalesce(d.reason, 'Released: no hold reason applies any more'),
+            updated_on = case
+                when d.reason is distinct from d.last_error then now()
+                else q.updated_on
+            end
+        from due d
+        where q.submission_id = d.submission_id
+        returning q.state
+    )
+    select count(*) filter (where state = 'pending') into released from checked;
+
+    return released;
+end;
+$$;
+
+
+ALTER FUNCTION "private"."recheck_held_fcc_submission_retries"("p_all" boolean) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "private"."revive_expired_fcc_submission_retries"() RETURNS integer
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
+    AS $$
+declare
+    revived integer;
+begin
+    update private.fcc_submission_retry_queue q
+    set
+        state = 'pending',
+        next_attempt_at = now(),
+        last_error = 'Measurements arrived after the entry expired',
+        updated_on = now()
+    where q.state = 'expired'
+      and private.fcc_submission_is_ready(q.submission_id);
+
+    get diagnostics revived = row_count;
+    return revived;
+end;
+$$;
+
+
+ALTER FUNCTION "private"."revive_expired_fcc_submission_retries"() OWNER TO "postgres";
+
+
+CREATE PROCEDURE "private"."run_fcc_submission_retries"(IN "p_batch_size" integer DEFAULT 10, INOUT "processed" integer DEFAULT NULL::integer, IN "p_time_limit" interval DEFAULT '00:01:00'::interval)
+    LANGUAGE "plpgsql"
+    AS $$
+declare
+    batch_size integer := greatest(1, least(coalesce(p_batch_size, 10), 10));
+    started_at timestamptz := clock_timestamp();
+    outcome text;
+begin
+    -- Fails right here, before anything is posted, when the procedure can't commit: inside
+    -- a transaction block (begin; call ...), when called from a function, or when sent
+    -- together with other statements in one request.
+    commit;
+
+    processed := 0;
+
+    -- Remove queue entries that were submitted manually or elsewhere.
+    delete from private.fcc_submission_retry_queue q
+    using public.fcc_submissions s
+    where s.id = q.submission_id
+      and coalesce(s.submitted, false) = true;
+
+    perform private.revive_expired_fcc_submission_retries();
+    perform private.recheck_held_fcc_submission_retries();
+
+    commit;
+
+    for i in 1 .. batch_size loop
+        -- Leave the rest of the batch for the next run once this one has taken a minute,
+        -- since each FCC request can take up to two minutes to fail.
+        exit when clock_timestamp() - started_at > coalesce(p_time_limit, interval '60 seconds');
+
+        outcome := private.process_next_fcc_submission_retry();
+        exit when outcome is null;
+
+        if outcome in ('posted', 'already_at_fcc', 'rejected', 'failed') then
+            processed := processed + 1;
+        end if;
+
+        -- Record this entry's outcome before taking the next one.
+        commit;
+
+        -- A failure that isn't a rejection of the test (the FCC down, a rotated hash value, a
+        -- wrong URL, no network) would most likely fail the next entries too. Leave them for
+        -- the next run, so it costs one attempt per run rather than one for every entry.
+        exit when outcome = 'failed';
+    end loop;
+end;
+$$;
+
+
+ALTER PROCEDURE "private"."run_fcc_submission_retries"(IN "p_batch_size" integer, INOUT "processed" integer, IN "p_time_limit" interval) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "private"."verified_device_id"() RETURNS "uuid"
@@ -1544,32 +2217,6 @@ CREATE TABLE IF NOT EXISTS "private"."devices" (
 ALTER TABLE "private"."devices" OWNER TO "postgres";
 
 
-CREATE TABLE IF NOT EXISTS "private"."fcc_submission_failures" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "submission_id" "uuid" NOT NULL,
-    "measurement_group_id" "uuid",
-    "error_message" "text",
-    "occurred_on" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "succeeded" boolean DEFAULT false NOT NULL,
-    "fcc_env" "text",
-    "response_status" integer,
-    "response_snippet" "text"
-);
-
-
-ALTER TABLE "private"."fcc_submission_failures" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "private"."fcc_submission_info" (
-    "env" "text" NOT NULL,
-    "url" "text" NOT NULL,
-    "hash_secret_id" "uuid" NOT NULL
-);
-
-
-ALTER TABLE "private"."fcc_submission_info" OWNER TO "postgres";
-
-
 CREATE TABLE IF NOT EXISTS "private"."fcc_submission_retry_queue" (
     "submission_id" "uuid" NOT NULL,
     "fcc_env" "text" DEFAULT 'prod'::"text" NOT NULL,
@@ -1580,7 +2227,7 @@ CREATE TABLE IF NOT EXISTS "private"."fcc_submission_retry_queue" (
     "last_error" "text",
     "created_on" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_on" timestamp with time zone DEFAULT "now"() NOT NULL,
-    CONSTRAINT "fcc_submission_retry_queue_state_check" CHECK (("state" = ANY (ARRAY['pending'::"text", 'blocked'::"text"])))
+    CONSTRAINT "fcc_submission_retry_queue_state_check" CHECK (("state" = ANY (ARRAY['pending'::"text", 'blocked'::"text", 'held'::"text", 'expired'::"text"])))
 );
 
 
@@ -1624,54 +2271,81 @@ CREATE TABLE IF NOT EXISTS "public"."fcc_submissions" (
 ALTER TABLE "public"."fcc_submissions" OWNER TO "postgres";
 
 
+CREATE OR REPLACE VIEW "private"."fcc_queue_attention" AS
+ SELECT
+        CASE
+            WHEN ("q"."state" = 'blocked'::"text") THEN 'blocked: needs a person'::"text"
+            WHEN ("q"."state" = 'pending'::"text") THEN 'pending for more than 3 days'::"text"
+            ELSE 'expired, but its measurements are complete now'::"text"
+        END AS "attention",
+    "q"."submission_id",
+    "s"."device_id",
+    "q"."state",
+    "q"."last_error",
+    "q"."attempt_count",
+    "q"."created_on" AS "queued_on",
+    "date_trunc"('second'::"text", ("now"() - "q"."created_on")) AS "queued_for",
+    "q"."last_attempt_at",
+    "q"."next_attempt_at",
+    "s"."provider",
+    "s"."sim_country_code",
+    "s"."sim_network_code",
+    "q"."updated_on" AS "last_changed_on"
+   FROM ("private"."fcc_submission_retry_queue" "q"
+     LEFT JOIN "public"."fcc_submissions" "s" ON (("s"."id" = "q"."submission_id")))
+  WHERE (("q"."state" = 'blocked'::"text") OR (("q"."state" = 'pending'::"text") AND ("q"."created_on" < ("now"() - '3 days'::interval))) OR (("q"."state" = 'expired'::"text") AND "private"."fcc_queue_entry_is_ready"("q"."submission_id")));
+
+
+ALTER VIEW "private"."fcc_queue_attention" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "private"."fcc_queue_health" AS
+ SELECT "q"."state",
+    COALESCE("left"("regexp_replace"("q"."last_error", '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'::"text", '<id>'::"text", 'gi'::"text"), 200), 'New'::"text") AS "reason",
+    "s"."device_id",
+    "count"(*) AS "entries",
+    "count"(*) FILTER (WHERE (("q"."state" = 'pending'::"text") AND ("q"."created_on" < ("now"() - '3 days'::interval)))) AS "pending_over_3_days",
+    "min"("q"."created_on") AS "oldest_queued_on",
+    "max"("q"."updated_on") AS "last_changed_on"
+   FROM ("private"."fcc_submission_retry_queue" "q"
+     LEFT JOIN "public"."fcc_submissions" "s" ON (("s"."id" = "q"."submission_id")))
+  GROUP BY "q"."state", COALESCE("left"("regexp_replace"("q"."last_error", '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'::"text", '<id>'::"text", 'gi'::"text"), 200), 'New'::"text"), "s"."device_id";
+
+
+ALTER VIEW "private"."fcc_queue_health" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "private"."fcc_submission_failures" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "submission_id" "uuid" NOT NULL,
+    "measurement_group_id" "uuid",
+    "error_message" "text",
+    "occurred_on" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "succeeded" boolean DEFAULT false NOT NULL,
+    "fcc_env" "text",
+    "response_status" integer,
+    "response_snippet" "text"
+);
+
+
+ALTER TABLE "private"."fcc_submission_failures" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "private"."fcc_submission_info" (
+    "env" "text" NOT NULL,
+    "url" "text" NOT NULL,
+    "hash_secret_id" "uuid" NOT NULL
+);
+
+
+ALTER TABLE "private"."fcc_submission_info" OWNER TO "postgres";
+
+
 CREATE OR REPLACE VIEW "private"."fcc_submissions_view" AS
- WITH "locs" AS (
-         SELECT "l"."measurement_id",
-            "jsonb_agg"("jsonb_build_object"('timestamp', "l"."timestamp", 'latitude', "l"."lat", 'longitude', "l"."lon", 'horizontal_accuracy', "l"."accuracy", 'speed', "l"."speed", 'speed_accuracy', "l"."speed_accuracy")) AS "locations"
-           FROM "public"."locations" "l"
-          GROUP BY "l"."measurement_id"
-         HAVING ("l"."measurement_id" IS NOT NULL)
-        ), "cells" AS (
-         SELECT "c"."measurement_id",
-            "jsonb_agg"("jsonb_build_object"('timestamp', "c"."timestamp", 'cell_id', "c"."cell_id", 'physical_cell_id', "c"."physical_cell_id", 'cell_connection', "c"."cell_connection", 'network_generation', "c"."network_generation", 'network_subtype', "c"."network_subtype", 'signal_strength', "c"."signal_strength", 'rssi', "c"."rssi", 'rsrp', "c"."rsrp", 'rsrq', "c"."rsrq", 'sinr', "c"."sinr", 'csi_rsrp', "c"."csi_rsrp", 'csi_rsrq', "c"."csi_rsrq", 'csi_sinr', "c"."csi_sinr", 'cqi', "c"."cqi", 'spectrum_band', "c"."spectrum_band", 'spectrum_bandwidth', "c"."spectrum_bandwidth", 'arfcn', "c"."arfcn")) AS "cells"
-           FROM "public"."cells" "c"
-          GROUP BY "c"."measurement_id"
-         HAVING ("c"."measurement_id" IS NOT NULL)
-        ), "upload_download_data" AS (
-         SELECT "m"."group_id",
-            "jsonb_object_agg"("m"."type", "jsonb_build_object"('timestamp', "m"."timestamp", 'warmup_duration', "d"."warmup_duration", 'warmup_bytes_transferred', "d"."warmup_bytes", 'bytes_transferred', "d"."bytes", 'bytes_sec', (
-                CASE
-                    WHEN (("d"."duration" = (0)::numeric) AND ("d"."bytes" = (0)::numeric)) THEN (0)::double precision
-                    WHEN ("d"."duration" = (0)::numeric) THEN NULL::double precision
-                    ELSE (("d"."bytes")::double precision / (("d"."duration")::double precision / (1000000.0)::double precision))
-                END)::integer, 'success', "m"."success", 'duration', "d"."duration", 'targets', "d"."servers", 'locations', "l"."locations", 'cells', "c"."cells", 'success_flag', "m"."success", 'carrier_aggregation_flag', "m"."carrier_aggregation", 'network_connected_flag', "m"."network_connected", 'network_available_flag', "m"."network_available", 'network_roaming_flag', "m"."network_roaming")) AS "upload_download_test"
-           FROM ((("public"."measurements" "m"
-             JOIN "public"."upload_download_data" "d" ON (("d"."measurement_id" = "m"."id")))
-             LEFT JOIN "locs" "l" ON (("l"."measurement_id" = "m"."id")))
-             LEFT JOIN "cells" "c" ON (("c"."measurement_id" = "m"."id")))
-          GROUP BY "m"."group_id"
-        ), "latency_data" AS (
-         SELECT "m"."group_id",
-            "jsonb_object_agg"("m"."type", "jsonb_build_object"('timestamp', "m"."timestamp", 'duration', "m"."duration", 'round_trip_time', "l"."rtt", 'jitter', "l"."jitter", 'packets_sent', "l"."sent", 'packets_received', "l"."received", 'locations', "loc"."locations", 'cells', "c"."cells", 'targets', "l"."servers", 'success_flag', "m"."success", 'carrier_aggregation_flag', "m"."carrier_aggregation", 'network_connected_flag', "m"."network_connected", 'network_available_flag', "m"."network_available", 'network_roaming_flag', "m"."network_roaming")) AS "latency_test"
-           FROM ((("public"."measurements" "m"
-             JOIN "public"."latency_data" "l" ON (("l"."measurement_id" = "m"."id")))
-             LEFT JOIN "locs" "loc" ON (("loc"."measurement_id" = "m"."id")))
-             LEFT JOIN "cells" "c" ON (("c"."measurement_id" = "m"."id")))
-          GROUP BY "m"."group_id"
-        ), "tests" AS (
-         SELECT "test_data"."group_id",
-            (COALESCE("test_data"."latency_test", '{}'::"jsonb") || COALESCE("test_data"."upload_download_test", '{}'::"jsonb")) AS "tests"
-           FROM ( SELECT COALESCE("upload_download_data"."group_id", "latency_data"."group_id") AS "group_id",
-                    "latency_data"."latency_test",
-                    "upload_download_data"."upload_download_test"
-                   FROM ("latency_data"
-                     LEFT JOIN "upload_download_data" ON (("latency_data"."group_id" = "upload_download_data"."group_id")))) "test_data"
-        )
- SELECT "s"."id" AS "submission_id",
-    "s"."submitted",
-    "jsonb_build_object"('submission_category', 'Consumer Challenge', 'contact', "jsonb_build_object"('name', "s"."contact_name", 'email', "s"."contact_email", 'phone', "s"."contact_phone"), 'submissions', "jsonb_build_array"("jsonb_build_object"('test_id', "s"."id", 'device_timestamp', "s"."device_timestamp", 'server_timestamp', "s"."server_timestamp", 'server_source_ip_address', "s"."source_ip", 'server_source_port', "s"."source_port", 'device_imei', "s"."device_imei", 'device_type', "s"."device_type", 'manufacturer', "s"."device_manufacturer", 'model', "s"."device_model", 'operating_system', "s"."device_os", 'device_tac', "s"."device_tac", 'device_id', "s"."device_id", 'app_name', "s"."app_name", 'app_version', "s"."app_version", 'provider_name', "s"."provider", 'sim_mobile_country_code', "s"."sim_country_code", 'sim_mobile_network_code', "s"."sim_network_code", 'net_mobile_country_code', "s"."net_country_code", 'net_mobile_network_code', "s"."net_network_code", 'in_vehicle_flag', "s"."in_vehicle", 'external_antenna_flag', "s"."external_antenna", 'scheduled_test_flag', false, 'tests', "tests"."tests"))) AS "data"
-   FROM ("public"."fcc_submissions" "s"
-     LEFT JOIN "tests" ON (("s"."id" = "tests"."group_id")));
+ SELECT "id" AS "submission_id",
+    "submitted",
+    "private"."fcc_submission_payload"("id") AS "data"
+   FROM "public"."fcc_submissions" "s";
 
 
 ALTER VIEW "private"."fcc_submissions_view" OWNER TO "postgres";
@@ -1841,6 +2515,14 @@ CREATE INDEX "cells_measurement_id_idx" ON "public"."cells" USING "btree" ("meas
 
 
 CREATE INDEX "locations_measurement_id_idx" ON "public"."locations" USING "btree" ("measurement_id");
+
+
+
+CREATE INDEX "measurements_device_id_idx" ON "public"."measurements" USING "btree" ("device_id");
+
+
+
+CREATE INDEX "measurements_group_id_idx" ON "public"."measurements" USING "btree" ("group_id");
 
 
 
@@ -2069,15 +2751,15 @@ CREATE POLICY "Allow inserting own upload/download data" ON "public"."upload_dow
 
 
 
-CREATE POLICY "Allow viewing latency (dashboard or own)" ON "public"."latency_data" FOR SELECT TO "anon" USING (("private"."is_dashboard_request"() OR (EXISTS ( SELECT 1
+CREATE POLICY "Allow viewing latency (dashboard or own)" ON "public"."latency_data" FOR SELECT TO "anon" USING ((( SELECT "private"."is_dashboard_request"() AS "is_dashboard_request") OR (EXISTS ( SELECT 1
    FROM "public"."measurements" "m"
-  WHERE (("m"."id" = "latency_data"."measurement_id") AND ("m"."device_id" = "private"."verified_device_id_or_null"()))))));
+  WHERE (("m"."id" = "latency_data"."measurement_id") AND ("m"."device_id" = ( SELECT "private"."verified_device_id_or_null"() AS "verified_device_id_or_null")))))));
 
 
 
-CREATE POLICY "Allow viewing locations (dashboard or own)" ON "public"."locations" FOR SELECT TO "anon" USING (("private"."is_dashboard_request"() OR (EXISTS ( SELECT 1
+CREATE POLICY "Allow viewing locations (dashboard or own)" ON "public"."locations" FOR SELECT TO "anon" USING ((( SELECT "private"."is_dashboard_request"() AS "is_dashboard_request") OR (EXISTS ( SELECT 1
    FROM "public"."measurements" "m"
-  WHERE (("m"."id" = "locations"."measurement_id") AND ("m"."device_id" = "private"."verified_device_id_or_null"()))))));
+  WHERE (("m"."id" = "locations"."measurement_id") AND ("m"."device_id" = ( SELECT "private"."verified_device_id_or_null"() AS "verified_device_id_or_null")))))));
 
 
 
@@ -2103,7 +2785,7 @@ CREATE POLICY "Allow viewing own locations" ON "public"."locations" FOR SELECT T
 
 
 
-CREATE POLICY "Allow viewing own measurements" ON "public"."measurements" FOR SELECT TO "anon" USING (("private"."is_dashboard_request"() OR ("private"."verified_device_id_or_null"() = "device_id")));
+CREATE POLICY "Allow viewing own measurements" ON "public"."measurements" FOR SELECT TO "anon" USING ((( SELECT "private"."is_dashboard_request"() AS "is_dashboard_request") OR (( SELECT "private"."verified_device_id_or_null"() AS "verified_device_id_or_null") = "device_id")));
 
 
 
@@ -2113,24 +2795,24 @@ CREATE POLICY "Allow viewing own upload/download data" ON "public"."upload_downl
 
 
 
-CREATE POLICY "Allow viewing ud (dashboard or own)" ON "public"."upload_download_data" FOR SELECT TO "anon" USING (("private"."is_dashboard_request"() OR (EXISTS ( SELECT 1
+CREATE POLICY "Allow viewing ud (dashboard or own)" ON "public"."upload_download_data" FOR SELECT TO "anon" USING ((( SELECT "private"."is_dashboard_request"() AS "is_dashboard_request") OR (EXISTS ( SELECT 1
    FROM "public"."measurements" "m"
-  WHERE (("m"."id" = "upload_download_data"."measurement_id") AND ("m"."device_id" = "private"."verified_device_id_or_null"()))))));
+  WHERE (("m"."id" = "upload_download_data"."measurement_id") AND ("m"."device_id" = ( SELECT "private"."verified_device_id_or_null"() AS "verified_device_id_or_null")))))));
 
 
 
 ALTER TABLE "public"."cells" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "dashboard can select cells" ON "public"."cells" FOR SELECT TO "anon" USING ("private"."is_dashboard_request"());
+CREATE POLICY "dashboard can select cells" ON "public"."cells" FOR SELECT TO "anon" USING (( SELECT "private"."is_dashboard_request"() AS "is_dashboard_request"));
 
 
 
-CREATE POLICY "dashboard can select latency_data" ON "public"."latency_data" FOR SELECT TO "anon" USING ("private"."is_dashboard_request"());
+CREATE POLICY "dashboard can select latency_data" ON "public"."latency_data" FOR SELECT TO "anon" USING (( SELECT "private"."is_dashboard_request"() AS "is_dashboard_request"));
 
 
 
-CREATE POLICY "dashboard can select locations" ON "public"."locations" FOR SELECT TO "anon" USING ("private"."is_dashboard_request"());
+CREATE POLICY "dashboard can select locations" ON "public"."locations" FOR SELECT TO "anon" USING (( SELECT "private"."is_dashboard_request"() AS "is_dashboard_request"));
 
 
 
@@ -4606,7 +5288,44 @@ GRANT USAGE ON SCHEMA "published" TO PUBLIC;
 
 
 
+REVOKE ALL ON FUNCTION "private"."fcc_http_post"("p_url" "text", "p_hash_value" "text", "p_body" "text", OUT "status" integer, OUT "content" "text") FROM PUBLIC;
+
+
+
+REVOKE ALL ON FUNCTION "private"."fcc_queue_digest"() FROM PUBLIC;
+GRANT ALL ON FUNCTION "private"."fcc_queue_digest"() TO "readonly_user";
+
+
+
+REVOKE ALL ON FUNCTION "private"."fcc_queue_entry_is_ready"("sub_id" "uuid") FROM PUBLIC;
+GRANT ALL ON FUNCTION "private"."fcc_queue_entry_is_ready"("sub_id" "uuid") TO "readonly_user";
+GRANT ALL ON FUNCTION "private"."fcc_queue_entry_is_ready"("sub_id" "uuid") TO "pg_read_all_data";
+
+
+
+REVOKE ALL ON FUNCTION "private"."fcc_submission_payload"("sub_id" "uuid") FROM PUBLIC;
+GRANT ALL ON FUNCTION "private"."fcc_submission_payload"("sub_id" "uuid") TO "readonly_user";
+GRANT ALL ON FUNCTION "private"."fcc_submission_payload"("sub_id" "uuid") TO "pg_read_all_data";
+
+
+
 REVOKE ALL ON FUNCTION "private"."process_fcc_submission_retries"("p_batch_size" integer) FROM PUBLIC;
+
+
+
+REVOKE ALL ON FUNCTION "private"."process_next_fcc_submission_retry"() FROM PUBLIC;
+
+
+
+REVOKE ALL ON FUNCTION "private"."recheck_held_fcc_submission_retries"("p_all" boolean) FROM PUBLIC;
+
+
+
+REVOKE ALL ON FUNCTION "private"."revive_expired_fcc_submission_retries"() FROM PUBLIC;
+
+
+
+REVOKE ALL ON PROCEDURE "private"."run_fcc_submission_retries"(IN "p_batch_size" integer, INOUT "processed" integer, IN "p_time_limit" interval) FROM PUBLIC;
 
 
 
@@ -4860,14 +5579,6 @@ GRANT SELECT ON TABLE "private"."devices" TO "readonly_user";
 
 
 
-GRANT SELECT ON TABLE "private"."fcc_submission_failures" TO "readonly_user";
-
-
-
-GRANT SELECT ON TABLE "private"."fcc_submission_info" TO "readonly_user";
-
-
-
 GRANT SELECT ON TABLE "private"."fcc_submission_retry_queue" TO "readonly_user";
 
 
@@ -4876,6 +5587,22 @@ GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public".
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."fcc_submissions" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."fcc_submissions" TO "service_role";
 GRANT SELECT ON TABLE "public"."fcc_submissions" TO "readonly_user";
+
+
+
+GRANT SELECT ON TABLE "private"."fcc_queue_attention" TO "readonly_user";
+
+
+
+GRANT SELECT ON TABLE "private"."fcc_queue_health" TO "readonly_user";
+
+
+
+GRANT SELECT ON TABLE "private"."fcc_submission_failures" TO "readonly_user";
+
+
+
+GRANT SELECT ON TABLE "private"."fcc_submission_info" TO "readonly_user";
 
 
 
@@ -4971,7 +5698,5 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT ON 
 
 
 
-
-\unrestrict KpPrRLmO8zOBLYEivKIhhwf6ZVSHohppE19ggB9HFlZXJcseXxvBha2XeySQDu8
 
 RESET ALL;

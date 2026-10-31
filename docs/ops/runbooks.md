@@ -45,7 +45,7 @@ Gotchas:
 |---|---|---|
 | A (read remote) | 1. dump roles → `~/cellwatch-remote-dump/roles.sql`; 2. dump schema → `supabase/migrations/<UTC timestamp>_remote_baseline.sql` and copy to [`supabase/full_schema.sql`](../../supabase/full_schema.sql); 3. dump data → `~/cellwatch-remote-dump/data.sql` (mode 600) | Prod read only |
 | Safety gate | Aborts if either dump is under 1000 bytes; the CLI can "succeed" with an empty file | none |
-| B (local, destructive) | Asks you to type `yes`, then 4. `supabase stop --no-backup` + `supabase start` (meant to get PG17 like prod, but `supabase start` follows `major_version` in [config.toml](../../supabase/config.toml), which is 15 on main; the change to 17 is uncommitted on the `client-port-header` branch); 5. `supabase db reset`; 6. load `data.sql` into the local DB container | Local DB only |
+| B (local, destructive) | Asks you to type `yes`, then 4. `supabase stop --no-backup` + `supabase start` (to get PG17 like prod: `supabase start` follows `major_version` in [config.toml](../../supabase/config.toml), which is 17); 5. `supabase db reset`; 6. load `data.sql` into the local DB container | Local DB only |
 
 Notes:
 - It uses the session pooler with a percent-encoded password. It reads the password from the login keychain item the Supabase CLI created, or prompts silently. The script hard-codes the project directory, project ref and pooler host. > TODO: parameterize them.

@@ -9,8 +9,9 @@ How schema changes are written, tested, applied locally, and pushed to prod, and
 | File | What it is | Authoritative for |
 |---|---|---|
 | [migrations/](../../supabase/migrations/) | Forward-only SQL changes, named `YYYYMMDDNNNN_description.sql`. They use `create or replace` / `if not exists`, so there are no down migrations. Each file is one `begin; … commit;` transaction | Changes made since the snapshot |
-| [full_schema.sql](../../supabase/full_schema.sql) | `supabase db dump` of prod (schema only, no data). Last refreshed 2026-10-07 (commit "Snapshot live Supabase schema and cron jobs") | Prod's schema, together with `202610070001`: a read-only catalog check on 2026-10-22 found prod matches the two exactly (apart from Postgres 17's `MAINTAIN` bit in table grants) |
-| [cron_jobs.sql](../../supabase/cron_jobs.sql) | `cron.schedule(...)` calls that recreate the pg_cron jobs. Jobs are rows in `cron.job` and are **not** in schema dumps | The jobs as pulled on 2026-09-30, before `202610070001` changed the batch size to 10 (prod's job was not checked on 2026-10-22) |
+| [full_schema.sql](../../supabase/full_schema.sql) | `supabase db dump` of prod (schema only, no data). Last refreshed 2026-10-31 by `check_drift.sh --write` | Prod's schema. It includes every migration pushed through 2026-10-29 (`202610070001`, `202609300001`, `202610210001`, `0101`, `0103`, `0104`); their function bodies match the migration files exactly |
+| [cron_jobs.sql](../../supabase/cron_jobs.sql) | `cron.schedule(...)` calls that recreate the pg_cron jobs. Jobs are rows in `cron.job` and are **not** in schema dumps | The jobs as pulled from prod on 2026-10-31 |
+| [role_settings.sql](../../supabase/role_settings.sql) | The `*_timeout` settings of the API roles and `postgres`. Role settings are **not** in schema dumps | The settings as pulled from prod on 2026-10-31 |
 | [post_fcc_submission_func.sql](../../supabase/post_fcc_submission_func.sql) | Original setup script for the FCC view, `fcc_submission_info`, and posting functions | History only; partly superseded. **Do not re-run** (it would bring back the synchronous auto-post trigger) |
 | [seed.sql](../../supabase/seed.sql) | Empty. Real data must never go here (the file is tracked) | |
 | [sync_from_remote.sh](../../supabase/sync_from_remote.sh) | Rebuilds the local stack from prod; see below | |
@@ -38,7 +39,7 @@ Migrations that are not on main. None of them is pushed to prod:
 
 ## Local stack
 
-From [config.toml](../../supabase/config.toml): API on `54321`, Postgres on `54322`, Studio on `54323`, Inbucket on `54324`. The REST API exposes `public`, `storage`, `graphql_public`. On main, `[db].major_version` is still `15`, but prod runs Postgres 17; set it to `17` before `supabase start` (that change is uncommitted on the `client-port-header` branch). `sync_from_remote.sh` assumes the local stack runs 17.
+From [config.toml](../../supabase/config.toml): API on `54321`, Postgres on `54322`, Studio on `54323`, Inbucket on `54324`. The REST API exposes `public`, `storage`, `graphql_public`. `[db].major_version` is `17`, matching prod; `sync_from_remote.sh` and `check_drift.sh` need that, since the CLI's `pg_dump` follows it and refuses to dump a newer server.
 
 ```bash
 supabase start        # bring up the local stack (Docker)
