@@ -60,7 +60,7 @@ sequenceDiagram
 - States exposed via `MeasurementBinder.state`: `STARTING, STARTED, LOCATE, LATENCY, DOWNLOAD, UPLOAD, DONE`. The binder also exposes `groupId`, `latency`, `download`, `upload`, `group`, `lastErrorCode`, `lastErrorMessage`.
 - On exception the message is kept and `HttpUtil.code()` pulls an HTTP status from it; `MeasureViewModel` shows a special message for `429` (M-Lab rate limiting).
 
-> Note: on main, on the error path `runTest` calls `releaseWakeLock()` in `catch` and then `wakeLock.release()` again in `finally`. The second release on an un-held lock likely throws ("under-locked"), which is caught and logged as "unexpected error running test" after `DONE` is already set. **Fixed in #136; reaches users with the next app release**: `runTest` no longer releases the lock; `onStartCommand` releases it once.
+> Note: in the released build (and on main before #136), on the error path `runTest` calls `releaseWakeLock()` in `catch` and then `wakeLock.release()` again in `finally`. The second release on an un-held lock likely throws ("under-locked"), which is caught and logged as "unexpected error running test" after `DONE` is already set. **Fixed on `main` by #136 (merged 2026-10-27); not released**: `runTest` no longer releases the lock; `onStartCommand` releases it once.
 
 ### `MeasurementManager.runTestSequence`
 
@@ -117,7 +117,7 @@ The resulting `Measurement` gets: `groupId`, `deviceId` (from `SettingsRepositor
 - Cells come from `TelephonyManager.allCellInfo` (requires READ_PHONE_STATE; returns `null` without it). For each cell: cell id, PCI, connection status (primary/secondary serving), generation from the `CellInfo` class, FCC subtype (`1X, EVDO, WCDMA, GSM, HSPA, HSPA+, LTE, NRSA, NRNSA`), dBm, RSSI, RSRP, RSRQ, SINR, CSI-RSRP/RSRQ/SINR (NR), CQI, bands (API 30+), LTE bandwidth (MHz), ARFCN. `UNAVAILABLE` values become `null`. Cell timestamps are converted from elapsed-realtime to wall clock.
 - NR is `NRNSA` when the primary serving cell is LTE and a secondary serving cell is NR.
 - `isUsingCarrierAggregation`: more than one primary/secondary serving cell.
-- `getProviderName`: `networkOperatorName`, else `simOperatorName`, else `"unknown"`, lower-cased.
+- `getProviderName`: `networkOperatorName`, lower-cased and trimmed, or `"unknown"` if it is null. An empty operator name stays blank; the server's retry queue then holds the submission as `Missing provider` (blank names are never filled in). This matches the released build: #148 (merged 2026-10-27) reverted the app half of c51980e, which had fallen back to `simOperatorName`. A SIM-first fallback is on the local branch `measurement-process-changes` (see the note at the end of this page).
 - `getConnectionType`: `WIFI`, `CELLULAR` or `NONE` from the (deprecated) `activeNetworkInfo`.
 
 `lib/DeviceInformation-release.aar` (package `com.oseamiya.deviceinformation`) is on the classpath but no app code imports it; device info comes from `easydeviceinfo` and `android.os.Build`.
@@ -125,6 +125,8 @@ The resulting `Measurement` gets: `groupId`, `deviceId` (from `SettingsRepositor
 ## Latency test
 
 [LatencyTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/LatencyTest.kt) wraps msak `LatencyTest(server, client, measurementId, userAgent)`.
+
+- msak 0.1.3 sends probes for 5 s (its default) and stops the test 5 s + 1 s after the first echo comes back. #148 records these as `DURATION_MILLIS` and `MSAK_STOP_GRACE_MILLIS` for the measure screen's step timer; the latency call itself is unchanged.
 
 - Streams each `LastRTT` to `rttChan` (only logged by `MeasurementManager`).
 - Tolerated (network) errors: `AuthorizeFailureExecption`, `ResultFailureException`, `NoAddrException`, `InitialPacketTimeoutException` -> uses whatever result exists. Any other error is rethrown.
@@ -134,7 +136,7 @@ The resulting `Measurement` gets: `groupId`, `deviceId` (from `SettingsRepositor
 
 ## Throughput tests (download, upload)
 
-[ThroughputTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ThroughputTest.kt) wraps msak `ThroughputTest` with **3 streams**, `maxWarmupTime = 10 s`, `maxActiveTime = 10 s` (msak duration = 20 s).
+[ThroughputTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ThroughputTest.kt) wraps msak `ThroughputTest` with **3 streams**, `maxWarmupTime = 10 s`, `maxActiveTime = 10 s` (msak duration = 20 s). Since #148 the two limits are named constants, `MAX_WARMUP_MILLIS` and `MAX_ACTIVE_MILLIS`, with the same values; the measure screen's step timer reads them.
 
 - Only updates from the **receiver** are used: client-side for download, server-side for upload.
 - **Warmup -> active** switch happens at the first of: every stream's latest bytes/s is > 0 and not higher than its previous update ("plateau"), or the 10 s warmup timer. At the switch, each stream's last warmup update is saved as the baseline; if a stream has none, the test stops with success = false.
@@ -155,7 +157,7 @@ In `runTestSequence`, only if **all** of:
 
 Otherwise it logs "skipping fcc submission insertion". `PreMeasureFragment` warns before starting an FCC-mode test when `MeasurementManager.checkCellular()` is false (on Wi-Fi or mobile data off), and the user may proceed anyway (the group is then stored without a submission).
 
-> Not on main: the team decided on 2026-10-22 to require at least two locations per test. The app-side rule (`isFccSubmittable` requiring two) is an unpushed local commit on `app-fcc-data-fixes`, the branch of open PR #130: not in the PR yet, not merged, not released. See [bdc-spec-mapping.md](../fcc/bdc-spec-mapping.md).
+> Two locations per test: the team decided on 2026-10-22 to require at least two. The app-side rule is not on main: `isFccSubmittable` requiring two, with retries for a fresh fix, is on the local branch `measurement-process-changes`: not in a PR, not merged, not released. Closed PR #130 had an `isFccSubmittable` check; the two-location commit never reached it. The server-side "One location" hold is in `202610210103` (#133, merged to `main` 2026-10-27), pushed to prod on 2026-10-29. See [bdc-spec-mapping.md](../fcc/bdc-spec-mapping.md).
 
 Submission fields set on the device: `id = groupId`, `deviceId`, `deviceTimestamp = now`, `inVehicle` (from the stationary/moving choice), `externalAntenna = false`, `deviceType = "Android"`, manufacturer, model, `deviceOsName = "Android <version>"`, app name, `appVersion` (`EasyAppMod.appVersion`, i.e. versionName), provider, SIM/network MCC/MNC, and contact name/email/phone from `SettingsRepository`. `sourceIp`, `sourcePort`, `serverTimestamp` (and `tupleLocalPort`, in uncommitted work on the `client-port-header` branch) are filled in at upload time; see [sync-and-upload.md](sync-and-upload.md).
 
@@ -169,3 +171,16 @@ Submission fields set on the device: `id = groupId`, `deviceId`, `deviceTimestam
 | Default when unset | chosen if all FCC info is present | otherwise |
 
 Contact fields cannot be blanked while in FCC mode (`BlankInFccChallengeModeException`). See [local-storage.md](local-storage.md#settingsrepository).
+
+## Held back: `measurement-process-changes`
+
+The measurement process on main is the one the FCC approved in the released build, and the team decided on 2026-10-27 not to change it for now. Changes to how a test is measured or what it records are on the local branch `measurement-process-changes`: not in a PR, not merged, not released. Most came from PRs #128–#130, which are closed; #150 moved the last two here from `main`:
+
+- a refactor of the success flag, with tests, and the generation check moved to the end of each test;
+- carrier aggregation checked in each cell report rather than across the test;
+- the carrier name from the SIM first, with `"unknown"` as the last fallback;
+- the two-location rule and fresh-fix retries described above;
+- `closestServer()`, which picks the throughput server with the lowest ping (see [Choosing MSAK / M-Lab servers](#choosing-msak--m-lab-servers));
+- the export `test_id` as the submission id (see [ui-and-screens](ui-and-screens.md#history)).
+
+The non-measurement parts of those PRs (upload status, progress bar) are on `main` through #148, merged 2026-10-27 and not released.

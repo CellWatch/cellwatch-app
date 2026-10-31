@@ -4,7 +4,7 @@ Every table, view, and custom type in the CellWatch Postgres database, grouped b
 
 **Related:** [rpc-reference](rpc-reference.md) · [triggers-and-cron](triggers-and-cron.md) · [fcc-submission-pipeline](fcc-submission-pipeline.md) · [performance-notes](performance-notes.md) · [migrations-and-deploy](migrations-and-deploy.md) · [identity-and-security](../architecture/identity-and-security.md)
 
-Source of truth: [full_schema.sql](../../supabase/full_schema.sql), a `supabase db dump` of the prod project, "CellWatch Server" (snapshot committed 2026-10-07). A read-only catalog check of prod on 2026-10-22 found that prod matches `full_schema.sql` plus migration `202610070001` exactly (the only difference was Postgres 17's `MAINTAIN` bit in table grants), so this page describes prod as of that date. Changes not yet pushed to prod are in [migrations/](../../supabase/migrations/) (#136's two) and in other PRs and branches; see [migrations-and-deploy](migrations-and-deploy.md). Anything marked **pending** comes from `202610130001_record_local_ports.sql`, which is uncommitted on the `client-port-header` branch: it is not on main and not pushed to prod.
+Source of truth: [full_schema.sql](../../supabase/full_schema.sql), a `supabase db dump` of the prod project, "CellWatch Server", last refreshed on 2026-11-01 with `check_drift.sh --write`, after that day's pushes (#158). It includes every migration on `main`: #132's, #133's and #134's, pushed on 2026-10-29; `202610220001`, `202610220102` and `202610310001`, pushed on 2026-10-31; and `202610220101` and `202610310002`, pushed on 2026-11-01. So this page describes prod as of 2026-11-01. See [migrations-and-deploy](migrations-and-deploy.md). Anything marked **pending** comes from `202610130001_record_local_ports.sql`, which is uncommitted on the `client-port-header` branch: it is not on main and not pushed to prod.
 
 ## Schemas at a glance
 
@@ -29,7 +29,7 @@ Roles that appear in grants: `anon` (the app and the dashboard both use the anon
 
 ## `public` schema
 
-All six tables have **RLS enabled**. `anon` and `authenticated` hold `SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER`; `readonly_user` holds `SELECT`. With RLS on, only the policies below grant row access, and all of them are `TO anon`. There are no `UPDATE` or `DELETE` policies, so phones cannot change or remove rows through the API. (`TRUNCATE` bypasses RLS but PostgREST does not expose it. #136 revokes `TRUNCATE` from `anon` and `authenticated`; live once migration `202610220102` is pushed to prod.)
+All six tables have **RLS enabled**. `anon` and `authenticated` hold `SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER`; `readonly_user` holds `SELECT`. With RLS on, only the policies below grant row access, and all of them are `TO anon`. There are no `UPDATE` or `DELETE` policies, so phones cannot change or remove rows through the API. (`TRUNCATE` bypasses RLS, so #136's `202610220102` revoked it from `anon` and `authenticated` when it was pushed on 2026-10-31. PostgREST never exposed it.)
 
 Every table has `created_on` / `updated_on` (`timestamptz`, default `now()`), maintained by the `_100_*` / `_200_*` triggers ([triggers-and-cron](triggers-and-cron.md)).
 
@@ -52,8 +52,9 @@ One row per test (download, upload, or latency). Three rows with the same `group
 | `device_manufacturer`, `device_model`, `device_os_name`, `device_os_version`, `app_name`, `app_version` | text | Device and app metadata. `app_version` is always `1.0.0` in practice (versionName was never bumped), so it cannot tell builds apart |
 | `extra_data` | jsonb | Free-form extras |
 
-- **PK:** `measurements_pkey (id)`. **No index on `device_id` or `group_id`** on prod (open PRs #132 and #133 add them; neither is pushed); see [performance-notes](performance-notes.md).
-- **Policies (anon):** `Allow inserting own measurements` (`WITH CHECK (SELECT private.verified_device_id()) = device_id`); `Allow viewing own measurements` (`USING private.is_dashboard_request() OR private.verified_device_id_or_null() = device_id`).
+- **PK:** `measurements_pkey (id)`. **Indexes:** `measurements_device_id_idx (device_id)` (`202610210001`, #132) and `measurements_group_id_idx (group_id)` (`202610210101`, #133), both on prod since 2026-10-29; before that neither column had an index. See [performance-notes](performance-notes.md).
+- **Policies (anon):** `Allow inserting own measurements` (`WITH CHECK (SELECT private.verified_device_id()) = device_id`); `Allow viewing own measurements` (`USING (SELECT private.is_dashboard_request()) OR (SELECT private.verified_device_id_or_null()) = device_id`).
+- `202610210001` (#132, pushed to prod 2026-10-29) wrapped both calls in `Allow viewing own measurements` in `(SELECT …)`, and did the same in the `… (dashboard or own)` and `dashboard can select …` policies on the child tables below. Each helper now runs once per statement instead of once per row; the policies allow and refuse the same rows as before.
 
 ### `public.upload_download_data`
 
@@ -79,7 +80,7 @@ Latency result for a `latency` measurement (at most one per measurement).
 |---|---|---|
 | `id` | uuid PK | |
 | `measurement_id` | uuid UNIQUE, FK → `measurements.id` `ON DELETE CASCADE` | |
-| `rtt`, `jitter` | numeric | Round-trip time and jitter. `jitter` is square-rooted on insert for pre-alpha.5 builds (`fix_jitter` trigger). Both are in microseconds: the app displays `rtt / 1000` as ms (`Measurement.kt`). `rpc_map_points` divides by 1000; on prod the other two dashboard RPCs do not (fixed in #136; live once migration `202610220101` is pushed to prod) |
+| `rtt`, `jitter` | numeric | Round-trip time and jitter. `jitter` is square-rooted on insert for pre-alpha.5 builds (`fix_jitter` trigger). Both are in microseconds: the app displays `rtt / 1000` as ms (`Measurement.kt`). `rpc_map_points` divides by 1000; the other two dashboard RPCs did not until `202610220101` (#136) was pushed on 2026-11-01 |
 | `sent`, `received` | numeric | Packet counts (loss = (sent − received) / sent) |
 | `servers` | text[] | Test targets |
 
@@ -202,14 +203,18 @@ Not exposed through PostgREST, and `anon` has no `USAGE` grant on it. Reached on
 | `devices` | One row per registered phone | `id` uuid, `hashed_secret` text (bcrypt of the device secret) | PK `id` |
 | `dashboard_settings` | Single-row config for the web dashboard | `id` boolean (always true), `shared_secret` text (compared with the `x-dashboard-secret` header) | PK `id` |
 | `fcc_submission_info` | FCC endpoint per environment | `env` text (e.g. `prod`, `demo`), `url` text, `hash_secret_id` uuid | PK `env`; FK `hash_secret_id` → `vault.secrets.id` |
-| `fcc_submission_retry_queue` | Submissions waiting to be posted | `submission_id`, `fcc_env` (default `prod`), `state` (`CHECK pending\|blocked`), `attempt_count`, `next_attempt_at`, `last_attempt_at`, `last_error`, `created_on`, `updated_on` | PK `submission_id`; FK → `public.fcc_submissions.id` `ON DELETE CASCADE` |
+| `fcc_submission_retry_queue` | Submissions waiting to be posted | `submission_id`, `fcc_env` (default `prod`), `state` (`CHECK pending\|blocked\|held\|expired`; `held` and `expired` came with `202610210103`, pushed 2026-10-29), `attempt_count`, `next_attempt_at`, `last_attempt_at`, `last_error`, `created_on`, `updated_on` | PK `submission_id`; FK → `public.fcc_submissions.id` `ON DELETE CASCADE` |
 | `fcc_submission_failures` | Log of **every** posting attempt, successes included (`succeeded = true`) | `id`, `submission_id`, `measurement_group_id` (always = `submission_id`), `error_message`, `occurred_on`, `succeeded`, `fcc_env`, `response_status` (never set by current functions), `response_snippet` (first 500 chars of response or error) | PK `id`; no FK |
+| `fcc_queue_ignored` | Queue entries the digest and `fcc_queue_attention` leave out. `202610310002` (#156, pushed 2026-11-01) listed the 89 entries blocked before the 2026-10-29 pipeline push; delete a row to report that entry again | `submission_id` uuid, `ignored_on`, `note` | PK `submission_id`; FK → `fcc_submission_retry_queue.submission_id` `ON DELETE CASCADE` |
+| `fcc_digest_runs` | One row per run of the `fcc-queue-digest` job that didn't fail (`202610310001`, #154, pushed 2026-10-31) | `id` bigint identity, `ran_at`, `sent` boolean, `detail` text | PK `id` |
 
 Views:
 
 | View | Definition | Notes |
 |---|---|---|
-| `private.fcc_submissions_view` | Builds the FCC JSON payload (`data`) for every submission, plus `submission_id`, `submitted` | Not `security_invoker`. Aggregates all locations and cells before filtering, which is slow; see [performance-notes](performance-notes.md#2-fcc-payload-view-scans-the-whole-database). Payload shape: [fcc-submission-pipeline](fcc-submission-pipeline.md#4-payload-construction) |
+| `private.fcc_submissions_view` | Builds the FCC JSON payload (`data`) for every submission, plus `submission_id`, `submitted` | Not `security_invoker`. Since 2026-10-29 (`202610210101`, #133) it is built on `private.fcc_submission_payload(id)`, with the same columns, so a lookup by `submission_id` builds only that payload. Before that it aggregated all locations and cells before filtering, which was slow; see [performance-notes](performance-notes.md#2-fcc-payload-view-scans-the-whole-database). Payload shape: [fcc-submission-pipeline](fcc-submission-pipeline.md#4-payload-construction) |
+| `private.fcc_queue_health` | On prod since 2026-10-29 (`202610210104`, #133). Queue entry counts by `state`, `reason` (`last_error` with submission ids replaced by `<id>`; `New` if never checked) and `device_id`, with `pending_over_3_days`, `oldest_queued_on`, `last_changed_on` | Read-only overview; see [fcc-submission-pipeline](fcc-submission-pipeline.md#operating-it) |
+| `private.fcc_queue_attention` | On prod since 2026-10-29 (`202610210104`, #133). The entries a person should look at: every `blocked` entry, `pending` entries queued more than 3 days ago, and `expired` entries whose measurements are now complete. Since 2026-11-01 (`202610310002`) it leaves out entries listed in `fcc_queue_ignored`; `fcc_queue_health` still counts them | Includes `provider` and SIM codes, no contact fields. The expired check uses `private.fcc_queue_entry_is_ready`, which runs as its owner, so `readonly_user` sees those entries too |
 | `private.source_port_comparison` | **Pending.** Per transport and provider: how often `tuple_local_port` matched the tuple service's `source_port` (`port_kept`, `port_changed`, `percent_kept`, `different_ip`, `with_upload_port`) | Used to decide whether the EC2 tuple service can be replaced. Rows are per submission; the uploader copies one tuple onto every submission in a run, so dedupe by `(source_ip, source_port, server_timestamp)` when reading counts |
 
 ### ER diagram: `private`
@@ -219,12 +224,13 @@ erDiagram
     fcc_submissions ||--o| fcc_submission_retry_queue : "submission_id (FK, cascade)"
     fcc_submissions ||..o{ fcc_submission_failures : "submission_id (no FK)"
     fcc_submission_info }o--|| vault_secrets : "hash_secret_id"
+    fcc_submission_retry_queue ||--o| fcc_queue_ignored : "submission_id (FK, cascade)"
     devices ||..o{ measurements : "id = device_id (no FK)"
 
     fcc_submission_retry_queue {
         uuid submission_id PK
         text fcc_env
-        text state "pending|blocked"
+        text state "pending|blocked|held|expired"
         int attempt_count
         timestamptz next_attempt_at
         text last_error
@@ -248,6 +254,17 @@ erDiagram
     dashboard_settings {
         bool id PK
         text shared_secret
+    }
+    fcc_queue_ignored {
+        uuid submission_id PK
+        timestamptz ignored_on
+        text note
+    }
+    fcc_digest_runs {
+        bigint id PK
+        timestamptz ran_at
+        bool sent
+        text detail
     }
 ```
 
@@ -310,5 +327,5 @@ erDiagram
 ## Things that look wrong (left as-is in the live schema)
 
 - `public.measurements` has three `BEFORE UPDATE` triggers that all call `set_updated_on` (`_100_cell_set_updated_on`, `_100_challenge_data_set_updated_on`, `_100_measurement_set_updated_on`), and `public.cells` has none. The "cell" one was probably meant for `cells`.
-- `public.log_user_data()` inserts into `log_table`, which does not exist. No trigger uses it. (**Fixed in #136**, which drops it; live once migration `202610220102` is pushed to prod.)
-- `public.get_raw_header(item text)` ignores `item` and returns all headers. (**Fixed in #136**; live once migration `202610220102` is pushed to prod.)
+- `public.log_user_data()`, which inserted into a `log_table` that does not exist and was used by no trigger, was dropped from prod by `202610220102` (#136) on 2026-10-31.
+- `public.get_raw_header(item text)` ignored `item` and returned all headers until `202610220102` was pushed on 2026-10-31; it now returns the named header.

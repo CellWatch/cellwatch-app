@@ -2,13 +2,13 @@
 
 CellWatch is an Android app that runs cellular speed tests (latency, download and upload) against M-Lab servers. It stores the results on the phone and uploads them to a Supabase (Postgres) backend. In FCC Challenge mode, the backend forwards each qualifying test to the FCC Broadband Data Collection (BDC) as a mobile speed test challenge.
 
-These pages are added by PR #136 and describe the code on `main` plus the fixes in #136. Work that is not on `main` is marked **pending**, and each mention says where it is (uncommitted on the `client-port-header` branch, an unpushed local branch, or an open PR). Facts the authors could not confirm from the code are marked `> TODO: verify`.
+These pages were added by #136 and describe the code on `main` as of 2026-11-01: after the 2026-10-27 merges of #132, #133, #134, #136 and #148, #150 (which took two measurement changes back off `main`), #151 (migration review fixes), #154 and #156 (the FCC queue digest email), and the schema snapshots taken after each prod push (#152, #153, #155, #157, #158). Work that is not on `main` is marked **pending**, and each mention says where it is (uncommitted on the `client-port-header` branch, or a local branch such as `measurement-process-changes`). Facts the authors could not confirm from the code are marked `> TODO: verify`.
 
 **Merged to `main` is not in prod.** An app change reaches users only in a Play Store release. A Supabase change is live only once its migration has been pushed to the prod project ("CellWatch Server"); pushes are manual. Status lines use these stages: local branch → open PR → merged to `main` → released (app) or pushed (Supabase).
 
-- **App:** the Play Store build is versionCode 13 (versionName 1.0.0). `versionCode` has been 13 since #109 (2025-10-13), and the repo does not record which commit that build came from, so app changes merged after #109 are not known to be released (check Play Console). The last git release tag is v1.0.0 (2024-11-21, versionCode 8).
-- **Supabase:** on 2026-10-22, prod's `public`, `private` and `published` schemas matched [full_schema.sql](../supabase/full_schema.sql) plus migration `202610070001` (cron jobs were not compared). The migrations in #136, in other open PRs, on local branches and in uncommitted work are not pushed.
-- **Test project:** a second Supabase project, "CellWatch Test Database", mirrors prod's schema with FCC posting disabled (auto-post trigger off, no pg_cron).
+- **App:** the Play Store build is versionCode 13 (versionName 1.0.0). `versionCode` has been 13 since #109 (2025-10-13), and the repo does not record which commit that build came from, so older app changes merged after #109 (c51980e, #111, #112) are not known to be released (check Play Console). Nothing has been released since the 2026-10-27 merges, so #136's app fixes and #148 are merged to `main` but not released. The last git release tag is v1.0.0 (2024-11-21, versionCode 8).
+- **Supabase:** [full_schema.sql](../supabase/full_schema.sql), [cron_jobs.sql](../supabase/cron_jobs.sql) and [role_settings.sql](../supabase/role_settings.sql) were pulled from prod on 2026-11-01, after that day's pushes (#158). **Every migration on `main` is on prod**: `202607140001` and `202610070001` were applied by hand earlier; `202609300001`, `202610210001`, `202610210101`, `0103` and `0104` were pushed on 2026-10-29; `202610220001`, `202610220102` and `202610310001` on 2026-10-31; and `202610310002` and `202610220101` on 2026-11-01. All are recorded in prod's `supabase_migrations.schema_migrations`. Only `202610130001`, uncommitted on `client-port-header`, is not on main or prod. See [migrations-and-deploy](supabase/migrations-and-deploy.md) and the "Where things stand" table in the [release checklist](ops/release-checklist.md).
+- **Test project:** a second Supabase project, "CellWatch Test Database", was brought up to prod's schema on 2026-10-22 (before the 2026-10-29 push), with FCC posting disabled (auto-post trigger off, no pg_cron).
 
 ## Reading order for new contributors
 
@@ -34,7 +34,7 @@ These pages are added by PR #136 and describe the code on `main` plus the fixes 
 | [layout](app/layout.md) | Package map, layer dependencies, hand-wired singletons, per-file index |
 | [measurement-engine](app/measurement-engine.md) | `MeasurementService`, latency/throughput tests, MSAK server choice, what each test captures, collection modes |
 | [local-storage](app/local-storage.md) | Room schema (v18) and migrations, DataStore keys, `Encryptor` |
-| [sync-and-upload](app/sync-and-upload.md) | Upload triggers, `UploadWorker`/`MeasurementUploader`, RPCs and headers, serialization rules |
+| [sync-and-upload](app/sync-and-upload.md) | Upload triggers, `UploadWorker`/`MeasurementUploader`, device registration, timeouts, RPCs and headers, serialization rules |
 | [ui-and-screens](app/ui-and-screens.md) | Every screen, navigation, onboarding order, permissions, map hexes |
 | [build-and-config](app/build-and-config.md) | Gradle/AGP/SDK versions, BuildConfig fields, AARs, dependencies, signing |
 

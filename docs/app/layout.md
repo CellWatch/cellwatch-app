@@ -10,7 +10,7 @@ Package root: `app/src/main/java/edu/gatech/cc/cellwatch/` (namespace and applic
 
 | Package | What lives there |
 |---|---|
-| `(root)` | [CellWatchApp.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/CellWatchApp.kt): the `Application` subclass and the app's only "container" of shared objects. |
+| `(root)` | [CellWatchApp.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/CellWatchApp.kt): the `Application` subclass and the app's only "container" of shared objects. Since #148 it also schedules background uploads. |
 | `core/util` | Cross-cutting helpers: Crashlytics-backed logger with secret redaction, Android Keystore encryption, permission checks, contact-info validation, `SingletonHolder`. |
 | `domain/fcc` | The measurement engine: foreground service, test sequence, latency and throughput tests on M-Lab MSAK servers, ICMP ping. See [measurement-engine.md](measurement-engine.md). |
 | `domain/telephony/managers` | `TelephonyInfoManager`: cells, signal, MCC/MNC, connection type, roaming, network generation. Also defines the `NetworkConnectionType` enum. |
@@ -20,7 +20,8 @@ Package root: `app/src/main/java/edu/gatech/cc/cellwatch/` (namespace and applic
 | `data/datastore` | `LocalDataStore`: Jetpack DataStore (Preferences) for device id/secret, settings and contact info. |
 | `data/core/repositories` | `MeasurementRepository` (Room + upload), `SettingsRepository` (DataStore). |
 | `data/core/sync` | `UploadWorker` (WorkManager) and `MeasurementUploader` (upload logic). See [sync-and-upload.md](sync-and-upload.md). |
-| `data/network` | `NetworkMeasurementDatasource` (supabase-kt client), network DTOs in `data/network/model`. (`LocalPortHeaders` exists only as uncommitted work on the `client-port-header` branch.) |
+| `data/network` | `NetworkMeasurementDatasource` (supabase-kt client), `DeviceRegistration` (retry-safe registration, #148), network DTOs in `data/network/model`. (`LocalPortHeaders` exists only as uncommitted work on the `client-port-header` branch.) |
+| `ui` | `SystemBarInsets` (#148): keeps every activity's content clear of the system bars on Android 15+. |
 | `ui/main` | Activities, ViewModels, custom views and the RecyclerView adapter. Also hosts `OnboardingActivity`. See [ui-and-screens.md](ui-and-screens.md). |
 | `ui/onboarding` | Onboarding fragments hosted by `OnboardingActivity`. |
 
@@ -33,6 +34,7 @@ The intended direction is `ui -> domain -> data`, with `core/util` usable from e
 - `data/model/Measurement.kt` imports Android `Context` and `R` for `displayValue()`, so the model layer is not pure Kotlin.
 - `core/util/Log` reads the device id from `CellWatchApp.settingsRepository` when it initializes.
 - `data/core/repositories/MeasurementRepository` reads `BuildConfig.TCP_TUPLE_URL` and makes its own OkHttp call (the tuple request).
+- `CellWatchApp` (root) reaches into `data/core/sync` and `ui`: its `onCreate` schedules the hourly `UploadWorker`, starts one when the app comes to the foreground, and registers `ui/SystemBarInsets` (#148).
 
 ```mermaid
 flowchart TD
@@ -63,6 +65,7 @@ flowchart TD
     uimain --> tel
     uimain --> app
     uionb --> app
+    app --> sync
     uimain --> sync
     fcc --> tel
     fcc --> app
@@ -87,7 +90,7 @@ There is no Hilt/Dagger/Koin. Objects are wired by hand:
 
 | Object | How it is created | Where |
 |---|---|---|
-| `CellWatchApp` | `Application`; `init` stores `instance` and installs Conscrypt as security provider #1 (needed for msak's byte-counting TLS sockets). | [CellWatchApp.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/CellWatchApp.kt) |
+| `CellWatchApp` | `Application`; `init` stores `instance` and installs Conscrypt as security provider #1 (needed for msak's byte-counting TLS sockets). Since #148, `onCreate` registers `SystemBarInsets`, schedules the hourly upload, and enqueues an upload on every `ProcessLifecycleOwner` `ON_START`. | [CellWatchApp.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/CellWatchApp.kt) |
 | `CellWatchDatabase` | `SingletonHolder<CellWatchDatabase, Context>` companion -> `getInstance(context)`; created lazily by `CellWatchApp`. | [CellWatchDatabase.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/local/CellWatchDatabase.kt), [SingletonHolder.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/core/util/SingletonHolder.kt) |
 | `LocalDataStore`, `NetworkMeasurementDatasource`, `MeasurementRepository`, `SettingsRepository` | `by lazy` properties in `CellWatchApp.companion`. Only the two repositories are public. | `CellWatchApp.kt` |
 | `measurementNotificationChannel` | `by lazy` in `CellWatchApp`; creates channel `measurement_notifications` (IMPORTANCE_LOW) on first use. | `CellWatchApp.kt` |
@@ -95,24 +98,26 @@ There is no Hilt/Dagger/Koin. Objects are wired by hand:
 | `MeasurementManager`, `TelephonyInfoManager`, `H3Manager`, `Encryptor`, `PermissionManager`, `ContactInfoValidator`, `Log`, `HttpUtil` | Kotlin `object`s (process-wide singletons). | various |
 | ViewModels | `ViewModelProvider(activity)[...]`; no factories or constructor parameters. | `ui/main` |
 | `MeasurementService` | Android `Service`, started with `startForegroundService` and bound by `MeasureActivity`. | [MeasurementService.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementService.kt) |
-| `UploadWorker` | WorkManager `CoroutineWorker`, default WorkManager initializer (no custom `Configuration.Provider`). | [UploadWorker.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/UploadWorker.kt) |
+| `UploadWorker` | WorkManager `CoroutineWorker`, default WorkManager initializer (no custom `Configuration.Provider`). One-time work `upload-pending` plus, since #148, hourly periodic work `upload-pending-periodic`. | [UploadWorker.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/UploadWorker.kt) |
 
 Wiring chain: `CellWatchApp.measurementRepository = MeasurementRepository(database.measurementDao(), database.fccSubmissionDao(), NetworkMeasurementDatasource(LocalDataStore(ctx)))`; `CellWatchApp.settingsRepository = SettingsRepository(LocalDataStore(ctx))` (the same lazy `LocalDataStore` instance).
 
 ## Every Kotlin file
 
-The tables list the Kotlin files on `doc-audit-fixes`, the branch of open PR #136 (main plus #136's fixes). Status labels:
+The tables list the Kotlin files on `main` after the 2026-10-27 merges and #150. Status labels:
 
-- **#136**: the labeled file or detail was added or changed in open PR #136. Not merged to main, not released.
-- **client-port-header**: exists only as uncommitted work on the local `client-port-header` branch, not on main or in #136. Not in a PR, not merged, not released, and its migration `202610130001` is not pushed to Supabase prod.
+- **#136**, **#148**: the labeled file or detail was added or changed in that PR, merged to `main` on 2026-10-27. Not released (`versionCode` is still 13).
+- **client-port-header**: exists only as uncommitted work on the local `client-port-header` branch, not on main. Not in a PR, not merged, not released, and its migration `202610130001` is not pushed to Supabase prod.
 
-Unlabeled files are on main. #136 also carries bug fixes in `MeasurementService`, `MeasurementManager`, `OnboardingActivity`, `SettingsSetupFragment` and `MeasureHistoryActivity`/`MeasureHistoryViewModel`; the topic pages describe each one. Being on main does not mean a change is released: an app change reaches users only in a Play Store release (see [build-and-config.md](build-and-config.md#android-settings-appbuildgradle)).
+Unlabeled files and details were on main before 2026-10-27. #136 also fixed bugs in `MeasurementService`, `MeasurementManager`, `OnboardingActivity`, `SettingsSetupFragment` and `MeasureHistoryActivity`/`MeasureHistoryViewModel`; #148 also changed `MapActivity`, `MeasureActivity`, `MeasureViewModel`, `MeasureFragment`, `MeasurementGroupItem` and `MeasurementRepository`. The topic pages describe each change. Being on main does not mean a change is released: an app change reaches users only in a Play Store release (see [build-and-config.md](build-and-config.md#android-settings-appbuildgradle)).
+
+Not listed: the local branch `measurement-process-changes` (not in a PR) holds changes to how tests are measured and recorded, kept off main for now; see [measurement-engine.md](measurement-engine.md#held-back-measurement-process-changes).
 
 ### `(root)`
 
 | File | Description |
 |---|---|
-| [CellWatchApp.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/CellWatchApp.kt) | Application class; Conscrypt provider; lazy DB, repositories, notification channel, user agent. |
+| [CellWatchApp.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/CellWatchApp.kt) | Application class; Conscrypt provider; lazy DB, repositories, notification channel, user agent. #148: hourly and foreground upload scheduling, `SystemBarInsets` registration. |
 
 ### `core/util`
 
@@ -133,8 +138,8 @@ Unlabeled files are on main. #136 also carries bug fixes in `MeasurementService`
 | [MeasurementService.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementService.kt) | Foreground service (type `location`) that runs one test sequence with a wake lock and exposes progress via a `Binder`. |
 | [MeasurementManager.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementManager.kt) | Runs locate -> latency -> download -> upload, stores each result, creates the FCC submission. |
 | [MeasurementTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/MeasurementTest.kt) | Base class: captures locations, cells, device/network metadata around `measure()` and builds a `Measurement`. |
-| [LatencyTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/LatencyTest.kt) | Wraps msak `LatencyTest`; computes mean RTT and jitter (std dev). |
-| [ThroughputTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ThroughputTest.kt) | Wraps msak `ThroughputTest` (3 streams); splits warmup/active periods and aggregates bytes/s. |
+| [LatencyTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/LatencyTest.kt) | Wraps msak `LatencyTest`; computes mean RTT and jitter (std dev). #148: named constants for msak's probe duration and stop grace (values unchanged). |
+| [ThroughputTest.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ThroughputTest.kt) | Wraps msak `ThroughputTest` (3 streams); splits warmup/active periods and aggregates bytes/s. #148: warmup and active limits as named constants (values unchanged). |
 | [ThroughputMetrics.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ThroughputMetrics.kt) | bytes / usecs / bytesPerSec triple. |
 | [ThroughputResult.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/ThroughputResult.kt) | Result of a throughput test (host, success, start, warmup + active metrics). |
 | [LatencyResult.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/fcc/LatencyResult.kt) | Result of a latency test (host, success, start, usecs, mean RTT, jitter, packets). |
@@ -145,7 +150,7 @@ Unlabeled files are on main. #136 also carries bug fixes in `MeasurementService`
 
 | File | Description |
 |---|---|
-| [TelephonyInfoManager.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/telephony/managers/TelephonyInfoManager.kt) | Reads cells, signal metrics, MCC/MNC, provider name, connection type, data-enabled, roaming; watches cell changes. Defines `NetworkConnectionType`. |
+| [TelephonyInfoManager.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/telephony/managers/TelephonyInfoManager.kt) | Reads cells, signal metrics, MCC/MNC, provider name, connection type, data-enabled, roaming; watches cell changes. Defines `NetworkConnectionType`. #148: provider name is the network operator name again, as in the released build (c51980e's SIM fallback reverted). |
 | [H3Manager.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/domain/map/managers/H3Manager.kt) | H3 helpers: polyfill viewport, hex boundaries/centers, parent/child, point-in-hex. Parent res 8, child res 9. |
 
 ### `data/model`
@@ -153,9 +158,9 @@ Unlabeled files are on main. #136 also carries bug fixes in `MeasurementService`
 | File | Description |
 |---|---|
 | [Measurement.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/Measurement.kt) | One latency, download or upload test result with metadata; mappers to entity and network DTOs; `displayValue`, `centerLatLon`. |
-| [MeasurementGroup.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/MeasurementGroup.kt) | latency + download + upload (+ optional FCC submission) sharing one group id; validates consistency. |
+| [MeasurementGroup.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/MeasurementGroup.kt) | latency + download + upload (+ optional FCC submission) sharing one group id; validates consistency. #148: `uploadTime()`, null until every record in the group is uploaded. |
 | [FccSubmission.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/FccSubmission.kt) | FCC challenge metadata for a group (id = group id); mappers. client-port-header adds `tupleLocalPort`. |
-| [FccExportExtensions.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/FccExportExtensions.kt) | Serializable FCC-style JSON export (`FccSubmissionExport`, `TestSet`, ...), used by History export. |
+| [FccExportExtensions.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/FccExportExtensions.kt) | Serializable FCC-style JSON export (`FccSubmissionExport`, `TestSet`, ...), used by History export. `test_id` is the latency (else download, else upload) measurement's id, as released; #148 changed it to the submission id and #150 reverted that (see [ui-and-screens](ui-and-screens.md#history)). |
 | [Cell.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/Cell.kt) | One observed cell (ids, generation, subtype, RSRP/RSRQ/SINR, band, ARFCN...). |
 | [Location.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/Location.kt) | Lat/lon fix with accuracy, speed, heading; `fromAndroidLocation`. |
 | [LatencyData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/LatencyData.kt) | RTT, jitter, packets sent/received, servers. |
@@ -185,18 +190,19 @@ Unlabeled files are on main. #136 also carries bug fixes in `MeasurementService`
 
 | File | Description |
 |---|---|
-| [datastore/LocalDataStore.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/datastore/LocalDataStore.kt) | Preferences DataStore `data_store`: device id, encrypted device secret, collection mode, contact info, flags. |
+| [datastore/LocalDataStore.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/datastore/LocalDataStore.kt) | Preferences DataStore `data_store`: device id, encrypted device secret, collection mode, contact info, flags. #148: `device_registered`. |
 | [core/repositories/SettingsRepository.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/repositories/SettingsRepository.kt) | Settings API with FCC-mode invariants (no blank contact info in FCC mode). |
-| [core/repositories/MeasurementRepository.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/repositories/MeasurementRepository.kt) | Room reads/writes, measurement groups, upload-time flow, `uploadPending()`, tuple request. |
+| [core/repositories/MeasurementRepository.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/repositories/MeasurementRepository.kt) | Room reads/writes, measurement groups, upload-time flow, `uploadPending()`, tuple request. #148: the tuple request uses one shared OkHttp client with 60 s limits (`tcpTupleClient`). |
 | [core/sync/MeasurementUploader.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/MeasurementUploader.kt) | Upload algorithm: measurements first, then submissions whose 3 tests are uploaded; parallelism 3. |
-| [core/sync/UploadWorker.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/UploadWorker.kt) | Unique one-time WorkManager job `upload-pending`; retries on failures. |
+| [core/sync/UploadWorker.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/UploadWorker.kt) | Unique one-time WorkManager job `upload-pending`; retries on failures. #148: hourly periodic job `upload-pending-periodic` (`schedulePeriodic`), and an existing-work policy argument for `enqueue`. |
 
 ### `data/network`
 
 | File | Description |
 |---|---|
-| [NetworkMeasurementDatasource.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/NetworkMeasurementDatasource.kt) | supabase-kt client; `register_device`, `insert_measurement`, insert into `fcc_submissions`; error mapping. |
-| `LocalPortHeaders.kt` | client-port-header only (not on main or in #136): OkHttp network interceptor adding `X-Local-Port` and `X-Transport`. |
+| [NetworkMeasurementDatasource.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/NetworkMeasurementDatasource.kt) | supabase-kt client; `register_device`, `insert_measurement`, insert into `fcc_submissions`; error mapping. #148: `allowSlowRequests()` sets 60 s request and connect timeouts on the Supabase clients (and, for OkHttp, on the tuple client). |
+| [DeviceRegistration.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/DeviceRegistration.kt) | #148: `registeredDeviceSecret` makes and saves a 64-hex secret before calling `register_device(device_id, device_secret)`, and retries with the same secret until the server confirms it. |
+| `LocalPortHeaders.kt` | client-port-header only (not on main): OkHttp network interceptor adding `X-Local-Port` and `X-Transport`. |
 | [NetworkRestResult.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/NetworkRestResult.kt) | Unused data class (measurement + optional `RestException`). |
 | [model/NetworkMeasurement.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkMeasurement.kt) | Snake-case DTO for `measurements`. |
 | [model/NetworkMeasurementWithData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkMeasurementWithData.kt) | `insert_measurement` RPC body (`in_measurement`, `in_measurement_data`, `in_latency_data`, `in_locations`, `in_cells`). |
@@ -204,20 +210,28 @@ Unlabeled files are on main. #136 also carries bug fixes in `MeasurementService`
 | [model/NetworkUploadDownloadData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkUploadDownloadData.kt), [model/NetworkLatencyData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkLatencyData.kt), [model/NetworkLocation.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkLocation.kt), [model/NetworkCell.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkCell.kt) | Child DTOs. |
 | [model/NetworkChallengeData.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkChallengeData.kt), [model/NetworkFccSubmissionWithMeasurements.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/NetworkFccSubmissionWithMeasurements.kt) | DTOs not used by any upload path. |
 
+### `ui`
+
+| File | Description |
+|---|---|
+| [SystemBarInsets.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/SystemBarInsets.kt) | #148: `ActivityLifecycleCallbacks` that pads every activity's content by the system bars, cutout and keyboard, and makes bar icons dark. Does nothing below API 35. |
+
 ### `ui/main`
 
 | File | Description |
 |---|---|
-| [MapActivity.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MapActivity.kt) | Launcher activity; Mapbox map of local measurements as pins or H3 hexes; search; bottom sheet; enqueues upload. |
+| [MapActivity.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MapActivity.kt) | Launcher activity; Mapbox map of local measurements as pins or H3 hexes; search; bottom sheet. #148: no longer enqueues an upload (`CellWatchApp` does); Back is an `OnBackPressedDispatcher` callback. |
 | [MapViewModel.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MapViewModel.kt) | Caches measurement groups and indexes them by res-9 H3 cell. |
-| [MeasureActivity.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureActivity.kt) | Hosts Pre-measure / Measure fragments; binds to `MeasurementService`. |
-| [MeasureViewModel.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureViewModel.kt) | Turns service state into UI progress; enqueues upload; watches upload time. |
+| [MeasureActivity.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureActivity.kt) | Hosts Pre-measure / Measure fragments; binds to `MeasurementService`. #148: the mid-test Back block follows the measure state, so it survives recreation. |
+| [MeasureViewModel.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureViewModel.kt) | Turns service state into UI progress; enqueues upload; watches upload time. #148: records when each phase started, for the step indicator. |
 | [PreMeasureFragment.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/PreMeasureFragment.kt) | Stationary/moving choice, permission and cellular checks, starts the service. |
-| [MeasureFragment.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureFragment.kt) | In-progress and result view. |
+| [MeasureFragment.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureFragment.kt) | In-progress and result view. #148: redraws the step indicator while a test runs. |
+| [MeasureSteps.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureSteps.kt) | #148: works out the 1-2-3 step indicator's statuses, progress and time left from the measure state and the tests' configured durations. |
+| [MeasureStepsView.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureStepsView.kt) | #148: draws the step indicator (layouts `view_measure_steps.xml`, `view_measure_step.xml`). |
 | [MeasureHistoryActivity.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureHistoryActivity.kt) | List of past groups; JSON export via SAF. |
-| [MeasureHistoryViewModel.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureHistoryViewModel.kt) | Loads groups; writes the FCC-style export bundle. #136 makes `exportData` a suspend function that writes to an `OutputStream` the activity keeps open. |
+| [MeasureHistoryViewModel.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureHistoryViewModel.kt) | Loads groups; writes the FCC-style export bundle. #136: `exportData` is a suspend function that writes to an `OutputStream` the activity keeps open. |
 | [MeasurementAdapter.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementAdapter.kt) | RecyclerView adapter of `MeasurementGroupItem`s (newest first). |
-| [MeasurementGroupItem.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementGroupItem.kt) | Custom view: one group (date, carrier, type, upload status, 3 results). |
+| [MeasurementGroupItem.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementGroupItem.kt) | Custom view: one group (date, carrier, type, upload status, 3 results). #148: upload status from `MeasurementGroup.uploadTime()`. |
 | [MeasurementGroupItemViewModel.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementGroupItemViewModel.kt) | Remembers which group items are expanded. |
 | [MeasurementItem.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementItem.kt) | Custom view: one test's details (time, location, technology, roaming). |
 | [NavigationDrawer.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/NavigationDrawer.kt) | Side menu: Map, Measure, History, Settings, Help/About. |
@@ -240,7 +254,7 @@ Unlabeled files are on main. #136 also carries bug fixes in `MeasurementService`
 
 | Location | Contents |
 |---|---|
-| [app/src/test](../../app/src/test/java/edu/gatech/cc/cellwatch/) | JVM unit tests: `RedactSecretsTest`, `MeasurementUploaderTest`; `OnboardingScreenTest` (#136). `LocalPortHeadersTest` is client-port-header only. |
-| [app/src/androidTest](../../app/src/androidTest/java/edu/gatech/cc/cellwatch/) | Instrumented: DAO tests, serialization, cells, latency/throughput tests. |
+| [app/src/test](../../app/src/test/java/edu/gatech/cc/cellwatch/) | JVM unit tests (53 on main): `RedactSecretsTest`, `MeasurementUploaderTest`; `OnboardingScreenTest` (#136); `UploadWorkerTest`, `AllowSlowRequestsTest`, `DeviceRegistrationTest`, `MeasurementGroupUploadTimeTest`, `FccExportExtensionsTest` and `MeasureStepsTest` (#148). `LocalPortHeadersTest` is client-port-header only. |
+| [app/src/androidTest](../../app/src/androidTest/java/edu/gatech/cc/cellwatch/) | Instrumented: DAO tests, serialization, cells, latency/throughput tests. They compile again since #148, which also added `MeasurementPermissions.kt` (grants location and phone-state permissions before a test). |
 
 See [../dev/testing.md](../dev/testing.md) for how to run them.

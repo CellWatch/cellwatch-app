@@ -4,13 +4,13 @@ Known server-side costs in the CellWatch database, why they happen (traced to th
 
 **Related:** [schema](schema.md) · [rpc-reference](rpc-reference.md) · [fcc-submission-pipeline](fcc-submission-pipeline.md) · [migrations-and-deploy](migrations-and-deploy.md) · [sync-and-upload](../app/sync-and-upload.md) · [identity-and-security](../architecture/identity-and-security.md)
 
-All definitions referenced here are in [full_schema.sql](../../supabase/full_schema.sql), which matches prod (a read-only catalog check on 2026-10-22 found prod = `full_schema.sql` plus `202610070001`). Timings were measured in October 2026.
+Costs 1–3 were fixed on prod by migrations pushed on 2026-10-29. Their sections describe the definitions prod had before that push (the 2026-10-07 snapshot of [full_schema.sql](../../supabase/full_schema.sql)), because they explain what happened to uploads and posts until then; the current `full_schema.sql`, pulled on 2026-11-01, has the fixed versions. Timings were measured in October 2026.
 
 | # | Cost | Effect | Status |
 |---|---|---|---|
-| 1 | Upload RLS runs a bcrypt check per row the device owns, for every child row inserted | Uploads get slower as a device's history grows; phones with history time out | Fix in open PR #132 (`202610210001`); not pushed to prod |
-| 2 | FCC payload view aggregates every location and cell in the database | About 25 s per FCC post | Fix in open PR #133 (`202610210101`); not pushed to prod |
-| 3 | Missing indexes on `public.measurements(device_id)` and `(group_id)` | Seq scans in the RLS subqueries and the readiness checks | `device_id` index in open PR #132, `group_id` index in open PR #133; neither pushed to prod |
+| 1 | Upload RLS runs a bcrypt check per row the device owns, for every child row inserted | Uploads get slower as a device's history grows; phones with history time out | Fixed: `202610210001` (#132), pushed to prod 2026-10-29 |
+| 2 | FCC payload view aggregates every location and cell in the database | About 25 s per FCC post | Fixed: `202610210101` (#133), pushed to prod 2026-10-29 |
+| 3 | Missing indexes on `public.measurements(device_id)` and `(group_id)` | Seq scans in the RLS subqueries and the readiness checks | Fixed: `device_id` index in #132's `202610210001`, `group_id` index in #133's `202610210101`, both pushed to prod 2026-10-29 |
 | 4 | Dashboard RPCs aggregate the whole DB before filtering | Cost grows with total data per call | Not measured |
 
 ## 1. Upload cost grows with device history
@@ -49,13 +49,16 @@ Measured on a local copy of the prod policies, for one small upload (3 cells, 2 
 | 200 | 6.1 s |
 | 400 | 12.3 s |
 
-The app on main sends every unsynced row on each upload run, and its supabase-kt client gives up after 10 s (the library's default request timeout, which main doesn't change). So a phone with a backlog stops getting measurements through even though the server may still commit them. The next attempt then hits a duplicate key, which the uploader treats as success. See [sync-and-upload](../app/sync-and-upload.md).
+The released app sends every unsynced row on each upload run, and its supabase-kt client gives up after 10 s (the library's default request timeout). So a phone with a backlog stops getting measurements through even though the server may still commit them. The next attempt then hits a duplicate key, which the uploader treats as success. Main limits uploads to 3 in flight (#111) and, since #148 (merged 2026-10-27; not released), waits up to 60 s per request and also uploads hourly. That makes phones with a backlog upload more, which is why the RLS fix had to be on prod first; it is since 2026-10-29. See [sync-and-upload](../app/sync-and-upload.md).
 
 The same pattern makes reads slow. `GET /measurements?select=*,cells(*),locations(*),…` evaluates the `Allow viewing own …` policies, which wrap `verified_device_id()` in `(SELECT …)`, but their subquery still goes through the unwrapped `measurements` policy. The `… (dashboard or own)` policies call `verified_device_id_or_null()` unwrapped, inside `EXISTS` (once per child row). Postgres ORs all permissive policies on a table, so these costs add up.
 
-### Fix approach (open PR #132, not pushed to prod)
+### Fix (#132, pushed to prod 2026-10-29)
 
-Wrap every policy function call in `(SELECT …)` so it becomes a once-per-statement InitPlan, and add an index on `measurements(device_id)`. In the local reproduction this brought the 400-measurement case to 78 ms (insert) and 30 ms (read), and the isolation checks between devices still passed. Push this to prod before asking users to re-sync.
+Migration [202610210001_fast_upload_rls.sql](../../supabase/migrations/202610210001_fast_upload_rls.sql) wraps the helper calls in seven policies on `measurements`, `latency_data`, `locations`, `upload_download_data` and `cells` in `(SELECT …)`, so each becomes a once-per-statement InitPlan, and adds an index on `measurements(device_id)`. The policies allow and refuse the same rows as before. In the local reproduction an upload with 401 measurements on the device took 66–114 ms and the duplicate-check read 35–62 ms, and the isolation checks between devices still passed (`upload_rls_test.sql`; see [testing](../dev/testing.md#database-tests)). It was pushed to prod on 2026-10-29, and backlogged uploads from phones with long histories started arriving right after.
+
+- A caller without a valid device secret that reads or writes the child tables directly may now get no rows or an RLS error, instead of "missing x-device-id header" or "incorrect device secret". Such callers are refused either way.
+- The index is built inside the migration's transaction (0.3 s for 1M rows locally). If the table is much larger, build it first with `create index concurrently`, as the migration's comment shows.
 
 ## 2. FCC payload view scans the whole database
 
@@ -72,13 +75,13 @@ Each is referenced **twice** (by the `upload_download_data` and `latency_data` C
 - Knock-on effects:
   - With the 60 s per-run cap from `202610070001`, a cron run can post only two or three submissions.
   - Slow runs have hit `statement_timeout` and rolled back after the FCC had already accepted the POST ([fcc-submission-pipeline](fcc-submission-pipeline.md#5-http-call-and-response-handling)).
-- `private.fcc_submission_is_ready` runs twice per post (once in the retry job, once in `post_fcc_submission`). It filters `measurements` by `group_id`, which has no index on prod.
+- `private.fcc_submission_is_ready` runs twice per post (once in the retry job, once in `post_fcc_submission`). It filters `measurements` by `group_id`, which had no index on prod before 2026-10-29.
 
-Fix approach (open PR #133, `202610210101`; not pushed to prod): build the payload for one group only, by aggregating locations and cells just for that group's measurement ids, and add an index on `measurements(group_id)`.
+Fix (#133, pushed to prod 2026-10-29): [202610210101_build_fcc_payload_per_submission.sql](../../supabase/migrations/202610210101_build_fcc_payload_per_submission.sql) adds `private.fcc_submission_payload(sub_id)`, which aggregates locations and cells only for that group's measurements, makes `post_fcc_submission` use it, rebuilds `fcc_submissions_view` on top of it, and adds an index on `measurements(group_id)`. The payload is byte for byte the old view's on the test fixtures, with locations and cells in the same order. With 50k cells in a local database, one payload took 0.5 s through the old view and 1.5 ms through the function. On prod, whole retry-job runs have taken under a second since the push.
 
 ## 3. Other costs visible in the schema
 
-- **Dashboard RPCs** (`rpc_map_points`, `rpc_group_summaries`): `DISTINCT ON (measurement_id)` over the **entire** `locations` and `cells` tables, then group all measurements, then apply the bounding box and filters. Each call costs time in proportion to the whole database. On prod, `rpc_group_detail` aggregates every group too, because of a parameter-name clash ([rpc-reference](rpc-reference.md#rpc_group_detail); fixed in #136, live once migration `202610220101` is pushed to prod). #136 does not change the whole-table scans in the other two.
+- **Dashboard RPCs** (`rpc_map_points`, `rpc_group_summaries`): `DISTINCT ON (measurement_id)` over the **entire** `locations` and `cells` tables, then group all measurements, then apply the bounding box and filters. Each call costs time in proportion to the whole database. Until 2026-11-01, `rpc_group_detail` aggregated every group too, because of a parameter-name clash ([rpc-reference](rpc-reference.md#rpc_group_detail)); #136's `202610220101`, pushed that day, fixed it. It does not change the whole-table scans in the other two.
 - **`published.measurements_in_hex`**: filters on `hex_ancestor(center_hex9, …) = hex`. That expression can't use the btree indexes on the `*_hex9` columns, so it scans the table.
 - **`fix_jitter` trigger**: runs two subqueries on `measurements` per `latency_data` insert (cheap, because they use the primary key).
 
@@ -121,7 +124,7 @@ explain (analyze, buffers)
 select data from private.fcc_submissions_view where submission_id = '<id>';
 ```
 
-Expect `CTE locs` / `CTE cells` nodes that read every row of `locations` and `cells`.
+Before 2026-10-29, prod showed `CTE locs` / `CTE cells` nodes that read every row of `locations` and `cells`. Since `202610210101` was pushed, the view is built on `private.fcc_submission_payload`, so profile `select private.fcc_submission_payload('<id>')` instead.
 
 ### On prod (read-only)
 

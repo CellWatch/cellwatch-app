@@ -36,7 +36,7 @@ sequenceDiagram
     S-->>VM: group done
     VM->>W: UploadWorker.enqueue (unique work, APPEND_OR_REPLACE, needs network)
 
-    Note over W,API: first use: register_device RPC if no stored secret
+    Note over W,API: first use: make and save a secret, then register_device(device_id, device_secret) until confirmed
     loop each unsynced measurement (max 3 in flight)
         W->>API: rpc insert_measurement(measurement, data, latency, locations[], cells[])
         API->>DB: one transaction under RLS, BEFORE INSERT triggers
@@ -52,12 +52,13 @@ sequenceDiagram
         W->>R: set uploadTime
     end
 
+    Note over C,DB: on prod since 2026-10-29 (202610210103): one commit per entry
     loop every 2 minutes
-        C->>DB: private.process_fcc_submission_retries(batch)
-        DB->>DB: readiness check, build payload from private.fcc_submissions_view
+        C->>DB: call private.run_fcc_submission_retries(10)
+        DB->>DB: readiness and hold checks, build payload with private.fcc_submission_payload
         DB->>F: POST JSON with hash_value header (http extension)
         F-->>DB: status and body
-        DB->>DB: mark submitted or schedule retry, log in fcc_submission_failures
+        DB->>DB: mark submitted, or schedule retry or block, log in fcc_submission_failures
     end
 
     Note over DB: publish_data(...) copies rows into published.* (caller not in this repo)
@@ -76,9 +77,9 @@ sequenceDiagram
 
 ### 2. Upload (phone)
 
-This upload path came in #111 (merged to `main` 2026-10-07) and is not known to be in a release (versionCode is still 13; check Play Console). The released app may still upload the older way, sending submissions before their measurements.
+This upload path came in #111 (merged to `main` 2026-10-07; not known to be in a release, check Play Console), and #148 (merged 2026-10-27; not released) added the hourly and foreground triggers and 60 s timeouts. `versionCode` is still 13. The released app may still upload the older way, sending submissions before their measurements, only after a test or a cold start.
 
-- Triggers: `MeasureViewModel.handleMeasurementComplete` and `MapActivity.onCreate` both call [UploadWorker.enqueue](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/UploadWorker.kt). The work is unique (`upload-pending`, `APPEND_OR_REPLACE`) and requires a connected network. It retries while `failed > 0`, up to 5 retries.
+- Triggers: `MeasureViewModel.handleMeasurementComplete` calls [UploadWorker.enqueue](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/UploadWorker.kt), and so does [CellWatchApp](../../app/src/main/java/edu/gatech/cc/cellwatch/CellWatchApp.kt) whenever the app comes to the foreground. That work is unique (`upload-pending`) and requires a connected network. `CellWatchApp` also schedules an hourly periodic upload (`upload-pending-periodic`). A run retries while `failed > 0`, up to 5 retries. See [sync-and-upload](../app/sync-and-upload.md#when-uploads-trigger).
 - [MeasurementUploader.uploadPending](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/MeasurementUploader.kt) runs under a mutex:
   1. **Measurements first.** Each unsynced measurement goes to `rpc("insert_measurement", …)`, with at most 3 requests in flight. A `DuplicateKeyError` counts as success, because `insert_measurement` is a single transaction: if the ID is on the server, everything for it is. Each success sets `uploadTime` in Room.
   2. **Submissions second.** A submission is sent only when all three of its group's measurements have an `uploadTime`; the rest are counted as `waiting`. One TCP tuple is fetched per run and copied onto every ready submission: `sourceIp`, `sourcePort`, `serverTimestamp`, and (**pending**) `tupleLocalPort`. If the tuple request fails, no submission uploads in that run.
@@ -102,20 +103,20 @@ The queue entry is created as soon as the submission row arrives. Normally the m
 
 ### 4. FCC post and retry queue
 
-Cron job `fcc-submission-retries` runs every 2 minutes ([cron_jobs.sql](../../supabase/cron_jobs.sql)) and calls `private.process_fcc_submission_retries(n)`. The snapshot has `n = 1`; migration [202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql) changes it to 10. The migration's function is live on prod (hash match, 2026-10-22); the job's batch size there was not checked.
+Cron job `fcc-submission-retries` runs every 2 minutes ([cron_jobs.sql](../../supabase/cron_jobs.sql)). On prod since 2026-10-29 its command is `call private.run_fcc_submission_retries(10);`, from [202610210103](../../supabase/migrations/202610210103_fcc_retry_queue_processing.sql) (#133). The procedure handles up to 10 due entries, stops taking new ones once the run has lasted 60 s, and **commits after each entry**, so a later timeout can't undo the record of an earlier post.
 
-1. Deletes queue rows whose submission is already `submitted`.
-2. Locks up to `n` (capped at 10) due `pending` rows with `FOR UPDATE SKIP LOCKED`. With 202610070001, it stops taking new rows once the run has lasted 60 s.
-3. Checks each row:
-   - **Missing provider:** the row is set to `blocked` with error "Missing provider". This needs a manual repair.
-   - **Not ready** (`private.fcc_submission_is_ready` needs exactly one latency row with `latency_data` and one download and one upload row with `upload_download_data`): the row is re-checked in 5 minutes. With 202610070001, rows that have waited more than a day are re-checked hourly. A not-ready row does not count as an attempt.
-4. `private.post_fcc_submission(id, env)`:
-   - Reads the URL and Vault secret for `env` from `private.fcc_submission_info`.
-   - Builds the payload from `private.fcc_submissions_view` (`submission_category: "Consumer Challenge"`, `contact`, one `submissions[0]` with `tests.latency`, `tests.download`, `tests.upload`).
-   - POSTs it with `http()` and a `hash_value` header.
-   - On 2xx, sets `submitted=true`, `submission` (the payload), `submitted_on`, and `submission_response`.
-5. Every attempt, successful or not, adds a row to `private.fcc_submission_failures` (`succeeded` flag, error, 500-character response snippet).
-6. On failure, the next attempt waits `60 × 2^(attempts−1)` s, capped at 1 h. The row becomes `blocked` after 6 attempts, or immediately on a 4xx other than 408 or 429.
+1. At the start of a run it deletes queue rows whose submission is already `submitted`, and puts `expired` entries whose measurements have since arrived back to `pending`.
+2. For each due `pending` entry (`private.process_next_fcc_submission_retry()`, oldest first):
+   - **Not ready** (`private.fcc_submission_is_ready` needs exactly one latency row with `latency_data` and one download and one upload row with `upload_download_data`): re-checked in 5 minutes, or hourly once it has waited more than a day. This doesn't count as an attempt. An entry still not ready 30 days after it was queued becomes `expired`.
+   - **Held** (`private.fcc_payload_hold_reason`): a complete submission the FCC is known to reject, or that falls short of the spec: no network codes, no locations, one location, or a blank provider ("Missing provider"; blank carrier names are never filled in). It isn't posted. Held entries are checked again once a day and go back in line when no reason applies any more.
+   - Otherwise `private.post_fcc_submission(id, env)` reads the URL and Vault secret for `env` from `private.fcc_submission_info`, builds the payload with `private.fcc_submission_payload(id)` from that submission's rows only (`submission_category: "Consumer Challenge"`, `contact`, one `submissions[0]` with `tests.latency`, `tests.download`, `tests.upload`), and POSTs it with `http()` and a `hash_value` header. On 2xx it sets `submitted=true`, `submission` (the payload), `submitted_on`, and `submission_response`.
+3. Every attempt, successful or not, adds a row to `private.fcc_submission_failures` (`succeeded` flag, error, 500-character response snippet).
+4. On failure:
+   - A 4xx whose body says `duplicate_test_id` means the FCC already has the test: the submission is marked sent and leaves the queue.
+   - 400, 409, 413 and 422 reject the test itself, so the entry becomes `blocked` at once.
+   - Anything else (other 4xx, 5xx, transport errors) waits `60 × 2^(attempts−1)` s, capped at 1 h, is `blocked` after 6 attempts, and ends the run.
+
+Before the 2026-10-29 push, prod ran `select private.process_fcc_submission_retries(10);` ([202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql)): the whole batch in one transaction, a blank provider and every 4xx other than 408 and 429 `blocked` at once, no `held` or `expired` states, and the payload built from `private.fcc_submissions_view`, which aggregated every location and cell in the database. That function still exists for manual runs, and still runs a batch in one transaction.
 
 Full details: [supabase/fcc-submission-pipeline](../supabase/fcc-submission-pipeline.md).
 
@@ -134,8 +135,9 @@ Full details: [supabase/fcc-submission-pipeline](../supabase/fcc-submission-pipe
 
 | Symptom | Where | Cause in code |
 |---|---|---|
-| Group never leaves the phone | `MeasurementUploader` | Network or registration failure; after 5 failed retries the work ends until the next enqueue (new test or opening the map). |
+| Group never leaves the phone | `MeasurementUploader` | Network or registration failure; after 5 failed retries the work ends until the next trigger. The released build retries only after a new test or when the map is opened; main also uploads hourly and when the app comes to the foreground (#148). |
 | Submission held on phone (`waiting`) | `measurementsUploaded()` | One of the 3 measurements has not uploaded. |
 | No submission uploads at all | `getTcpTuple()` | The tuple service is unreachable or returned a non-200 response. |
-| Queue row `pending` forever | `fcc_submission_is_ready` | Server never received all 3 measurements (e.g., from older app versions). |
-| Queue row `blocked` | `process_fcc_submission_retries` | Missing provider, FCC 4xx validation error, or 6 failed attempts. |
+| Queue row `pending` for weeks, then `expired` | `fcc_submission_is_ready` | Server never received all 3 measurements (e.g., from older app versions). Since 2026-10-29 such a row becomes `expired` 30 days after queueing, and goes back to `pending` if the measurements arrive. |
+| Queue row `blocked` | `process_next_fcc_submission_retry` | FCC rejection (400, 409, 413, 422) or 6 failed attempts. Rows blocked before 2026-10-29 also include "Missing provider" and other 4xx answers. |
+| Queue row `held` | `private.fcc_payload_hold_reason` | No network codes, no locations, only one location, or a blank provider; waits for FCC guidance or an app decision. |
