@@ -178,6 +178,18 @@ $$;
 ALTER FUNCTION "private"."auto_post_fcc_submission"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "private"."device_has_uploaded"("device" "uuid") RETURNS boolean
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'pg_temp'
+    AS $$
+    select exists (select 1 from public.measurements m where m.device_id = device)
+        or exists (select 1 from public.fcc_submissions s where s.device_id = device);
+$$;
+
+
+ALTER FUNCTION "private"."device_has_uploaded"("device" "uuid") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "private"."fcc_http_post"("p_url" "text", "p_hash_value" "text", "p_body" "text", OUT "status" integer, OUT "content" "text") RETURNS "record"
     LANGUAGE "plpgsql"
     SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
@@ -653,6 +665,7 @@ ALTER FUNCTION "private"."fcc_submission_payload"("sub_id" "uuid") OWNER TO "pos
 
 CREATE OR REPLACE FUNCTION "private"."is_dashboard_request"() RETURNS boolean
     LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
     AS $$
   select coalesce(
     (current_setting('request.headers', true)::json->>'x-dashboard-secret')
@@ -1150,6 +1163,7 @@ ALTER PROCEDURE "private"."run_fcc_submission_retries"(IN "p_batch_size" integer
 
 CREATE OR REPLACE FUNCTION "private"."verified_device_id"() RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
     AS $$
 declare
     device_id text;
@@ -1166,6 +1180,9 @@ begin
     if device_secret is null or device_secret = '' then
         raise exception 'missing x-device-secret header';
     end if;
+
+    -- Changed: wait for a secret replacement in progress, and hold one off until this ends.
+    perform pg_advisory_xact_lock_shared(hashtextextended('cellwatch device ' || uuid(device_id)::text, 0));
 
     select hashed_secret into hashed from private.devices where id = uuid(device_id);
     if not found then
@@ -1186,6 +1203,7 @@ ALTER FUNCTION "private"."verified_device_id"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "private"."verified_device_id_or_null"() RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
     AS $$
 declare
   device_id     text;
@@ -1291,7 +1309,7 @@ ALTER FUNCTION "public"."get_raw_header"() OWNER TO "postgres";
 CREATE OR REPLACE FUNCTION "public"."get_raw_header"("item" "text") RETURNS "text"
     LANGUAGE "sql" STABLE
     AS $$
-    SELECT current_setting('request.headers', true)::json
+    select (current_setting('request.headers', true)::json)->>item
 $$;
 
 
@@ -1503,20 +1521,6 @@ $$;
 ALTER FUNCTION "public"."insert_measurement"("in_measurement" "public"."measurements", "in_measurement_data" "public"."upload_download_data", "in_latency_data" "public"."latency_data", "in_locations" "public"."locations"[], "in_cells" "public"."cells"[]) OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."log_user_data"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-BEGIN
-  INSERT INTO log_table(table_name, key, user_agent, host, origin, referer, ip, request_header)
-  VALUES(TG_TABLE_NAME::regclass::text, NEW.id::text, get_header('user-agent'), get_header('host'), get_header('origin'), get_header('referer'), SPLIT_PART(get_header('x-forwarded-for') || ',', ',', 1), get_raw_header());
-  RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."log_user_data"() OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."publish_data"("in_measurements" "public"."publishable_measurement"[], "in_cells" "public"."publishable_cell"[], OUT "measurement_ids" "uuid"[], OUT "cell_ids" "uuid"[]) RETURNS "record"
     LANGUAGE "plpgsql"
     AS $$
@@ -1716,6 +1720,7 @@ ALTER FUNCTION "public"."publish_data"("in_measurements" "public"."publishable_m
 
 CREATE OR REPLACE FUNCTION "public"."register_device"("device_id" "uuid") RETURNS "text"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
     AS $$
 declare
     device_secret text;
@@ -1727,7 +1732,18 @@ begin
     ) on conflict do nothing;
 
     if not found then
-        raise exception 'device id % already registered', device_id;
+        -- Changed: a device that never uploaded anything gets a new secret instead of an
+        -- error, so a phone that lost the first response can still register. Its uploads in
+        -- progress finish first (see above).
+        perform pg_advisory_xact_lock(hashtextextended('cellwatch device ' || device_id::text, 0));
+
+        if private.device_has_uploaded(device_id) then
+            raise exception 'device id % already registered', device_id;
+        end if;
+
+        update private.devices
+        set hashed_secret = crypt(device_secret, gen_salt('bf'))
+        where id = device_id;
     end if;
 
     return device_secret;
@@ -1736,6 +1752,48 @@ $$;
 
 
 ALTER FUNCTION "public"."register_device"("device_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."register_device"("device_id" "uuid", "device_secret" "text") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
+    AS $$
+declare
+    hashed text;
+begin
+    -- The app sends 32 random bytes as 64 hex digits. Anything much shorter could be guessed.
+    if length(coalesce(device_secret, '')) < 32 then
+        raise exception 'device secret is too short';
+    end if;
+
+    insert into private.devices (id, hashed_secret)
+    values (device_id, crypt(device_secret, gen_salt('bf')))
+    on conflict do nothing;
+    if found then
+        return;
+    end if;
+
+    -- The device's uploads in progress finish first (see above).
+    perform pg_advisory_xact_lock(hashtextextended('cellwatch device ' || device_id::text, 0));
+
+    -- Checked the same way as in private.verified_device_id_or_null().
+    select d.hashed_secret into hashed from private.devices d where d.id = device_id;
+    if crypt(device_secret, hashed) = hashed then
+        return;
+    end if;
+
+    if private.device_has_uploaded(device_id) then
+        raise exception 'device id % already registered', device_id;
+    end if;
+
+    update private.devices
+    set hashed_secret = crypt(device_secret, gen_salt('bf'))
+    where id = device_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."register_device"("device_id" "uuid", "device_secret" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_group_detail"("group_id" "text") RETURNS "jsonb"
@@ -5288,6 +5346,10 @@ GRANT USAGE ON SCHEMA "published" TO PUBLIC;
 
 
 
+REVOKE ALL ON FUNCTION "private"."device_has_uploaded"("device" "uuid") FROM PUBLIC;
+
+
+
 REVOKE ALL ON FUNCTION "private"."fcc_http_post"("p_url" "text", "p_hash_value" "text", "p_body" "text", OUT "status" integer, OUT "content" "text") FROM PUBLIC;
 
 
@@ -5383,36 +5445,36 @@ GRANT ALL ON FUNCTION "public"."hex_res"("hex" bigint) TO "service_role";
 
 
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."cells" TO "anon";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."cells" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."cells" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."cells" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."cells" TO "service_role";
 GRANT SELECT ON TABLE "public"."cells" TO "readonly_user";
 
 
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."latency_data" TO "anon";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."latency_data" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."latency_data" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."latency_data" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."latency_data" TO "service_role";
 GRANT SELECT ON TABLE "public"."latency_data" TO "readonly_user";
 
 
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."locations" TO "anon";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."locations" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."locations" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."locations" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."locations" TO "service_role";
 GRANT SELECT ON TABLE "public"."locations" TO "readonly_user";
 
 
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."measurements" TO "anon";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."measurements" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."measurements" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."measurements" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."measurements" TO "service_role";
 GRANT SELECT ON TABLE "public"."measurements" TO "readonly_user";
 
 
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."upload_download_data" TO "anon";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."upload_download_data" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."upload_download_data" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."upload_download_data" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."upload_download_data" TO "service_role";
 GRANT SELECT ON TABLE "public"."upload_download_data" TO "readonly_user";
 
@@ -5421,12 +5483,6 @@ GRANT SELECT ON TABLE "public"."upload_download_data" TO "readonly_user";
 GRANT ALL ON FUNCTION "public"."insert_measurement"("in_measurement" "public"."measurements", "in_measurement_data" "public"."upload_download_data", "in_latency_data" "public"."latency_data", "in_locations" "public"."locations"[], "in_cells" "public"."cells"[]) TO "anon";
 GRANT ALL ON FUNCTION "public"."insert_measurement"("in_measurement" "public"."measurements", "in_measurement_data" "public"."upload_download_data", "in_latency_data" "public"."latency_data", "in_locations" "public"."locations"[], "in_cells" "public"."cells"[]) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."insert_measurement"("in_measurement" "public"."measurements", "in_measurement_data" "public"."upload_download_data", "in_latency_data" "public"."latency_data", "in_locations" "public"."locations"[], "in_cells" "public"."cells"[]) TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."log_user_data"() TO "anon";
-GRANT ALL ON FUNCTION "public"."log_user_data"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."log_user_data"() TO "service_role";
 
 
 
@@ -5439,6 +5495,12 @@ GRANT ALL ON FUNCTION "public"."publish_data"("in_measurements" "public"."publis
 GRANT ALL ON FUNCTION "public"."register_device"("device_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."register_device"("device_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."register_device"("device_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."register_device"("device_id" "uuid", "device_secret" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."register_device"("device_id" "uuid", "device_secret" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."register_device"("device_id" "uuid", "device_secret" "text") TO "service_role";
 
 
 
@@ -5583,8 +5645,8 @@ GRANT SELECT ON TABLE "private"."fcc_submission_retry_queue" TO "readonly_user";
 
 
 
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."fcc_submissions" TO "anon";
-GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."fcc_submissions" TO "authenticated";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."fcc_submissions" TO "anon";
+GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLE "public"."fcc_submissions" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLE "public"."fcc_submissions" TO "service_role";
 GRANT SELECT ON TABLE "public"."fcc_submissions" TO "readonly_user";
 
@@ -5665,8 +5727,8 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUN
 
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO "postgres";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO "anon";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLES TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,UPDATE ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO "service_role";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT ON TABLES TO "readonly_user";
 
