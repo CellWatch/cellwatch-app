@@ -10,7 +10,7 @@
 -- 202610310001 (pushed 2026-10-31) adds fcc-queue-digest, which emails the FCC queue digest
 -- when something is new (its Resend key and recipient are Vault secrets, not in this file).
 -- Both jobs run as postgres in database postgres.
--- Updated by check_drift.sh --write on 2026-10-31.
+-- Updated by check_drift.sh --write on 2026-11-01.
 
 select cron.schedule('fcc-queue-digest', '1 13 * * *', 'select private.send_fcc_queue_digest();');
 select cron.schedule('fcc-submission-retries', '*/2 * * * *', 'call private.run_fcc_submission_retries(10);');
