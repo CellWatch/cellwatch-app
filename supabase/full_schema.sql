@@ -2076,77 +2076,9 @@ CREATE OR REPLACE FUNCTION "public"."rpc_group_summaries"("min_lng" double preci
     SET "search_path" TO 'public', 'pg_temp'
     AS $$
 select private.require_dashboard_request();
-with latest_loc as (
-  select distinct on (measurement_id)
-    measurement_id, lat, lon, accuracy, timestamp
-  from locations
-  order by measurement_id, timestamp desc
-),
-latest_cell as (
-  select distinct on (measurement_id)
-    measurement_id, network_generation, rsrp, sinr, rsrq, rssi, signal_strength, timestamp
-  from cells
-  order by measurement_id, timestamp desc
-),
-meas as (
-  select
-    m.id,
-    m.group_id,
-    m.provider,
-    m.type,
-    m.timestamp as ts,
-    ll.lat,
-    ll.lon,
-    ll.accuracy as accuracy_m,
-    lc.network_generation,
-    case
-      when m.type = 'download' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
-      else null
-    end as dl_mbps,
-    case
-      when m.type = 'upload' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
-      else null
-    end as ul_mbps,
-    case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,
-    case when m.type = 'latency' then (ld.jitter / 1000.0) end as jitter_ms,
-    case
-      when m.type = 'latency' and ld.sent is not null and ld.received is not null and ld.sent > 0
-        then (100.0 * greatest(0, ld.sent - ld.received)) / ld.sent
-      else null
-    end as loss_pct
-  from measurements m
-  left join latest_loc ll on ll.measurement_id = m.id
-  left join latest_cell lc on lc.measurement_id = m.id
-  left join upload_download_data ud on ud.measurement_id = m.id
-  left join latency_data ld on ld.measurement_id = m.id
-  where m.group_id is not null
-),
-gs as (
-  select
-    group_id,
-    max(ts) as ts,
-    coalesce(max(provider) filter (where provider is not null), 'Unknown') as provider,
-    case
-      when max(network_generation) ilike '%NR%' or max(network_generation) ilike '%5%' then '5G'
-      when max(network_generation) ilike '%LTE%' or max(network_generation) ilike '%4%' then '4G'
-      else 'Other'
-    end as conn_tag,
-    avg(lon) filter (where lon is not null) as lon,
-    avg(lat) filter (where lat is not null) as lat,
-    min(accuracy_m) filter (where accuracy_m is not null) as accuracy_m,
-    max(dl_mbps) as dl_mbps,
-    max(ul_mbps) as ul_mbps,
-    max(ping_ms) as ping_ms,
-    max(jitter_ms) as jitter_ms,
-    max(loss_pct) as loss_pct
-  from meas
-  group by group_id
-),
-f as (
+with f as (
   select *
-  from gs
+  from private.dashboard_group_points
   where
     lon between min_lng and max_lng
     and lat between min_lat and max_lat
@@ -2161,7 +2093,7 @@ f as (
     and (lat_min is null or (ping_ms is not null and ping_ms >= lat_min))
     and (lat_max is null or (ping_ms is not null and ping_ms <= lat_max))
     and lon is not null and lat is not null
-  order by ts desc nulls last
+  order by ts desc nulls last, group_id
   limit greatest(1, least(coalesce(lim, 50000), 200000))
 )
 select jsonb_build_object(
@@ -2190,77 +2122,9 @@ CREATE OR REPLACE FUNCTION "public"."rpc_map_points"("min_lng" double precision,
     SET "search_path" TO 'public', 'pg_temp'
     AS $$
 select private.require_dashboard_request();
-with latest_loc as (
-  select distinct on (measurement_id)
-    measurement_id, lat, lon, accuracy, timestamp
-  from locations
-  order by measurement_id, timestamp desc
-),
-latest_cell as (
-  select distinct on (measurement_id)
-    measurement_id, network_generation, rsrp, sinr, rsrq, rssi, signal_strength, timestamp
-  from cells
-  order by measurement_id, timestamp desc
-),
-meas as (
-  select
-    m.id,
-    m.group_id,
-    m.provider,
-    m.type,
-    m.timestamp as ts,
-    ll.lat,
-    ll.lon,
-    ll.accuracy as accuracy_m,
-    lc.network_generation,
-    case
-      when m.type = 'download' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
-      else null
-    end as dl_mbps,
-    case
-      when m.type = 'upload' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
-      else null
-    end as ul_mbps,
-    case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,
-    case when m.type = 'latency' then (ld.jitter / 1000.0) end as jitter_ms,
-    case
-      when m.type = 'latency' and ld.sent is not null and ld.received is not null and ld.sent > 0
-        then (100.0 * greatest(0, ld.sent - ld.received)) / ld.sent
-      else null
-    end as loss_pct
-  from measurements m
-  left join latest_loc ll on ll.measurement_id = m.id
-  left join latest_cell lc on lc.measurement_id = m.id
-  left join upload_download_data ud on ud.measurement_id = m.id
-  left join latency_data ld on ld.measurement_id = m.id
-  where m.group_id is not null
-),
-gs as (
-  select
-    group_id,
-    max(ts) as ts,
-    coalesce(max(provider) filter (where provider is not null), 'Unknown') as provider,
-    case
-      when max(network_generation) ilike '%NR%' or max(network_generation) ilike '%5%' then '5G'
-      when max(network_generation) ilike '%LTE%' or max(network_generation) ilike '%4%' then '4G'
-      else 'Other'
-    end as conn_tag,
-    avg(lon) filter (where lon is not null) as lon,
-    avg(lat) filter (where lat is not null) as lat,
-    min(accuracy_m) filter (where accuracy_m is not null) as accuracy_m,
-    max(dl_mbps) as dl_mbps,
-    max(ul_mbps) as ul_mbps,
-    max(ping_ms) as ping_ms,
-    max(jitter_ms) as jitter_ms,
-    max(loss_pct) as loss_pct
-  from meas
-  group by group_id
-),
-f as (
+with f as (
   select *
-  from gs
+  from private.dashboard_group_points
   where
     lon between min_lng and max_lng
     and lat between min_lat and max_lat
@@ -2275,7 +2139,7 @@ f as (
     and (lat_min is null or (ping_ms is not null and ping_ms >= lat_min))
     and (lat_max is null or (ping_ms is not null and ping_ms <= lat_max))
     and lon is not null and lat is not null
-  order by ts desc nulls last
+  order by ts desc nulls last, group_id
   limit greatest(1, least(coalesce(lim, 2000), 20000))
 )
 select jsonb_build_object(
@@ -2418,6 +2282,101 @@ $$;
 
 
 ALTER FUNCTION "published"."measurements_in_hex"("hex_string" "text", "match_center" boolean, "match_start" boolean, "match_end" boolean) OWNER TO "postgres";
+
+
+CREATE MATERIALIZED VIEW "private"."dashboard_group_points" AS
+ WITH "latest_loc" AS (
+         SELECT DISTINCT ON ("locations"."measurement_id") "locations"."measurement_id",
+            "locations"."lat",
+            "locations"."lon",
+            "locations"."accuracy",
+            "locations"."timestamp"
+           FROM "public"."locations"
+          ORDER BY "locations"."measurement_id", "locations"."timestamp" DESC
+        ), "latest_cell" AS (
+         SELECT DISTINCT ON ("cells"."measurement_id") "cells"."measurement_id",
+            "cells"."network_generation",
+            "cells"."rsrp",
+            "cells"."sinr",
+            "cells"."rsrq",
+            "cells"."rssi",
+            "cells"."signal_strength",
+            "cells"."timestamp"
+           FROM "public"."cells"
+          ORDER BY "cells"."measurement_id", "cells"."timestamp" DESC
+        ), "meas" AS (
+         SELECT "m"."id",
+            "m"."group_id",
+            "m"."provider",
+            "m"."type",
+            "m"."timestamp" AS "ts",
+            "ll"."lat",
+            "ll"."lon",
+            "ll"."accuracy" AS "accuracy_m",
+            "lc"."network_generation",
+                CASE
+                    WHEN (("m"."type")::"text" = 'download'::"text") THEN ((COALESCE("ud"."bytes_per_sec", "ud"."application_bytes_per_sec", ("ud"."bytes" / (NULLIF("ud"."duration", (0)::numeric) / '1000000'::numeric))) * 8.0) / '1000000'::numeric)
+                    ELSE NULL::numeric
+                END AS "dl_mbps",
+                CASE
+                    WHEN (("m"."type")::"text" = 'upload'::"text") THEN ((COALESCE("ud"."bytes_per_sec", "ud"."application_bytes_per_sec", ("ud"."bytes" / (NULLIF("ud"."duration", (0)::numeric) / '1000000'::numeric))) * 8.0) / '1000000'::numeric)
+                    ELSE NULL::numeric
+                END AS "ul_mbps",
+                CASE
+                    WHEN (("m"."type")::"text" = 'latency'::"text") THEN ("ld"."rtt" / 1000.0)
+                    ELSE NULL::numeric
+                END AS "ping_ms",
+                CASE
+                    WHEN (("m"."type")::"text" = 'latency'::"text") THEN ("ld"."jitter" / 1000.0)
+                    ELSE NULL::numeric
+                END AS "jitter_ms",
+                CASE
+                    WHEN ((("m"."type")::"text" = 'latency'::"text") AND ("ld"."sent" IS NOT NULL) AND ("ld"."received" IS NOT NULL) AND ("ld"."sent" > (0)::numeric)) THEN ((100.0 * GREATEST((0)::numeric, ("ld"."sent" - "ld"."received"))) / "ld"."sent")
+                    ELSE NULL::numeric
+                END AS "loss_pct"
+           FROM (((("public"."measurements" "m"
+             LEFT JOIN "latest_loc" "ll" ON (("ll"."measurement_id" = "m"."id")))
+             LEFT JOIN "latest_cell" "lc" ON (("lc"."measurement_id" = "m"."id")))
+             LEFT JOIN "public"."upload_download_data" "ud" ON (("ud"."measurement_id" = "m"."id")))
+             LEFT JOIN "public"."latency_data" "ld" ON (("ld"."measurement_id" = "m"."id")))
+          WHERE ("m"."group_id" IS NOT NULL)
+        ), "gs" AS (
+         SELECT "meas"."group_id",
+            "max"("meas"."ts") AS "ts",
+            COALESCE("max"("meas"."provider") FILTER (WHERE ("meas"."provider" IS NOT NULL)), 'Unknown'::"text") AS "provider",
+                CASE
+                    WHEN (("max"(("meas"."network_generation")::"text") ~~* '%NR%'::"text") OR ("max"(("meas"."network_generation")::"text") ~~* '%5%'::"text")) THEN '5G'::"text"
+                    WHEN (("max"(("meas"."network_generation")::"text") ~~* '%LTE%'::"text") OR ("max"(("meas"."network_generation")::"text") ~~* '%4%'::"text")) THEN '4G'::"text"
+                    ELSE 'Other'::"text"
+                END AS "conn_tag",
+            "avg"("meas"."lon") FILTER (WHERE ("meas"."lon" IS NOT NULL)) AS "lon",
+            "avg"("meas"."lat") FILTER (WHERE ("meas"."lat" IS NOT NULL)) AS "lat",
+            "min"("meas"."accuracy_m") FILTER (WHERE ("meas"."accuracy_m" IS NOT NULL)) AS "accuracy_m",
+            "max"("meas"."dl_mbps") AS "dl_mbps",
+            "max"("meas"."ul_mbps") AS "ul_mbps",
+            "max"("meas"."ping_ms") AS "ping_ms",
+            "max"("meas"."jitter_ms") AS "jitter_ms",
+            "max"("meas"."loss_pct") AS "loss_pct"
+           FROM "meas"
+          GROUP BY "meas"."group_id"
+        )
+ SELECT "group_id",
+    "ts",
+    "provider",
+    "conn_tag",
+    "lon",
+    "lat",
+    "accuracy_m",
+    "dl_mbps",
+    "ul_mbps",
+    "ping_ms",
+    "jitter_ms",
+    "loss_pct"
+   FROM "gs"
+  WITH NO DATA;
+
+
+ALTER MATERIALIZED VIEW "private"."dashboard_group_points" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "private"."dashboard_settings" (
@@ -2772,6 +2731,14 @@ ALTER TABLE ONLY "published"."measurements"
 
 ALTER TABLE ONLY "published"."throughput_data"
     ADD CONSTRAINT "throughput_data_pkey" PRIMARY KEY ("id");
+
+
+
+CREATE UNIQUE INDEX "dashboard_group_points_group_id_idx" ON "private"."dashboard_group_points" USING "btree" ("group_id");
+
+
+
+CREATE INDEX "dashboard_group_points_ts_idx" ON "private"."dashboard_group_points" USING "btree" ("ts" DESC NULLS LAST, "group_id");
 
 
 
@@ -5854,6 +5821,10 @@ GRANT SELECT ON TABLE "published"."measurement_groups" TO PUBLIC;
 
 
 
+
+
+
+GRANT SELECT ON TABLE "private"."dashboard_group_points" TO "readonly_user";
 
 
 
