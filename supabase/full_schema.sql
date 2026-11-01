@@ -1098,6 +1098,22 @@ $$;
 ALTER FUNCTION "private"."recheck_held_fcc_submission_retries"("p_all" boolean) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "private"."require_dashboard_request"() RETURNS "void"
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'private', 'pg_temp'
+    AS $$
+begin
+    if not private.is_dashboard_request() then
+        raise exception 'dashboard secret required'
+            using errcode = '42501', hint = 'Send the x-dashboard-secret header.';
+    end if;
+end
+$$;
+
+
+ALTER FUNCTION "private"."require_dashboard_request"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "private"."resend_http_post"("p_api_key" "text", "p_body" "text", OUT "status" integer, OUT "content" "text") RETURNS "record"
     LANGUAGE "plpgsql"
     SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
@@ -1942,12 +1958,13 @@ ALTER FUNCTION "public"."register_device"("device_id" "uuid", "device_secret" "t
 
 CREATE OR REPLACE FUNCTION "public"."rpc_group_detail"("group_id" "text") RETURNS "jsonb"
     LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
+    SET "search_path" TO 'public', 'pg_temp'
     AS $$
+select private.require_dashboard_request();
 with m as (
   select *
   from measurements
-  where group_id = group_id::uuid
+  where measurements.group_id = rpc_group_detail.group_id::uuid
 ),
 latest_loc as (
   select distinct on (measurement_id)
@@ -1987,11 +2004,11 @@ parts as (
     lc.sinr,
     case
       when m.type in ('download','upload') then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as mbps,
-    case when m.type = 'latency' then ld.rtt end as ping_ms,
-    case when m.type = 'latency' then ld.jitter end as jitter_ms,
+    case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,
+    case when m.type = 'latency' then (ld.jitter / 1000.0) end as jitter_ms,
     case
       when m.type = 'latency' and ld.sent is not null and ld.received is not null and ld.sent > 0
         then (100.0 * greatest(0, ld.sent - ld.received)) / ld.sent
@@ -2025,7 +2042,7 @@ la as (
   select ping_ms, jitter_ms, loss_pct from parts where type='latency' order by ts desc nulls last limit 1
 )
 select jsonb_build_object(
-  'group_id', group_id::text,
+  'group_id', rpc_group_detail.group_id,
   'timestamp', (select ts from pick),
   'provider', (select provider from pick),
   'location', jsonb_build_object(
@@ -2056,8 +2073,9 @@ ALTER FUNCTION "public"."rpc_group_detail"("group_id" "text") OWNER TO "postgres
 
 CREATE OR REPLACE FUNCTION "public"."rpc_group_summaries"("min_lng" double precision, "min_lat" double precision, "max_lng" double precision, "max_lat" double precision, "t_from" timestamp with time zone DEFAULT NULL::timestamp with time zone, "t_to" timestamp with time zone DEFAULT NULL::timestamp with time zone, "providers" "text"[] DEFAULT NULL::"text"[], "conn" "text"[] DEFAULT NULL::"text"[], "dl_min" double precision DEFAULT NULL::double precision, "dl_max" double precision DEFAULT NULL::double precision, "ul_min" double precision DEFAULT NULL::double precision, "ul_max" double precision DEFAULT NULL::double precision, "lat_min" double precision DEFAULT NULL::double precision, "lat_max" double precision DEFAULT NULL::double precision, "lim" integer DEFAULT 50000) RETURNS SETOF "jsonb"
     LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
+    SET "search_path" TO 'public', 'pg_temp'
     AS $$
+select private.require_dashboard_request();
 with latest_loc as (
   select distinct on (measurement_id)
     measurement_id, lat, lon, accuracy, timestamp
@@ -2083,16 +2101,16 @@ meas as (
     lc.network_generation,
     case
       when m.type = 'download' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as dl_mbps,
     case
       when m.type = 'upload' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as ul_mbps,
-    case when m.type = 'latency' then ld.rtt end as ping_ms,
-    case when m.type = 'latency' then ld.jitter end as jitter_ms,
+    case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,
+    case when m.type = 'latency' then (ld.jitter / 1000.0) end as jitter_ms,
     case
       when m.type = 'latency' and ld.sent is not null and ld.received is not null and ld.sent > 0
         then (100.0 * greatest(0, ld.sent - ld.received)) / ld.sent
@@ -2169,8 +2187,9 @@ ALTER FUNCTION "public"."rpc_group_summaries"("min_lng" double precision, "min_l
 
 CREATE OR REPLACE FUNCTION "public"."rpc_map_points"("min_lng" double precision, "min_lat" double precision, "max_lng" double precision, "max_lat" double precision, "t_from" timestamp with time zone DEFAULT NULL::timestamp with time zone, "t_to" timestamp with time zone DEFAULT NULL::timestamp with time zone, "providers" "text"[] DEFAULT NULL::"text"[], "conn" "text"[] DEFAULT NULL::"text"[], "dl_min" double precision DEFAULT NULL::double precision, "dl_max" double precision DEFAULT NULL::double precision, "ul_min" double precision DEFAULT NULL::double precision, "ul_max" double precision DEFAULT NULL::double precision, "lat_min" double precision DEFAULT NULL::double precision, "lat_max" double precision DEFAULT NULL::double precision, "lim" integer DEFAULT 2000) RETURNS SETOF "jsonb"
     LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
+    SET "search_path" TO 'public', 'pg_temp'
     AS $$
+select private.require_dashboard_request();
 with latest_loc as (
   select distinct on (measurement_id)
     measurement_id, lat, lon, accuracy, timestamp
@@ -2196,12 +2215,12 @@ meas as (
     lc.network_generation,
     case
       when m.type = 'download' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as dl_mbps,
     case
       when m.type = 'upload' then
-        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / nullif(ud.duration, 0))) * 8.0) / 1e6
+        (coalesce(ud.bytes_per_sec, ud.application_bytes_per_sec, (ud.bytes / (nullif(ud.duration, 0) / 1e6))) * 8.0) / 1e6
       else null
     end as ul_mbps,
     case when m.type = 'latency' then (ld.rtt / 1000.0) end as ping_ms,
@@ -5573,6 +5592,10 @@ REVOKE ALL ON FUNCTION "private"."process_next_fcc_submission_retry"() FROM PUBL
 
 
 REVOKE ALL ON FUNCTION "private"."recheck_held_fcc_submission_retries"("p_all" boolean) FROM PUBLIC;
+
+
+
+REVOKE ALL ON FUNCTION "private"."require_dashboard_request"() FROM PUBLIC;
 
 
 
