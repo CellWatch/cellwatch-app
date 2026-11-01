@@ -1229,6 +1229,9 @@ declare
     email_to text;
     subject text;
     intro text;
+    posted integer;
+    already integer;
+    sent_line text;
     reply record;
 begin
     -- One run at a time, so a run by hand and the job's can't both send.
@@ -1296,6 +1299,25 @@ begin
                         'sending still works.', to_char(last_sent at time zone 'UTC', 'YYYY-MM-DD HH24:MI'));
     end if;
 
+    -- Changed: what reached the FCC since the last email (in the last 7 days, before the first).
+    -- Posts to the prod BDC that it accepted, counted once per submission. A submission is one
+    -- test: three measurements, latency, download and upload (only complete ones are posted).
+    -- A duplicate_test_id answer means the FCC had it already; counted apart, as in the digest.
+    select count(distinct f.submission_id) filter (where coalesce(f.response_snippet, '') not like 'FCC HTTP status %'),
+           count(distinct f.submission_id) filter (where f.response_snippet like 'FCC HTTP status %')
+    into posted, already
+    from private.fcc_submission_failures f
+    where f.succeeded
+      and f.fcc_env = 'prod'
+      and f.occurred_on > coalesce(last_sent, now() - interval '7 days');
+    sent_line := format('Sent to the FCC %s: %s test%s (%s measurements)%s.',
+        case
+            when last_sent is null then 'in the last 7 days'
+            else format('since the last email (%s UTC)', to_char(last_sent at time zone 'UTC', 'YYYY-MM-DD HH24:MI'))
+        end,
+        posted, case when posted = 1 then '' else 's' end, posted * 3,
+        case when already > 0 then format(', and %s already there (duplicate_test_id)', already) else '' end);
+
     select * into reply
     from private.resend_http_post(
         btrim(api_key),
@@ -1303,7 +1325,7 @@ begin
             'from', 'CellWatch FCC queue <onboarding@resend.dev>',
             'to', jsonb_build_array(btrim(email_to)),
             'subject', subject,
-            'text', intro || E'\n\n' || private.fcc_queue_digest(since)
+            'text', intro || E'\n' || sent_line || E'\n\n' || private.fcc_queue_digest(since)
         )::text
     );
 
