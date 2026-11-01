@@ -9,9 +9,9 @@ Related: [Testing](testing.md) · [Build and config](../app/build-and-config.md)
 | Tool | Version on main | Notes |
 |---|---|---|
 | JDK | 17 | `compileOptions` / `jvmTarget` are 17 ([app/build.gradle](../../app/build.gradle)). |
-| Android Studio + SDK | compileSdk 35 | AGP 8.1.2 and Kotlin 1.8.10 ([build.gradle](../../build.gradle)); Gradle wrapper 8.9 ([gradle-wrapper.properties](../../gradle/wrapper/gradle-wrapper.properties)). |
+| Android Studio + SDK | compileSdk 36 | AGP 8.9.3 and Kotlin 1.8.10 ([build.gradle](../../build.gradle)); Gradle wrapper 8.11.1 ([gradle-wrapper.properties](../../gradle/wrapper/gradle-wrapper.properties)). Since #148 (merged 2026-10-27); README asks for Android Studio Meerkat (2024.3.1 Patch 1) or newer. |
 | Docker | Docker Desktop | Needed by `supabase start` and [db_tests/run.sh](../../supabase/db_tests/run.sh). |
-| Supabase CLI | README says ≥ 1.180 | Local Postgres major version is 15 in [config.toml](../../supabase/config.toml) on main, while prod runs 17. The change to 17 is uncommitted on the `client-port-header` branch. |
+| Supabase CLI | README says ≥ 1.180 | Local Postgres major version is 17 in [config.toml](../../supabase/config.toml), matching prod (since 7b27d19, merged in #152 on 2026-10-31). |
 | Mapbox downloads token | | Gradle needs it to resolve the Mapbox Maven repo ([settings.gradle](../../settings.gradle)). |
 
 ## `cellwatch.properties`
@@ -35,7 +35,7 @@ Create `cellwatch.properties` at the **repo root**. It is gitignored. Both [sett
 String values need surrounding quotes, because they are pasted into `buildConfigField` as Java literals.
 
 Notes:
-- `app/cellwatch.properties` is an old tracked copy the build never reads. #136 removes it from git and gitignores `cellwatch.properties` in every directory.
+- `app/cellwatch.properties` is an old copy the build never read. #136 (merged 2026-10-27) removed it from git and gitignores `cellwatch.properties` in every directory, so an existing checkout keeps it on disk, ignored.
 - `app/google-services.json` is tracked. Crashlytics is wired into **both** debug and release builds (see [Testing → cautions](testing.md#cautions)).
 
 ## Local Supabase
@@ -47,16 +47,16 @@ supabase start          # API 54321, DB 54322, Studio 54323, Inbucket 54324
 
 Ports come from [config.toml](../../supabase/config.toml): API 54321, DB 54322, Studio 54323, Inbucket web/SMTP/POP3 54324/54325/54326, analytics 54327/54328 (disabled).
 
-**Loading the schema.** `supabase db reset` applies only `supabase/migrations/*` and `seed.sql`. It does **not** read `full_schema.sql`. On main the migrations folder holds just two incremental migrations (#136 adds two more), and they assume the live schema already exists. So on a fresh stack, load the snapshot first:
+**Loading the schema.** `supabase db reset` applies only `supabase/migrations/*` and `seed.sql`. It does **not** read `full_schema.sql`. On main the migrations folder holds ten incremental migrations (2026-07-14 to 2026-10-22), and they assume the live schema already exists. So on a fresh stack, load the snapshot first:
 
 ```bash
 # from the repo root, after `supabase start`
 psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -f supabase/full_schema.sql
 ```
 
-The snapshot predates `202610070001` (and #136's `202610220101`/`0102`), so apply those on top with `psql -f`, in filename order.
+The snapshot was pulled from prod on 2026-11-01, and every migration on `main` is on prod, so it already includes all of them: there is nothing to apply on top. Role timeouts aren't in a schema dump; [role_settings.sql](../../supabase/role_settings.sql) has prod's.
 
-> TODO: verify. A fresh `db reset` probably fails on `202607140001` (schema `private` doesn't exist yet). A baseline migration (`202609300001`) that fixes this is in open PR #134 (`board-docs`). The local stack's default superuser credentials are Supabase's well-known local defaults, not a secret.
+> TODO: verify. A fresh `db reset` probably fails on `202607140001` (schema `private` doesn't exist yet). #134's `202609300001` (merged to `main` 2026-10-27) doesn't fix this: it records only the hand-made queue table, trigger and role settings, and sorts after `202607140001`. [supabase/README.md](../../supabase/README.md) ("Local stack") describes the same gap. The local stack's default superuser credentials are Supabase's well-known local defaults, not a secret.
 
 [sync_from_remote.sh](../../supabase/sync_from_remote.sh) builds the local stack from prod instead. It is destructive to the local DB and pulls prod data, which contains PII; see [Runbooks](../ops/runbooks.md#refreshing-the-local-schema-snapshot).
 
@@ -109,8 +109,6 @@ From the Android emulator, the host machine is **`10.0.2.2`**; `127.0.0.1` is th
 
 | Claim | Reality on main |
 |---|---|
-| `targetSdk 34` | `targetSdk 35`, `compileSdk 35`. Play now requires 36 for updates; that upgrade is in open PR #135. |
-| `supabase db reset` "loads full_schema.sql and seed.sql" | It applies `migrations/*` and `seed.sql` only. `seed.sql` is empty. |
 | `SUPABASE_LOCAL_URL="http://127.0.0.1:54321"` | Unreachable from the emulator; use `10.0.2.2`. |
 | `cd ../app` before `./gradlew …` | `gradlew` is at the repo root. |
 | `./gradlew ktlintCheck`, `detekt` | Neither plugin is configured. |
@@ -118,3 +116,5 @@ From the Android emulator, the host machine is **`10.0.2.2`**; `127.0.0.1` is th
 | Edge Functions, golden-file export tests, "Backend SQL/Edge-function tests using Supabase CLI runners" | No `supabase/functions/` and no golden-file tests. DB tests are plain SQL run by [db_tests/run.sh](../../supabase/db_tests/run.sh). |
 | `TCP_TUPLE_URL` example value | A literal service address is checked into README/CONTRIBUTING. Treat it as configuration and don't copy it elsewhere. |
 | `supabase/migrations/dump-migrations.sql` safety grep | No such file. |
+
+#134 and #148 (both merged 2026-10-27) fixed two earlier entries: README's `supabase db reset` comment now says it applies `migrations/*` and `seed.sql` (`seed.sql` is empty), and README and CONTRIBUTING now say `targetSdk 36`, as on main.

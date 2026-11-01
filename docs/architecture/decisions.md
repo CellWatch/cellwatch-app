@@ -10,9 +10,9 @@ Dates come from git (`git log --date=short`). Where a decision predates its firs
 |---|---|
 | in prod | App parts are in the Play Store release; Supabase parts are pushed to the prod project |
 | pushed | A Supabase change applied to the prod project, checked against prod's catalog |
-| merged | On `main`; not known to be in prod. App code is not known to be in a release (versionCode is still 13; check Play Console) |
+| merged | On `main`, not in prod. App code merged after #109 is not known to be in a release, and app code merged on 2026-10-27 is not released (versionCode is still 13; check Play Console). A merged migration is not pushed unless its status says so |
 | pending | Uncommitted on the `client-port-header` branch; not merged, migration not pushed |
-| decided, not merged | Agreed; built only as unpushed local commits |
+| decided, partly pushed | Agreed; part is merged and pushed (see the ADR), the rest is only on a local branch |
 | superseded | Replaced by a later decision |
 
 Merged to `main` is not in prod: app changes need a Play Store release, and Supabase changes need their migration pushed to prod.
@@ -28,11 +28,11 @@ Merged to `main` is not in prod: app changes need a Play Store release, and Supa
 | [007](#adr-007-retry-queue-processed-by-pg_cron) | by 2026-09-30 | Retry queue processed by pg_cron | in prod |
 | [008](#adr-008-post-only-complete-groups) | 2026-07-14 | Post only complete groups | in prod (server side) |
 | [009](#adr-009-live-schema-snapshot-in-the-repo) | 2026-10-07 | Live schema snapshot in the repo | merged (repo practice) |
-| [010](#adr-010-background-uploads-in-workmanager-measurements-before-submissions) | 2026-10-07 | Background uploads in WorkManager, measurements before submissions | merged; not known to be released |
+| [010](#adr-010-background-uploads-in-workmanager-measurements-before-submissions) | 2026-10-07 | Background uploads in WorkManager, measurements before submissions | merged; #111 not known to be released, #148's additions not released |
 | [011](#adr-011-scrub-secrets-before-logging-to-crashlytics) | 2026-10-07 | Scrub secrets before logging to Crashlytics | merged; not known to be released |
-| [012](#adr-012-unclog-the-retry-queue) | 2026-10-07 | Unclog the retry queue | function pushed (confirmed 2026-10-22); cron batch size not checked |
+| [012](#adr-012-unclog-the-retry-queue) | 2026-10-07 | Unclog the retry queue | pushed; the job command was replaced by `202610210103` on 2026-10-29 |
 | [013](#adr-013-app-reports-its-own-tcp-local-port-pending) | 2026-10-13 | App reports its own TCP local port | pending |
-| [014](#adr-014-two-locations-per-fcc-test) | 2026-10-22 | Two locations per FCC test | decided, not merged |
+| [014](#adr-014-two-locations-per-fcc-test) | 2026-10-22 | Two locations per FCC test | decided, partly pushed: server hold pushed 2026-10-29 (#133); app rule on a local branch |
 
 ---
 
@@ -48,9 +48,9 @@ Merged to `main` is not in prod: app changes need a Play Store release, and Supa
   - The anon key no longer needs to be treated as a secret.
   - Anyone can register new IDs and insert data under them, but only data tied to IDs they registered. The commit accepts this, since such data is easy to remove once identified.
   - The bcrypt check runs inside policies, which costs time for each row checked.
-  - `register_device` fails on a second call for the same ID, so a lost response or lost secret locks the device out. A fix is on the unpushed local branch `register-device-retry` (no PR; its migration `202610220001` is not pushed).
+  - `register_device` fails on a second call for the same ID, so a lost response or lost secret locks the device out. A fix is merged to `main` in #148 (2026-10-27): the app makes its own secret, saves it, then calls a new `register_device(device_id, device_secret)` overload that accepts the same secret again, and both versions let a device that never uploaded register again. Its migration `202610220001` was pushed to prod on 2026-10-31; the app change is not released.
   - Details: [identity-and-security](identity-and-security.md).
-- **Status:** in prod: the app side is in the released build, and `register_device` and the `verified_device_id*` checks are on prod.
+- **Status:** in prod: the app side is in the released build, and `register_device` and the `verified_device_id*` checks are on prod. The retry-safe registration (#148) is half in prod: its migration `202610220001` was pushed on 2026-10-31, which already lets never-uploaded devices on the released build register again; the app change is merged to `main` and not released.
 
 ## ADR-002: TCP tuple service for the FCC server fields
 
@@ -116,7 +116,7 @@ Merged to `main` is not in prod: app changes need a Play Store release, and Supa
   - The posting logic can be fixed by pushing a migration, without an app release.
   - The `http` call is synchronous and holds a database connection for the whole FCC request. That is why [ADR-012](#adr-012-unclog-the-retry-queue) caps run time.
   - `pg_net` (async HTTP) is not used.
-- **Status:** in prod (pushed): `post_fcc_submission`, `fcc_submissions_view` and `fcc_submission_info` are on prod.
+- **Status:** in prod (pushed): `post_fcc_submission`, `fcc_submissions_view` and `fcc_submission_info` are on prod. Since the 2026-10-29 push, `202610210101` (#133) builds each payload from one submission's rows (`private.fcc_submission_payload`) instead of aggregating the whole database; `fcc_submissions_view` now reads through that function.
 
 ## ADR-007: Retry queue processed by pg_cron
 
@@ -132,7 +132,7 @@ Merged to `main` is not in prod: app changes need a Play Store release, and Supa
   - Phone uploads never wait on the FCC.
   - Blocked rows need manual repair and re-queueing.
   - Despite its name, the failures table logs successes as well (`succeeded=true`).
-- **Status:** in prod (pushed). The queue, trigger and functions matched prod on 2026-10-22; the cron job itself was last read from prod on 2026-09-30.
+- **Status:** in prod (pushed). #134's `202609300001` records the hand-made queue table and trigger in a migration. #133's `202610210103` commits after each post, marks a `duplicate_test_id` answer as sent, and adds `held` and `expired` states ([fcc-submission-pipeline](../supabase/fcc-submission-pipeline.md)). Both were merged on 2026-10-27 and pushed on 2026-10-29. Since 2026-10-31 a second job, `fcc-queue-digest` (#154), emails a queue summary when something is new. `cron_jobs.sql` was pulled from prod on 2026-11-01.
 
 ## ADR-008: Post only complete groups
 
@@ -142,7 +142,7 @@ Merged to `main` is not in prod: app changes need a Play Store release, and Supa
   - `private.fcc_submission_is_ready` requires exactly one latency, one download, and one upload measurement, each with its data row. It checks that the tests are present, not that they succeeded; per the migration header, "A failed measurement is valid challenge data".
   - `post_fcc_submission` also checks that the built payload has all three `tests` keys.
 - **Consequences:** Incomplete groups wait in the queue and are not counted as failed attempts.
-- **Status:** in prod (server side). Prod's `fcc_submission_is_ready` and `post_fcc_submission` match the 2026-10-07 snapshot (catalog check, 2026-10-22), and the snapshot versions contain both checks. The migration file's own definitions were superseded: the live ones are the snapshot's. The app changes in the same commit (FCC validation, carrier fallback) are merged to `main` and not known to be released.
+- **Status:** in prod (server side). Prod's `fcc_submission_is_ready` has the readiness check (its `search_path` was reset by `202610210104`). `post_fcc_submission` was replaced on 2026-10-29 by `202610210101` and `0103`, which keep the three-`tests` check. `202607140001`'s own `auto_post_fcc_submission` was superseded on prod by the queue version. The app change in the same commit (a SIM-name fallback for a blank carrier name) was reverted on `main` by #148 (2026-10-27) to keep the measurement process as released; it is on the local branch `measurement-process-changes`.
 
 ## ADR-009: Live schema snapshot in the repo
 
@@ -157,7 +157,7 @@ Merged to `main` is not in prod: app changes need a Play Store release, and Supa
   - `full_schema.sql` is the reference for what is live; migrations newer than the snapshot may not be in it.
   - Cron job changes must be applied separately.
   - See [supabase/migrations-and-deploy](../supabase/migrations-and-deploy.md).
-- **Status:** merged (a repo practice; nothing to release or push). On 2026-10-22 prod's app schemas matched `full_schema.sql` plus `202610070001`.
+- **Status:** merged (a repo practice; nothing to release or push). The snapshot is refreshed from prod after each push (#152, #153, #155, #157, #158), last on 2026-11-01, so `full_schema.sql`, `cron_jobs.sql` and `role_settings.sql` match prod as of that date.
 
 ## ADR-010: Background uploads in WorkManager, measurements before submissions
 
@@ -173,7 +173,8 @@ Merged to `main` is not in prod: app changes need a Play Store release, and Supa
 - **Consequences:**
   - Closing a screen no longer cancels uploads.
   - Submissions can sit on the phone in `waiting` until their measurements upload.
-- **Status:** merged to `main`; not known to be in a release (versionCode is still 13; check Play Console).
+  - Uploads still ran only after a test or a cold start, and requests gave up after 10 s. #148 (merged 2026-10-27) adds an hourly upload and one each time the app comes to the foreground, and raises the request timeouts to 60 s ([sync-and-upload](../app/sync-and-upload.md#when-uploads-trigger)).
+- **Status:** merged to `main`: #111 (2026-10-07) is not known to be in a release, and #148 (2026-10-27) is not released (versionCode is still 13; check Play Console).
 
 ## ADR-011: Scrub secrets before logging to Crashlytics
 
@@ -195,9 +196,9 @@ Merged to `main` is not in prod: app changes need a Play Store release, and Supa
   - Entries that have waited more than a day are re-checked hourly.
 - **Consequences:**
   - Throughput rises roughly 10×.
-  - [cron_jobs.sql](../../supabase/cron_jobs.sql) (the 2026-09-30 snapshot) still shows batch size 1 until it is refreshed.
+  - [cron_jobs.sql](../../supabase/cron_jobs.sql) showed batch size 1 until it was first refreshed from prod, on 2026-10-31.
   - Tested in a throwaway, offline container ([db_tests/run.sh](../../supabase/db_tests/run.sh)).
-- **Status:** function pushed: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked (`cron.job` was not read). The Step 0 pre-checks in the prod deploy runbook (a local file, not in git) read the job and expect `process_fcc_submission_retries(10)`.
+- **Status:** pushed: applied to prod by hand, and recorded in prod's migration history on 2026-10-31. Prod's `process_fcc_submission_retries` matched this migration's version (catalog hash match, 2026-10-22), and the job ran `process_fcc_submission_retries(10)` when the runbook's Step 0 read it before the 2026-10-29 push. Since that push the job runs `call private.run_fcc_submission_retries(10);` (`202610210103`), which keeps the batch of 10, the 60 s cap and the hourly re-check; `process_fcc_submission_retries` remains for manual runs.
 
 ## ADR-013: App reports its own TCP local port (pending)
 
@@ -233,8 +234,10 @@ Merged to `main` is not in prod: app changes need a Play Store release, and Supa
 - **Decision:**
   - Require two locations per test for FCC submissions, following the spec rather than the intake's observed behaviour.
   - App side: a submission is FCC-submittable only with two locations per test, and the app retries for a fresh fix when the start and end fixes are the same.
-  - Server side: a separate "one location" hold reason in the submission pipeline.
+  - Server side: a separate "One location" hold reason in the submission pipeline. The same fix listed twice counts as two.
 - **Consequences:**
   - Some tests that would have been accepted are held back.
   - If the FCC confirms one location is enough, the server hold can be reverted. The retry job checks held entries again daily (`202610210103`), so it then releases them within a day, or at once with `select private.recheck_held_fcc_submission_retries(true);`.
-- **Status:** decided, not merged. The work is unpushed local commits on the branches of open PRs #130 (app) and #133 (server); neither PR contains it yet. Nothing on `main` or prod enforces it: `fcc_submission_is_ready` does not count locations.
+- **Status:** decided; server side pushed, app side on a local branch.
+  - Server: `private.fcc_payload_hold_reason` in `202610210103` (#133, merged 2026-10-27) holds a complete submission with "No locations" or "One location". Pushed to prod on 2026-10-29, so prod no longer posts such tests (`fcc_submission_is_ready` itself still doesn't count locations).
+  - App: on the local branch `measurement-process-changes`, not in a PR. It changes what a test records, so it is held back while the measurement process stays as approved. #130, which first carried it, is closed.

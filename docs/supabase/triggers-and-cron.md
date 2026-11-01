@@ -4,7 +4,7 @@ Every trigger on CellWatch tables and every scheduled pg_cron job: when each one
 
 **Related:** [schema](schema.md) · [rpc-reference](rpc-reference.md) · [fcc-submission-pipeline](fcc-submission-pipeline.md) · [migrations-and-deploy](migrations-and-deploy.md) · [runbooks](../ops/runbooks.md)
 
-Sources: [full_schema.sql](../../supabase/full_schema.sql) (triggers), [cron_jobs.sql](../../supabase/cron_jobs.sql) (jobs), [migrations/](../../supabase/migrations/). A read-only catalog check on 2026-10-22 found the same triggers on prod as in `full_schema.sql`, all enabled. It did not read `cron.job`.
+Sources: [full_schema.sql](../../supabase/full_schema.sql) (triggers), [cron_jobs.sql](../../supabase/cron_jobs.sql) (jobs), [migrations/](../../supabase/migrations/). Both files were last pulled from prod on 2026-11-01 (#158). A read-only catalog check on 2026-10-22 found all the triggers enabled on prod.
 
 ## Triggers
 
@@ -55,24 +55,26 @@ The `published` insert triggers always overwrite `created_on` / `updated_on` wit
 |---|---|---|
 | Original | [post_fcc_submission_func.sql](../../supabase/post_fcc_submission_func.sql) | Called `post_fcc_submission(new.id, 'prod')` **inside the app's INSERT** and logged the outcome to `fcc_submission_failures` |
 | 2026-07-14 | [202607140001](../../supabase/migrations/202607140001_repair_fcc_submission_functions.sql) | Same synchronous design, with readiness and payload checks added |
-| On prod | [full_schema.sql](../../supabase/full_schema.sql) | Only queues the submission; the cron job posts it. Made by hand on prod; not in any migration on main (#134's `202609300001`, open and not pushed, records it) |
+| On prod | [full_schema.sql](../../supabase/full_schema.sql) | Only queues the submission; the cron job posts it. Made by hand on prod, then recorded by #134's [202609300001](../../supabase/migrations/202609300001_track_live_fcc_queue_and_role_settings.sql), which defines the same queue-only function and trigger (pushed 2026-10-29; on prod it only stripped CR line endings) |
 
 > Warning: re-running `202607140001` or `post_fcc_submission_func.sql` against prod would put back the synchronous trigger and undo the queue design.
 
 ## pg_cron jobs
 
-Jobs are rows in `cron.job`, so **schema dumps (`full_schema.sql`) do not include them**. [cron_jobs.sql](../../supabase/cron_jobs.sql) is the source of truth for recreating them: it has the jobs as the migrations leave them. Never commit a job command that contains a key or token.
+Jobs are rows in `cron.job`, so **schema dumps (`full_schema.sql`) do not include them**. [cron_jobs.sql](../../supabase/cron_jobs.sql) is the source of truth for recreating them: it has the jobs as the migrations leave them, and was last refreshed from prod on 2026-11-01. Never commit a job command that contains a key or token.
 
 | Job name | Schedule | Command | Runs as | Purpose |
 |---|---|---|---|---|
-| `fcc-submission-retries` | `*/2 * * * *` (every 2 min) | `cron_jobs.sql`: `select private.process_fcc_submission_retries(1);` | `postgres`, database `postgres` | Posts queued FCC submissions, with retry and backoff |
-| | | After [202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql) (live on prod): `select private.process_fcc_submission_retries(10);` | | Same, up to 10 entries per run |
-| | | After [202610210103](../../supabase/migrations/202610210103_fcc_retry_queue_processing.sql) (`cron_jobs.sql`; not pushed to prod yet): `call private.run_fcc_submission_retries(10);` | | Same, but each post commits on its own |
+| `fcc-submission-retries` | `*/2 * * * *` (every 2 min) | On prod since 2026-10-29 ([202610210103](../../supabase/migrations/202610210103_fcc_retry_queue_processing.sql), #133) and in `cron_jobs.sql`: `call private.run_fcc_submission_retries(10);` | `postgres`, database `postgres` | Posts queued FCC submissions, with retry and backoff; commits after each entry |
+| | | Before that, from [202610070001](../../supabase/migrations/202610070001_unclog_fcc_retry_queue.sql): `select private.process_fcc_submission_retries(10);`; originally `(1)` | | Same, but the whole run in one transaction |
+| `fcc-queue-digest` | `1 13 * * *` (daily, 13:01 UTC) | `select private.send_fcc_queue_digest();`, on prod since 2026-10-31 ([202610310001](../../supabase/migrations/202610310001_email_fcc_queue_digest.sql), #154) | `postgres`, database `postgres` | Emails the FCC queue digest through Resend when something is new since the last run, and at least once a week; see [fcc-submission-pipeline](fcc-submission-pipeline.md#operating-it). Runs are logged in `private.fcc_digest_runs` |
 
 Notes:
-- `202610070001` reschedules the job with `cron.schedule('fcc-submission-retries', ...)`, which updates the job of that name in place. It skips this step when `pg_cron` is not installed (for example a fresh local DB, or the test project).
-- `202610070001` is pushed to prod: prod's `process_fcc_submission_retries` matches this migration's version (catalog hash match, 2026-10-22). The cron job's batch size of 10 was not checked. The prod deploy runbook (`prod-deploy-runbook.md`, a local file not in git) Step 0 checks both (the function source contains `60 seconds`, and the job command uses `(10)`). After any job change, refresh `cron_jobs.sql`. Don't recreate the job with the old `select private.process_fcc_submission_retries(...)` command once `202610210103` is live: that function runs a whole batch in one transaction, so a run that times out loses the record of posts the FCC already accepted (#117).
-- A job's whole command runs in **one transaction**. If a run is cancelled (for example by `statement_timeout`), every database change from that run rolls back. FCC POSTs already sent are not undone, so a submission can be accepted by the FCC and still look unsent locally. PL/pgSQL `exception when others` does not catch `query_canceled`.
+- `202610070001` and `202610210103` each reschedule the job with `cron.schedule('fcc-submission-retries', ...)`, which updates the job of that name in place. They skip this step when `pg_cron` is not installed (for example a fresh local DB, or the test project).
+- `202610210103` was pushed on 2026-10-29, and `cron_jobs.sql` was last refreshed from prod on 2026-11-01. Don't recreate the job with the old `select private.process_fcc_submission_retries(...)` command on prod: that function runs a whole batch in one transaction, so a run that times out loses the record of posts the FCC already accepted (#117). Use it only as the fallback below. After any job change, refresh `cron_jobs.sql` (`supabase/check_drift.sh --write`).
+- The `CALL` runs a procedure that commits after each entry, so a cancelled run loses only the entry in progress. pg_cron sends each command on its own, outside a transaction block, so the procedure can commit. If a run ever fails with "invalid transaction termination", set the command back to `select private.process_fcc_submission_retries(10);` ([runbooks](../ops/runbooks.md#recreating-cron-jobs)).
+- With the old `select` command (prod until 2026-10-29), a job's whole command ran in **one transaction**. If a run was cancelled (for example by `statement_timeout`), every database change from that run rolled back. FCC POSTs already sent are not undone, so a submission could be accepted by the FCC and still look unsent locally. PL/pgSQL `exception when others` does not catch `query_canceled`.
+- `fcc-queue-digest` reads its Resend API key and recipient from the Vault secrets `fcc_digest_resend_api_key` and `fcc_digest_email_to`, which were added by hand on prod. Never put either in `cron_jobs.sql` or anywhere else in the repo, which is public. A failed send fails the run (it shows in `cron.job_run_details`) and logs nothing, so the next run covers the missed period. To send one now: `select private.send_fcc_queue_digest(p_force => true);`.
 - Run history is in `cron.job_run_details` (`status`, `return_message`, `start_time`, `end_time`).
 
 Useful read-only checks:

@@ -4,7 +4,9 @@ Every Activity, Fragment, ViewModel and custom view in `ui/`, how users move bet
 
 Related: [layout](layout.md) · [measurement-engine](measurement-engine.md) · [local-storage](local-storage.md) · [sync-and-upload](sync-and-upload.md) · [build-and-config](build-and-config.md)
 
-UI toolkit: XML layouts with View Binding (no Compose, no Navigation graph). Screens switch with explicit `Intent`s and `FragmentManager` transactions. Strings exist in English (`values/`) and Spanish (`values-es/`). All activities are portrait-only.
+UI toolkit: XML layouts with View Binding (no Compose, no Navigation graph). Screens switch with explicit `Intent`s and `FragmentManager` transactions. Strings exist in English (`values/`) and Spanish (`values-es/`). All activities are portrait-only, but Android 16 ignores that lock on large screens (600 dp and wider), so tablets can rotate.
+
+On Android 15 and later the app is drawn edge to edge (it targets API 35+). [SystemBarInsets](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/SystemBarInsets.kt), registered in `CellWatchApp.onCreate`, pads every activity's content by the system bars, display cutout and keyboard, and makes the bar icons dark; it does nothing below API 35. It and the API 36 target were merged to `main` in #148 (2026-10-27) and are not released.
 
 ## Navigation
 
@@ -44,9 +46,9 @@ The `NavigationDrawer` (side menu) is in the Map, Measure, History, Settings and
 
 | Activity | Purpose | Reads / writes |
 |---|---|---|
-| [MapActivity](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MapActivity.kt) | Launcher. Redirects to onboarding until `onboarding_complete`. Mapbox map of this phone's own measurements, search, bottom sheet of results. Enqueues `UploadWorker`. | `MapViewModel` -> `MeasurementRepository.getMeasurementGroups()` (local Room only) |
+| [MapActivity](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MapActivity.kt) | Launcher. Redirects to onboarding until `onboarding_complete`. Mapbox map of this phone's own measurements, search, bottom sheet of results. (Before #148 it also enqueued `UploadWorker`; uploads now start from `CellWatchApp`, see [sync-and-upload](sync-and-upload.md).) | `MapViewModel` -> `MeasurementRepository.getMeasurementGroups()` (local Room only) |
 | [OnboardingActivity](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/OnboardingActivity.kt) | First-run flow (fragments below), dot indicator, back/forward arrows and horizontal swipe. | `SettingsRepository` (collection mode, contact info, onboarding flag) |
-| [MeasureActivity](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureActivity.kt) | Hosts `PreMeasureFragment` (state `PRE`) or `MeasureFragment` (all other states). Binds to `MeasurementService` while a test is running; unbinds in `onStop`. Disables Back while `MeasureFragment` is shown. | `MeasureViewModel` |
+| [MeasureActivity](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureActivity.kt) | Hosts `PreMeasureFragment` (state `PRE`) or `MeasureFragment` (all other states). Binds to `MeasurementService` while a test is running; unbinds in `onStop`. Back does nothing from the start of a test until the next one is set up. Since #148 this follows the measure state rather than the fragment change, so it still holds when the activity is recreated mid-test (for example a tablet rotated on Android 16). | `MeasureViewModel` |
 | [MeasureHistoryActivity](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureHistoryActivity.kt) | List of all local measurement groups; Export menu item. | `MeasureHistoryViewModel` |
 | [SettingsActivity](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/SettingsActivity.kt) | Collection mode dropdown; edit name/email/phone; shows device id and app version (tap to copy); privacy-policy link. | `SettingsRepository` |
 | [AboutActivity](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/AboutActivity.kt) | Static about/help text with links; opens Google's `OssLicensesMenuActivity`. | none |
@@ -65,7 +67,7 @@ The `NavigationDrawer` (side menu) is in the Map, Measure, History, Settings and
 
 > Notes from the code:
 > - If the user denies a permission, nothing happens (`// TODO: Handle the case where permissions are denied`); onboarding cannot finish until both are granted.
-> - On main, a left swipe calls `goNext()` even on `PERMISSIONS` and `READ_MORE`, where `Screen.next()` throws `RuntimeException` and crashes onboarding. **Fixed in #136; reaches users with the next app release**: `next()` returns null there and the swipe does nothing (`OnboardingScreenTest`).
+> - In the released build (and on main before #136), a left swipe calls `goNext()` even on `PERMISSIONS` and `READ_MORE`, where `Screen.next()` throws `RuntimeException` and crashes onboarding. **Fixed on `main` by #136 (merged 2026-10-27); not released**: `next()` returns null there and the swipe does nothing (`OnboardingScreenTest`).
 > - `SettingsSetupFragment.kt` has no `package` line (default package).
 
 ## Measure flow
@@ -73,8 +75,9 @@ The `NavigationDrawer` (side menu) is in the Map, Measure, History, Settings and
 | Class | Role |
 |---|---|
 | [PreMeasureFragment](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/PreMeasureFragment.kt) | FCC mode: stationary/moving choice and certifications text. Testing mode: a testing warning. "Go" checks the foreground-service location permission (API 34+, plus fine or coarse location), warns if not on cellular in FCC mode (user may proceed), then `startForegroundService(MeasurementService)` with extras `collection_mode`, `in_vehicle` and binds. |
-| [MeasureFragment](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureFragment.kt) | Header text per phase (finding server, latency, download, upload, complete, failed + message), progress bar, a `MeasurementGroupItem` that fills in as each test completes, upload status, and "take another" / "back to map" buttons when done. |
-| [MeasureViewModel](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureViewModel.kt) | Holds `State(progress, results, uploadTime, inVehicle, errorMessage)`. Its `ServiceConnection` collects `MeasurementBinder.state` and maps `STARTED/LOCATE/LATENCY/DOWNLOAD/UPLOAD/DONE` to `MeasureProgress` (`PRE, START, LOCATE, LATENCY, DOWNLOAD, UPLOAD, END, ERROR`). On success it enqueues `UploadWorker` and follows `uploadTimeFlow(group)`. A `429` in the error shows a rate-limit message. |
+| [MeasureFragment](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureFragment.kt) | Header text per phase (finding server, latency, download, upload, complete, failed + message), the step indicator (below), progress bar, a `MeasurementGroupItem` that fills in as each test completes, upload status, and "take another" / "back to map" buttons when done. While a test runs it redraws the steps every 500 ms; once the test ends the screen stays still. |
+| [MeasureViewModel](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureViewModel.kt) | Holds `State(progress, results, uploadTime, inVehicle, errorMessage, progressSinceMillis, stoppedDuring)`; the last two (#148) record when the phase last changed and which phase an error stopped, for the step indicator. Its `ServiceConnection` collects `MeasurementBinder.state` and maps `STARTED/LOCATE/LATENCY/DOWNLOAD/UPLOAD/DONE` to `MeasureProgress` (`PRE, START, LOCATE, LATENCY, DOWNLOAD, UPLOAD, END, ERROR`). On success it enqueues `UploadWorker` and follows `uploadTimeFlow(group)`. A `429` in the error shows a rate-limit message. `stepProgress()` feeds the step indicator. |
+| [MeasureSteps](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureSteps.kt), [MeasureStepsView](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasureStepsView.kt) | The "1 Latency, 2 Download, 3 Upload" indicator (#79, merged to `main` in #148 on 2026-10-27; not released). `MeasureSteps` works out each step's status (pending, running, done, failed), overall progress and an estimate of the seconds left from each step's configured length: latency 6 s, download and upload 20 s each, read from the `LatencyTest` and `ThroughputTest` constants. Server lookup and location fixes aren't counted, so a step can run over; it then holds at the end of its segment. `MeasureStepsView` draws it (layouts `view_measure_steps.xml`, `view_measure_step.xml`) and announces each step to screen readers once. The tests themselves run exactly as before. |
 
 Engine details: [measurement-engine.md](measurement-engine.md).
 
@@ -90,7 +93,7 @@ Engine details: [measurement-engine.md](measurement-engine.md).
   - Visible **resolution 8** parent hexes come from `H3Manager.getH3OverlayAddressesFromBounds` on the camera bounds (computed at zoom - 0.5 to preload). Parents with data are filled light green with a count label.
   - Tapping a parent selects it and draws its res-9 children; tapping a child with data opens the bottom sheet titled with the hex index. Test rows outside the displayed hex show "not in this hexagon".
 - **Search**: Mapbox Search SDK (`SearchEngine` with `ApiType.SEARCH_BOX` plus `OfflineSearchEngine`) in a `SearchResultsView`; choosing a result moves the camera.
-- `onBackPressed` is overridden to hide search results and does not call `super`, so Back never leaves the map.
+- Back hides the search results and otherwise stays on the map, so Back never leaves it. Since #148 this is an `OnBackPressedDispatcher` callback: apps that target API 36 no longer get `onBackPressed()` calls, which the released build overrides.
 
 ## History
 
@@ -100,17 +103,19 @@ Engine details: [measurement-engine.md](measurement-engine.md).
 - **Export** (toolbar): confirmation dialog, then the Storage Access Framework `CreateDocument` with suggested name `cellwatch-measurements.json`. `exportData` writes pretty-printed JSON (`explicitNulls = true`):
   - `contact` {name, email, phone} from settings;
   - `submission_category`: the first submission's `submission` value, else `"Consumer Challenge"`;
-  - `submissions`: one [`FccSubmissionExport`](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/FccExportExtensions.kt) per group **that has an FCC submission**, with `test_id` = the latency (else download, else upload) measurement's id, `environment_code` 1 if in vehicle else 0, and download/upload/latency test objects with locations and cells.
+  - `submissions`: one [`FccSubmissionExport`](../../app/src/main/java/edu/gatech/cc/cellwatch/data/model/FccExportExtensions.kt) per group **that has an FCC submission**, with `test_id` = the latency (else download, else upload) measurement's id, as in the released build, `environment_code` 1 if in vehicle else 0, and download/upload/latency test objects with locations and cells.
 - The export is local only; it is not uploaded.
 
-> Known bug on main: the activity opens the file descriptor in a `use { model.exportData(fd) }` block, but `exportData` launches a coroutine and returns immediately, so the descriptor is closed before the write; the write error escapes `viewModelScope`. **Fixed in #136; reaches users with the next app release**: `exportData` is a suspend function that takes an `OutputStream`, and the activity opens the stream in a coroutine and keeps it open until `exportData` returns; a failure shows the "Export failed" toast.
+> The server posts the same test with `test_id` = the submission id (the group id), so a consumer bulk-uploading the export would send each test a second time (#126). #148 changed the export to the submission id, and #150 took that back out of `main` because it changes FCC data. The change waits on the local branch `measurement-process-changes` (not in a PR) for FCC review.
+
+> Known bug in the released build (and on main before #136): the activity opens the file descriptor in a `use { model.exportData(fd) }` block, but `exportData` launches a coroutine and returns immediately, so the descriptor is closed before the write; the write error escapes `viewModelScope`. **Fixed on `main` by #136 (merged 2026-10-27); not released**: `exportData` is a suspend function that takes an `OutputStream`, and the activity opens the stream in a coroutine and keeps it open until `exportData` returns; a failure shows the "Export failed" toast.
 
 ## Custom views, adapter and small ViewModels
 
 | Class | Role |
 |---|---|
 | [MeasurementAdapter](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementAdapter.kt) | RecyclerView adapter (History and the map bottom sheet); inflates `item_measurement_history`; sorts by first test timestamp, descending. |
-| [MeasurementGroupItem](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementGroupItem.kt) | Group card: date/time, carrier, type (Testing / FCC stationary / FCC vehicle), upload time or `Pending`, summary of the three results; optionally expandable (`app:expandable`, `app:summaryLabels`). |
+| [MeasurementGroupItem](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementGroupItem.kt) | Group card: date/time, carrier, type (Testing / FCC stationary / FCC vehicle), upload time or `Pending`, summary of the three results; optionally expandable (`app:expandable`, `app:summaryLabels`). The upload time comes from `MeasurementGroup.uploadTime`: `Pending` until every measurement and the submission (if any) is uploaded, then the latest of their upload times (#127, merged to `main` in #148 on 2026-10-27; not released). |
 | [MeasurementItem](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementItem.kt) | One test: value (`N ms` or `N Mbps`, or `failed`), time, location (tap to copy), technology (`WiFi` or display generation like `5G`, `4G/5G`), roaming. |
 | [MeasurementGroupItemViewModel](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/MeasurementGroupItemViewModel.kt) | Set of expanded group ids, shared through the view tree's `ViewModelStoreOwner`. |
 | [NavigationDrawer](../../app/src/main/java/edu/gatech/cc/cellwatch/ui/main/NavigationDrawer.kt) | `NavigationView` subclass; highlights the current screen. |
@@ -131,13 +136,13 @@ Declared in [AndroidManifest.xml](../../app/src/main/AndroidManifest.xml):
 |---|---|---|---|
 | `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE` | normal | no | tests, uploads, connection type |
 | `ACCESS_FINE_LOCATION` | dangerous | yes, onboarding permissions step | location at test start/end, map centering, cell info |
-| `ACCESS_COARSE_LOCATION` | dangerous | in #136 only: requested with fine location in the onboarding permissions step (main does not request it) | `PermissionManager.checkLocationPermission()` requires both fine and coarse |
+| `ACCESS_COARSE_LOCATION` | dangerous | yes, with fine location in the onboarding permissions step (since #136; the released build doesn't request it) | `PermissionManager.checkLocationPermission()` requires both fine and coarse |
 | `READ_PHONE_STATE` | dangerous | yes, onboarding permissions step | cells, data-enabled, network type |
 | `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION` | normal | no (checked on API 34+; if missing, user is sent to app settings) | `MeasurementService` |
 | `WAKE_LOCK` | normal | no | keep CPU on during a test |
 
 Not declared: background location, `POST_NOTIFICATIONS` (so on Android 13+ the foreground-service notification may not be shown; the service still runs).
 
-> Known bug on main: onboarding requests `ACCESS_FINE_LOCATION` without `ACCESS_COARSE_LOCATION`, and platform docs say such a request is ignored when targeting API 31+. **Fixed in #136; reaches users with the next app release**: onboarding requests both.
+> Known bug in the released build (and on main before #136): onboarding requests `ACCESS_FINE_LOCATION` without `ACCESS_COARSE_LOCATION`, and platform docs say such a request is ignored when targeting API 31+. **Fixed on `main` by #136 (merged 2026-10-27); not released**: onboarding requests both.
 
 Other manifest settings: `usesCleartextTraffic="true"` (the tuple service and local dev servers use plain HTTP), `allowBackup="false"`.

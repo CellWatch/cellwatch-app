@@ -160,7 +160,8 @@ There is no migration path below version 15 and no `fallbackToDestructiveMigrati
 | Key | Type | Meaning | Read/written by |
 |---|---|---|---|
 | `device_id` | String | Random UUID identifying this install; created on first `SettingsRepository.getDeviceId()`. Also set as Crashlytics custom key `device_id`. | `SettingsRepository`, `NetworkMeasurementDatasource`, `Log` |
-| `device_secret` | String | Secret returned by the `register_device` RPC, stored **encrypted** with `Encryptor` (Base64 of IV length + IV + AES-GCM ciphertext). Sent as `X-Device-Secret`. | `NetworkMeasurementDatasource` only |
+| `device_secret` | String | The device secret, stored **encrypted** with `Encryptor` (Base64 of IV length + IV + AES-GCM ciphertext). Sent as `X-Device-Secret`. Since #148 the app makes it (32 random bytes as 64 hex digits) and saves it **before** calling `register_device(device_id, device_secret)`; in the released build the server made it and the app saved what `register_device(device_id)` returned. | `NetworkMeasurementDatasource` only |
+| `device_registered` | Boolean | Added in #148: the server has confirmed `device_secret`. Until it is true, the next upload calls `register_device` again with the same secret. A phone registered by an older version has a secret but no flag, so it confirms its secret once. | `NetworkMeasurementDatasource` only |
 | `collection_mode` | String | `CollectionMode` name. Invalid stored values throw. | `SettingsRepository` |
 | `fcc_policy_agreed` | Boolean | User acknowledged FCC data sharing. | `SettingsRepository` |
 | `user_name` | String | Contact name (PII). | `SettingsRepository` |
@@ -183,7 +184,7 @@ Contact info is stored in plain text in DataStore; only the device secret is enc
 | `setFccSharingAcknowledged(false)` | Throws `IllegalStateException` while in FCC mode. |
 | `get/setOnboardingComplete` | Plain flag. |
 
-The device secret has no accessor here; only `NetworkMeasurementDatasource` reads it.
+The device secret and `device_registered` have no accessor here; only `NetworkMeasurementDatasource` reads them (registration logic in [DeviceRegistration.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/DeviceRegistration.kt)).
 
 ## Encryptor
 

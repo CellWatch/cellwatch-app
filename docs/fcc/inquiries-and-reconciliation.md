@@ -23,10 +23,11 @@ flowchart TD
   B -->|"submission row never uploaded"| S2[No fcc_submissions row]
   B --> C[fcc_submissions row]
   C -->|"not all 3 measurements"| S3[Queue: waiting, not ready]
-  C -->|"blank provider"| S4[Queue: blocked, Missing provider]
+  S3 -->|"30 days"| S6[Queue: expired]
+  C -->|"no network codes, under 2 locations,<br/>or blank provider"| S4[Queue: held]
   C --> D[POST to BDC]
-  D -->|"4xx rejection or 6 failures"| S5[Queue: blocked, error in failures table]
-  D -->|"2xx"| E[submitted = true, response stored]
+  D -->|"rejection or 6 failures"| S5[Queue: blocked, error in failures table]
+  D -->|"2xx, or duplicate_test_id"| E[submitted = true, response stored]
 ```
 
 | Stop | Where you see it |
@@ -34,9 +35,11 @@ flowchart TD
 | Stuck on phone | Nothing on the server for that period. Check device registration and the last `measurements.created_on`. |
 | No submission row | Measurements exist for a `group_id`, but there is no `fcc_submissions` row with that id. |
 | Waiting | Queue row `pending`, `last_error` "Waiting for complete latency/download/upload data". |
+| Held | Queue row `held`, with the reason in `last_error` (since 2026-10-29). Re-checked daily. |
+| Expired | Queue row `expired`: still waiting for measurements 30 days after queueing (since 2026-10-29). |
 | Blocked | Queue row `blocked`, with the reason in `last_error`. |
 | Rejected | `private.fcc_submission_failures` rows with `succeeded = false`; the BDC body is in `error_message` / `response_snippet`. |
-| Accepted | `fcc_submissions.submitted = true`, `submitted_on`, and `submission_response` (the BDC response body). After `202610210103`, a test the BDC already had (`duplicate_test_id`) is recorded the same way, but with `submitted_on` null and `submission_response` starting `Not posted again:`. |
+| Accepted | `fcc_submissions.submitted = true`, `submitted_on`, and `submission_response` (the BDC response body). Since `202610210103` was pushed (2026-10-29), a test the BDC already had (`duplicate_test_id`) is recorded the same way, but with `submitted_on` null and `submission_response` starting `Not posted again:`. |
 
 ## Tables
 
@@ -44,7 +47,7 @@ flowchart TD
 |---|---|
 | `public.fcc_submissions` | One row per test group (`id` = BDC `test_id` = measurement `group_id`). `submitted`, `submitted_on`, `submission` (the exact payload sent), `submission_response` (the BDC body on success). |
 | `public.measurements` (+ `latency_data`, `upload_download_data`, `locations`, `cells`) | Whether the three results reached the server. `created_on` is the server receive time; `timestamp` is when the test ran. |
-| `private.fcc_submission_retry_queue` | Posting state for unsent submissions: `state` (`pending`/`blocked`), `attempt_count`, `next_attempt_at`, `last_error`. The row is deleted once posted. |
+| `private.fcc_submission_retry_queue` | Posting state for unsent submissions: `state` (`pending`/`blocked`, and since 2026-10-29 `held`/`expired`), `attempt_count`, `next_attempt_at`, `last_error`. The row is deleted once posted. |
 | `private.fcc_submission_failures` | An append-only log of every posting attempt, failed **and** succeeded (`succeeded`, `error_message`, `response_snippet`, `fcc_env`, `occurred_on`). `response_status` is never filled. |
 | `private.fcc_submission_info` | Which BDC endpoint each `fcc_env` posts to. The hash secret lives in Vault; never select `vault.decrypted_secrets`. |
 | `private.devices` | Whether a device id is registered. Select `id` only, never `hashed_secret`. |
@@ -89,7 +92,7 @@ group by type;
 
 A large gap between `last_test` and `last_received`, or tests the user remembers that are missing entirely, means the results were stuck on the phone.
 
-> `measurements` has no index on `device_id` on prod (or main), so these scans are slow. The index is in migration `202610210001` in open PR #132, not yet pushed to prod.
+> Before 2026-10-29 `measurements` had no index on `device_id` on prod, so these scans were slow. Migration `202610210001` (#132) added it and was pushed that day.
 
 ### 3. Bucket every submission by outcome
 
@@ -130,7 +133,7 @@ group by s.id
 having count(m.id) < 3;
 ```
 
-Locations per test object (the spec wants at least two; see the [decision](bdc-spec-mapping.md#decision-2026-10-22-two-locations-per-test-not-on-main)):
+Locations per test object (the spec wants at least two; see the [decision](bdc-spec-mapping.md#decision-2026-10-22-two-locations-per-test)):
 
 ```sql
 select l_count as locations, count(*) as test_objects
@@ -188,14 +191,15 @@ Build a per-test list (test id, test time, carrier, outcome) with the queries ab
 
 | Cause | Symptom | Notes |
 |---|---|---|
-| **Uploads never ran** | Tests missing on the server, or arriving weeks late | The Play build (versionCode 13) uploads only after a finished test or on a cold start, sends every unsynced row at once, and uses supabase-kt's default 10 s timeout. Slow RLS checks on large histories make each attempt time out. Main limits uploads to 3 in flight (#111, merged 2026-10-07, not known to be released) but has the same triggers and timeout. Fixes not yet in prod: the RLS fix `202610210001` is in open PR #132 (not pushed); hourly/foreground uploads and 60 s timeouts are on the unpushed local branch `background-upload` (not merged or released). |
-| **Device registration failed** | `registered = false`; nothing ever uploaded | `register_device` raised "already registered" when the phone had lost the first response, which locked the phone out permanently. A retry-safe fix (migration `202610220001`) is on the unpushed local branch `register-device-retry`; once pushed to prod it also rescues phones on the Play build. |
+| **Uploads never ran** | Tests missing on the server, or arriving weeks late | The Play build (versionCode 13) uploads only after a finished test or on a cold start, sends every unsynced row at once, and uses supabase-kt's default 10 s timeout. Slow RLS checks on large histories make each attempt time out. Main limits uploads to 3 in flight (#111, merged 2026-10-07; not known to be released) and, since #148 (merged 2026-10-27; not released), also uploads hourly and when the app comes to the foreground, with 60 s timeouts. The RLS fix `202610210001` (#132) was pushed to prod on 2026-10-29, so uploads from long histories no longer time out on the server's side. |
+| **Device registration failed** | `registered = false`; nothing ever uploaded | `register_device` raised "already registered" when the phone had lost the first response, which locked the phone out permanently. A retry-safe fix is in #148 (merged 2026-10-27): migration `202610220001`, pushed to prod on 2026-10-31, and the app change, not released. Since the push, a phone on the Play build that never uploaded registers again on its next attempt. |
 | **Submission without results** | `fcc_submissions` row but fewer than 3 measurements | App builds without #111 uploaded submissions before their measurements. #111 is merged to main but not known to be released, so the Play build may still do this. The queue keeps waiting (hourly after a day). |
-| **Missing provider** | `blocked`, "Missing provider" | Builds without main's carrier fallback (c51980e, merged 2026-07-14, not known to be released) send a blank carrier when the phone reports no operator name. Blocked entries are never re-checked. Blank carrier names are not filled in (decided 2026-10-27): `202610210103` (on main, not pushed to prod) holds them as `Missing provider: …` instead of blocking them. |
-| **Missing locations** | BDC rejection `null_properties` | Seen for tests with zero locations. Holding tests with fewer than two was decided on 2026-10-22 but isn't on main; see the [decision](bdc-spec-mapping.md#decision-2026-10-22-two-locations-per-test-not-on-main) for which parts are in open PRs and which are unpushed. |
-| **Null network codes** | BDC rejection `null_net_mobile_country_code` | The payload has no `connection_type`, so the BDC treats the test as cellular and requires the codes. |
-| **Already accepted** | BDC rejection `duplicate_test_id` | Happens when a post succeeded at the BDC but our transaction rolled back (for example on `statement_timeout`), and the job posted again. Prod treats it as a permanent failure. `202610210103` (on main, not pushed to prod) records it as sent: `submitted = true`, the rebuilt payload in `submission`, `submitted_on` null (the earlier post's time is unknown), and a `submission_response` starting `Not posted again:`. It matches the code anywhere in a 4xx body, in any case. A submission someone recorded as sent in the meantime keeps that record. |
-| **Retry queue clog** | Many `pending` rows; new tests post hours late | Before `202610070001` (pushed to prod) the job took one entry every 2 min and re-checked waiting entries every 5 min. Check `cron.job` for batch size 10 (not yet verified on prod) and `process_fcc_submission_retries` for the 60 s cap ([Runbooks](../ops/runbooks.md#1-look-read-only)). Building the payload view is slow on prod (tens of seconds per post), which also limits throughput; the fix (`202610210101`) is in open PR #133. |
+| **Missing provider** | `held`, "Missing provider: no carrier name …" (`blocked`, "Missing provider" for entries blocked before 2026-10-29) | The app sends a blank carrier when the phone reports an empty network operator name. That is the Play build's behaviour and main's: #148 reverted c51980e's SIM-name fallback, which is now on the local branch `measurement-process-changes`. Blank carrier names are not filled in (decided 2026-10-27). Since 2026-10-29 (`202610210103`, #133) new ones are `held` and re-checked daily; entries blocked before that stay blocked and are never re-checked. |
+| **Missing locations** | `held`, "No locations" or "One location"; earlier, BDC rejection `null_properties` | Seen for tests with zero locations. Holding tests with fewer than two was decided on 2026-10-22. The server hold (#133) is on prod since 2026-10-29; the app rule is on a local branch. See the [decision](bdc-spec-mapping.md#decision-2026-10-22-two-locations-per-test). |
+| **Null network codes** | `held`, "No network registration"; earlier, BDC rejection `null_net_mobile_country_code` | The payload has no `connection_type`, so the BDC treats the test as cellular and requires the codes. Since 2026-10-29 (#133) prod holds such tests instead of posting them. |
+| **Already accepted** | BDC answer `duplicate_test_id` | Happens when a post succeeded at the BDC but our transaction rolled back (for example on `statement_timeout`), and the job posted again. Before 2026-10-29 prod treated it as a permanent failure and blocked the entry. Since then `202610210103` records it as sent: `submitted = true`, the rebuilt payload in `submission`, `submitted_on` null (the earlier post's time is unknown), and a `submission_response` starting `Not posted again:`. It matches the code anywhere in a 4xx body, in any case. A submission someone recorded as sent in the meantime keeps that record. Entries blocked for it before the push stay blocked. |
+| **Retry queue clog** | Many `pending` rows; new tests post hours late | Before `202610070001` the job took one entry every 2 min and re-checked waiting entries every 5 min. Since 2026-10-29 the job runs `call private.run_fcc_submission_retries(10)`: 10 entries, a 60 s cap, a commit per entry, and entries still waiting 30 days after queueing become `expired`. Building one payload took tens of seconds on prod until `202610210101` (#133) was pushed the same day. Check the job and recent runs with [Runbooks](../ops/runbooks.md#1-look-read-only). |
+| **Expired** | `expired`, "Expired: measurements still incomplete 30 days after queueing" | Since 2026-10-29. The measurements never reached the server. Each run puts an expired entry back to `pending` once they arrive, so a phone that uploads late still gets its tests to the FCC. |
 | **Manual hold** | `blocked` with an explanatory `last_error` and a far-future `next_attempt_at` | Set by hand during incident handling. Read `last_error` before re-queuing. |
 
 **Caution on old success rows:** `fcc_submission_failures` rows marked `succeeded` with an empty response from before the July 2026 repair (`202607140001`) do not prove the BDC accepted the test.

@@ -16,21 +16,25 @@ sequenceDiagram
     participant DB as public.register_device
     App->>DS: getDeviceId (random UUID made by SettingsRepository)
     App->>DS: getDeviceSecret (decrypt with Keystore key)
-    alt no stored secret
-        App->>API: rpc register_device(device_id) with plain client, no device headers
-        API->>DB: SECURITY DEFINER
-        DB->>DB: secret = base64(gen_random_bytes(32))<br/>insert private.devices(id, crypt(secret, gen_salt('bf')))
-        DB-->>App: secret (returned once, only the bcrypt hash is kept)
+    opt no stored secret
+        App->>App: secret = 32 random bytes as 64 hex digits
         App->>DS: saveDeviceSecret(secret) (encrypts with Encryptor)
+    end
+    opt device_registered is false
+        App->>API: rpc register_device(device_id, device_secret) with plain client, no device headers
+        API->>DB: SECURITY DEFINER
+        DB->>DB: new id: insert private.devices(id, crypt(secret, gen_salt('bf')))<br/>same secret: accept<br/>other secret: replace it if the device never uploaded, else raise
+        App->>DS: saveDeviceRegistered(true)
     end
     App->>App: build supabase client that adds X-Device-ID and X-Device-Secret to every request
 ```
 
+This is the flow on `main` since #148 (merged 2026-10-27; not released), in [DeviceRegistration.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/DeviceRegistration.kt). It needs the two-argument `register_device` from migration `202610220001` (#148), which was pushed to prod on 2026-10-31, ahead of any release built from `main`. The released build (versionCode 13) calls `register_device(device_id)` instead: the server makes the secret (`base64(gen_random_bytes(32))`), keeps only its bcrypt hash, and returns the secret once, and the app saves it.
+
 - The device ID is a random UUID created on first use by [SettingsRepository.getDeviceId](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/repositories/SettingsRepository.kt). It is not a hardware ID.
-- `register_device` raises `device id … already registered` if the ID already exists. A phone that loses the response, or loses its stored secret, can never register again and cannot upload. Client creation is serialized with a mutex in [NetworkMeasurementDatasource.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/NetworkMeasurementDatasource.kt) so two threads in one process don't race.
-  > A fix (retry-safe registration with a client-made secret) is on the unpushed local branch `register-device-retry`; there is no PR yet. Its migration `202610220001` is not pushed to prod, and it must be pushed before any app build with the fix is released. TODO: link the PR once one is opened.
-  >
-  > `202610220001` also lets a device that has never uploaded anything register again with a new secret, which rescues phones that lost the first response, the released app included (an owner decision). The cost: anyone who knows such a device's id can take it over, and that phone can then no longer upload, since neither app version registers again once it holds a secret. The id is random but not secret: the app reports it to Crashlytics and shows it in Settings. Replacing a secret waits for that device's uploads in progress, through a per-device advisory lock that `register_device` takes exclusively and `private.verified_device_id()` takes in shared mode before it reads the secret. Without the lock, a replacement during the phone's first upload would leave the device counted as uploaded under the other secret, and the server's rescue could never apply to it again.
+- Until 2026-10-31, `register_device(device_id)` raised `device id … already registered` if the ID already existed, so a phone on the released build that lost the response, or lost its stored secret, could never register again or upload. Client creation is serialized with a mutex in [NetworkMeasurementDatasource.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/NetworkMeasurementDatasource.kt) so two threads in one process don't race.
+- `202610220001` (#148, pushed to prod 2026-10-31) lets a device that has never uploaded anything (no measurements, no FCC submissions: `private.device_has_uploaded`) register again with a new secret, through either version. That rescues phones that lost the first response, the released app included (an owner decision). A device that has uploaded keeps its secret. The two-argument version refuses secrets shorter than 32 characters.
+  > The cost: anyone who knows such a device's id can take it over, and that phone can then no longer upload, since neither app version registers again once it holds a secret. The id is random but not secret: the app reports it to Crashlytics and shows it in Settings. Replacing a secret waits for that device's uploads in progress, through a per-device advisory lock that `register_device` takes exclusively and `private.verified_device_id()` takes in shared mode before it reads the secret. Without the lock, a replacement during the phone's first upload would leave the device counted as uploaded under the other secret, and the server's rescue could never apply to it again.
 - Anyone with the anon key can register new device IDs and insert data under them. That data is limited to IDs the caller registered (commit 12c442c accepts this risk).
 
 ## How the secret is stored and sent
@@ -55,9 +59,9 @@ Both functions read `current_setting('request.headers')`, which PostgREST fills 
 | `private.verified_device_id()` | **Raises** (`missing x-device-id header`, `device id … is not registered`, `incorrect device secret`) | device UUID | INSERT policies, and the SELECT policy on `fcc_submissions` |
 | `private.verified_device_id_or_null()` | returns `NULL` | device UUID | `measurements` SELECT policy (so dashboard requests without device headers don't error) |
 
-Every call runs a bcrypt comparison, and policies can call it once per row.
+Every call runs a bcrypt comparison. Before 2026-10-29, policies could call it once per row the device owned, so uploads slowed down as a device's history grew.
 
-> The per-row cost is described in [supabase/performance-notes](../supabase/performance-notes.md). Its fix is in open PR #132 (migration `202610210001`): not merged, not pushed to prod.
+> That cost is described in [supabase/performance-notes](../supabase/performance-notes.md). Its fix, migration `202610210001` (#132, merged 2026-10-27), was pushed to prod on 2026-10-29. It wraps the policies' helper calls in `(select …)`, so each runs once per statement, and allows and refuses the same rows.
 
 ### Dashboard access
 
@@ -76,7 +80,7 @@ RLS is enabled on all six `public` tables and all four `published` tables in [fu
 
 There are no UPDATE or DELETE policies, so `anon` cannot change or delete rows through RLS even though table grants include `UPDATE` and `DELETE`.
 
-> Note: the grants to `anon` on `public` tables also include `TRUNCATE`, which RLS does not cover. PostgREST has no TRUNCATE operation, so this is not reachable through the API, but the grant is broader than needed. **Fixed in #136**: migration `202610220102` revokes it from `anon` and `authenticated`. Live once `202610220102` is pushed to prod; prod still grants it (2026-10-22).
+> Note: until 2026-10-31 the grants to `anon` on `public` tables also included `TRUNCATE`, which RLS does not cover. PostgREST has no TRUNCATE operation, so it was not reachable through the API, but the grant was broader than needed. **Fixed by #136's `202610220102`**, pushed to prod on 2026-10-31: `anon` and `authenticated` no longer hold `TRUNCATE`.
 
 ### SECURITY DEFINER functions
 
@@ -85,19 +89,20 @@ These run with the owner's (`postgres`) rights and bypass RLS:
 | Function | Callable by anon | Exposure |
 |---|---|---|
 | `public.register_device(uuid)` | yes | Inserts into `private.devices`. |
-| `public.rpc_map_points`, `rpc_group_summaries`, `rpc_group_detail` | yes | Return per-group average lat/lon, accuracy, provider, timestamp, and results for **all** devices. They have **no** `is_dashboard_request()` check, so anyone with the anon key can call them. They don't return contact info or device IDs. |
+| `public.register_device(uuid, text)`, `private.device_has_uploaded(uuid)` | yes / no | From `202610220001` (#148, pushed to prod 2026-10-31). Inserts into, or replaces the secret in, `private.devices` as above. |
+| `public.rpc_map_points`, `rpc_group_summaries`, `rpc_group_detail` | yes, but they refuse calls without the dashboard secret | Return per-group average lat/lon, accuracy, provider, timestamp, and results for **all** devices. Until 2026-11-01 they had **no** `is_dashboard_request()` check, so anyone with the anon key could call them. They don't return contact info or device IDs. |
 | `private.verified_device_id*`, `private.is_dashboard_request` | through policies | Read-only checks. |
-| `private.auto_post_fcc_submission` (trigger), `private.process_fcc_submission_retries` (cron; `EXECUTE` revoked from `PUBLIC`) | no | FCC pipeline. |
+| `private.auto_post_fcc_submission` (trigger); `private.process_next_fcc_submission_retry` and the other queue functions the cron job's procedure calls, and `private.process_fcc_submission_retries` (manual runs) (`EXECUTE` revoked from `PUBLIC`) | no | FCC pipeline. |
 
-> Decided 2026-10-22: the dashboard RPCs are dashboard-only. **Fixed in #136**: migration `202610220101` makes all three raise `42501` unless the request carries the correct `x-dashboard-secret`. Live once `202610220101` is pushed to prod. Before it is pushed, the dashboard backend (the CellWatch/demo-dashboard Flask app on Render) must send `x-dashboard-secret`, from its `DASHBOARD_SECRET` env var, on these calls.
+> Decided 2026-10-22: the dashboard RPCs are dashboard-only. #136's `202610220101`, pushed to prod on 2026-11-01, makes all three raise `42501` ("dashboard secret required", HTTP 401 through PostgREST) unless the request carries the correct `x-dashboard-secret`. The dashboard backend (the CellWatch/demo-dashboard Flask app on Render) sends it from its `DASHBOARD_SECRET` env var, which was checked against prod's before the push. The Flask app's own API has no authentication, so the data it serves is open to anyone who can reach it.
 >
-> `register_device`, `verified_device_id`, `verified_device_id_or_null` and `is_dashboard_request` have no fixed `search_path` on prod. #136 (`202610220102`) pins one; live once pushed.
+> `register_device`, `verified_device_id`, `verified_device_id_or_null` and `is_dashboard_request` had no fixed `search_path` until 2026-10-31. `202610220001` and #136's `202610220102`, both pushed that day, pin `public, private, extensions, pg_temp` on all of them.
 >
 > Every SECURITY DEFINER function the 2026-10 migrations add or replace lists `pg_temp` **last** in its `search_path`. If `pg_temp` isn't listed, Postgres searches the caller's temporary schema *first* for table and type names, so any database login that may call the function (`readonly_user`, or any role for `register_device`) could create a temporary domain named `text` or `jsonb` and have its own code run as the function's owner. The db tests reproduce that attack for each function (`db_tests/lib/shadow_types.sql`).
 
 ## Header trust
 
-PostgREST exposes request headers as JSON in `request.headers`. Helpers: `public.get_header(item)`, which returns one header; `public.get_raw_header()`, which returns all headers as JSON and is callable by `anon`; and an overload `get_raw_header(item)` that ignores its argument and also returns everything. #136 (`202610220102`) makes the overload return only the named header; live once pushed to prod.
+PostgREST exposes request headers as JSON in `request.headers`. Helpers: `public.get_header(item)`, which returns one header; `public.get_raw_header()`, which returns all headers as JSON and is callable by `anon`; and an overload `get_raw_header(item)`, which ignored its argument and also returned everything until #136's `202610220102` was pushed on 2026-10-31; it now returns only the named header.
 
 | Header | Trust | Why |
 |---|---|---|
