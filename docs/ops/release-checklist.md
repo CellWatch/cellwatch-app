@@ -55,8 +55,8 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
 ### 3. App build (for the Play release)
 
 - [ ] Branch is up to date. Unit tests pass: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest`.
-- [ ] Bump **`versionCode`** in [app/build.gradle](../../app/build.gradle). It is `13` on main, unchanged since #109 (2025-10-13), and the Play Store build is also versionCode 13, so Play needs a higher one.
-- [ ] Decide **`versionName`**. It is still `"1.0.0"` and is sent to the BDC as `app_version`, which the spec says must match an approved version string. > TODO: confirm with the FCC which versions are approved before changing it.
+- [x] Bump **`versionCode`** in [app/build.gradle](../../app/build.gradle): `14` for the next release (the Play Store build is versionCode 13, and Play needs a higher one).
+- [x] Decide **`versionName`**: `"1.1.0"`. It is sent to the BDC as `app_version`, which the spec says must match an approved version string; the FCC has approved `1.*` (confirmed 2026-11-01), so any `1.x` is accepted. `1.1.0` hasn't been used before (prod has seen `1.0`, `1.0.1` and `1.0.0`), so the new build's data can be told apart.
 - [ ] **Release config** (`buildTypes.release`): `SUPABASE_URL` / `SUPABASE_API_KEY` from the cloud keys in `cellwatch.properties`; `MSAK_SERVER_ENV` hard-coded `"prod"`; `MSAK_LOCAL_SERVER_HOST` `""`; `MSAK_LOCAL_SERVER_SECURE` `true`; `TCP_TUPLE_URL` (same value as debug). Check that the root `cellwatch.properties` has the **cloud** values filled in. Debug builds use the `*_LOCAL_*` keys.
 - [ ] **Target API:** Google Play requires app updates to target **API 36**. Main targets 36 since #148 (merged 2026-10-27: compileSdk/targetSdk 36, AGP 8.9.3, Gradle 8.11.1, edge-to-edge insets), so a release built from main meets it. Check the current deadline in Play Console, and check Play's 16 KB page-size requirement there too.
 - [ ] **Signing:** `app/build.gradle` has no `signingConfigs`. Confirm who holds the upload key / Play App Signing access before release day.
@@ -70,6 +70,7 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
 
 ### 5. Rollout
 
+- [ ] File a description of the changes on the FCC docket before submitting to the Play Store (the measurement method and data are unchanged from the approved build; see [decisions](../architecture/decisions.md)).
 - [ ] In Play Console: internal testing track first, then a staged production rollout. The app changes are released only once that rollout reaches users. Halt if submission inserts start failing (see below).
 - [ ] Tag the commit and create a GitHub Release with migration notes: which migrations had to be pushed to prod before it.
 
