@@ -303,6 +303,7 @@ begin
              select q.state, count(*) as n,
                     array_position(array['pending', 'held', 'blocked', 'expired'], q.state) as sort_order
              from private.fcc_submission_retry_queue q
+             where not exists (select 1 from private.fcc_queue_ignored i where i.submission_id = q.submission_id)
              group by q.state
          ) counts),
         'The queue is empty.'
@@ -417,13 +418,14 @@ begin
     end if;
 
     -- Held: counts by reason.
-    select count(*) into total from private.fcc_submission_retry_queue q where q.state = 'held';
+    select count(*) into total from private.fcc_submission_retry_queue q
+    where q.state = 'held' and not exists (select 1 from private.fcc_queue_ignored i where i.submission_id = q.submission_id);
     if total > 0 then
         lines := lines || ''::text || format('Held until there is a way to send them (%s):', total);
         for entry in
             select q.last_error as reason, count(*) as n
             from private.fcc_submission_retry_queue q
-            where q.state = 'held'
+            where q.state = 'held' and not exists (select 1 from private.fcc_queue_ignored i where i.submission_id = q.submission_id)
             group by 1
             order by 2 desc, 1
         loop
@@ -1220,14 +1222,14 @@ begin
     select max(r.ran_at) into last_sent from private.fcc_digest_runs r where r.sent;
 
     select count(*) into n from private.fcc_submission_retry_queue q
-    where q.state = 'blocked' and q.updated_on > since;
+    where q.state = 'blocked' and q.updated_on > since and not exists (select 1 from private.fcc_queue_ignored i where i.submission_id = q.submission_id);
     if n > 0 then
         news := news || format('%s newly blocked', n);
     end if;
 
     -- The daily re-check of held entries changes updated_on only when the reason changes.
     select count(*) into n from private.fcc_submission_retry_queue q
-    where q.state = 'held' and q.updated_on > since;
+    where q.state = 'held' and q.updated_on > since and not exists (select 1 from private.fcc_queue_ignored i where i.submission_id = q.submission_id);
     if n > 0 then
         news := news || format('%s newly held', n);
     end if;
@@ -1243,7 +1245,8 @@ begin
     select count(*) into n from private.fcc_submission_retry_queue q
     where q.state = 'pending'
       and q.created_on < now() - interval '3 days'
-      and q.created_on >= since - interval '3 days';
+      and q.created_on >= since - interval '3 days'
+      and not exists (select 1 from private.fcc_queue_ignored i where i.submission_id = q.submission_id);
     if n > 0 then
         news := news || format('%s now pending over 3 days', n);
     end if;
@@ -2438,6 +2441,16 @@ ALTER TABLE "private"."fcc_digest_runs" ALTER COLUMN "id" ADD GENERATED ALWAYS A
 
 
 
+CREATE TABLE IF NOT EXISTS "private"."fcc_queue_ignored" (
+    "submission_id" "uuid" NOT NULL,
+    "ignored_on" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "note" "text"
+);
+
+
+ALTER TABLE "private"."fcc_queue_ignored" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "private"."fcc_submission_retry_queue" (
     "submission_id" "uuid" NOT NULL,
     "fcc_env" "text" DEFAULT 'prod'::"text" NOT NULL,
@@ -2514,7 +2527,9 @@ CREATE OR REPLACE VIEW "private"."fcc_queue_attention" AS
     "q"."updated_on" AS "last_changed_on"
    FROM ("private"."fcc_submission_retry_queue" "q"
      LEFT JOIN "public"."fcc_submissions" "s" ON (("s"."id" = "q"."submission_id")))
-  WHERE (("q"."state" = 'blocked'::"text") OR (("q"."state" = 'pending'::"text") AND ("q"."created_on" < ("now"() - '3 days'::interval))) OR (("q"."state" = 'expired'::"text") AND "private"."fcc_queue_entry_is_ready"("q"."submission_id")));
+  WHERE ((("q"."state" = 'blocked'::"text") OR (("q"."state" = 'pending'::"text") AND ("q"."created_on" < ("now"() - '3 days'::interval))) OR (("q"."state" = 'expired'::"text") AND "private"."fcc_queue_entry_is_ready"("q"."submission_id"))) AND (NOT (EXISTS ( SELECT 1
+           FROM "private"."fcc_queue_ignored" "i"
+          WHERE ("i"."submission_id" = "q"."submission_id")))));
 
 
 ALTER VIEW "private"."fcc_queue_attention" OWNER TO "postgres";
@@ -2658,6 +2673,11 @@ ALTER TABLE ONLY "private"."devices"
 
 ALTER TABLE ONLY "private"."fcc_digest_runs"
     ADD CONSTRAINT "fcc_digest_runs_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "private"."fcc_queue_ignored"
+    ADD CONSTRAINT "fcc_queue_ignored_pkey" PRIMARY KEY ("submission_id");
 
 
 
@@ -2877,6 +2897,11 @@ CREATE OR REPLACE TRIGGER "_200_published_measurement_force_created_on" BEFORE I
 
 
 CREATE OR REPLACE TRIGGER "_200_published_throughput_force_created_on" BEFORE INSERT ON "published"."throughput_data" FOR EACH ROW EXECUTE FUNCTION "public"."force_created_on"();
+
+
+
+ALTER TABLE ONLY "private"."fcc_queue_ignored"
+    ADD CONSTRAINT "fcc_queue_ignored_submission_id_fkey" FOREIGN KEY ("submission_id") REFERENCES "private"."fcc_submission_retry_queue"("submission_id") ON DELETE CASCADE;
 
 
 
@@ -5822,6 +5847,10 @@ GRANT SELECT ON TABLE "private"."fcc_digest_runs" TO "readonly_user";
 
 
 GRANT SELECT ON SEQUENCE "private"."fcc_digest_runs_id_seq" TO "readonly_user";
+
+
+
+GRANT SELECT ON TABLE "private"."fcc_queue_ignored" TO "readonly_user";
 
 
 
