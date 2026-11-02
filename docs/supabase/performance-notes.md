@@ -4,7 +4,7 @@ Known server-side costs in the CellWatch database, why they happen (traced to th
 
 **Related:** [schema](schema.md) · [rpc-reference](rpc-reference.md) · [fcc-submission-pipeline](fcc-submission-pipeline.md) · [migrations-and-deploy](migrations-and-deploy.md) · [sync-and-upload](../app/sync-and-upload.md) · [identity-and-security](../architecture/identity-and-security.md)
 
-Costs 1–3 were fixed on prod by migrations pushed on 2026-10-29. Their sections describe the definitions prod had before that push (the 2026-10-07 snapshot of [full_schema.sql](../../supabase/full_schema.sql)), because they explain what happened to uploads and posts until then; the current `full_schema.sql`, pulled on 2026-11-01, has the fixed versions. Timings were measured in October 2026.
+Costs 1–3 were fixed on prod by migrations pushed on 2026-10-29. Their sections describe the definitions prod had before that push (the 2026-10-07 snapshot of [full_schema.sql](../../supabase/full_schema.sql)), because they explain what happened to uploads and posts until then; the current `full_schema.sql`, pulled on 2026-11-02, has the fixed versions. Cost 5, what was left of cost 1, was fixed on 2026-11-02. Timings were measured in October 2026.
 
 | # | Cost | Effect | Status |
 |---|---|---|---|
@@ -12,6 +12,7 @@ Costs 1–3 were fixed on prod by migrations pushed on 2026-10-29. Their section
 | 2 | FCC payload view aggregates every location and cell in the database | About 25 s per FCC post | Fixed: `202610210101` (#133), pushed to prod 2026-10-29 |
 | 3 | Missing indexes on `public.measurements(device_id)` and `(group_id)` | Seq scans in the RLS subqueries and the readiness checks | Fixed: `device_id` index in #132's `202610210001`, `group_id` index in #133's `202610210101`, both pushed to prod 2026-10-29 |
 | 4 | Dashboard RPCs aggregate the whole DB before filtering | Cost grows with total data per call | Not measured |
+| 5 | After #132, each request still ran bcrypt about twice per inserted row | 27 + 6 per cell bcrypt runs, about 5 ms each, per test's upload | Fixed: `202611010004` (#176), pushed to prod 2026-11-02 |
 
 ## 1. Upload cost grows with device history
 
@@ -59,6 +60,19 @@ Migration [202610210001_fast_upload_rls.sql](../../supabase/migrations/202610210
 
 - A caller without a valid device secret that reads or writes the child tables directly may now get no rows or an RLS error, instead of "missing x-device-id header" or "incorrect device secret". Such callers are refused either way.
 - The index is built inside the migration's transaction (0.3 s for 1M rows locally). If the table is much larger, build it first with `create index concurrently`, as the migration's comment shows.
+
+### Once per request (#176, pushed to prod 2026-11-02)
+
+After #132 each policy ran its check once per statement, but `insert_measurement` still runs one statement per child row, and each insert ran two checks: its own `INSERT` policy and the `measurements` `SELECT` policy (on the `RETURNING` of the measurement, and in the child policies' lookup of the device's measurements). Counted in a copy of the prod schema, replaying the queries PostgREST runs:
+
+| Request | bcrypt runs |
+|---|---|
+| `insert_measurement`, download or upload | 4 + 2 per location + 2 per cell |
+| `insert_measurement`, latency | 6 + 2 per location + 2 per cell |
+| `POST /fcc_submissions` | 1 |
+| One test's upload: three measurements with two locations and *C* cells each, then its submission | 27 + 6*C* (45 with 3 cells, 87 with 10) |
+
+Migration [202611010004_device_check_once_per_request.sql](../../supabase/migrations/202611010004_device_check_once_per_request.sql) keeps a passed check for the rest of the transaction, so bcrypt runs once per request: 4 times per test's upload, however many locations and cells it has. In the test container, requests went from 67–143 ms to 6–7 ms. [identity-and-security](../architecture/identity-and-security.md) describes how the kept check is protected.
 
 ## 2. FCC payload view scans the whole database
 

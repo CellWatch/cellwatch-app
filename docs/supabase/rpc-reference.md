@@ -50,7 +50,7 @@ A unique-violation error (`duplicate key value violates unique constraint`) beco
 
 - Inserts the measurement, then each non-null child: one `upload_download_data` row, one `latency_data` row, and every location and cell, one `INSERT` per row. It sets each child's `measurement_id` to the new measurement id.
 - All of it runs in one transaction (one RPC call), so a measurement is either fully stored or not at all.
-- Auth: each `INSERT` is checked by the anon insert policies, which call `private.verified_device_id()` (bcrypt). Cost grows with the device's history; see [performance-notes](performance-notes.md#1-upload-cost-grows-with-device-history).
+- Auth: each `INSERT` is checked by the anon insert policies, which call `private.verified_device_id()`. Since `202611010004` (pushed 2026-11-02) the secret is checked with bcrypt once per request, however many rows it inserts; see [performance-notes](performance-notes.md#1-upload-cost-grows-with-device-history).
 - Whole composite rows are inserted, so column defaults do not apply. `created_on` / `updated_on` are filled by the `_200_*_force_created_on` triggers, and ids must come from the client (the app generates UUIDs).
 - A repeated measurement id fails with a unique violation on `measurements_pkey`.
 
@@ -62,14 +62,15 @@ A unique-violation error (`duplicate key value violates unique constraint`) beco
 
 | Function | Returns | Mode | Called from | Behaviour |
 |---|---|---|---|---|
-| `private.verified_device_id()` | uuid | Definer, plpgsql, VOLATILE | RLS policies on all `public` tables | Reads `x-device-id` / `x-device-secret` from `request.headers`, looks up `private.devices`, checks `crypt(secret, hashed) = hashed`. **Raises** on a missing header, unknown device, or wrong secret |
+| `private.verified_device_id()` | uuid | Definer, plpgsql, VOLATILE | RLS policies on all `public` tables | Reads `x-device-id` / `x-device-secret` from `request.headers`, checks the secret with `private.device_secret_matches()`. **Raises** on a missing header, unknown device, or wrong secret |
 | `private.verified_device_id_or_null()` | uuid | Definer, plpgsql, VOLATILE | `SELECT` policies that also allow the dashboard | Same check, but returns null instead of raising |
+| `private.device_secret_matches(device uuid, secret text)` | boolean | Invoker, plpgsql, VOLATILE, `search_path = public, private, extensions, pg_temp`; `EXECUTE` for `postgres` only | the two checks above | From `202611010004` (#176, pushed 2026-11-02). Null if the device isn't registered. Otherwise checks `crypt(secret, hashed) = hashed` once per transaction: a passed check is kept as an HMAC tag in the transaction-local setting `cellwatch.device_check`, keyed by `private.device_check_key`, and later calls with the same device, secret and stored hash use it. A refusal isn't kept |
 | `private.is_dashboard_request()` | boolean | Definer, sql, STABLE | `SELECT` policies | True when the `x-dashboard-secret` header equals `private.dashboard_settings.shared_secret` |
 | `private.device_has_uploaded(device uuid)` | boolean | Definer, sql, STABLE, `search_path = public, private, pg_temp` | both `register_device` versions | From `202610220001` (#148, pushed 2026-10-31). True when `measurements` or `fcc_submissions` has a row with that `device_id`. Such a device's secret is never replaced |
 
 Since 2026-10-31 the first three have `search_path = public, private, extensions, pg_temp`, set by #136's `202610220102` (and `202610220001` for `verified_device_id`). Before that none had a fixed `search_path`.
 
-Each bcrypt check takes about 5 ms on prod. Policies that do not wrap these calls in `(SELECT ...)` run them once per row; see [performance-notes](performance-notes.md). Since 2026-10-29, when `202610210001` (#132) was pushed, every upload policy wraps them, so each runs once per statement.
+Each bcrypt check takes about 5 ms on prod. Policies that do not wrap these calls in `(SELECT ...)` run them once per row; see [performance-notes](performance-notes.md). Since 2026-10-29, when `202610210001` (#132) was pushed, every upload policy wraps them, so each runs once per statement. Since 2026-11-02 (`202611010004`, #176), only the first check in a request runs bcrypt: 4 runs per test's upload instead of 27 + 6 per cell.
 
 ## Map / dashboard functions
 

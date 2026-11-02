@@ -59,7 +59,12 @@ Both functions read `current_setting('request.headers')`, which PostgREST fills 
 | `private.verified_device_id()` | **Raises** (`missing x-device-id header`, `device id … is not registered`, `incorrect device secret`) | device UUID | INSERT policies, and the SELECT policy on `fcc_submissions` |
 | `private.verified_device_id_or_null()` | returns `NULL` | device UUID | `measurements` SELECT policy (so dashboard requests without device headers don't error) |
 
-Every call runs a bcrypt comparison. Before 2026-10-29, policies could call it once per row the device owned, so uploads slowed down as a device's history grew.
+Since 2026-11-02 (`202611010004`, #176) both call `private.device_secret_matches()`. The first check in a request runs a bcrypt comparison. If the secret is right, later checks in the same request (the same database transaction) reuse that result instead of running bcrypt again. A refusal is never reused, so each wrong guess still costs a bcrypt run. Before 2026-10-29, policies could call the check once per row the device owned, so uploads slowed down as a device's history grew.
+
+The reused result is an HMAC-SHA256 tag in the transaction-local setting `cellwatch.device_check`. It covers the device id, the secret presented, the stored hash, the backend's pid and the transaction's start time, and is keyed with 32 random bytes in `private.device_check_key`. A check uses it only if it equals the tag computed again from the current headers, so it can't carry over to another device, secret, replaced secret, session or transaction, and making one that matches takes the key:
+- Only `postgres` has privileges on the key table, and row level security without policies hides its row from roles that read every table but don't bypass RLS. On prod, `postgres`, `supabase_admin`, `supabase_read_only_user` and `supabase_etl_admin` can read it; `readonly_user` and the API roles can't (checked 2026-11-02).
+- The key is in Supabase's backups. `sync_from_remote.sh` leaves it out of the local data dump, which holds the secret hashes.
+- To replace it: `update private.device_check_key set key = extensions.gen_random_bytes(32)`. Requests in progress then just run bcrypt again. Without a key row, every check runs bcrypt.
 
 > That cost is described in [supabase/performance-notes](../supabase/performance-notes.md). Its fix, migration `202610210001` (#132, merged 2026-10-27), was pushed to prod on 2026-10-29. It wraps the policies' helper calls in `(select …)`, so each runs once per statement, and allows and refuses the same rows.
 
@@ -69,7 +74,7 @@ Every call runs a bcrypt comparison. Before 2026-10-29, policies could call it o
 
 ## RLS policies
 
-RLS is enabled on all six `public` tables and all four `published` tables in [full_schema.sql](../../supabase/full_schema.sql). Every policy is `TO anon`. `private` tables have no RLS, but `anon` has no `USAGE` on schema `private` (only `readonly_user` does).
+RLS is enabled on all six `public` tables and all four `published` tables in [full_schema.sql](../../supabase/full_schema.sql). Every policy is `TO anon`. `private` tables have no RLS except `device_check_key` (RLS on, no policies), and `anon` has no `USAGE` on schema `private` (only `readonly_user` does).
 
 | Table | INSERT (anon) | SELECT (anon) |
 |---|---|---|
@@ -91,7 +96,7 @@ These run with the owner's (`postgres`) rights and bypass RLS:
 | `public.register_device(uuid)` | yes | Inserts into `private.devices`. |
 | `public.register_device(uuid, text)`, `private.device_has_uploaded(uuid)` | yes / no | From `202610220001` (#148, pushed to prod 2026-10-31). Inserts into, or replaces the secret in, `private.devices` as above. |
 | `public.rpc_map_points`, `rpc_group_summaries`, `rpc_group_detail` | yes, but they refuse calls without the dashboard secret | Return per-group average lat/lon, accuracy, provider, timestamp, and results for **all** devices. Until 2026-11-01 they had **no** `is_dashboard_request()` check, so anyone with the anon key could call them. They don't return contact info or device IDs. |
-| `private.verified_device_id*`, `private.is_dashboard_request` | through policies | Read-only checks. |
+| `private.verified_device_id*`, `private.is_dashboard_request` | through policies | Read-only checks. Since 2026-11-02 the device checks call `private.device_secret_matches()` (`EXECUTE` for `postgres` only), which keeps a passed check in the transaction-local setting `cellwatch.device_check`. |
 | `private.auto_post_fcc_submission` (trigger); `private.process_next_fcc_submission_retry` and the other queue functions the cron job's procedure calls, and `private.process_fcc_submission_retries` (manual runs) (`EXECUTE` revoked from `PUBLIC`) | no | FCC pipeline. |
 
 > Decided 2026-10-22: the dashboard RPCs are dashboard-only. #136's `202610220101`, pushed to prod on 2026-11-01, makes all three raise `42501` ("dashboard secret required", HTTP 401 through PostgREST) unless the request carries the correct `x-dashboard-secret`. The dashboard backend (the CellWatch/demo-dashboard Flask app on Render) sends it from its `DASHBOARD_SECRET` env var, which was checked against prod's before the push. The Flask app's own API has no authentication, so the data it serves is open to anyone who can reach it.

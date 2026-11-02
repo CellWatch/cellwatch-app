@@ -8,7 +8,7 @@
 -- authenticator values are Supabase defaults, also set in 202609300001. service_role has none
 -- of its own, so API calls made with its key get authenticator's 8s. The version written on
 -- 2026-10-21 came from the stock image and wrongly listed authenticated at 8s.
--- Updated by check_drift.sh --write on 2026-11-01.
+-- Updated by check_drift.sh --write on 2026-11-02.
 
 alter role anon set statement_timeout = '2min';
 alter role authenticated set statement_timeout = '2min';

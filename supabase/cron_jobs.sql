@@ -12,7 +12,7 @@
 -- 202611010001 (pushed 2026-11-01) adds dashboard-group-points-refresh, which refreshes the
 -- dashboard's precomputed per-group summary (private.dashboard_group_points) every 5 minutes.
 -- All three jobs run as postgres in database postgres.
--- Updated by check_drift.sh --write on 2026-11-01.
+-- Updated by check_drift.sh --write on 2026-11-02.
 
 select cron.schedule('dashboard-group-points-refresh', '*/5 * * * *', 'refresh materialized view concurrently private.dashboard_group_points;');
 select cron.schedule('fcc-queue-digest', '1 13 * * *', 'select private.send_fcc_queue_digest();');

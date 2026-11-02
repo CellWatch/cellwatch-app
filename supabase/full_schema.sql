@@ -190,6 +190,48 @@ $$;
 ALTER FUNCTION "private"."device_has_uploaded"("device" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "private"."device_secret_matches"("device" "uuid", "secret" "text") RETURNS boolean
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
+    AS $$
+declare
+    hashed text;
+    tag_key bytea;
+    tag text;
+begin
+    select d.hashed_secret into hashed from private.devices d where d.id = device;
+    if not found then
+        return null;
+    end if;
+
+    select k.key into tag_key from private.device_check_key k;
+    if tag_key is not null then
+        tag := encode(extensions.hmac(
+            convert_to(json_build_array('cellwatch device check', device, secret, hashed,
+                                        pg_backend_pid(), extract(epoch from transaction_timestamp()))::text,
+                       'UTF8'),
+            tag_key, 'sha256'), 'hex');
+        if current_setting('cellwatch.device_check', true) = tag then
+            return true;
+        end if;
+    end if;
+
+    -- A null hash (the column is not null) refuses instead of letting any secret in.
+    if hashed is null or extensions.crypt(secret, hashed) is distinct from hashed then
+        return false;
+    end if;
+
+    if tag is not null then
+        perform set_config('cellwatch.device_check', tag, true);
+    end if;
+    return true;
+end;
+$$;
+
+
+ALTER FUNCTION "private"."device_secret_matches"("device" "uuid", "secret" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "private"."fcc_http_post"("p_url" "text", "p_hash_value" "text", "p_body" "text", OUT "status" integer, OUT "content" "text") RETURNS "record"
     LANGUAGE "plpgsql"
     SET "search_path" TO 'public', 'private', 'extensions', 'pg_temp'
@@ -1350,7 +1392,7 @@ CREATE OR REPLACE FUNCTION "private"."verified_device_id"() RETURNS "uuid"
 declare
     device_id text;
     device_secret text;
-    hashed text;
+    matches boolean;
 begin
     device_id := current_setting('request.headers', true)::json->>'x-device-id';
     device_secret := current_setting('request.headers', true)::json->>'x-device-secret';
@@ -1363,15 +1405,16 @@ begin
         raise exception 'missing x-device-secret header';
     end if;
 
-    -- Changed: wait for a secret replacement in progress, and hold one off until this ends.
+    -- Wait for a secret replacement in progress, and hold one off until this ends.
     perform pg_advisory_xact_lock_shared(hashtextextended('cellwatch device ' || uuid(device_id)::text, 0));
 
-    select hashed_secret into hashed from private.devices where id = uuid(device_id);
-    if not found then
+    -- Changed: bcrypt runs once per transaction (see private.device_secret_matches()).
+    matches := private.device_secret_matches(uuid(device_id), device_secret);
+    if matches is null then
         raise exception 'device id % is not registered', device_id;
     end if;
 
-    if crypt(device_secret, hashed) <> hashed then
+    if not matches then
         raise exception 'incorrect device secret';
     end if;
 
@@ -1390,7 +1433,6 @@ CREATE OR REPLACE FUNCTION "private"."verified_device_id_or_null"() RETURNS "uui
 declare
   device_id     text;
   device_secret text;
-  hashed        text;
 begin
   device_id     := current_setting('request.headers', true)::json->>'x-device-id';
   device_secret := current_setting('request.headers', true)::json->>'x-device-secret';
@@ -1398,14 +1440,13 @@ begin
   if device_id is null or device_id = '' then return null; end if;
   if device_secret is null or device_secret = '' then return null; end if;
 
-  select hashed_secret into hashed
-  from private.devices
-  where id = uuid(device_id);
-  if not found then return null; end if;
+  -- Changed: bcrypt runs once per transaction (see private.device_secret_matches()). Null
+  -- (not registered) and false both mean no device.
+  if private.device_secret_matches(uuid(device_id), device_secret) then
+    return uuid(device_id);
+  end if;
 
-  if crypt(device_secret, hashed) <> hashed then return null; end if;
-
-  return uuid(device_id);
+  return null;
 end;
 $$;
 
@@ -2410,6 +2451,17 @@ CREATE TABLE IF NOT EXISTS "private"."dashboard_settings" (
 ALTER TABLE "private"."dashboard_settings" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "private"."device_check_key" (
+    "only_row" boolean DEFAULT true NOT NULL,
+    "key" "bytea" NOT NULL,
+    CONSTRAINT "device_check_key_key_check" CHECK (("length"("key") >= 32)),
+    CONSTRAINT "device_check_key_only_row_check" CHECK ("only_row")
+);
+
+
+ALTER TABLE "private"."device_check_key" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "private"."devices" (
     "id" "uuid" NOT NULL,
     "hashed_secret" "text" NOT NULL
@@ -2663,6 +2715,11 @@ ALTER TABLE "published"."throughput_data" OWNER TO "postgres";
 
 ALTER TABLE ONLY "private"."dashboard_settings"
     ADD CONSTRAINT "dashboard_settings_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "private"."device_check_key"
+    ADD CONSTRAINT "device_check_key_pkey" PRIMARY KEY ("only_row");
 
 
 
@@ -2976,6 +3033,9 @@ ALTER TABLE ONLY "published"."throughput_data"
 ALTER TABLE ONLY "published"."throughput_data"
     ADD CONSTRAINT "throughput_data_measurement_id_fkey" FOREIGN KEY ("measurement_id") REFERENCES "published"."measurements"("id");
 
+
+
+ALTER TABLE "private"."device_check_key" ENABLE ROW LEVEL SECURITY;
 
 
 CREATE POLICY "Allow inserting own FCC submissions" ON "public"."fcc_submissions" FOR INSERT TO "anon" WITH CHECK ((( SELECT "private"."verified_device_id"() AS "verified_device_id") = "device_id"));
@@ -5548,6 +5608,10 @@ GRANT USAGE ON SCHEMA "published" TO PUBLIC;
 
 
 REVOKE ALL ON FUNCTION "private"."device_has_uploaded"("device" "uuid") FROM PUBLIC;
+
+
+
+REVOKE ALL ON FUNCTION "private"."device_secret_matches"("device" "uuid", "secret" "text") FROM PUBLIC;
 
 
 
