@@ -97,6 +97,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.internal.toHexString
+import java.io.IOException
 import kotlin.math.max
 
 class MapActivity : AppCompatActivity() {
@@ -341,9 +342,10 @@ class MapActivity : AppCompatActivity() {
             }
 
             override fun onError(e: Exception) {
-                //TODO Better error handling?
-                Log.e(TAG, "Error occurred: $e")
-                Toast.makeText(applicationContext, "Error happened: $e", Toast.LENGTH_SHORT).show()
+                // Offline, every search fails with an IOException, which is no bug. Anything else,
+                // such as Mapbox refusing the access token, is still reported.
+                if (e is IOException) Log.i(TAG, "Search failed", e) else Log.w(TAG, "Search failed", e)
+                Toast.makeText(applicationContext, R.string.search_failed, Toast.LENGTH_SHORT).show()
             }
 
             override fun onHistoryItemClick(historyRecord: HistoryRecord) {
