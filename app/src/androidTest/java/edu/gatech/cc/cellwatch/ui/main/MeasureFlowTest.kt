@@ -2,7 +2,9 @@ package edu.gatech.cc.cellwatch.ui.main
 
 import android.app.ActivityManager
 import android.content.ComponentName
+import android.content.Intent
 import android.view.View
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
@@ -16,6 +18,7 @@ import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import edu.gatech.cc.cellwatch.R
+import edu.gatech.cc.cellwatch.data.model.CollectionMode
 import edu.gatech.cc.cellwatch.domain.fcc.MeasurementService
 import edu.gatech.cc.cellwatch.domain.fcc.grantMeasurementPermissions
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.LocationHold
@@ -136,6 +139,45 @@ class MeasureFlowTest {
         }
     }
 
+    @Test
+    fun aSecondStartLeavesTheTestUnderwayAlone() {
+        LocationHold().use { location ->
+            ActivityScenario.launch(MeasureActivity::class.java).use { scenario ->
+                eventually { onView(withId(R.id.testingWarning)).check(matches(withEffectiveVisibility(Visibility.VISIBLE))) }
+                onView(withId(R.id.go)).perform(scrollTo())
+                // Two starts on each other's heels, as from two quick taps on Go. One is sent from
+                // here, as the screen ignores a second tap.
+                scenario.onActivity { activity ->
+                    activity.findViewById<View>(R.id.go).performClick()
+                    activity.startForegroundService(
+                        Intent(activity, MeasurementService::class.java)
+                            .putExtra(MeasurementService.EXTRA_IN_VEHICLE, false)
+                            .putExtra(MeasurementService.EXTRA_COLLECTION_MODE, CollectionMode.TESTING.name)
+                    )
+                }
+                eventually { assertEquals("start commands", 2, measurementServiceStarts()) }
+                eventually { onView(withId(R.id.header)).check(matches(isDisplayed())) }
+                // Time for the second start to do whatever it does. The test is held at its first
+                // location fix, so it's still running.
+                Thread.sleep(1_000)
+
+                // The service stays started in the foreground, so the test goes on after the person
+                // leaves the screen, which lets go of the service.
+                assertStartedInTheForeground()
+                scenario.moveToState(Lifecycle.State.CREATED)
+                assertStartedInTheForeground()
+                scenario.moveToState(Lifecycle.State.RESUMED)
+
+                location.release()
+                eventually(MEASUREMENT_TIMEOUT_MS) {
+                    onView(withId(R.id.header)).check(matches(withText(R.string.measurement_complete)))
+                }
+                // Nothing keeps the phone awake once the test is over.
+                eventually { assertEquals("measurement wake locks held", 0, heldMeasurementWakeLocks()) }
+            }
+        }
+    }
+
     /** How many start commands the measurement service has had, from Android's record of it. */
     private fun measurementServiceStarts(): Int {
         val service = ComponentName(context, MeasurementService::class.java).flattenToShortString()
@@ -153,4 +195,10 @@ class MeasureFlowTest {
         assertTrue("measurement service isn't started", service!!.started)
         assertTrue("measurement service isn't in the foreground", service.foreground)
     }
+
+    /** How many of the measurement service's wake locks are held, from Android's list of held ones. */
+    private fun heldMeasurementWakeLocks(): Int =
+        shell("dumpsys power").substringAfter("Wake Locks: size=").lineSequence().drop(1)
+            .takeWhile { it.isNotBlank() }
+            .count { it.contains("MeasurementServiceWakeLock") }
 }
