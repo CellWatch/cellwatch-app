@@ -11,8 +11,7 @@ data class NetworkFccSubmission(
     // aliases to test_id when submitting to FCC
     var id: String = UUID.randomUUID().toString(),
 
-    @SerialName("challenge_data_id")
-    val challengeDataId: String? = null,
+    // No challenge_data_id: fcc_submissions has no such column, so sending one would fail the insert.
 
     @SerialName("contact_name")
     val contactName: String? = null,
@@ -102,7 +101,7 @@ data class NetworkFccSubmission(
 
 fun NetworkFccSubmission.asExternalModel() = FccSubmission(
     id,
-    challengeDataId,
+    null, // challengeDataId
     contactName,
     contactEmail,
     contactPhone,

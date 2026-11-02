@@ -82,7 +82,6 @@ fun FccSubmission.asEntity() = FccSubmissionEntity(
 
 fun FccSubmission.asNetworkModel() = NetworkFccSubmission(
     id,
-    challengeDataId,
     contactName,
     contactEmail,
     contactPhone,
