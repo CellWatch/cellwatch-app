@@ -17,20 +17,25 @@ From `app/build.gradle` (`buildTypes`) and the keys in `cellwatch.properties`:
 | TCP tuple service | `TCP_TUPLE_URL` (the EC2 box) | same |
 | Firebase Crashlytics | `app/google-services.json` | same project. Reports carry a `debug` custom key. |
 | Mapbox | `mapbox_access_token` in `strings.xml` | same token |
-| Application id, `versionName` | `edu.gatech.cc.cellwatch`, `1.0.0` | same. The only difference is the User-Agent (`CellWatch/1.0.0-debug`), which the server doesn't store. |
+| Application id, `versionName` | `edu.gatech.cc.cellwatch`, `1.1.0` | same. The only difference is the User-Agent (`CellWatch/1.1.0-debug`), which the server doesn't store. |
 
 Notes:
 - **"Local" Supabase on a phone.** The README template sets `SUPABASE_LOCAL_URL="http://127.0.0.1:54321"`. On
   an emulator or a phone, `127.0.0.1` is the device itself. It only reaches the Mac's stack with
   `adb reverse tcp:54321 tcp:54321`, `10.0.2.2` on an emulator, or the Mac's LAN address on a phone.
-- **A tracked config that points debug at production.** `app/cellwatch.properties` is tracked but not read by
-  the build (the root file is). It sets `SUPABASE_LOCAL_URL` to the **production** project, so anyone who copies
-  it to the root runs debug builds against production.
+- **A config that points debug at production.** Until #136 (merged 2026-10-27), Git tracked an
+  `app/cellwatch.properties` that the build doesn't read (it reads the root file). That copy set
+  `SUPABASE_LOCAL_URL` to the **production** project, so a root file copied from it runs debug builds against
+  production. Every `cellwatch.properties` is now gitignored.
 
 ### Supabase projects
 
-The repo knows of one remote project: **CellWatch Server** (`xepxxvpbexkyxrwtrgqv`), in `sync_from_remote.sh`.
-There's no staging project in the repo. Whether one exists outside it is unknown.
+- **CellWatch Server** (`xepxxvpbexkyxrwtrgqv`) is production, the project in `sync_from_remote.sh`.
+- **CellWatch Test Database**, in the same Supabase organization, is the test project. On 2026-10-22 its schema
+  was brought up to production's, with the FCC auto-post trigger disabled and without pg_cron, so nothing there
+  posts to the FCC. It still has a `prod` row in `private.fcc_submission_info`, so don't re-enable the trigger
+  or run the retry job there by hand (see [docs/ops/release-checklist.md](../docs/ops/release-checklist.md),
+  step 1).
 
 ### FCC (BDC) environments
 
@@ -59,7 +64,8 @@ devices from real ones.
 
 ## Proposal
 
-1. **A staging Supabase project** (for example "CellWatch Staging"):
+1. **A staging Supabase project.** The CellWatch Test Database project (above) is a start: its schema matched
+   production's on 2026-10-22. A staging project would also:
    - build its schema from the live snapshot plus `supabase/migrations` (see supabase/README.md), and keep it
      in step by applying every migration to staging first;
    - put only a `demo` row in its `private.fcc_submission_info`, with the BDC demo token, if the FCC still
@@ -85,10 +91,11 @@ devices from real ones.
    It's cheap, needs no app release, and covers release builds on testers' phones.
 4. **M-Lab:** use `MSAK_SERVER_ENV="staging"` for routine debug testing, so development traffic stays off M-Lab
    production, which publishes its test data. Use `prod` only when checking real-world behaviour.
-5. **Delete the tracked `app/cellwatch.properties`** (also flagged in doc/open-source-dependency-review.md).
+5. ~~**Delete the tracked `app/cellwatch.properties`**~~ (also flagged in doc/open-source-dependency-review.md).
+   Done in #136.
 6. **Mapbox:** a separate development token, so debug use and forks don't count against the production token.
 
 **Decisions for the team:**
-- Do we pay for a staging project?
+- Is the CellWatch Test Database project the staging project, or does staging need a project of its own?
 - Does the FCC still issue a demo-environment token?
 - Should production hold test devices, or send them to `demo`?
