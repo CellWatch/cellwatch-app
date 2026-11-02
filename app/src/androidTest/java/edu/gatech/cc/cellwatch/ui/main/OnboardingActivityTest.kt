@@ -1,11 +1,20 @@
 package edu.gatech.cc.cellwatch.ui.main
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
 import androidx.test.espresso.action.ViewActions.replaceText
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.MotionEvent
+import android.view.View
+import androidx.test.espresso.UiController
+import androidx.test.espresso.ViewAction
 import androidx.test.espresso.action.ViewActions.scrollTo
 import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
@@ -28,8 +37,11 @@ import edu.gatech.cc.cellwatch.ui.UiTestSupport.resetSettings
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.setting
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.settings
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.useFccChallengeMode
+import edu.gatech.cc.cellwatch.ui.onboarding.ReadMoreFragment
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -166,8 +178,111 @@ class OnboardingActivityTest {
         scenario.close()
     }
 
+    @Test
+    fun swipingMovesBetweenScreens() {
+        ActivityScenario.launch(OnboardingActivity::class.java).use {
+            onView(withId(R.id.content_frame)).perform(swipe(fromX = 0.3f, toX = -0.3f))
+            eventually { onView(withId(R.id.back_arrow)).check(matches(isDisplayed())) } // Data Use
+
+            // Up and down don't change screens.
+            onView(withId(R.id.content_frame)).perform(swipe(fromY = 0.3f, toY = -0.3f))
+            onView(withId(R.id.back_arrow)).check(matches(isDisplayed()))
+
+            onView(withId(R.id.content_frame)).perform(swipe(fromX = -0.3f, toX = 0.3f))
+            eventually { onView(withId(R.id.button_readmore)).check(matches(isDisplayed())) }
+        }
+    }
+
+    @Test
+    fun recreatingTheActivityKeepsTheScreenAndTheChosenMode() {
+        ActivityScenario.launch(OnboardingActivity::class.java).use { scenario ->
+            next()
+            next()
+            onView(withId(R.id.flTestingMode)).perform(click())
+
+            scenario.recreate()
+
+            onView(withId(R.id.testingModeCheck)).check(matches(isDisplayed()))
+            onView(withId(R.id.fccModeCheck)).check(matches(withEffectiveVisibility(Visibility.GONE)))
+            next()
+            onView(withId(R.id.btnReady)).check(matches(isDisplayed())) // testing mode skips the contact details
+        }
+    }
+
+    @Test
+    fun screensMatchTheirFragments() {
+        assertTrue(OnboardingActivity.Screen.READ_MORE.toNewFragment() is ReadMoreFragment)
+        assertNull(OnboardingActivity.Screen.fromFragment(Fragment()))
+    }
+
+    @Test
+    fun permissionAnswersFromAndroidAreHandled() {
+        ActivityScenario.launch(OnboardingActivity::class.java).use { scenario ->
+            next()
+            next()
+            onView(withId(R.id.flTestingMode)).perform(click())
+            next()
+
+            // What Android reports once the person answers its permission dialog (FirstRunPermissionsTest
+            // shows the dialog itself). Request code 1 is the screen's own request.
+            val permissions = arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.READ_PHONE_STATE,
+            )
+            scenario.onActivity { activity ->
+                val screen = activity.supportFragmentManager.findFragmentById(R.id.content_frame)!!
+                @Suppress("DEPRECATION")
+                screen.onRequestPermissionsResult(2, permissions, IntArray(3) { PackageManager.PERMISSION_GRANTED })
+                @Suppress("DEPRECATION")
+                screen.onRequestPermissionsResult(1, permissions, IntArray(3) { PackageManager.PERMISSION_DENIED })
+            }
+            assertFalse("another request, or a refusal, leaves onboarding open", setting { settings.getOnboardingComplete() })
+
+            scenario.onActivity { activity ->
+                val screen = activity.supportFragmentManager.findFragmentById(R.id.content_frame)!!
+                @Suppress("DEPRECATION")
+                screen.onRequestPermissionsResult(1, permissions, IntArray(3) { PackageManager.PERMISSION_GRANTED })
+            }
+            eventually { assertTrue(setting { settings.getOnboardingComplete() }) }
+            eventually { assertEquals(Lifecycle.State.DESTROYED, scenario.state) }
+        }
+    }
+
     private fun next() {
         onView(withId(R.id.forward_arrow)).perform(click())
+    }
+
+    // A 100 ms fling through the middle of the view, by fractions of its size from its centre.
+    // Espresso's swipeLeft and the like start at the screen's edge, where Android takes them as
+    // Back or Home, and send the finger's release late enough that Android reads no speed. These
+    // events carry their own times, 10 ms apart.
+    private fun swipe(fromX: Float = 0f, toX: Float = 0f, fromY: Float = 0f, toY: Float = 0f) = object : ViewAction {
+        override fun getConstraints() = isDisplayed()
+
+        override fun getDescription() = "fling from ($fromX, $fromY) to ($toX, $toY) of the view"
+
+        override fun perform(uiController: UiController, view: View) {
+            val corner = IntArray(2).also { view.getLocationOnScreen(it) }
+            fun x(f: Float) = corner[0] + view.width * (0.5f + f)
+            fun y(f: Float) = corner[1] + view.height * (0.5f + f)
+            val down = SystemClock.uptimeMillis()
+            val events = listOf(MotionEvent.obtain(down, down, MotionEvent.ACTION_DOWN, x(fromX), y(fromY), 0)) +
+                (1..10).map { step ->
+                    val f = step / 10f
+                    MotionEvent.obtain(
+                        down, down + step * 10L, MotionEvent.ACTION_MOVE,
+                        x(fromX + (toX - fromX) * f), y(fromY + (toY - fromY) * f), 0,
+                    )
+                } +
+                MotionEvent.obtain(down, down + 100L, MotionEvent.ACTION_UP, x(toX), y(toY), 0)
+            for (event in events) {
+                event.source = InputDevice.SOURCE_TOUCHSCREEN
+                uiController.injectMotionEvent(event)
+                event.recycle()
+            }
+            uiController.loopMainThreadUntilIdle()
+        }
     }
 
     private fun goToContactDetails() {

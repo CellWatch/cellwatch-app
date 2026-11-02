@@ -16,10 +16,14 @@ import edu.gatech.cc.cellwatch.R
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.clearHistory
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.eventually
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.finishAllActivities
+import edu.gatech.cc.cellwatch.ui.UiTestSupport.finishOnboarding
+import edu.gatech.cc.cellwatch.ui.UiTestSupport.openActivities
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.resetSettings
 import org.hamcrest.Matchers.allOf
 import org.hamcrest.Matchers.not
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -88,6 +92,29 @@ class NavigationDrawerTest {
 
             eventually { onView(withId(R.id.menuCloseButton)).check(matches(not(isDisplayed()))) }
             onView(withId(R.id.settingsEditButton)).check(matches(isDisplayed()))
+        }
+    }
+
+    @Test
+    fun mapItemOpensTheMap() {
+        finishOnboarding()
+
+        ActivityScenario.launch(SettingsActivity::class.java).use {
+            openMenu()
+            onView(withId(R.id.mapButton)).perform(click())
+
+            eventually { assertTrue(openActivities(MapActivity::class.java).isNotEmpty()) }
+        }
+    }
+
+    @Test
+    fun currentScreensItemOnlyClosesTheMenu() {
+        ActivityScenario.launch(SettingsActivity::class.java).use {
+            openMenu()
+            onView(withId(R.id.settingsButton)).perform(click())
+
+            eventually { onView(withId(R.id.menuCloseButton)).check(matches(not(isDisplayed()))) }
+            assertEquals(1, openActivities(SettingsActivity::class.java).size)
         }
     }
 

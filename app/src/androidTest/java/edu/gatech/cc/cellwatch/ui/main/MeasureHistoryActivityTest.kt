@@ -1,5 +1,10 @@
 package edu.gatech.cc.cellwatch.ui.main
 
+import android.app.Activity
+import android.app.Instrumentation
+import android.content.Intent
+import android.net.Uri
+import android.widget.PopupMenu
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
@@ -24,13 +29,26 @@ import edu.gatech.cc.cellwatch.ui.UiTestSupport.finishAllActivities
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.measurement
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.resetSettings
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.saveTest
+import edu.gatech.cc.cellwatch.ui.UiTestSupport.EMAIL
+import edu.gatech.cc.cellwatch.ui.UiTestSupport.NAME
+import edu.gatech.cc.cellwatch.ui.UiTestSupport.PHONE
+import edu.gatech.cc.cellwatch.ui.UiTestSupport.stubActivity
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.submission
+import edu.gatech.cc.cellwatch.ui.UiTestSupport.useFccChallengeMode
 import kotlinx.datetime.Instant
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import org.hamcrest.Matchers.allOf
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -159,6 +177,114 @@ class MeasureHistoryActivityTest {
             onView(withId(R.id.exportDialogTitle)).check(doesNotExist())
         }
     }
+
+    @Test
+    fun exportWritesTheChallengeTestsInTheSpecsFormat() {
+        // §5.1 of the FCC's mobile speed test data spec: the submission category, the contact
+        // (§5.1.1) and one submission per challenge test. Testing-mode tests aren't exported.
+        useFccChallengeMode()
+        saveTest(test("challenge", earlier), submission("challenge", inVehicle = false))
+        saveTest(test("testing", later))
+        val file = File(context.cacheDir, "export.json").apply { delete() }
+        val picker = stubFilePicker(Activity.RESULT_OK, Uri.fromFile(file))
+
+        try {
+            ActivityScenario.launch(MeasureHistoryActivity::class.java).use {
+                export()
+
+                var exported: JsonObject? = null
+                eventually { exported = Json.parseToJsonElement(file.readText()).jsonObject }
+                val json = exported!!
+                assertEquals(setOf("submission_category", "contact", "submissions"), json.keys)
+                assertEquals(JsonPrimitive("Consumer Challenge"), json["submission_category"])
+                assertEquals(
+                    mapOf("name" to JsonPrimitive(NAME), "email" to JsonPrimitive(EMAIL), "phone" to JsonPrimitive(PHONE)),
+                    json.getValue("contact").jsonObject,
+                )
+                val submissions = json.getValue("submissions").jsonArray
+                assertEquals(1, submissions.size)
+                assertEquals(setOf("download", "upload", "latency"), submissions[0].jsonObject.getValue("tests").jsonObject.keys)
+            }
+        } finally {
+            InstrumentationRegistry.getInstrumentation().removeMonitor(picker)
+        }
+    }
+
+    @Test
+    fun cancellingTheFilePickerWritesNothing() {
+        saveTest(test("challenge", earlier), submission("challenge", inVehicle = false))
+        val picker = stubFilePicker(Activity.RESULT_CANCELED, uri = null)
+
+        try {
+            ActivityScenario.launch(MeasureHistoryActivity::class.java).use {
+                export()
+
+                eventually { assertEquals(1, picker.hits) }
+                onView(withId(R.id.recyclerView)).check(matches(isDisplayed()))
+            }
+        } finally {
+            InstrumentationRegistry.getInstrumentation().removeMonitor(picker)
+        }
+    }
+
+    @Test
+    fun exportToAFileThatCantBeOpenedLeavesTheHistoryAsItWas() {
+        saveTest(test("challenge", earlier), submission("challenge", inVehicle = false))
+        val picker = stubFilePicker(Activity.RESULT_OK, Uri.parse("content://edu.gatech.cc.cellwatch.nowhere/export.json"))
+
+        try {
+            ActivityScenario.launch(MeasureHistoryActivity::class.java).use {
+                export()
+
+                // The phone says the export failed (a toast); the history stays.
+                eventually { assertEquals(1, picker.hits) }
+                onView(withId(R.id.itemHeader)).check(matches(isDisplayed()))
+            }
+        } finally {
+            InstrumentationRegistry.getInstrumentation().removeMonitor(picker)
+        }
+    }
+
+    @Test
+    fun otherMenuItemsAreLeftToAndroid() {
+        ActivityScenario.launch(MeasureHistoryActivity::class.java).use { scenario ->
+            var handled = true
+            scenario.onActivity { activity ->
+                val other = PopupMenu(activity, activity.findViewById(R.id.toolbar)).menu.add("other")
+                handled = activity.onOptionsItemSelected(other)
+            }
+
+            assertFalse(handled)
+        }
+    }
+
+    @Test
+    fun tappingAnOpenTestClosesIt() {
+        saveTest(test("g1", earlier))
+
+        ActivityScenario.launch(MeasureHistoryActivity::class.java).use {
+            eventually { onView(withId(R.id.itemHeader)).check(matches(isDisplayed())) }
+            onView(withId(R.id.itemHeader)).perform(click())
+            onView(withId(R.id.metaContainer)).check(matches(isDisplayed()))
+
+            onView(withId(R.id.itemHeader)).perform(click())
+
+            onView(withId(R.id.metaContainer)).check(matches(withEffectiveVisibility(Visibility.GONE)))
+        }
+    }
+
+    // Waits for the list, then exports, confirming the dialog.
+    private fun export() {
+        eventually { onView(withId(R.id.recyclerView)).check(matches(hasDescendant(withId(R.id.itemHeader)))) }
+        onView(withId(R.id.export)).perform(click())
+        onView(withText(R.string.export_button)).inRoot(isDialog()).perform(click())
+    }
+
+    // Android's file picker, answered with [uri] instead of being shown.
+    private fun stubFilePicker(resultCode: Int, uri: Uri?) = stubActivity(
+        Intent.ACTION_CREATE_DOCUMENT,
+        Instrumentation.ActivityResult(resultCode, uri?.let { Intent().setData(it) }),
+    )
 
     // A test's latency, download and upload measurements, in the order they run.
     private fun test(groupId: String, start: Instant) = listOf(
