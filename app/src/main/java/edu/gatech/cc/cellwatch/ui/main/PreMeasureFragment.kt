@@ -12,6 +12,7 @@ import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -85,7 +86,12 @@ class PreMeasureFragment: Fragment() {
         return binding.root
     }
 
-    private fun startMeasurement() {
+    // Whatever the answer, the test goes ahead; the notification only shows that one is running.
+    private val requestNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        startMeasurement(askedForNotifications = true)
+    }
+
+    private fun startMeasurement(askedForNotifications: Boolean = false) {
         lifecycleScope.launch {
             if (!hasForegroundServiceLocationPermission()) {
                 AlertDialog.Builder(requireContext())
@@ -100,6 +106,13 @@ class PreMeasureFragment: Fragment() {
                     }
                     .setCancelable(true)
                     .show()
+                return@launch
+            }
+
+            // From Android 13 the app has to ask before it can show the "measurement in progress"
+            // notification. After two refusals Android answers for the person without asking.
+            if (!askedForNotifications && !hasNotificationPermission()) {
+                requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
                 return@launch
             }
 
@@ -135,6 +148,11 @@ class PreMeasureFragment: Fragment() {
                                                 ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
                                         )
                         )
+    }
+
+    private fun hasNotificationPermission(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
     }
 
     private suspend fun checkProceedWithoutCellular(): Boolean = suspendCoroutine { continuation ->

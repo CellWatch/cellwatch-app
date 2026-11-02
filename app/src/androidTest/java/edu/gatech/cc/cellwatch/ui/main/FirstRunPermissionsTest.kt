@@ -1,6 +1,7 @@
 package edu.gatech.cc.cellwatch.ui.main
 
 import android.Manifest
+import android.os.Build
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
@@ -119,6 +120,10 @@ class FirstRunPermissionsTest {
         ActivityScenario.launch(MeasureActivity::class.java).use {
             eventually { onView(withId(R.id.testingWarning)).check(matches(withEffectiveVisibility(Visibility.VISIBLE))) }
             onView(withId(R.id.go)).perform(scrollTo(), click())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android asks whether the app may show notifications; refusing doesn't stop the test.
+                leaveTheOtherApp()
+            }
 
             // Watching the cells needs phone state, so the latency test throws and the test stops.
             val failed = context.getString(R.string.measurement_failed)
