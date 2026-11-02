@@ -58,8 +58,11 @@ class SettingsSetupFragment : Fragment() {
         super.onResume()
         if (sentToSettings) {
             sentToSettings = false
-            if (missingPermissions().isEmpty()) {
+            val missing = missingPermissions()
+            if (missing.isEmpty()) {
                 (activity as? OnPermissionsHandledListener)?.onPermissionsHandled()
+            } else {
+                showPermissionsDenied(missing)
             }
         }
     }
@@ -116,8 +119,8 @@ class SettingsSetupFragment : Fragment() {
         }
     }
 
-    // Once a person has refused twice, Android stops asking and Ready does nothing, so say what's
-    // missing and offer the app's settings, where it can still be allowed.
+    // Says what's missing and offers the app's settings, where it can still be allowed. Once a
+    // person has refused twice, Android stops asking, so Ready alone would do nothing.
     private fun showPermissionsDenied(denied: List<String>) {
         val names = deniedPermissionNames(denied).joinToString("\n") { getString(it) }
         AlertDialog.Builder(requireContext())

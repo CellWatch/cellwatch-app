@@ -193,6 +193,6 @@
     <string name="permissions_needed">Se necesitan permisos</string>
     <string name="permissions_denied">CellWatch no puede hacer mediciones sin:\n\n%1$s\n\nPara permitir el acceso, abra la configuración y luego Permisos.</string>
     <string name="permission_location">• Ubicación</string>
-    <string name="permission_precise_location">• Ubicación precisa (active Usar ubicación precisa)</string>
+    <string name="permission_precise_location">• Ubicación precisa (active «Usar ubicación precisa»)</string>
     <string name="permission_phone">• Teléfono</string>
 </resources>

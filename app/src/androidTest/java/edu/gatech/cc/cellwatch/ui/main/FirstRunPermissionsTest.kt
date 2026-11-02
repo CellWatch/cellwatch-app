@@ -96,6 +96,14 @@ class FirstRunPermissionsTest {
             }
             onView(withText(containsString(context.getString(R.string.permission_phone))))
                 .inRoot(isDialog()).check(matches(isDisplayed()))
+
+            // Coming back from the app's settings with nothing allowed says it again.
+            onView(withText(R.string.open_settings)).inRoot(isDialog()).perform(click())
+            leaveTheOtherApp()
+            eventually {
+                onView(withText(containsString(context.getString(R.string.permission_location))))
+                    .inRoot(isDialog()).check(matches(isDisplayed()))
+            }
             onView(withText(R.string.cancel_button)).inRoot(isDialog()).perform(click())
             onView(withId(R.id.btnReady)).check(matches(isDisplayed()))
             assertFalse(setting { settings.getOnboardingComplete() })

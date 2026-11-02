@@ -238,10 +238,19 @@ class OnboardingActivityTest {
                 val screen = activity.supportFragmentManager.findFragmentById(R.id.content_frame)!!
                 @Suppress("DEPRECATION")
                 screen.onRequestPermissionsResult(2, permissions, IntArray(3) { PackageManager.PERMISSION_GRANTED })
+                // An interrupted request comes back empty: no answer at all.
+                @Suppress("DEPRECATION")
+                screen.onRequestPermissionsResult(1, emptyArray(), IntArray(0))
+            }
+            assertFalse("another request, or an interrupted one, leaves onboarding open", setting { settings.getOnboardingComplete() })
+            onView(withId(R.id.btnReady)).check(matches(isDisplayed())) // and shows no dialog
+
+            scenario.onActivity { activity ->
+                val screen = activity.supportFragmentManager.findFragmentById(R.id.content_frame)!!
                 @Suppress("DEPRECATION")
                 screen.onRequestPermissionsResult(1, permissions, IntArray(3) { PackageManager.PERMISSION_DENIED })
             }
-            assertFalse("another request, or a refusal, leaves onboarding open", setting { settings.getOnboardingComplete() })
+            assertFalse("a refusal leaves onboarding open", setting { settings.getOnboardingComplete() })
             // The refusal says what's missing.
             onView(withText(containsString(context.getString(R.string.permission_location))))
                 .inRoot(isDialog()).check(matches(isDisplayed()))

@@ -35,6 +35,7 @@ import org.hamcrest.Description
 import org.hamcrest.Matcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.fail
 import org.junit.Assume.assumeTrue
 import java.util.concurrent.TimeUnit
@@ -118,7 +119,12 @@ object UiTestSupport {
      * giving the app time to come to the front before going Back again.
      */
     fun leaveTheOtherApp() {
-        eventually(10_000) { assertNotEquals(context.packageName, foregroundPackage()) }
+        eventually(10_000) {
+            // No window in front yet (focus moving between apps) isn't another app.
+            val inFront = foregroundPackage()
+            assertNotNull("no window in front", inFront)
+            assertNotEquals(context.packageName, inFront)
+        }
         repeat(3) {
             pressSystemBack()
             val inFront = runCatching { eventually(5_000) { assertEquals(context.packageName, foregroundPackage()) } }
