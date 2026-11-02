@@ -87,8 +87,13 @@ class PreMeasureFragment: Fragment() {
     }
 
     // Whatever the answer, the test goes ahead; the notification only shows that one is running.
+    // Android also hands the answer to the app after killing and restarting it, but the choice of
+    // stationary or moving didn't survive that, so then the person taps Go again.
     private val requestNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-        startMeasurement(askedForNotifications = true)
+        if (model.askingForNotifications) {
+            model.askingForNotifications = false
+            startMeasurement(askedForNotifications = true)
+        }
     }
 
     private fun startMeasurement(askedForNotifications: Boolean = false) {
@@ -112,7 +117,12 @@ class PreMeasureFragment: Fragment() {
             // From Android 13 the app has to ask before it can show the "measurement in progress"
             // notification. After two refusals Android answers for the person without asking.
             if (!askedForNotifications && !hasNotificationPermission()) {
-                requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                // While Android is asking, it answers another request at once as a refusal, so a
+                // second tap on Go would start the test behind the question.
+                if (!model.askingForNotifications) {
+                    model.askingForNotifications = true
+                    requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
                 return@launch
             }
 

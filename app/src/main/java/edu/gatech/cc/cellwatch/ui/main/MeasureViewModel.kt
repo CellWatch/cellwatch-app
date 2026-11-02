@@ -26,6 +26,10 @@ class MeasureViewModel: ViewModel() {
     val state: StateFlow<State> = _state
     private var uploadTimeJob: Job? = null
 
+    // Set while Android asks whether the app may show notifications. It survives the screen being
+    // rebuilt, as on rotation, but not Android killing the app, which also loses inVehicle.
+    var askingForNotifications = false
+
     val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             if (service !is MeasurementService.MeasurementBinder) {
