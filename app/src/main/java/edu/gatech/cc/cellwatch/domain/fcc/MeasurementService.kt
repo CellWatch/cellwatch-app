@@ -49,7 +49,7 @@ MeasurementService: Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        acquireWakeLock()
+        // Android expects this after every startForegroundService, including a start ignored below.
         startForeground()
 
         val mode = intent?.extras?.getString(EXTRA_COLLECTION_MODE)?.let { CollectionMode.valueOf(it) }
@@ -57,7 +57,14 @@ MeasurementService: Service() {
 
         if (mode == null || inVehicle == null) {
             Log.e(TAG, "started without required extras $mode $inVehicle")
+        } else if (!claimTest()) {
+            // Another start while a test runs, as from two quick taps on Go. Run like the first,
+            // its wake lock took the field from the test's, which then stayed held for 10 minutes,
+            // and its thread stopped the service at once: when the screen let go of the service,
+            // Android ended it and its notification while the test was still going.
+            Log.w(TAG, "measurement already running, ignoring start $startId")
         } else {
+            acquireWakeLock()
             thread {
                 Looper.prepare()
                 Handler(Looper.myLooper()!!).post {
@@ -101,13 +108,12 @@ MeasurementService: Service() {
         return MeasurementBinder(this)
     }
 
-    private suspend fun runTest(mode: CollectionMode, inVehicle: Boolean) {
-        val starting = state.compareAndSet(null, State.STARTING) || state.compareAndSet(State.DONE, State.STARTING)
-        if (!starting) {
-            Log.e(TAG, "measurement already running")
-            return
-        }
+    // Claimed by onStartCommand, on the main thread, before the test's thread exists. On that
+    // thread, a start right behind the first could look before the first test had claimed it.
+    private fun claimTest(): Boolean =
+        state.compareAndSet(null, State.STARTING) || state.compareAndSet(State.DONE, State.STARTING)
 
+    private suspend fun runTest(mode: CollectionMode, inVehicle: Boolean) {
         machine = null
         latency = null
         download = null

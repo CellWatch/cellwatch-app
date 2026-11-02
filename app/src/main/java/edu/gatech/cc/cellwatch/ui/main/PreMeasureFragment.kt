@@ -35,6 +35,9 @@ class PreMeasureFragment: Fragment() {
     private val TAG = this::class.simpleName
     private lateinit var binding: FragmentPreMeasureBinding
     private lateinit var model: MeasureViewModel
+    // Set from a tap on Go until the tap comes to nothing. One that starts the test leaves it set,
+    // as the test's screen replaces this one. Two quick taps would otherwise both start the service.
+    private var handlingGo = false
     private var inVehicle = false
         set(v) {
             field = v
@@ -97,56 +100,62 @@ class PreMeasureFragment: Fragment() {
     }
 
     private fun startMeasurement(askedForNotifications: Boolean = false) {
-        lifecycleScope.launch {
-            if (!hasForegroundServiceLocationPermission()) {
-                AlertDialog.Builder(requireContext())
-                    .setTitle(R.string.permission_required)
-                    .setMessage(R.string.fgs_location_permission_rationale)
-                    .setPositiveButton(R.string.open_settings) { _, _ ->
-                        val intent = Intent(
-                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                            Uri.fromParts("package", requireContext().packageName, null)
-                        )
-                        startActivity(intent)
-                    }
-                    .setCancelable(true)
-                    .show()
-                return@launch
-            }
+        if (handlingGo) return
+        handlingGo = true
+        lifecycleScope.launch { handlingGo = startMeasurementService(askedForNotifications) }
+    }
 
-            // From Android 13 the app has to ask before it can show the "measurement in progress"
-            // notification. After two refusals Android answers for the person without asking.
-            if (!askedForNotifications && !hasNotificationPermission()) {
-                // While Android is asking, it answers another request at once as a refusal, so a
-                // second tap on Go would start the test behind the question.
-                if (!model.askingForNotifications) {
-                    model.askingForNotifications = true
-                    requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+    /** Starts the test unless a permission or the person's answer stops it. Says whether it did. */
+    private suspend fun startMeasurementService(askedForNotifications: Boolean): Boolean {
+        if (!hasForegroundServiceLocationPermission()) {
+            AlertDialog.Builder(requireContext())
+                .setTitle(R.string.permission_required)
+                .setMessage(R.string.fgs_location_permission_rationale)
+                .setPositiveButton(R.string.open_settings) { _, _ ->
+                    val intent = Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", requireContext().packageName, null)
+                    )
+                    startActivity(intent)
                 }
-                return@launch
-            }
-
-            val mode = CellWatchApp.settingsRepository.getCollectionMode()
-            if (
-                mode == CollectionMode.FCC_CHALLENGE
-                && !MeasurementManager.checkCellular()
-                && !checkProceedWithoutCellular()
-            ) {
-                // skip measurement
-            } else {
-                val intent = Intent(requireContext(), MeasurementService::class.java)
-                intent.putExtra(MeasurementService.EXTRA_IN_VEHICLE, model.state.value.inVehicle)
-                intent.putExtra(MeasurementService.EXTRA_COLLECTION_MODE, mode.name)
-                requireContext().startForegroundService(intent)
-
-                val parent = activity
-                if (parent is MeasureActivity) {
-                    parent.bindToService()
-                } else {
-                    Log.e(TAG, "expected MeasureActivity, got $parent")
-                }
-            }
+                .setCancelable(true)
+                .show()
+            return false
         }
+
+        // From Android 13 the app has to ask before it can show the "measurement in progress"
+        // notification. After two refusals Android answers for the person without asking.
+        if (!askedForNotifications && !hasNotificationPermission()) {
+            // While Android is asking, it answers another request at once as a refusal, so a
+            // second tap on Go would start the test behind the question.
+            if (!model.askingForNotifications) {
+                model.askingForNotifications = true
+                requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            return false
+        }
+
+        val mode = CellWatchApp.settingsRepository.getCollectionMode()
+        if (
+            mode == CollectionMode.FCC_CHALLENGE
+            && !MeasurementManager.checkCellular()
+            && !checkProceedWithoutCellular()
+        ) {
+            return false
+        }
+
+        val intent = Intent(requireContext(), MeasurementService::class.java)
+        intent.putExtra(MeasurementService.EXTRA_IN_VEHICLE, model.state.value.inVehicle)
+        intent.putExtra(MeasurementService.EXTRA_COLLECTION_MODE, mode.name)
+        requireContext().startForegroundService(intent)
+
+        val parent = activity
+        if (parent is MeasureActivity) {
+            parent.bindToService()
+        } else {
+            Log.e(TAG, "expected MeasureActivity, got $parent")
+        }
+        return true
     }
 
     private fun hasForegroundServiceLocationPermission(): Boolean {
