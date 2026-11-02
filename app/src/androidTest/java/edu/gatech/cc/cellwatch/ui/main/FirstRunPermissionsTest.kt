@@ -20,20 +20,17 @@ import edu.gatech.cc.cellwatch.ui.UiTestSupport.clearHistory
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.context
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.eventually
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.finishAllActivities
-import edu.gatech.cc.cellwatch.ui.UiTestSupport.foregroundPackage
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.grantLocationOnly
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.hasPermission
-import edu.gatech.cc.cellwatch.ui.UiTestSupport.pressSystemBack
+import edu.gatech.cc.cellwatch.ui.UiTestSupport.leaveTheOtherApp
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.resetSettings
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.setting
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.settings
 import org.hamcrest.Matchers.anyOf
+import org.hamcrest.Matchers.containsString
 import org.hamcrest.Matchers.startsWith
 import org.junit.After
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.fail
 import org.junit.Assume.assumeFalse
 import org.junit.Before
 import org.junit.FixMethodOrder
@@ -91,9 +88,24 @@ class FirstRunPermissionsTest {
             onView(withId(R.id.forward_arrow)).perform(click())
 
             onView(withId(R.id.btnReady)).perform(click())
-            // Android asks; going Back refuses, and the app waits on this screen.
+            // Android asks; going Back refuses. The app says what's missing and waits on this screen.
             leaveTheOtherApp()
-            eventually { onView(withId(R.id.btnReady)).check(matches(isDisplayed())) }
+            eventually {
+                onView(withText(containsString(context.getString(R.string.permission_location))))
+                    .inRoot(isDialog()).check(matches(isDisplayed()))
+            }
+            onView(withText(containsString(context.getString(R.string.permission_phone))))
+                .inRoot(isDialog()).check(matches(isDisplayed()))
+
+            // Coming back from the app's settings with nothing allowed says it again.
+            onView(withText(R.string.open_settings)).inRoot(isDialog()).perform(click())
+            leaveTheOtherApp()
+            eventually {
+                onView(withText(containsString(context.getString(R.string.permission_location))))
+                    .inRoot(isDialog()).check(matches(isDisplayed()))
+            }
+            onView(withText(R.string.cancel_button)).inRoot(isDialog()).perform(click())
+            onView(withId(R.id.btnReady)).check(matches(isDisplayed()))
             assertFalse(setting { settings.getOnboardingComplete() })
         }
     }
@@ -122,16 +134,4 @@ class FirstRunPermissionsTest {
 
     private fun hasLocation() =
         hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) || hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
-
-    // Waits for another app's window (Android's settings or permission dialog), then goes Back,
-    // giving the app time to come to the front before going Back again.
-    private fun leaveTheOtherApp() {
-        eventually(10_000) { assertNotEquals(context.packageName, foregroundPackage()) }
-        repeat(3) {
-            pressSystemBack()
-            val inFront = runCatching { eventually(5_000) { assertEquals(context.packageName, foregroundPackage()) } }
-            if (inFront.isSuccess) return
-        }
-        fail("still in ${foregroundPackage()}")
-    }
 }

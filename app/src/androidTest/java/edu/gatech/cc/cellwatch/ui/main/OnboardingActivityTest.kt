@@ -18,11 +18,13 @@ import androidx.test.espresso.ViewAction
 import androidx.test.espresso.action.ViewActions.scrollTo
 import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.RootMatchers.isDialog
 import androidx.test.espresso.matcher.ViewMatchers.Visibility
 import androidx.test.espresso.matcher.ViewMatchers.hasErrorText
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility
 import androidx.test.espresso.matcher.ViewMatchers.withId
+import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import edu.gatech.cc.cellwatch.R
@@ -33,11 +35,13 @@ import edu.gatech.cc.cellwatch.ui.UiTestSupport.NAME
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.PHONE
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.eventually
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.finishAllActivities
+import edu.gatech.cc.cellwatch.ui.UiTestSupport.leaveTheOtherApp
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.resetSettings
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.setting
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.settings
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.useFccChallengeMode
 import edu.gatech.cc.cellwatch.ui.onboarding.ReadMoreFragment
+import org.hamcrest.Matchers.containsString
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -234,10 +238,26 @@ class OnboardingActivityTest {
                 val screen = activity.supportFragmentManager.findFragmentById(R.id.content_frame)!!
                 @Suppress("DEPRECATION")
                 screen.onRequestPermissionsResult(2, permissions, IntArray(3) { PackageManager.PERMISSION_GRANTED })
+                // An interrupted request comes back empty: no answer at all.
+                @Suppress("DEPRECATION")
+                screen.onRequestPermissionsResult(1, emptyArray(), IntArray(0))
+            }
+            assertFalse("another request, or an interrupted one, leaves onboarding open", setting { settings.getOnboardingComplete() })
+            onView(withId(R.id.btnReady)).check(matches(isDisplayed())) // and shows no dialog
+
+            scenario.onActivity { activity ->
+                val screen = activity.supportFragmentManager.findFragmentById(R.id.content_frame)!!
                 @Suppress("DEPRECATION")
                 screen.onRequestPermissionsResult(1, permissions, IntArray(3) { PackageManager.PERMISSION_DENIED })
             }
-            assertFalse("another request, or a refusal, leaves onboarding open", setting { settings.getOnboardingComplete() })
+            assertFalse("a refusal leaves onboarding open", setting { settings.getOnboardingComplete() })
+            // The refusal says what's missing.
+            onView(withText(containsString(context.getString(R.string.permission_location))))
+                .inRoot(isDialog()).check(matches(isDisplayed()))
+            onView(withText(containsString(context.getString(R.string.permission_phone))))
+                .inRoot(isDialog()).check(matches(isDisplayed()))
+            onView(withText(R.string.cancel_button)).inRoot(isDialog()).perform(click())
+            onView(withId(R.id.btnReady)).check(matches(isDisplayed()))
 
             scenario.onActivity { activity ->
                 val screen = activity.supportFragmentManager.findFragmentById(R.id.content_frame)!!
@@ -247,6 +267,59 @@ class OnboardingActivityTest {
             eventually { assertTrue(setting { settings.getOnboardingComplete() }) }
             eventually { assertEquals(Lifecycle.State.DESTROYED, scenario.state) }
         }
+    }
+
+    @Test
+    fun choosingApproximateLocationAsksForPreciseLocation() {
+        ActivityScenario.launch(OnboardingActivity::class.java).use { scenario ->
+            next()
+            next()
+            onView(withId(R.id.flTestingMode)).perform(click())
+            next()
+
+            // What Android reports when the person allows only approximate location.
+            scenario.onActivity { activity ->
+                val screen = activity.supportFragmentManager.findFragmentById(R.id.content_frame)!!
+                @Suppress("DEPRECATION")
+                screen.onRequestPermissionsResult(
+                    1,
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                    intArrayOf(PackageManager.PERMISSION_DENIED, PackageManager.PERMISSION_GRANTED),
+                )
+            }
+            onView(withText(containsString(context.getString(R.string.permission_precise_location))))
+                .inRoot(isDialog()).check(matches(isDisplayed()))
+            onView(withText(R.string.cancel_button)).inRoot(isDialog()).perform(click())
+            assertFalse(setting { settings.getOnboardingComplete() })
+        }
+    }
+
+    @Test
+    fun comingBackFromSettingsWithThePermissionsFinishesOnboarding() {
+        grantMeasurementPermissions()
+
+        val scenario = ActivityScenario.launch(OnboardingActivity::class.java)
+        next()
+        next()
+        onView(withId(R.id.flTestingMode)).perform(click())
+        next()
+
+        // A refusal, then the person goes to the app's settings and comes back with everything allowed.
+        scenario.onActivity { activity ->
+            val screen = activity.supportFragmentManager.findFragmentById(R.id.content_frame)!!
+            @Suppress("DEPRECATION")
+            screen.onRequestPermissionsResult(
+                1,
+                arrayOf(Manifest.permission.READ_PHONE_STATE),
+                intArrayOf(PackageManager.PERMISSION_DENIED),
+            )
+        }
+        onView(withText(R.string.open_settings)).inRoot(isDialog()).perform(click())
+        leaveTheOtherApp()
+
+        eventually { assertTrue(setting { settings.getOnboardingComplete() }) }
+        eventually { assertEquals(Lifecycle.State.DESTROYED, scenario.state) }
+        scenario.close()
     }
 
     private fun next() {
