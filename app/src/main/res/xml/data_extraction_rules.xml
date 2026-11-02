@@ -3,9 +3,9 @@
 
    The device secret is encrypted with an Android Keystore key, and Keystore keys never leave the
    phone. A copy of the app's files on another phone can't decrypt the secret, so that phone could
-   never upload. From Android 12, some phones copy app data to a new phone even with
-   android:allowBackup="false", unless these rules exclude it. With them, the new phone starts
-   fresh and registers as a new device.
+   never upload. From Android 12, a phone-to-phone transfer ignores android:allowBackup="false" and
+   copies app data unless these rules exclude it. With them, the new phone starts fresh and
+   registers as a new device.
 
    See https://developer.android.com/identity/data/autobackup
 -->
