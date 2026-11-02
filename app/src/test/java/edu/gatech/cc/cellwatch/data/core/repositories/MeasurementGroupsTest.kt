@@ -102,6 +102,27 @@ class MeasurementGroupsTest {
         assertTrue(warnings.single(), "g2-jitter" in warnings.single())
     }
 
+    @Test
+    fun eachSkippedMeasurementIsWarnedAboutOnce() = runBlocking<Unit> {
+        // The map loads the list again on every camera move.
+        val orphan = TestRecords.measurement("latency", "g2").copy(id = "orphan", groupId = null)
+        val unknown = TestRecords.measurement("upload", "g3").copy(id = "g3-jitter", type = "jitter")
+        val rows = (test("g1") + orphan).map { it.asEntityWithData() }.toMutableList()
+        val warnings = mutableListOf<String>()
+        val repository = MeasurementRepository(FakeMeasurementDao(rows), FakeSubmissionDao(emptyList()), unusedDatasource()) {
+            warnings += it
+        }
+
+        repository.getMeasurementGroups()
+        repository.getMeasurementGroups()
+        rows += unknown.asEntityWithData()
+        repository.getMeasurementGroups()
+
+        assertEquals(2, warnings.size)
+        assertTrue(warnings[0], "orphan" in warnings[0])
+        assertTrue(warnings[1], "g3-jitter" in warnings[1] && "orphan" !in warnings[1])
+    }
+
     private fun test(groupId: String) =
         listOf("latency", "download", "upload").map { TestRecords.measurement(it, groupId) }
 

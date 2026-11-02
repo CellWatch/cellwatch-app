@@ -54,6 +54,9 @@ class MeasurementRepository(
     private val warn: (String) -> Unit = { Log.w("MeasurementRepository", it) },
 ) {
     private val TAG = this::class.simpleName
+    // Skipped rows already warned about. The map loads the list again on every camera move, and
+    // Crashlytics keeps only a session's last 8 non-fatals, so repeats would push out other errors.
+    private val reportedSkips = mutableSetOf<String>()
 
     @WorkerThread
     suspend fun getMeasurementGroups(): List<MeasurementGroup> {
@@ -82,8 +85,9 @@ class MeasurementRepository(
                 groupIds += groupId
             }
         }
-        if (skipped.isNotEmpty()) {
-            warn("skipped measurements without a group id or of an unknown type: $skipped")
+        val unreported = synchronized(reportedSkips) { skipped.filter(reportedSkips::add) }
+        if (unreported.isNotEmpty()) {
+            warn("skipped measurements without a group id or of an unknown type: $unreported")
         }
 
         val submissions = mutableMapOf<String, FccSubmission>()
