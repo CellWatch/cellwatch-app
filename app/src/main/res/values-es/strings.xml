@@ -62,6 +62,8 @@
     <string name="hex">Hexágono</string>
     <string name="add_measurement">Medir</string>
     <string name="search_map">Buscar en el mapa</string>
+    <string name="search_failed_offline">La búsqueda no está disponible en este momento. Revise su conexión e inténtelo de nuevo.</string>
+    <string name="search_failed">La búsqueda no está disponible en este momento. Inténtelo de nuevo más tarde.</string>
     <string name="one_measurement">1 medición</string>
     <string name="x_measurements">%1$d mediciones</string>
     <string name="failed_load_all_measurements">Algo salió mal y solo se pueden mostrar algunas de las mediciones seleccionadas.</string>
