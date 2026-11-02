@@ -49,51 +49,49 @@ import kotlin.coroutines.suspendCoroutine
 class MeasurementRepository(
     private val measurementDao: MeasurementDao,
     private val submissionDao: FccSubmissionDao,
-    private val networkDataSource: NetworkMeasurementDatasource
+    private val networkDataSource: NetworkMeasurementDatasource,
+    // A parameter so unit tests can run without Crashlytics
+    private val warn: (String) -> Unit = { Log.w("MeasurementRepository", it) },
 ) {
     private val TAG = this::class.simpleName
 
     @WorkerThread
     suspend fun getMeasurementGroups(): List<MeasurementGroup> {
-        val measurements = getMeasurementsWithData()
         val submissionList = submissionDao.getFccSubmissions().map(FccSubmissionEntity::asExternalModel)
         val latency = mutableMapOf<String, Measurement>()
         val download = mutableMapOf<String, Measurement>()
         val upload = mutableMapOf<String, Measurement>()
+        // In the order each group's first measurement was saved
+        val groupIds = linkedSetOf<String>()
+        val skipped = mutableListOf<String>()
 
-        measurements.forEach {
-            if (it.groupId == null) {
-                throw RuntimeException("measurement ${it.id} missing group id")
+        getMeasurementsWithData().forEach {
+            val groupId = it.groupId
+            val parts = when (it.type) {
+                "latency" -> latency
+                "download" -> download
+                "upload" -> upload
+                else -> null
             }
-
-            when (it.type) {
-                "latency" -> latency[it.groupId] = it
-                "download" -> download[it.groupId] = it
-                "upload" -> upload[it.groupId] = it
-                else -> throw RuntimeException("unknown measurement type ${it.type}")
+            if (groupId == null || parts == null) {
+                // A row the list can't place is skipped, so it doesn't keep every other test off
+                // the history screen and the map, and out of the export.
+                skipped += it.id
+            } else {
+                parts[groupId] = it
+                groupIds += groupId
             }
+        }
+        if (skipped.isNotEmpty()) {
+            warn("skipped measurements without a group id or of an unknown type: $skipped")
         }
 
         val submissions = mutableMapOf<String, FccSubmission>()
         submissionList.forEach { submissions[it.id] = it }
 
-        val groups = mutableMapOf<String, MeasurementGroup>()
-        measurements.forEach {
-            if (it.groupId == null) {
-                throw RuntimeException("measurement ${it.id} missing group id")
-            }
-
-            if (groups[it.groupId] == null) {
-                groups[it.groupId] = MeasurementGroup(
-                    latency[it.groupId],
-                    download[it.groupId],
-                    upload[it.groupId],
-                    submissions[it.groupId],
-                )
-            }
+        return groupIds.map {
+            MeasurementGroup(latency[it], download[it], upload[it], submissions[it])
         }
-
-        return groups.values.toList()
     }
 
     @WorkerThread

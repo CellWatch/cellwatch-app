@@ -38,18 +38,19 @@ class SupabaseSchemaContractTest {
     private val schema = Schema.load()
 
     @Test
-    fun everySubmissionFieldButChallengeDataIdHasAColumn() {
-        // fcc_submissions has no challenge_data_id. The phone never sets it, and Json.Default leaves
-        // out a null default, so it's never sent; setting it would make every insert fail.
+    fun everySubmissionFieldHasAColumn() {
         assertEquals(
-            setOf("challenge_data_id"),
+            emptySet<String>(),
             fieldNames(NetworkFccSubmission.serializer()) - schema.columns("fcc_submissions"),
         )
     }
 
     @Test
     fun submissionThePhoneSendsNamesOnlyColumns() {
-        val sent = Json.encodeToJsonElement(TestRecords.submission().asNetworkModel()).jsonObject.keys
+        // Even with a challenge data ID set, which fcc_submissions has no column for.
+        val sent = Json.encodeToJsonElement(
+            TestRecords.submission().copy(challengeDataId = "c1").asNetworkModel()
+        ).jsonObject.keys
 
         assertEquals(emptySet<String>(), sent - schema.columns("fcc_submissions"))
         assertFalse("challenge_data_id" in sent)

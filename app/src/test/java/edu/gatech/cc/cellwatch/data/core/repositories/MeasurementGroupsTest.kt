@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -75,23 +75,31 @@ class MeasurementGroupsTest {
     }
 
     @Test
-    fun aMeasurementWithoutAGroupIdFailsTheWholeList() {
-        // Neither MeasureHistoryViewModel nor MapViewModel catches this, so one such row keeps
-        // every test off the history screen and the map, and out of the export.
-        val orphan = TestRecords.measurement("latency", "g2").copy(groupId = null)
+    fun aMeasurementWithoutAGroupIdIsSkippedWithAWarning() = runBlocking<Unit> {
+        // It used to fail the whole list, which neither MeasureHistoryViewModel nor MapViewModel
+        // catches, so one such row kept every test off the history screen and the map.
+        val g1 = test("g1")
+        val orphan = TestRecords.measurement("latency", "g2").copy(id = "orphan", groupId = null)
+        val warnings = mutableListOf<String>()
 
-        assertThrows(RuntimeException::class.java) {
-            runBlocking { groups(test("g1") + orphan) }
-        }
+        val groups = groups(g1 + orphan, warn = { warnings += it })
+
+        assertEquals(listOf(MeasurementGroup(g1[0], g1[1], g1[2], null)), groups)
+        assertEquals(1, warnings.size)
+        assertTrue(warnings.single(), "orphan" in warnings.single())
     }
 
     @Test
-    fun aMeasurementOfAnUnknownTypeFailsTheWholeList() {
+    fun aMeasurementOfAnUnknownTypeIsSkippedAndItsTestKeepsTheRest() = runBlocking<Unit> {
         val unknown = TestRecords.measurement("upload", "g2").copy(id = "g2-jitter", type = "jitter")
+        val latency = TestRecords.measurement("latency", "g2")
+        val warnings = mutableListOf<String>()
 
-        assertThrows(RuntimeException::class.java) {
-            runBlocking { groups(test("g1") + unknown) }
-        }
+        val groups = groups(test("g1") + latency + unknown, warn = { warnings += it })
+
+        assertEquals(listOf("g1", "g2"), groups.map { it.id })
+        assertEquals(MeasurementGroup(latency, null, null, null), groups[1])
+        assertTrue(warnings.single(), "g2-jitter" in warnings.single())
     }
 
     private fun test(groupId: String) =
@@ -100,10 +108,12 @@ class MeasurementGroupsTest {
     private suspend fun groups(
         measurements: List<Measurement>,
         submissions: List<FccSubmission> = emptyList(),
+        warn: (String) -> Unit = { throw AssertionError("unexpected warning: $it") },
     ) = MeasurementRepository(
         FakeMeasurementDao(measurements.map { it.asEntityWithData() }),
         FakeSubmissionDao(submissions.map { it.asEntity() }),
         unusedDatasource(),
+        warn,
     ).getMeasurementGroups()
 
     // getMeasurementGroups never uses the network, but a real NetworkMeasurementDatasource needs a

@@ -9,7 +9,6 @@ import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
-import org.junit.Ignore
 import org.junit.Test
 
 /**
@@ -214,11 +213,6 @@ class MeasurementMappingTest {
         }
     }
 
-    @Ignore(
-        "NetworkMeasurementWithData.asExternalModel passes extraData where simMcc goes, so simMcc, " +
-            "simMnc, netMcc and netMnc each land one field later and netMnc lands in extraData. " +
-            "Nothing calls it yet."
-    )
     @Test
     fun uploadArgumentsReadBackAsTheSameMeasurement() {
         val m = TestRecords.measurement("download")
