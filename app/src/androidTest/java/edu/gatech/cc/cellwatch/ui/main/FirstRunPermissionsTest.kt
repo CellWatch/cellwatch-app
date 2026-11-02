@@ -1,6 +1,9 @@
 package edu.gatech.cc.cellwatch.ui.main
 
 import android.Manifest
+import android.os.Build
+import android.view.View
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
@@ -30,6 +33,7 @@ import org.hamcrest.Matchers.anyOf
 import org.hamcrest.Matchers.containsString
 import org.hamcrest.Matchers.startsWith
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assume.assumeFalse
 import org.junit.Before
@@ -116,9 +120,22 @@ class FirstRunPermissionsTest {
         assumeFalse("phone state is already granted", hasPermission(Manifest.permission.READ_PHONE_STATE))
         grantLocationOnly()
 
-        ActivityScenario.launch(MeasureActivity::class.java).use {
+        ActivityScenario.launch(MeasureActivity::class.java).use { scenario ->
             eventually { onView(withId(R.id.testingWarning)).check(matches(withEffectiveVisibility(Visibility.VISIBLE))) }
-            onView(withId(R.id.go)).perform(scrollTo(), click())
+            onView(withId(R.id.go)).perform(scrollTo())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android asks whether the app may show notifications. A second quick tap on Go
+                // doesn't start the test behind the question, and refusing doesn't stop the test.
+                scenario.onActivity { activity -> activity.findViewById<View>(R.id.go).run { performClick(); performClick() } }
+                Thread.sleep(3_000)
+                scenario.onActivity { activity ->
+                    val progress = ViewModelProvider(activity)[MeasureViewModel::class.java].state.value.progress
+                    assertEquals(MeasureViewModel.MeasureProgress.PRE, progress)
+                }
+                leaveTheOtherApp()
+            } else {
+                onView(withId(R.id.go)).perform(click())
+            }
 
             // Watching the cells needs phone state, so the latency test throws and the test stops.
             val failed = context.getString(R.string.measurement_failed)
