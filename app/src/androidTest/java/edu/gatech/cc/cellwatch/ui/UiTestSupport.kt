@@ -33,6 +33,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import org.hamcrest.Description
 import org.hamcrest.Matcher
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.fail
 import org.junit.Assume.assumeTrue
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
@@ -108,6 +111,20 @@ object UiTestSupport {
     /** Android's own Back, which also works on another app's window. */
     fun pressSystemBack() {
         InstrumentationRegistry.getInstrumentation().uiAutomation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+    }
+
+    /**
+     * Waits for another app's window (Android's settings or permission dialog), then goes Back,
+     * giving the app time to come to the front before going Back again.
+     */
+    fun leaveTheOtherApp() {
+        eventually(10_000) { assertNotEquals(context.packageName, foregroundPackage()) }
+        repeat(3) {
+            pressSystemBack()
+            val inFront = runCatching { eventually(5_000) { assertEquals(context.packageName, foregroundPackage()) } }
+            if (inFront.isSuccess) return
+        }
+        fail("still in ${foregroundPackage()}")
     }
 
     /**

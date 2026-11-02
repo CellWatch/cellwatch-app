@@ -1,6 +1,5 @@
 package edu.gatech.cc.cellwatch.ui.main
 
-import SettingsSetupFragment
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -20,6 +19,7 @@ import edu.gatech.cc.cellwatch.ui.onboarding.DataUseFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.FCCInfoFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.HomeFragment
 import edu.gatech.cc.cellwatch.ui.onboarding.ReadMoreFragment
+import edu.gatech.cc.cellwatch.ui.onboarding.SettingsSetupFragment
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 

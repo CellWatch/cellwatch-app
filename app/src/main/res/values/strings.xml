@@ -186,4 +186,11 @@
     </string>
     <string name="open_settings">Open settings</string>
 
+    <!-- permissions refused during onboarding -->
+    <string name="permissions_needed">Permissions needed</string>
+    <string name="permissions_denied">CellWatch can\'t take measurements without:\n\n%1$s\n\nTo allow access, open settings, then Permissions.</string>
+    <string name="permission_location">• Location</string>
+    <string name="permission_precise_location">• Precise location (turn on Use precise location)</string>
+    <string name="permission_phone">• Phone</string>
+
 </resources>
