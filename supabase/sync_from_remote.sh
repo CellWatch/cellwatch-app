@@ -75,7 +75,9 @@ echo "==> 2/6  dumping remote schema -> $BASELINE"
 supabase db dump --db-url "$DBURL" -f "$BASELINE"
 
 echo "==> 3/6  dumping remote data -> $DUMP_DIR/data.sql  (outside the repo)"
-supabase db dump --db-url "$DBURL" --data-only -f "$DUMP_DIR/data.sql"
+# Not the device check key (202611010004): with it and the secret hashes in private.devices,
+# anyone who could also run SQL as anon could pass any device's check.
+supabase db dump --db-url "$DBURL" --data-only -x private.device_check_key -f "$DUMP_DIR/data.sql"
 chmod 600 "$DUMP_DIR/data.sql"
 
 # ------------------------------------------------------------- safety gate --
