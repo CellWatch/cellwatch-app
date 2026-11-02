@@ -9,8 +9,8 @@ class MapViewModel: ViewModel() {
     // map group ID to MeasurementGroup
     private val measurementGroups = mutableMapOf<String, MeasurementGroup>()
 
-    // map hex ID to group IDs
-    private val childHexMeasurementGroupIds = mutableMapOf<Long, MutableSet<String>>()
+    // map hex ID to group IDs, for both sizes of hexagon the map draws
+    private val hexMeasurementGroupIds = mutableMapOf<Long, MutableSet<String>>()
 
     var selectedMeasurementGroupIds = setOf<String>()
 
@@ -24,10 +24,13 @@ class MapViewModel: ViewModel() {
                     group.download?.centerLatLon(),
                     group.upload?.centerLatLon(),
                 ).forEach { latlon ->
-                    val address = H3Manager.getH3Index(latlon.first, latlon.second, H3Manager.CHILD_HEX_RES)
-                    val ids = childHexMeasurementGroupIds[address] ?: mutableSetOf()
-                    ids.add(id)
-                    childHexMeasurementGroupIds[address] = ids
+                    // Each size comes from the location itself. H3's small hexagons don't nest
+                    // exactly in the large ones, so near an edge a small hexagon's parent isn't the
+                    // large hexagon the location is in.
+                    for (res in listOf(H3Manager.PARENT_HEX_RES, H3Manager.CHILD_HEX_RES)) {
+                        val address = H3Manager.getH3Index(latlon.first, latlon.second, res)
+                        hexMeasurementGroupIds.getOrPut(address) { mutableSetOf() }.add(id)
+                    }
                 }
             }
             measurementGroups[group.id] = group
@@ -41,17 +44,10 @@ class MapViewModel: ViewModel() {
 
     fun getHexMeasurementGroupIds(address: Long): Collection<String> {
         val res = H3Manager.getH3ResolutionFromAddress(address)
-        if (res > H3Manager.CHILD_HEX_RES) {
-            throw RuntimeException("need res <= ${H3Manager.CHILD_HEX_RES}, got $res")
+        if (res != H3Manager.PARENT_HEX_RES && res != H3Manager.CHILD_HEX_RES) {
+            throw RuntimeException("need res ${H3Manager.PARENT_HEX_RES} or ${H3Manager.CHILD_HEX_RES}, got $res")
         }
 
-        if (res == H3Manager.CHILD_HEX_RES) {
-            return childHexMeasurementGroupIds[address] ?: setOf()
-        }
-
-        return H3Manager.getRelatedH3Hex(address, H3Manager.CHILD_HEX_RES)
-            .mapNotNull { childHexMeasurementGroupIds[it] }
-            .flatten()
-            .toSet()
+        return hexMeasurementGroupIds[address] ?: setOf()
     }
 }
