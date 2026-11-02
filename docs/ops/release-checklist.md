@@ -74,7 +74,7 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
 - [ ] In Play Console: internal testing track first, then a staged production rollout. The app changes are released only once that rollout reaches users. Halt if submission inserts start failing (see below).
 - [ ] Tag the commit and create a GitHub Release with migration notes: which migrations had to be pushed to prod before it.
 
-A fuller release checklist, [doc/release-checklist.md](../../doc/release-checklist.md), and [doc/environments.md](../../doc/environments.md) are on `main` since #134 (merged 2026-10-27). They were written before the 2026-10-27 merges: `environments.md` says it is unknown whether a staging project exists, but the CellWatch Test Database project does (see step 1), and `release-checklist.md` still lists c51980e's carrier fallback, which #148 reverted. > TODO: reconcile them with this page.
+[doc/release-checklist.md](../../doc/release-checklist.md) keeps the details this page leaves out: the native libraries to check for 16 KB pages, what the upgrade test checks, the release keys and signing, and when to halt the rollout. [doc/environments.md](../../doc/environments.md) describes which servers each build talks to and proposes a staging setup.
 
 ## Post-release verification (read-only)
 
