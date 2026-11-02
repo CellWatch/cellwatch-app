@@ -1223,3 +1223,31 @@ begin
         'the key is 32 random bytes');
 end;
 $$;
+
+-- A caller's temporary types must not run as the checks' owner, in the checks or in
+-- private.device_secret_matches(), which they call as postgres (lib/shadow_types.sql, as for
+-- the other security definer functions). anon can't name the private schema, so a role that
+-- can calls the checks directly: twice in one transaction with the right secret, the second
+-- time through the kept check, then with a wrong secret.
+do $$ begin create role test_caller login; exception when duplicate_object then null; end $$;
+grant test_caller to postgres;   -- postgres isn't a superuser in this image, so it needs this to set role
+grant usage on schema private to test_caller;
+select current_database() as test_db, test_device('A') as shadow_device,
+       test_headers('owner') as owner_headers, test_headers('wrong secret') as wrong_headers \gset
+\c :test_db
+set role test_caller;
+\i /db_tests/lib/shadow_types.sql
+create domain pg_temp.bytea as pg_catalog.bytea check (pg_temp.shadow_probe());
+create domain pg_temp.json as pg_catalog.json check (pg_temp.shadow_probe());
+select pg_catalog.set_config('request.headers', :'owner_headers', false) as ignored \gset
+begin;
+select private.verified_device_id_or_null() as first_check, private.verified_device_id() as kept_check \gset
+commit;
+select pg_catalog.set_config('request.headers', :'wrong_headers', false) as ignored \gset
+select private.verified_device_id_or_null() is null as refused \gset
+select pg_temp.test_shadow_ran_as_owner() as escalated \gset
+reset role;
+\c :test_db
+select expect(:'first_check' = :'shadow_device' and :'kept_check' = :'shadow_device'
+              and :'refused' and not :'escalated',
+    'a caller''s temporary types do not run as the owner of the device checks') as ok \gset

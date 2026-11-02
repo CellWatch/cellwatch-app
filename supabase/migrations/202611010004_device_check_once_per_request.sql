@@ -40,8 +40,10 @@ begin;
 --     the tag computed again from the current request headers and the hash now on file:
 --       - another device id, another secret, or a secret replaced by register_device gives a
 --         different tag, so that check runs bcrypt;
---       - another transaction has a different start time, and another session a different
---         pid, so a value copied out of one transaction doesn't match in any other;
+--       - another session has a different pid, and a later transaction in the same session a
+--         later start time (unless the clock is set back), so a value copied out of one
+--         transaction doesn't match in another; if it did, it would only repeat a check that
+--         passed (see the last point);
 --       - making a tag that matches takes the key. No role but its owner has privileges on the
 --         key table (not anon, authenticated, service_role, authenticator, which PostgREST logs
 --         in as, or readonly_user), and row level security without policies hides its row from
@@ -61,8 +63,9 @@ begin;
 --     (which waits for a secret replacement in progress, 202610220001) still run on every
 --     call, before it.
 --
--- What it relies on: the key stays secret. It is in the database, so it is in data dumps and
--- backups, unlike the device secrets (only their hashes are). Someone with a dump who could
+-- What it relies on: the key stays secret. It is in the database, so it is in the backups,
+-- unlike the device secrets (only their hashes are); sync_from_remote.sh leaves it out of the
+-- local data dump. Someone with a dump who could
 -- also run SQL as anon or authenticated could make tags for any device. If a dump leaks, give
 -- it a new key (update private.device_check_key set key = extensions.gen_random_bytes(32));
 -- requests in progress then just run bcrypt again. Without a key row (a database built from a
@@ -71,8 +74,9 @@ begin;
 -- Unchanged: the policies, register_device, the error messages, and the two functions' owner,
 -- privileges and search_path.
 --
--- Deploying: no table locks. CREATE OR REPLACE FUNCTION doesn't wait for requests in progress;
--- they finish with the old functions. Running this again changes nothing and keeps the key.
+-- Deploying: no request waits. CREATE OR REPLACE FUNCTION doesn't wait for requests in
+-- progress; they finish with the old functions. The key table is new, so no request holds it.
+-- Running this again changes nothing, keeps the key and makes no request wait.
 
 -- The key the tags are made with. One row.
 create table if not exists private.device_check_key (
@@ -80,8 +84,17 @@ create table if not exists private.device_check_key (
     key bytea not null check (length(key) >= 32)
 );
 
--- Owned, like the functions that read it, by postgres, whichever role runs this.
-alter table private.device_check_key owner to postgres;
+-- Owned, like the functions that read it, by postgres, whichever role runs this. ALTER TABLE
+-- locks the table even when it changes nothing, and every device check reads it, so on a run
+-- of this file again every request would wait behind the slowest one in progress. So it's only
+-- altered if it needs to be, here and below.
+do $$
+begin
+    if (select c.relowner <> 'postgres'::regrole from pg_class c where c.oid = 'private.device_check_key'::regclass) then
+        alter table private.device_check_key owner to postgres;
+    end if;
+end;
+$$;
 
 insert into private.device_check_key (key) values (extensions.gen_random_bytes(32))
 on conflict do nothing;
@@ -105,7 +118,13 @@ begin
 end;
 $$;
 
-alter table private.device_check_key enable row level security;
+do $$
+begin
+    if not (select c.relrowsecurity from pg_class c where c.oid = 'private.device_check_key'::regclass) then
+        alter table private.device_check_key enable row level security;
+    end if;
+end;
+$$;
 
 -- Whether the secret is the device's: null if the device isn't registered. The first check in
 -- a transaction runs bcrypt and, if the secret is right, keeps the tag described above; later
