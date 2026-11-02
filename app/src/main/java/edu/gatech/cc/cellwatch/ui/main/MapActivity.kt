@@ -344,8 +344,10 @@ class MapActivity : AppCompatActivity() {
             override fun onError(e: Exception) {
                 // Offline, every search fails with an IOException, which is no bug. Anything else,
                 // such as Mapbox refusing the access token, is still reported.
-                if (e is IOException) Log.i(TAG, "Search failed", e) else Log.w(TAG, "Search failed", e)
-                Toast.makeText(applicationContext, R.string.search_failed, Toast.LENGTH_SHORT).show()
+                val offline = e is IOException
+                if (offline) Log.i(TAG, "Search failed", e) else Log.w(TAG, "Search failed", e)
+                val message = if (offline) R.string.search_failed_offline else R.string.search_failed
+                Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
             }
 
             override fun onHistoryItemClick(historyRecord: HistoryRecord) {
