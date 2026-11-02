@@ -13,7 +13,6 @@ suspend fun ping(host: String, count: Int = 5, delayMillis: Int = 5): Double {
     val TAG = "ping"
     val timeChan = Channel<Long>(count)
 
-    // TODO: can we detect whether IPv6 is going to work and not prefer IPv4?
     val addrs = withContext(Dispatchers.IO) { InetAddress.getAllByName(host) }
     val addrs4 = addrs.filterIsInstance<Inet4Address>()
     val addr = if (addrs4.isNotEmpty()) addrs4[0] else addrs.first()
