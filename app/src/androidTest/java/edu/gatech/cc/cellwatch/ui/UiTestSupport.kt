@@ -89,6 +89,30 @@ object UiTestSupport {
         return location!!
     }
 
+    /**
+     * Keeps location fixes from the app until [LocationHold.release], so a test that's running
+     * stops at its next fix, which it waits for with no time limit. Fused location's mock mode does
+     * the holding, which the app may use while it's allowed to mock locations.
+     */
+    class LocationHold : AutoCloseable {
+        private val client = LocationServices.getFusedLocationProviderClient(context)
+
+        init {
+            shell("appops set ${context.packageName} android:mock_location allow")
+            Tasks.await(client.setMockMode(true), 10, TimeUnit.SECONDS)
+        }
+
+        /** Lets the phone's own fixes through again (see [phoneLocation] for an emulator's). */
+        fun release() {
+            Tasks.await(client.setMockMode(false), 10, TimeUnit.SECONDS)
+        }
+
+        override fun close() {
+            release()
+            shell("appops set ${context.packageName} android:mock_location default")
+        }
+    }
+
     fun hasPermission(permission: String) =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 
