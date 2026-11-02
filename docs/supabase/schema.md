@@ -196,11 +196,12 @@ erDiagram
 
 ## `private` schema
 
-Not exposed through PostgREST, and `anon` has no `USAGE` grant on it. Reached only from triggers, RLS policies, `SECURITY DEFINER` functions, and pg_cron. **RLS is off** on all `private` tables. `readonly_user` has `SELECT` on all of them (and default privileges for future ones).
+Not exposed through PostgREST, and `anon` has no `USAGE` grant on it. Reached only from triggers, RLS policies, `SECURITY DEFINER` functions, and pg_cron. **RLS is off** on the `private` tables except `device_check_key`. `readonly_user` has `SELECT` on all of them except `device_check_key`, and default privileges for future ones; `202611010004` revokes them on the key table.
 
 | Table | Purpose | Key columns | PK / FK |
 |---|---|---|---|
 | `devices` | One row per registered phone | `id` uuid, `hashed_secret` text (bcrypt of the device secret) | PK `id` |
+| `device_check_key` | The key for the tags that keep a passed device check for the rest of a request (`202611010004`, #176, pushed 2026-11-02). Only `postgres` has privileges, and RLS without policies hides its row from roles that read every table but don't bypass RLS | `only_row` boolean (always true), `key` bytea (32 random bytes) | PK `only_row` |
 | `dashboard_settings` | Single-row config for the web dashboard | `id` boolean (always true), `shared_secret` text (compared with the `x-dashboard-secret` header) | PK `id` |
 | `fcc_submission_info` | FCC endpoint per environment | `env` text (e.g. `prod`, `demo`), `url` text, `hash_secret_id` uuid | PK `env`; FK `hash_secret_id` → `vault.secrets.id` |
 | `fcc_submission_retry_queue` | Submissions waiting to be posted | `submission_id`, `fcc_env` (default `prod`), `state` (`CHECK pending\|blocked\|held\|expired`; `held` and `expired` came with `202610210103`, pushed 2026-10-29), `attempt_count`, `next_attempt_at`, `last_attempt_at`, `last_error`, `created_on`, `updated_on` | PK `submission_id`; FK → `public.fcc_submissions.id` `ON DELETE CASCADE` |
