@@ -111,7 +111,7 @@ A migration that needs a strong lock on a table the app writes to must not wait 
 
 Every step that changes prod needs an explicit go-ahead from the owner. Credentials come from the keychain at run time. Never put a password, connection string, project ref, or FCC secret in a migration, a doc, or a commit.
 
-A test project, "CellWatch Test Database", exists in the same Supabase org. On 2026-10-22, before the 2026-10-29 push, its schema was brought up to match prod, with two deliberate differences: `trg_auto_post_fcc_submission` is disabled, and pg_cron and pg_graphql aren't installed, so nothing there posts to the FCC. Its `private.fcc_submission_info` still has a prod row, so don't re-enable the trigger or run the retry function by hand there. #136's migrations passed a rolled-back check on it on 2026-10-22.
+A test project, "CellWatch Test Database", exists in the same Supabase org. On 2026-11-02 its schema was brought up to match prod again: every migration on `main`, applied in filename order in one transaction and recorded in its `supabase_migrations.schema_migrations` as on prod. `202607140001` is recorded there but wasn't run, since it would make the trigger post synchronously. Its deliberate differences: `trg_auto_post_fcc_submission` is disabled; pg_cron, pg_net and pg_graphql aren't installed, so nothing there posts to the FCC or runs on a schedule; and since 2026-11-03 `private.fcc_submission_info` has only the `demo` row. Keep the trigger off, and don't run the retry function by hand there. #136's migrations passed a rolled-back check on it on 2026-10-22.
 
 ## Ordering rule: server first
 

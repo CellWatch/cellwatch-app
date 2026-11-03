@@ -36,7 +36,7 @@ Why the `_200` triggers matter: `insert_measurement` inserts whole composite row
 
 Order on a single `fcc_submissions` insert: `_200` → `_300` → (`_310`, not on main) → row stored → `trg_auto_post_fcc_submission`.
 
-On the test project ("CellWatch Test Database"), `trg_auto_post_fcc_submission` is deliberately disabled, so inserts there queue nothing. Don't re-enable it: that project's `private.fcc_submission_info` still has a prod row.
+On the test project ("CellWatch Test Database"), `trg_auto_post_fcc_submission` is deliberately disabled, so inserts there queue nothing. Keep it off. Since 2026-11-03 that project has no `prod` row in `private.fcc_submission_info`, so an entry queued there for `prod` couldn't be posted anyway.
 
 ### `published` tables
 
