@@ -31,11 +31,12 @@ Notes:
 ### Supabase projects
 
 - **CellWatch Server** (`xepxxvpbexkyxrwtrgqv`) is production, the project in `sync_from_remote.sh`.
-- **CellWatch Test Database**, in the same Supabase organization, is the test project. On 2026-10-22 its schema
-  was brought up to production's, with the FCC auto-post trigger disabled and without pg_cron, so nothing there
-  posts to the FCC. It still has a `prod` row in `private.fcc_submission_info`, so don't re-enable the trigger
-  or run the retry job there by hand (see [docs/ops/release-checklist.md](../docs/ops/release-checklist.md),
-  step 1).
+- **CellWatch Test Database**, in the same Supabase organization, is the test project. On 2026-11-02 its schema
+  was brought up to production's again (every migration on `main`), with the FCC auto-post trigger disabled and
+  without pg_cron or pg_net, so nothing there posts to the FCC or runs on a schedule. Since 2026-11-03 its
+  `private.fcc_submission_info` has only the `demo` row: the `prod` row and its Vault secret were removed, so a
+  post to `prod` there fails with "missing FCC submission info for env prod". Keep the trigger off anyway (see
+  [docs/ops/release-checklist.md](../docs/ops/release-checklist.md), step 1).
 
 ### FCC (BDC) environments
 
@@ -65,7 +66,7 @@ devices from real ones.
 ## Proposal
 
 1. **A staging Supabase project.** The CellWatch Test Database project (above) is a start: its schema matched
-   production's on 2026-10-22. A staging project would also:
+   production's on 2026-11-02. A staging project would also:
    - build its schema from the live snapshot plus `supabase/migrations` (see supabase/README.md), and keep it
      in step by applying every migration to staging first;
    - put only a `demo` row in its `private.fcc_submission_info`, with the BDC demo token, if the FCC still

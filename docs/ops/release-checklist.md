@@ -32,7 +32,7 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
 ### 1. Server (push to prod)
 
 - [ ] List every migration under [`supabase/migrations/`](../../supabase/migrations/) that isn't pushed to prod yet (see the table above), and every new request field or RPC the release's app code uses.
-- [ ] Rehearse the push on the test project, **CellWatch Test Database** (same Supabase org). On 2026-10-22, before the 2026-10-29 push, its schema was brought up to match prod's, with deliberate differences: the FCC auto-post trigger is disabled and pg_cron/pg_graphql aren't installed, so nothing there posts to the FCC, and the cron steps can't be rehearsed there. Its `private.fcc_submission_info` still has a `prod` row, so don't re-enable the trigger and don't run `private.process_fcc_submission_retries` there by hand.
+- [ ] Rehearse the push on the test project, **CellWatch Test Database** (same Supabase org). On 2026-11-02 its schema was brought up to match prod's again (every migration on `main`, recorded in its `supabase_migrations.schema_migrations` as on prod), with deliberate differences: the FCC auto-post trigger is disabled and pg_cron, pg_net and pg_graphql aren't installed, so nothing there posts to the FCC, and the cron steps can't be rehearsed there. Since 2026-11-03 its `private.fcc_submission_info` has only the `demo` row, so a post to `prod` there fails ("missing FCC submission info for env prod"). Keep the trigger off, and don't run `private.process_fcc_submission_retries` there by hand.
 - [ ] Push the migrations to prod **in filename order**, pausing the retry job around changes to the FCC pipeline or the upload tables. Follow **`prod-deploy-runbook.md` (local file, not in git)** step by step. In summary:
   1. Read-only pre-checks: is the previous migration live, what is the cron job state, and what does the queue look like.
   2. Pause `fcc-submission-retries` if the migration touches the FCC pipeline or the upload tables.
@@ -49,7 +49,7 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
 ### 2. FCC environment
 
 - [ ] On prod, read-only: `select env, url from private.fcc_submission_info;`. There must be a `prod` row pointing at the BDC production endpoint. The insert trigger queues every submission with `fcc_env = 'prod'` ([full_schema.sql](../../supabase/full_schema.sql), `auto_post_fcc_submission`).
-- [ ] Test or staging databases must **not** hold prod BDC credentials. The CellWatch Test Database project still has a `prod` row in `private.fcc_submission_info` (see the cautions in step 1). A `demo` env pointing at the BDC demo endpoint is sketched, commented out, in [post_fcc_submission_func.sql](../../supabase/post_fcc_submission_func.sql); test against it rather than prod.
+- [ ] Test or staging databases must **not** hold prod BDC credentials. The CellWatch Test Database's `prod` row and its Vault secret were removed on 2026-11-03; its only env is `demo`, which points at the BDC demo endpoint (see the cautions in step 1). Test posting against `demo` rather than prod. A `demo` env is also sketched, commented out, in [post_fcc_submission_func.sql](../../supabase/post_fcc_submission_func.sql).
 - [ ] `cron.job` shows `fcc-submission-retries` active, with recent `succeeded` runs.
 
 ### 3. App build (for the Play release)
