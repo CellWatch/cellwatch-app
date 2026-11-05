@@ -23,7 +23,9 @@ import edu.gatech.cc.cellwatch.data.model.asEntityWithData
 import edu.gatech.cc.cellwatch.data.model.uploadTime
 import edu.gatech.cc.cellwatch.data.network.NetworkMeasurementDatasource
 import edu.gatech.cc.cellwatch.data.network.allowSlowRequests
+import edu.gatech.cc.cellwatch.domain.fcc.MeasurementService
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.datetime.Instant
@@ -50,6 +52,8 @@ class MeasurementRepository(
     private val measurementDao: MeasurementDao,
     private val submissionDao: FccSubmissionDao,
     private val networkDataSource: NetworkMeasurementDatasource,
+    // Uploads wait while a speed test is running
+    private val testRunning: StateFlow<Boolean> = MeasurementService.testRunning,
     // A parameter so unit tests can run without Crashlytics
     private val warn: (String) -> Unit = { Log.w("MeasurementRepository", it) },
 ) {
@@ -174,6 +178,7 @@ class MeasurementRepository(
             override fun info(message: String, throwable: Throwable?) = Log.i(TAG, message, throwable)
             override fun error(message: String, throwable: Throwable?) = Log.e(TAG, message, throwable)
         },
+        testRunning = testRunning,
     )
 
     private suspend fun getPubicTCPTuple(

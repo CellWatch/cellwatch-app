@@ -35,6 +35,7 @@ import edu.gatech.cc.cellwatch.ui.UiTestSupport.shell
 import edu.gatech.cc.cellwatch.ui.UiTestSupport.useFccChallengeMode
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -174,6 +175,28 @@ class MeasureFlowTest {
                 }
                 // Nothing keeps the phone awake once the test is over.
                 eventually { assertEquals("measurement wake locks held", 0, heldMeasurementWakeLocks()) }
+            }
+        }
+    }
+
+    @Test
+    fun theServiceReportsATestRunningUntilItIsOver() {
+        LocationHold().use { location ->
+            ActivityScenario.launch(MeasureActivity::class.java).use {
+                eventually { onView(withId(R.id.testingWarning)).check(matches(withEffectiveVisibility(Visibility.VISIBLE))) }
+                assertFalse("before Go", MeasurementService.testRunning.value)
+
+                onView(withId(R.id.go)).perform(scrollTo(), click())
+                // The test is held at its first location fix, so it's still running. Uploads wait
+                // while this says so.
+                eventually { onView(withId(R.id.header)).check(matches(isDisplayed())) }
+                assertTrue("while the test runs", MeasurementService.testRunning.value)
+
+                location.release()
+                eventually(MEASUREMENT_TIMEOUT_MS) {
+                    onView(withId(R.id.header)).check(matches(withText(R.string.measurement_complete)))
+                }
+                eventually { assertFalse("once the test is over", MeasurementService.testRunning.value) }
             }
         }
     }

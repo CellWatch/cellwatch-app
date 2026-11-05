@@ -57,6 +57,7 @@ sequenceDiagram
 - `onStartCommand`: acquires a `PARTIAL_WAKE_LOCK` with a 10-minute timeout, calls `ServiceCompat.startForeground` (notification id `100`, channel `measurement_notifications`, type `FOREGROUND_SERVICE_TYPE_LOCATION`), then runs the test on a new thread with its own `Looper` inside `runBlocking`. Returns `START_NOT_STICKY`; calls `stopSelf()` when done.
 - Requires extras `collection_mode` (enum name) and `in_vehicle` (Boolean); without them it logs an error and runs nothing.
 - Only one run at a time: `state` must go from `null` or `DONE` to `STARTING`, otherwise "measurement already running".
+- `MeasurementService.testRunning`, a process-wide `StateFlow<Boolean>`, is true from the start that claims a test until the test's thread finishes, about the span of its wake lock. It doesn't affect the test: `MeasurementUploader` reads it so uploads don't share the connection a test is measuring (see [sync-and-upload](sync-and-upload.md#when-uploads-trigger)). Added after #180, not released.
 - States exposed via `MeasurementBinder.state`: `STARTING, STARTED, LOCATE, LATENCY, DOWNLOAD, UPLOAD, DONE`. The binder also exposes `groupId`, `latency`, `download`, `upload`, `group`, `lastErrorCode`, `lastErrorMessage`.
 - On exception the message is kept and `HttpUtil.code()` pulls an HTTP status from it; `MeasureViewModel` shows a special message for `429` (M-Lab rate limiting).
 

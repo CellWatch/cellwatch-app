@@ -8,6 +8,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
@@ -22,6 +25,10 @@ import java.io.IOException
  * Only one upload runs at a time, and at most [maxParallelUploads] requests are in flight at once.
  * A submission is only sent after all three of its measurements are uploaded, so the server never
  * receives a submission it can't complete.
+ *
+ * Nothing new is sent while a speed test is running ([testRunning]), so uploads don't share the
+ * connection the test is measuring. Requests already sent when a test starts are left to finish;
+ * the rest wait until the test is over.
  */
 class MeasurementUploader(
     private val local: Local,
@@ -29,6 +36,7 @@ class MeasurementUploader(
     private val log: Log,
     private val maxParallelUploads: Int = 3,
     private val now: () -> Instant = { Clock.System.now() },
+    private val testRunning: StateFlow<Boolean> = MutableStateFlow(false),
 ) {
     interface Local {
         suspend fun unsyncedMeasurements(): List<Measurement>
@@ -66,6 +74,7 @@ class MeasurementUploader(
 
     private suspend fun uploadMeasurements(): Summary =
         uploadEach(local.unsyncedMeasurements(), { "measurement ${it.id}" }) { measurement ->
+            waitForTestToFinish()
             val onServer = try {
                 remote.insertMeasurement(measurement)
             } catch (e: DuplicateKeyError) {
@@ -87,6 +96,10 @@ class MeasurementUploader(
             return Summary(waiting = waiting.size)
         }
 
+        // Submissions wait here, before the tuple is fetched, and not one by one after it: they're
+        // small, and holding them back would put time between the tuple's server timestamp and
+        // the upload it stands for.
+        waitForTestToFinish()
         val tuple = try {
             remote.getTcpTuple()
         } catch (e: CancellationException) {
@@ -114,6 +127,13 @@ class MeasurementUploader(
             }
             local.markSubmissionUploaded(onServer, now())
         }.copy(waiting = waiting.size)
+    }
+
+    private suspend fun waitForTestToFinish() {
+        if (testRunning.value) {
+            log.info("waiting for the running test to finish")
+            testRunning.first { running -> !running }
+        }
     }
 
     /** A submission's id is its group id, and the server needs all three of the group's tests. */

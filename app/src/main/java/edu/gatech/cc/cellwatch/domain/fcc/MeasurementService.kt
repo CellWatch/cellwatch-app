@@ -46,6 +46,15 @@ MeasurementService: Service() {
     companion object {
         const val EXTRA_COLLECTION_MODE = "collection_mode"
         const val EXTRA_IN_VEHICLE = "in_vehicle"
+
+        private val _testRunning = MutableStateFlow(false)
+
+        /**
+         * True from the start that claims a test until the test's thread has finished running it,
+         * about the span the test holds its wake lock. Uploads wait while it's true, so they don't
+         * send data over the connection a test is measuring. Reading it doesn't affect the test.
+         */
+        val testRunning: StateFlow<Boolean> = _testRunning
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -65,6 +74,7 @@ MeasurementService: Service() {
             Log.w(TAG, "measurement already running, ignoring start $startId")
         } else {
             acquireWakeLock()
+            _testRunning.value = true
             thread {
                 Looper.prepare()
                 Handler(Looper.myLooper()!!).post {
@@ -74,6 +84,8 @@ MeasurementService: Service() {
                         } catch (e: Throwable) {
                             Log.e(TAG, "unexpected error running test", e)
                         } finally {
+                            // First, so nothing below can leave uploads waiting.
+                            _testRunning.value = false
                             stopSelf()
                             Looper.myLooper()?.quitSafely()
                             releaseWakeLock()
