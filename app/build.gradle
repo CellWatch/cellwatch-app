@@ -139,9 +139,11 @@ dependencies {
     annotationProcessor "androidx.room:room-compiler:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
 
-    implementation 'com.mapbox.maps:android:11.3.1'
-    implementation "com.mapbox.search:mapbox-search-android:2.2.0"
-    implementation "com.mapbox.search:mapbox-search-android-ui:2.2.0"
+    // The -ndk27 builds have 16 KB-aligned native libraries, which Google Play requires
+    // for updates from 2027-02-01. Search 2.14.x is the release paired with Maps 11.14.x.
+    implementation 'com.mapbox.maps:android-ndk27:11.14.8'
+    implementation "com.mapbox.search:mapbox-search-android-ndk27:2.14.4"
+    implementation "com.mapbox.search:mapbox-search-android-ui-ndk27:2.14.4"
 
 
     // To use Kotlin annotation processing tool (kapt)
@@ -164,7 +166,9 @@ dependencies {
 
     implementation "androidx.datastore:datastore-preferences:1.0.0"
 
-    implementation "com.uber:h3:3.7.2"
+    // H3Manager uses newSystemInstance(), which loads src/main/jniLibs/*/libh3-java.so.
+    // Those are the jar's android-arm64/android-arm libraries; replace them with each bump.
+    implementation "com.uber:h3:4.5.1"
 
     implementation 'commons-validator:commons-validator:1.7'
     implementation 'com.google.android.gms:play-services-oss-licenses:17.0.1'

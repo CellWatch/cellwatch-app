@@ -3,7 +3,7 @@ package edu.gatech.cc.cellwatch.domain.map.managers
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CoordinateBounds
 import com.uber.h3core.H3Core
-import com.uber.h3core.util.GeoCoord
+import com.uber.h3core.util.LatLng
 import edu.gatech.cc.cellwatch.core.util.Log
 
 object H3Manager {
@@ -23,40 +23,40 @@ object H3Manager {
 
         h3Indexes.forEach { index ->
             Log.i("H3Manager", getH3ResolutionFromAddress(index).toString())
-            val geoBoundary = h3.h3ToGeoBoundary(index)
+            val geoBoundary = h3.cellToBoundary(index).toMutableList()
             // GeoJSON requires the first and last points of a polygon to be the same
             geoBoundary.add(geoBoundary.first())
-            h3Boundaries.add(geoCoordListToMapboxPointList(geoBoundary))
+            h3Boundaries.add(latLngListToMapboxPointList(geoBoundary))
         }
 
         return h3Boundaries
     }
 
-    private fun geoCoordListToMapboxPointList(geoCoordList: MutableList<GeoCoord>): MutableList<Point> {
+    private fun latLngListToMapboxPointList(latLngList: MutableList<LatLng>): MutableList<Point> {
         /*
-        Takes in a list of Uber GeoCoords, converts to list of MapBox Points.
+        Takes in a list of Uber LatLngs, converts to list of MapBox Points.
          */
         val h3Boundaries: MutableList<Point> = mutableListOf()
 
-        geoCoordList.forEach { geoCoord ->
-            h3Boundaries.add(Point.fromLngLat(geoCoord.lng, geoCoord.lat))
+        latLngList.forEach { latLng ->
+            h3Boundaries.add(Point.fromLngLat(latLng.lng, latLng.lat))
 
         }
         return h3Boundaries
     }
 
-    private fun boundsToGeoCoords(bounds: CoordinateBounds): List<GeoCoord> {
+    private fun boundsToLatLngs(bounds: CoordinateBounds): List<LatLng> {
         return listOf(
-            GeoCoord(bounds.northeast.latitude(), bounds.northeast.longitude()),
-            GeoCoord(bounds.northwest().latitude(), bounds.northwest().longitude()),
-            GeoCoord(bounds.southwest.latitude(), bounds.southwest.longitude()),
-            GeoCoord(bounds.southeast().latitude(), bounds.southeast().longitude()),
+            LatLng(bounds.northeast.latitude(), bounds.northeast.longitude()),
+            LatLng(bounds.northwest().latitude(), bounds.northwest().longitude()),
+            LatLng(bounds.southwest.latitude(), bounds.southwest.longitude()),
+            LatLng(bounds.southeast().latitude(), bounds.southeast().longitude()),
         )
     }
 
      fun getH3OverlayAddressesFromBounds(bounds: CoordinateBounds, resolution: Int): List<Long> {
-         val geoListBoundaries = boundsToGeoCoords(bounds)
-         return h3.polyfill(geoListBoundaries, mutableListOf(), resolution)
+         val geoListBoundaries = boundsToLatLngs(bounds)
+         return h3.polygonToCells(geoListBoundaries, mutableListOf(), resolution)
     }
 
     fun getH3BoundaryFromAddressSingleton(h3address: Long): MutableList<MutableList<Point>> {
@@ -64,26 +64,26 @@ object H3Manager {
     }
 
     fun getRelatedH3Hex(addr: Long, relatedRes: Int): MutableList<Long> {
-        return if(h3.h3GetResolution(addr) < relatedRes) {
-            h3.h3ToChildren(addr, relatedRes)
-        } else if (h3.h3GetResolution(addr) > relatedRes) {
-            mutableListOf(h3.h3ToParent(addr, relatedRes))
+        return if(h3.getResolution(addr) < relatedRes) {
+            h3.cellToChildren(addr, relatedRes)
+        } else if (h3.getResolution(addr) > relatedRes) {
+            mutableListOf(h3.cellToParent(addr, relatedRes))
         } else {
             mutableListOf(addr)
         }
     }
 
     fun getH3ResolutionFromAddress(addr: Long): Int {
-        return h3.h3GetResolution(addr)
+        return h3.getResolution(addr)
     }
 
     fun getH3CenterFromAddressSingleton(addr: Long): Point {
-        val centerGeo = h3.h3ToGeo(addr)
+        val centerGeo = h3.cellToLatLng(addr)
         return Point.fromLngLat(centerGeo.lng, centerGeo.lat)
     }
 
     fun getH3Index(lat: Double, lon: Double, res: Int): Long {
-        return h3.geoToH3(lat, lon, res)
+        return h3.latLngToCell(lat, lon, res)
     }
 
     fun isInH3Hex(lat: Double, lon: Double, addr: Long): Boolean {
