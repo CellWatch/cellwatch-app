@@ -39,6 +39,8 @@ The released build (versionCode 13) has no periodic or foreground trigger: it up
 
 Phones that already have the periodic work keep its old settings, because of `KEEP`. Changing the periodic request later needs `ExistingPeriodicWorkPolicy.UPDATE`.
 
+**Uploads wait while a speed test runs.** Any of these triggers can fire during a test: the hourly run, the app coming back to the front, a retry, or queued work whose network has just come back. So `MeasurementUploader` sends nothing new while `MeasurementService.testRunning` is true, which is from the start that claims a test until the test's thread finishes (about the span of its wake lock). Requests already sent when a test starts are left to finish; the rest wait until the test is over. This keeps upload traffic off the connection the test is measuring. The wait was added after #180 and isn't released; in the released build (versionCode 13), only the map screen's upload or the previous test's could overlap a test.
+
 ## `UploadWorker` (WorkManager)
 
 [UploadWorker.kt](../../app/src/main/java/edu/gatech/cc/cellwatch/data/core/sync/UploadWorker.kt)
@@ -60,11 +62,11 @@ Submissions that are only *waiting* for their measurements do not cause a retry.
 
 `uploadPending()` holds a `Mutex`, so only one upload runs per process. It returns `Summary(uploaded, failed, waiting)`.
 
-1. **Measurements.** `local.unsyncedMeasurements()` (all rows with `uploadTime IS NULL`, with children). Each is sent with `remote.insertMeasurement`; at most `maxParallelUploads = 3` requests in flight (`Semaphore`).
+1. **Measurements.** `local.unsyncedMeasurements()` (all rows with `uploadTime IS NULL`, with children). Each is sent with `remote.insertMeasurement`; at most `maxParallelUploads = 3` requests in flight (`Semaphore`). Each request first waits while a test is running (`testRunning`, see [When uploads trigger](#when-uploads-trigger)).
 2. **Submissions.** `local.unsyncedSubmissions()` are split into:
    - *ready*: the group has a `latency`, `download` and `upload` measurement that all have `uploadTime` set;
    - *waiting*: everything else (counted in `Summary.waiting`, logged).
-3. If any are ready, **one** tuple request (`remote.getTcpTuple()`) is made for the whole batch. On failure every ready submission counts as failed for this run.
+3. If any are ready, **one** tuple request (`remote.getTcpTuple()`) is made for the whole batch. On failure every ready submission counts as failed for this run. The tuple request waits while a test is running; the submissions after it don't, so the tuple's server timestamp stays close to their upload.
 4. Each ready submission gets `sourceIp = tuple.remoteAddress`, `sourcePort = tuple.remotePort`, `serverTimestamp = tuple.timestamp` (epoch ms) (uncommitted work on the `client-port-header` branch also sets `tupleLocalPort = tuple.localPort`); then `remote.insertFccSubmission` (again max 3 in parallel).
 
 Consequences worth knowing:

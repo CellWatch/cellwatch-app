@@ -9,7 +9,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -175,8 +178,73 @@ class MeasurementUploaderTest {
         assertEquals(emptyList<String>(), log.errors)
     }
 
-    private fun uploader(local: FakeLocal, remote: FakeRemote, log: FakeLog = FakeLog()) =
-        MeasurementUploader(local, remote, log, maxParallelUploads = 3, now = { uploadTime })
+    @Test
+    fun measurementsWaitUntilTheRunningTestHasFinished() = runBlocking<Unit> {
+        val local = FakeLocal(group("g1"))
+        val remote = FakeRemote()
+        val testRunning = MutableStateFlow(true)
+
+        val run = async { uploader(local, remote, testRunning = testRunning).uploadPending() }
+        delay(200)
+        assertEquals("requests while the test runs", emptyList<String>(), remote.requests)
+
+        testRunning.value = false
+        assertEquals(MeasurementUploader.Summary(uploaded = 3), withTimeout(5_000) { run.await() })
+    }
+
+    @Test
+    fun aTestThatStartsDuringAnUploadHoldsBackTheRequestsNotYetSent() = runBlocking<Unit> {
+        val measurements = group("g1") + group("g2")
+        val first = measurements.first().id
+        val local = FakeLocal(measurements)
+        val testRunning = MutableStateFlow(false)
+        val remote = FakeRemote(onRequest = { if (it == first) testRunning.value = true })
+
+        val run = async { uploader(local, remote, testRunning = testRunning).uploadPending() }
+        delay(200)
+        assertEquals("only the request already sent", listOf(first), remote.requests)
+        assertNotNull("and it finished", local.measurement(first).uploadTime)
+
+        testRunning.value = false
+        assertEquals(6, withTimeout(5_000) { run.await() }.uploaded)
+    }
+
+    @Test
+    fun submissionsWaitForTheRunningTestBeforeTheTupleIsFetched() = runBlocking<Unit> {
+        val uploaded = group("g1").map { it.copy(uploadTime = uploadTime) }
+        val local = FakeLocal(uploaded, listOf(FccSubmission(id = "g1")))
+        val remote = FakeRemote()
+        val testRunning = MutableStateFlow(true)
+
+        val run = async { uploader(local, remote, testRunning = testRunning).uploadPending() }
+        delay(200)
+        assertEquals(0, remote.tupleRequests)
+
+        testRunning.value = false
+        assertEquals(MeasurementUploader.Summary(uploaded = 1), withTimeout(5_000) { run.await() })
+        assertEquals(1, remote.tupleRequests)
+    }
+
+    @Test
+    fun submissionsGivenATupleAreSentEvenIfATestStarts() = runBlocking<Unit> {
+        // Holding them back would put time between the tuple's server timestamp and their upload.
+        val uploaded = group("g1").map { it.copy(uploadTime = uploadTime) }
+        val local = FakeLocal(uploaded, listOf(FccSubmission(id = "g1")))
+        val testRunning = MutableStateFlow(false)
+        val remote = FakeRemote(onTuple = { testRunning.value = true })
+
+        val summary = withTimeout(5_000) { uploader(local, remote, testRunning = testRunning).uploadPending() }
+
+        assertEquals(MeasurementUploader.Summary(uploaded = 1), summary)
+        assertEquals(uploadTime, local.submission("g1").uploadTime)
+    }
+
+    private fun uploader(
+        local: FakeLocal,
+        remote: FakeRemote,
+        log: FakeLog = FakeLog(),
+        testRunning: StateFlow<Boolean> = MutableStateFlow(false),
+    ) = MeasurementUploader(local, remote, log, maxParallelUploads = 3, now = { uploadTime }, testRunning = testRunning)
 
     private fun measurement(groupId: String, type: String) = Measurement(
         id = "$groupId-$type",
@@ -222,6 +290,10 @@ private class FakeRemote(
     private val savedThenTimedOut: Set<String> = emptySet(),
     private val cancelOn: Set<String> = emptySet(),
     private val tupleUnreachable: Boolean = false,
+    /** Called as each insert request is sent, with the id it sends. */
+    private val onRequest: (String) -> Unit = {},
+    /** Called as the tuple request is sent. */
+    private val onTuple: () -> Unit = {},
 ) : MeasurementUploader.Remote {
     val tuple = TcpTuple("203.0.113.7", 40000, 1_790_000_000_000)
     val requests = mutableListOf<String>()
@@ -238,12 +310,14 @@ private class FakeRemote(
 
     override suspend fun getTcpTuple(): TcpTuple {
         tupleRequests++
+        onTuple()
         if (tupleUnreachable) throw NetworkError()
         return tuple
     }
 
     private suspend fun <T> insert(id: String, saved: () -> T): T {
         requests += id
+        onRequest(id)
         inFlight++
         maxInFlight = maxOf(maxInFlight, inFlight)
         try {

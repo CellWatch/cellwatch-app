@@ -134,7 +134,7 @@ class MeasurementGroupsTest {
         FakeMeasurementDao(measurements.map { it.asEntityWithData() }),
         FakeSubmissionDao(submissions.map { it.asEntity() }),
         unusedDatasource(),
-        warn,
+        warn = warn,
     ).getMeasurementGroups()
 
     // getMeasurementGroups never uses the network, but a real NetworkMeasurementDatasource needs a
