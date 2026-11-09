@@ -141,6 +141,6 @@ For investigation, connect through the Supabase **session pooler** (IPv4, port 5
   With `psql`: `psql "<conninfo>" -X -c "set default_transaction_read_only = on" -f query.sql`.
 - Read-only transactions reject temp tables and temp views; use CTEs.
 - The pooler session's timezone is UTC.
-- **`app_version` is always `'1.0.0'`** in `measurements` and `fcc_submissions` (the app's `versionName` was never bumped), so it cannot tell builds apart. Use dates, or a different signal.
+- **`app_version` is `'1.0.0'` from the Play build** in `measurements` and `fcc_submissions`, so until 1.1.0 is released it can't tell builds apart. Use dates, or a different signal. 1.1.0 (on `main` since #166) sends `'1.1.0'`, but a test recorded before the update keeps its old version.
 - Tables with PII: `fcc_submissions` (contact name, email, phone, IMEI). Don't copy query results containing them into issues or docs.
 - Don't test RLS on prod by impersonating `anon` or reading `private.devices.hashed_secret`. Reproduce locally instead ([performance-notes](performance-notes.md#how-to-profile)).

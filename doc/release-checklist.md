@@ -34,8 +34,9 @@ brought up to date on 2026-11-01 for 1.1.0 (versionCode 14).
   - `libh3-java.so` (H3 3.7.2);
   - `libc++_shared.so`.
 
-  If Play requires 16 KB support for the update, those dependencies need upgrading first. That's a code change
-  with its own testing.
+  #182 (merged 2026-11-05) replaced them with 16 KB-aligned builds: Mapbox Maps 11.14.8 and Search 2.14.4
+  (`-ndk27`), H3 4.5.1 and Conscrypt 2.5.3. The androidTests `NativeLibraryPageSizeTest` and `ConscryptTest`
+  check the libraries in the installed APK.
 - **Target API.** Main targets API 36 since #148. Google raises the minimum every August, so check Play
   Console for the current one.
 
@@ -46,9 +47,14 @@ brought up to date on 2026-11-01 for 1.1.0 (versionCode 14).
   disabled. Against production, a challenge test is filed with the FCC under the tester's contact details. See
   [environments.md](environments.md).
 - **Upgrade test.** Install the current Play build (versionCode 13), record a few tests in airplane mode,
-  install the new build over it, and go online without opening the app. Check that:
+  install the new build over it, and go online without opening the app. Leave it closed for an hour, then
+  open it. Check that:
+  - nothing runs or uploads until the app is opened once after the update. 1.1.0 schedules its hourly
+    `UploadWorker` in `CellWatchApp.onCreate`. WorkManager's boot and network receivers ship disabled, and
+    there's no `MY_PACKAGE_REPLACED` receiver, so an update doesn't start the app. 1.0.0 also needed the app
+    opened, so this isn't a regression;
   - the Room database opens (schema 18, unchanged since versionCode 13);
-  - the backlog uploads on its own, from the hourly upload or when the app comes to the front (#148);
+  - the backlog uploads within seconds of opening, and the hourly upload (#148) is scheduled from then on;
   - submissions upload after their measurements;
   - no duplicates appear on the server.
 

@@ -10,14 +10,22 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
 
 **Rule zero: server first, app second.** Every migration an app build depends on must be pushed to prod before that build is released.
 
-## Where things stand (2026-11-01)
+## Where things stand (2026-11-09)
 
 | Stage | Supabase | App |
 |---|---|---|
-| In prod | [full_schema.sql](../../supabase/full_schema.sql), [cron_jobs.sql](../../supabase/cron_jobs.sql) and [role_settings.sql](../../supabase/role_settings.sql), pulled from prod on 2026-11-01 after that day's pushes (#158). That is **every migration on `main`**: `202607140001` and `202610070001`, applied by hand earlier; baseline `202609300001` (#134), RLS `202610210001` (#132), and pipeline `202610210101`, `0103` and `0104` (#133), pushed on 2026-10-29; registration `202610220001` (#148), database helpers `202610220102` (#136) and the digest email `202610310001` (#154), pushed on 2026-10-31; the digest ignore list `202610310002` (#156) and dashboard RPCs `202610220101` (#136), pushed on 2026-11-01. All are recorded in prod's `supabase_migrations.schema_migrations`. Jobs: `fcc-submission-retries` runs `call private.run_fcc_submission_retries(10);`, and `fcc-queue-digest` emails the queue digest daily when something is new. | The Play build, versionCode 13. The repo doesn't record which commit it was built from. |
-| Merged to `main`, not in prod | None: every migration on `main` is pushed. | Not known to be released: #111 (upload loop) and #112 (Crashlytics scrubbing), both 2026-10-07. **Not released:** #136's app fixes and #148 (API 36, hourly and foreground uploads, 60 s timeouts, registration retry, upload status, progress bar), both merged 2026-10-27. #148 also reverted c51980e's carrier fallback (2026-07-14), so main's carrier name matches the released build again, and #150 took #136's server choice and #148's export `test_id` back out. `versionCode` is still 13. |
+| In prod | [full_schema.sql](../../supabase/full_schema.sql), [cron_jobs.sql](../../supabase/cron_jobs.sql) and [role_settings.sql](../../supabase/role_settings.sql), pulled from prod on 2026-11-02 after that day's push (#177). That is **every migration on `main`**: `202607140001` and `202610070001`, applied by hand earlier; baseline `202609300001` (#134), RLS `202610210001` (#132), and pipeline `202610210101`, `0103` and `0104` (#133), pushed on 2026-10-29; registration `202610220001` (#148), database helpers `202610220102` (#136) and the digest email `202610310001` (#154), pushed on 2026-10-31; the digest ignore list `202610310002` (#156), dashboard RPCs `202610220101` (#136), the dashboard summary `202611010001` (#159), the digest's sent count `202611010002` (#162) and the `authenticated` timeout `202611010003` (#164), pushed on 2026-11-01; and the once-per-request device check `202611010004` (#176), pushed on 2026-11-02. All are recorded in prod's `supabase_migrations.schema_migrations`. Nothing under `supabase/` has changed on `main` since #177. Jobs: `fcc-submission-retries` runs `call private.run_fcc_submission_retries(10);`, `fcc-queue-digest` emails the queue digest daily when something is new, and `dashboard-group-points-refresh` refreshes the dashboard's summary every 5 minutes. | The Play build: versionCode 13 (1.0.0), from `2eab6c4`. No release tag records it. |
+| Merged to `main`, not in prod | None: every migration on `main` is pushed. | **Not released.** `main` at `26891760` is the 1.1.0 candidate: versionCode 14 and versionName 1.1.0 since #166. Its app changes since the Play build are listed below the table. |
 | Open PRs | none | none |
 | Not in any PR | `202610130001` (uncommitted on the `client-port-header` branch) | Local-port reporting (uncommitted on `client-port-header`). Changes to how a test is measured or what it records, held back because the measurement process is to stay as approved: carrier aggregation, SIM-first carrier name, the generation check, the success-flag rework, the two-location rule, the closest-server pick and the export `test_id`, on the local branch `measurement-process-changes`. #128–#131 and #135 are closed, and #148 took their other commits; #149 is closed, and #151 took its fix. |
+
+App changes on `main` since the Play build, none of them released:
+- **2026-10-07:** #111 (upload loop) and #112 (Crashlytics scrubbing).
+- **2026-10-27:** #136's app fixes, and #148 (API 36, hourly and foreground uploads, 60 s timeouts, registration retry, upload status, progress bar). #148 also reverted c51980e's carrier fallback (2026-07-14), so main's carrier name matches the released build again. #150 took #136's server choice and #148's export `test_id` back out.
+- **2026-11-01 and 2026-11-02:** #168 (app data kept off new phones), #169 (onboarding names the missing permissions), #170 (a plain message when map search fails), #171 (the Spanish Cancel text), #172 (three bugs the unit tests found), #174 (notification permission asked before the first test), #178 (a second tap on Go is ignored) and #179 (a TODO comment removed from `ping.kt`). #167 added tests only.
+- **2026-11-05:** #181 (uploads wait while a test runs) and #182 (16 KB-aligned Mapbox, H3 and Conscrypt).
+
+Not done yet for 1.1.0: the signed build, the upgrade test with Play-signed builds, the FCC docket filing, the Play rollout and the `v1.1.0` tag.
 
 ## Why the order matters
 
@@ -41,7 +49,7 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
   5. Check queue health.
   6. Refresh and commit the schema snapshot (`supabase/check_drift.sh --write`), and record each pushed version in `supabase_migrations.schema_migrations`, as was done for the October 2026 set.
 
-  The pipeline set (`202609300001`, `202610210001`, `0101`, `0103`, `0104`) was pushed this way on 2026-10-29. That deploy applied to new submissions only (decided 2026-10-27): entries already in the queue were left as they were, and the re-queue of the held 2026-08-17 entries was skipped. `202610220001` (registration retry, which a release built from main needs), `202610220102` (database helpers) and `202610310001` (digest email) followed on 2026-10-31, and `202610310002` (digest ignore list) and `202610220101` (dashboard RPCs, after the dashboard backend's `DASHBOARD_SECRET` was checked against prod's) on 2026-11-01. As of 2026-11-01 nothing merged to `main` is waiting to be pushed.
+  The pipeline set (`202609300001`, `202610210001`, `0101`, `0103`, `0104`) was pushed this way on 2026-10-29. That deploy applied to new submissions only (decided 2026-10-27): entries already in the queue were left as they were, and the re-queue of the held 2026-08-17 entries was skipped. `202610220001` (registration retry, which a release built from main needs), `202610220102` (database helpers) and `202610310001` (digest email) followed on 2026-10-31, and `202610310002` (digest ignore list), `202610220101` (dashboard RPCs, after the dashboard backend's `DASHBOARD_SECRET` was checked against prod's), `202611010001` (dashboard summary), `202611010002` (digest sent count) and `202611010003` (`authenticated` timeout) on 2026-11-01, and `202611010004` (device check once per request) on 2026-11-02. As of 2026-11-09 nothing merged to `main` is waiting to be pushed.
 - [ ] Not in a PR: `202610130001` (uncommitted on the `client-port-header` branch). Push it before releasing an app that sends `tuple_local_port`.
 - [ ] Re-run [db tests](../dev/testing.md#database-tests) on the release commit.
 - [ ] Confirm the schema snapshot has no drift (see [Runbooks → snapshot](runbooks.md#refreshing-the-local-schema-snapshot)).
@@ -58,14 +66,14 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
 - [x] Bump **`versionCode`** in [app/build.gradle](../../app/build.gradle): `14` for the next release (the Play Store build is versionCode 13, and Play needs a higher one).
 - [x] Decide **`versionName`**: `"1.1.0"`. It is sent to the BDC as `app_version`, which the spec says must match an approved version string; the FCC has approved `1.*` (confirmed 2026-11-01), so any `1.x` is accepted. `1.1.0` hasn't been used before (prod has seen `1.0`, `1.0.1` and `1.0.0`), so the new build's data can be told apart.
 - [ ] **Release config** (`buildTypes.release`): `SUPABASE_URL` / `SUPABASE_API_KEY` from the cloud keys in `cellwatch.properties`; `MSAK_SERVER_ENV` hard-coded `"prod"`; `MSAK_LOCAL_SERVER_HOST` `""`; `MSAK_LOCAL_SERVER_SECURE` `true`; `TCP_TUPLE_URL` (same value as debug). Check that the root `cellwatch.properties` has the **cloud** values filled in. Debug builds use the `*_LOCAL_*` keys.
-- [ ] **Target API:** Google Play requires app updates to target **API 36**. Main targets 36 since #148 (merged 2026-10-27: compileSdk/targetSdk 36, AGP 8.9.3, Gradle 8.11.1, edge-to-edge insets), so a release built from main meets it. Check the current deadline in Play Console, and check Play's 16 KB page-size requirement there too.
+- [ ] **Target API and 16 KB pages:** Google Play requires app updates to target **API 36**, and from 2027-02-01 to support 16 KB memory pages. Main targets 36 since #148 (merged 2026-10-27: compileSdk/targetSdk 36, AGP 8.9.3, Gradle 8.11.1, edge-to-edge insets). Its native libraries support 16 KB pages since #182 (merged 2026-11-05: Mapbox, H3 and Conscrypt). So a release built from main meets both. Check the current deadlines in Play Console, and confirm both there for the uploaded bundle.
 - [ ] **Signing:** `app/build.gradle` has no `signingConfigs`. Confirm who holds the upload key / Play App Signing access before release day.
 - [ ] Build the signed release from a clean checkout of the release tag. `minifyEnabled` is false. Git release tags stop at `v1.0.0` (2024-11-21, versionCode 8), so no tag records the commit behind the current Play build.
 
 ### 4. Pre-release testing
 
 - [ ] Manual test on a phone against non-production servers: run an FCC-mode test and confirm the measurements and submission upload.
-- [ ] **Upgrade test** from the Play build (versionCode 13) with results recorded offline: after the upgrade, they must upload.
+- [ ] **Upgrade test** from the Play build (versionCode 13) with results recorded offline: after the upgrade, nothing uploads until the app is opened, and then they must upload within seconds. A debug-signed run on an emulator (`2eab6c4` to `26891760`, local Supabase) passed on 2026-11-09. The run with Play-signed builds is still to do.
 - [ ] Instrumented tests only on a disposable, offline AVD ([Testing → cautions](../dev/testing.md#cautions)).
 
 ### 5. Rollout
@@ -78,7 +86,7 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
 
 ## Post-release verification (read-only)
 
-`app_version` can't tell builds apart, so use time windows and fields only the new build sends. Use [read-only prod SQL](runbooks.md#read-only-prod-sql) and `\set released_at '2026-…+00'`.
+Tests recorded by the release send `app_version` `'1.1.0'`, which no earlier build used. A test keeps the version it was recorded with, so a 1.0.0 backlog still arrives as `'1.0.0'` after the update. Play-signed 1.1.0 builds on the internal testing track also send `'1.1.0'`, before the release. So count by `app_version` within a time window. Use [read-only prod SQL](runbooks.md#read-only-prod-sql) and `\set released_at '2026-…+00'`.
 
 ```sql
 -- Uploads still arriving
@@ -87,10 +95,18 @@ from public.measurements
 where created_on > :'released_at'
 group by 1 order by 1;
 
--- Submissions arriving
-select count(*) as submissions
+-- Uploads by build. '1.0.0' rows come from phones not updated yet,
+-- or from tests recorded before the update.
+select app_version, count(*) as measurements
+from public.measurements
+where created_on > :'released_at'
+group by 1 order by 2 desc;
+
+-- Submissions arriving, by build
+select app_version, count(*) as submissions
 from public.fcc_submissions
-where created_on > :'released_at';
+where created_on > :'released_at'
+group by 1 order by 2 desc;
 -- Only once 202610130001 is pushed to prod and the release sends tuple_local_port
 -- (the column doesn't exist on prod before that), count rows from the new build:
 -- select count(tuple_local_port) as from_new_build
