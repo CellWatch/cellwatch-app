@@ -26,8 +26,8 @@ Files: [build.gradle](../../build.gradle), [settings.gradle](../../settings.grad
 | `compileSdk` | 36 (35 before #148) |
 | `minSdk` | 29 (Android 10) |
 | `targetSdk` | 36 (35 before #148) |
-| `versionCode` | 13 |
-| `versionName` | `"1.0.0"` |
+| `versionCode` | 14 (13 before #166) |
+| `versionName` | `"1.1.0"` (`"1.0.0"` before #166) |
 | ABI filters | `armeabi`, `armeabi-v7a`, `arm64-v8a` (no x86/x86_64) |
 | Build features | `viewBinding true`, `buildConfig true` (#148 moved the BuildConfig switch here from `android.defaults.buildfeatures.buildconfig` in `gradle.properties`, which AGP 8.7+ deprecates) |
 | Room schema export | `room.schemaLocation = app/schemas` |
@@ -35,9 +35,9 @@ Files: [build.gradle](../../build.gradle), [settings.gradle](../../settings.grad
 | Product flavors | none |
 | Build types | `debug`, `release` (below) |
 
-`versionName` has stayed `1.0.0`; it is what the app reports as `app_version` on measurements and submissions, so server data cannot tell builds apart by that field. Bump it (and `versionCode`) for each release; see [release-checklist.md](../ops/release-checklist.md).
+`versionName` is what the app reports as `app_version` on measurements and submissions. It stayed `1.0.0` from versionCode 8 (`v1.0.0`) to 13, so server data from those builds can't be told apart by that field. #166 set `1.1.0` for the next release, so tests recorded by 1.1.0 can be; a test keeps the version it was recorded with. Bump it (and `versionCode`) for each release; see [release-checklist.md](../ops/release-checklist.md).
 
-Release history as far as the repo records it: git release tags stop at `v1.0.0` (2024-11-21, versionCode 8). #109 (2025-10-13) set `versionCode` to 13, and it has not been bumped since. The Play Store build is versionCode 13; the repo does not record which commit it was built from. So app changes merged to main after #109 and before 2026-10-27 (for example #111 and #112 on 2026-10-07) are on main but not known to be in a release (check Play Console). Nothing has been released since #136, #148 and #150 were merged on 2026-10-27, so their app changes are on main and not released (#148 reverted c51980e's app change from 2026-07-14). Work on local branches, such as `measurement-process-changes`, is neither merged nor released. #148 left `versionCode` at 13, so the next release needs a `versionCode` bump.
+Release history as far as the repo records it: git release tags stop at `v1.0.0` (2024-11-21, versionCode 8). #109 (2025-10-13) set `versionCode` to 13, and #166 (2026-11-01) set it to 14 for 1.1.0, which isn't released yet. The Play Store build is versionCode 13; the repo does not record which commit it was built from. So app changes merged to main after #109 and before 2026-10-27 (for example #111 and #112 on 2026-10-07) are on main but not known to be in a release (check Play Console). Nothing has been released since #136, #148 and #150 were merged on 2026-10-27, so their app changes are on main and not released (#148 reverted c51980e's app change from 2026-07-14). Work on local branches, such as `measurement-process-changes`, is neither merged nor released. [release-checklist.md](../ops/release-checklist.md) lists every unreleased app change.
 
 > Target API: Google Play requires new app updates to target API 36 (check Play Console for the current deadline for updates that still target 35). Main targets 36 since #148 (merged to `main` 2026-10-27; not released), which replaced the closed PR #135. AGP 8.9.3 is at or above Google's listed minimum for API 36 (8.9.1). It also fixes the AGP 8.1.x problem where connected (instrumented) tests aborted on API 36 emulators. See [../dev/testing.md](../dev/testing.md).
 

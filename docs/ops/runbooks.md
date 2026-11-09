@@ -33,7 +33,7 @@ Gotchas:
 - **`PGOPTIONS` is ignored by the pooler.** `PGOPTIONS='-c default_transaction_read_only=on'` silently leaves the session read-write, so always use the in-session `SET`.
 - Read-only transactions reject `CREATE TEMP VIEW`/`TABLE`. Use CTEs.
 - The pooler session's timezone is **UTC**.
-- `app_version` is always `'1.0.0'` (the version name has never been bumped), so you can't use it to tell builds apart. Use `created_on` ranges or fields only newer builds send (for example `tuple_local_port`, once `202610130001`, uncommitted on the `client-port-header` branch, is pushed to prod and an app that sends it is released).
+- `app_version` is the app's `versionName` when the test was recorded. The Play build sends `'1.0.0'`, so until 1.1.0 is released you can't use it to tell builds apart. Use `created_on` ranges or fields only newer builds send (for example `tuple_local_port`, once `202610130001`, uncommitted on the `client-port-header` branch, is pushed to prod and an app that sends it is released). 1.1.0 (on `main` since #166) sends `'1.1.0'`, but a test recorded before the update keeps its old version.
 - Don't read `private.devices.hashed_secret` or `vault.decrypted_secrets`, and don't `SET ROLE anon` on prod. To test RLS, use a local copy ([Local setup](../dev/local-setup.md#when-docker-is-unavailable)) or the CellWatch Test Database project (see [Release checklist](release-checklist.md#1-server-push-to-prod) for its cautions).
 - Don't `select *` from `public.fcc_submissions` (contact PII).
 

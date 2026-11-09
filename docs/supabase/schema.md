@@ -49,7 +49,7 @@ One row per test (download, upload, or latency). Three rows with the same `group
 | `success`, `scheduled`, `carrier_aggregation`, `network_connected`, `network_available`, `network_roaming`, `cellular_data_enabled` | boolean | Test and network flags (most are copied into the FCC payload) |
 | `sim_mobile_country_code`, `sim_mobile_network_code`, `net_mobile_country_code`, `net_mobile_network_code` | text | SIM and serving-network PLMN codes |
 | `connection_type` | `connection_type` | `NONE` / `WIFI` / `CELLULAR` |
-| `device_manufacturer`, `device_model`, `device_os_name`, `device_os_version`, `app_name`, `app_version` | text | Device and app metadata. `app_version` is always `1.0.0` in practice (versionName was never bumped), so it cannot tell builds apart |
+| `device_manufacturer`, `device_model`, `device_os_name`, `device_os_version`, `app_name`, `app_version` | text | Device and app metadata. `app_version` is the app's `versionName` when the test ran: `1.0.0` from the Play build, and `1.1.0` from 1.1.0 (#166) once it's released |
 | `extra_data` | jsonb | Free-form extras |
 
 - **PK:** `measurements_pkey (id)`. **Indexes:** `measurements_device_id_idx (device_id)` (`202610210001`, #132) and `measurements_group_id_idx (group_id)` (`202610210101`, #133), both on prod since 2026-10-29; before that neither column had an index. See [performance-notes](performance-notes.md).
@@ -129,7 +129,7 @@ One row per FCC BDC Consumer Challenge submission. **Contains contact PII** (nam
 | `source_ip` | varchar | From the tuple service; if null, the `_300` trigger fills it from `x-forwarded-for` |
 | `source_port` | integer | From the tuple service |
 | `device_imei`, `device_tac`, `device_type`, `device_manufacturer`, `device_model`, `device_os` | text/varchar | Device fields for the FCC payload |
-| `app_name`, `app_version` | text | `app_version` is always `1.0.0` |
+| `app_name`, `app_version` | text | `app_version` is the app's `versionName` when the test ran: `1.0.0` from the Play build, and `1.1.0` from 1.1.0 (#166) once it's released |
 | `provider` | text | Carrier name. Blank → the retry job blocks the entry (`Missing provider`) |
 | `sim_country_code`, `sim_network_code`, `net_country_code`, `net_network_code` | varchar | PLMN codes |
 | `in_vehicle`, `external_antenna` | boolean | FCC flags |
