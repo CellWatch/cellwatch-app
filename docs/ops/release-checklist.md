@@ -86,7 +86,7 @@ Not done yet for 1.1.0: the signed build, the upgrade test with Play-signed buil
 
 ## Post-release verification (read-only)
 
-`app_version` can't tell builds apart, so use time windows and fields only the new build sends. Use [read-only prod SQL](runbooks.md#read-only-prod-sql) and `\set released_at '2026-…+00'`.
+Tests recorded by the release send `app_version` `'1.1.0'`, which no earlier build used. A test keeps the version it was recorded with, so a 1.0.0 backlog still arrives as `'1.0.0'` after the update. Play-signed 1.1.0 builds on the internal testing track also send `'1.1.0'`, before the release. So count by `app_version` within a time window. Use [read-only prod SQL](runbooks.md#read-only-prod-sql) and `\set released_at '2026-…+00'`.
 
 ```sql
 -- Uploads still arriving
@@ -95,10 +95,18 @@ from public.measurements
 where created_on > :'released_at'
 group by 1 order by 1;
 
--- Submissions arriving
-select count(*) as submissions
+-- Uploads by build. '1.0.0' rows come from phones not updated yet,
+-- or from tests recorded before the update.
+select app_version, count(*) as measurements
+from public.measurements
+where created_on > :'released_at'
+group by 1 order by 2 desc;
+
+-- Submissions arriving, by build
+select app_version, count(*) as submissions
 from public.fcc_submissions
-where created_on > :'released_at';
+where created_on > :'released_at'
+group by 1 order by 2 desc;
 -- Only once 202610130001 is pushed to prod and the release sends tuple_local_port
 -- (the column doesn't exist on prod before that), count rows from the new build:
 -- select count(tuple_local_port) as from_new_build
