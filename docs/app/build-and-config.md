@@ -97,7 +97,7 @@ Other config inputs:
 
 | Area | Artifact | Version | Notes |
 |---|---|---|---|
-| Backend client | `io.github.jan-tennert.supabase:postgrest-kt` | 1.0.3 | JSON: `ignoreUnknownKeys = true`, `encodeDefaults = false`. The library's default request timeout is 10 s; since #148 the app raises it, and the connect timeout, to 60 s (`allowSlowRequests`). See [sync-and-upload.md](sync-and-upload.md#serialization-rule-important-when-adding-fields). |
+| Backend client | `io.github.jan-tennert.supabase:postgrest-kt` | 1.0.3 | JSON: inserts, rpc calls and replies use kotlinx's `Json.Default` unless given another `Json`; the app reads replies with its own `serverReplies`, which ignores unknown keys. The library's default request timeout is 10 s; since #148 the app raises it, and the connect timeout, to 60 s (`allowSlowRequests`). See [sync-and-upload.md](sync-and-upload.md#serialization-rule-important-when-adding-fields). |
 | Ktor engine | `io.ktor:ktor-client-cio` | 2.3.0 | The only Ktor engine on the classpath. Uncommitted work on the `client-port-header` branch replaces it with `ktor-client-okhttp` 2.3.0 so `LocalPortHeaders` can see the socket. |
 | Serialization | `org.jetbrains.kotlinx:kotlinx-serialization-json` | 1.5.0 | `kotlinx-datetime` comes in transitively. |
 | Speed tests | `com.github.CellWatch:msak-android` (JitPack) | 0.1.3 | M-Lab MSAK throughput1/latency1 client and locate. |

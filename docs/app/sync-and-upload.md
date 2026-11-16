@@ -116,8 +116,8 @@ The object passed in is the **server's returned copy** (decoded response) on suc
 | App method | Supabase call | Body / result |
 |---|---|---|
 | `registerDevice(id, secret)` | `rpc("register_device", {device_id, device_secret})` via `requestDeviceRegistration` | returns nothing. Raises `device id … already registered` if the id has uploaded data under a different secret, and `device secret is too short` under 32 characters |
-| `insertMeasurement(m)` | `rpc("insert_measurement", NetworkMeasurementWithData)` | body keys `in_measurement`, `in_measurement_data`, `in_latency_data`, `in_locations`, `in_cells`; decoded as `NetworkMeasurement` |
-| `insertFccSubmission(s)` | `postgrest["fcc_submissions"].insert(NetworkFccSubmission)` | `decodeSingle<NetworkFccSubmission>()` |
+| `insertMeasurement(m)` | `rpc("insert_measurement", NetworkMeasurementWithData)` | body keys `in_measurement`, `in_measurement_data`, `in_latency_data`, `in_locations`, `in_cells`; the saved `measurements` row comes back, read with `serverReplies` |
+| `insertFccSubmission(s)` | `postgrest["fcc_submissions"].insert(NetworkFccSubmission)` | the saved row comes back, read with `serverReplies` (see [Serialization rule](#serialization-rule-important-when-adding-fields)) |
 | `getMeasurementById(id)` | `select` on `measurements` with embedded `upload_download_data, latency_data, locations, cells` | not called anywhere |
 
 DTOs live in [`data/network/model/`](../../app/src/main/java/edu/gatech/cc/cellwatch/data/network/model/) and map camelCase fields to snake_case with `@SerialName` (for example `simMcc` -> `sim_mobile_country_code` on measurements, but `simCountryCode` -> `sim_country_code` on submissions; `deviceOsName` -> `device_os` on submissions).
@@ -142,9 +142,11 @@ DTOs live in [`data/network/model/`](../../app/src/main/java/edu/gatech/cc/cellw
 
 ### Serialization rule (important when adding fields)
 
-supabase-kt's JSON is configured with `ignoreUnknownKeys = true` and `encodeDefaults = false`:
+supabase-kt 1.0.3 has its own JSON settings (`ignoreUnknownKeys = true`, `encodeDefaults = false`), but its `insert`, `rpc` and `decode…` calls use kotlinx's `Json.Default` unless they're given another `Json` (checked in the library's bytecode). `Json.Default` has `encodeDefaults = false` and `ignoreUnknownKeys = false`:
 
-- **Responses**: extra columns from the server are ignored, so the server can add columns without breaking old apps.
+- **Responses**: the phone reads back the row each upload saved: the `fcc_submissions` row from the insert, and the `measurements` row that `insert_measurement` returns. A key the app has no field for fails that read, after the server has already saved the row.
+  - Main's app reads these replies with `serverReplies` (`ignoreUnknownKeys = true`, in `NetworkMeasurementDatasource.kt`), so a new column doesn't affect it. This is merged to `main`, not released.
+  - The released build (versionCode 13) reads them with `Json.Default`. After a column is added to `fcc_submissions` or `measurements`, every upload it makes to that table fails, and it sends the row again on every run, getting a duplicate key error each time (#186). Its duplicate check for measurements reads the row back with its `upload_download_data`, `latency_data`, `locations` and `cells`, so new columns there also stop it marking a duplicate as uploaded. While that build is on phones, put new data for these tables in a new table rather than new columns.
 - **Requests**: a property equal to its default (`null` for nearly every DTO field) is **omitted** from the body. Fields without a default (`type`, `connection_type`, `cellular_data_enabled` on `NetworkMeasurement`) are always sent.
 - Therefore a new request-body field is invisible to the server while it is null, but as soon as the app sends a non-null value the server must already know the column/argument. The same goes for a new RPC overload: PostgREST picks an overload by its argument names. **Push the server migration to Supabase prod before releasing an app version that sends a new field or calls a new overload.** Merging the app change to main is not the deadline; the Play Store release is. See [migrations-and-deploy.md](../supabase/migrations-and-deploy.md).
 
@@ -165,7 +167,7 @@ Uncommitted work on the local `client-port-header` branch: not in a PR, not merg
 | Tests: `LocalPortHeadersTest`, updated `MeasurementUploaderTest`. | `app/src/test/...` |
 | Server side: `202610130001_record_local_ports.sql` adds `tuple_local_port`, `upload_local_port`, `upload_transport`, `upload_ip` to `fcc_submissions` plus a before-insert trigger reading the headers. | see [triggers-and-cron.md](../supabase/triggers-and-cron.md) |
 
-Per the serialization rule, `tuple_local_port` is sent whenever the tuple request saw a port, so **migration `202610130001` must be pushed to Supabase prod before an app release that includes this change**. The headers themselves are harmless to an older server.
+Per the serialization rule, `tuple_local_port` is sent whenever the tuple request saw a port, so **migration `202610130001` must be pushed to Supabase prod before an app release that includes this change**. The headers themselves are harmless to an older server. But the migration adds four columns to `fcc_submissions`, which breaks FCC submission uploads from the released build (see the serialization rule), so it can't be pushed as written while versionCode 13 is in use (#186).
 
 ## Other paths that touch Supabase data
 

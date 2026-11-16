@@ -219,6 +219,7 @@ Merged to `main` is not in prod: app changes need a Play Store release, and Supa
   - DB test: `local_ports_test.sql`.
 - **Consequences:**
   - The migration must be pushed to prod before an app that sends `tuple_local_port` is released, or PostgREST will reject the unknown column.
+  - But its four new `fcc_submissions` columns break FCC submission uploads from the released build (versionCode 13), which rejects unknown keys in the row it reads back and sends each submission again on every run (#186). So it can't be pushed as written while that build is in use.
   - The uploader copies one tuple onto every submission in a run, so comparison counts should be de-duplicated by `(source_ip, source_port, server_timestamp)`.
   - A device-reported port cannot satisfy a field the spec defines as "measured by the server". `TODO.md` (local file, not in git) records a recommendation to shelve this comparison and evaluate an edge proxy (AWS CloudFront `CloudFront-Viewer-Address`) instead. That proposal is not decided.
   - The `supabase/config.toml` Postgres version change (15 → 17) in the same uncommitted work is unrelated housekeeping; `main` still says 15. Per `db_tests/run.sh`, the live project runs Postgres 17.

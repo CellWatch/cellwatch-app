@@ -21,10 +21,10 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
 
 ## Why the order matters
 
-- **supabase-kt 1.0.3** (the app's client) serializes with `ignoreUnknownKeys = true` and `encodeDefaults = false`:
-  - New **response** columns are safe: old apps ignore them.
+- **supabase-kt 1.0.3** (the app's client) encodes request bodies with kotlinx's `Json.Default`, and the released build reads replies with it too:
+  - **New columns on `fcc_submissions` or `measurements` break the released build's uploads.** It reads back each row it uploads and rejects keys it has no field for, so the insert commits, but the phone counts it as failed and sends it again on every run (#186). Main's app ignores unknown keys (`serverReplies`), which helps only phones that have a release with it. See [Migrations and deploy](../supabase/migrations-and-deploy.md#new-columns-on-the-tables-the-app-reads-back).
   - **Null fields are omitted** from request bodies, so column defaults and `WHEN (x IS NULL)` triggers still fire.
-  - A **new non-null request field** fails the insert (PostgREST: unknown column) until the migration adding the column is pushed to prod. Example: the uncommitted app change on the `client-port-header` branch sends `tuple_local_port`, which needs `202610130001_record_local_ports.sql` pushed to prod first, or **every FCC submission upload fails**.
+  - A **new non-null request field** fails the insert (PostgREST: unknown column) until the migration adding the column is pushed to prod. Example: the uncommitted app change on the `client-port-header` branch sends `tuple_local_port`, which needs `202610130001_record_local_ports.sql` pushed to prod first, or **every FCC submission upload fails**. That migration adds `fcc_submissions` columns, though, so the first point stops it going to prod as written while versionCode 13 is in use.
 - **PostgREST picks an RPC overload by the argument names in the request body.** A new overload, such as `register_device(device_id, device_secret)` from `202610220001` (#148), must exist on prod before a released app calls it. Main's app calls it; without that migration, new installs of a release built from main couldn't register or upload. It was pushed on 2026-10-31.
 
 ## Checklist
@@ -43,6 +43,7 @@ Related: [Runbooks](runbooks.md) · Prod deploy runbook (`prod-deploy-runbook.md
 
   The pipeline set (`202609300001`, `202610210001`, `0101`, `0103`, `0104`) was pushed this way on 2026-10-29. That deploy applied to new submissions only (decided 2026-10-27): entries already in the queue were left as they were, and the re-queue of the held 2026-08-17 entries was skipped. `202610220001` (registration retry, which a release built from main needs), `202610220102` (database helpers) and `202610310001` (digest email) followed on 2026-10-31, and `202610310002` (digest ignore list) and `202610220101` (dashboard RPCs, after the dashboard backend's `DASHBOARD_SECRET` was checked against prod's) on 2026-11-01. As of 2026-11-01 nothing merged to `main` is waiting to be pushed.
 - [ ] Not in a PR: `202610130001` (uncommitted on the `client-port-header` branch). Push it before releasing an app that sends `tuple_local_port`.
+  - Not as written while versionCode 13 is in use: it adds four `fcc_submissions` columns (see [Why the order matters](#why-the-order-matters)).
 - [ ] Re-run [db tests](../dev/testing.md#database-tests) on the release commit.
 - [ ] Confirm the schema snapshot has no drift (see [Runbooks → snapshot](runbooks.md#refreshing-the-local-schema-snapshot)).
 

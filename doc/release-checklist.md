@@ -6,15 +6,18 @@ brought up to date on 2026-11-01 for 1.1.0 (versionCode 14).
 
 ## Server before app
 
-- **A migration goes live before the app that needs it.** supabase-kt 1.0.3 omits null fields and ignores
-  unknown response keys, but a request with a field the database doesn't have fails the insert, and so does a
-  call to an RPC overload it doesn't have. Compare the request models since the last release:
+- **A migration goes live before the app that needs it.** supabase-kt 1.0.3 omits null fields, but a request
+  with a field the database doesn't have fails the insert, and so does a call to an RPC overload it doesn't
+  have. Compare the request models since the last release:
   ```bash
   git diff 2eab6c4 HEAD -- app/src/main/java/edu/gatech/cc/cellwatch/data/network/model app/schemas
   ```
   2eab6c4 is the commit that set versionCode 13; the repo doesn't record which commit was built for it. For
   1.1.0 the diff adds no request field and no Room schema change. Its one new server dependency is
   `register_device(device_id, device_secret)` (#148), pushed to prod on 2026-10-31.
+- **No new columns on `fcc_submissions` or `measurements` while versionCode 13 is in use.** It reads back each
+  row it uploads with kotlinx's `Json.Default`, which rejects unknown keys, so its uploads to that table would
+  fail and repeat on every run. Main's app (1.1.0) reads replies with `serverReplies`, which ignores them (#186).
 
 ## FCC
 
