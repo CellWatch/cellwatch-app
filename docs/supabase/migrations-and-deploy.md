@@ -118,13 +118,19 @@ A test project, "CellWatch Test Database", exists in the same Supabase org. On 2
 **A migration that adds a request-body field, a column the app writes, or a new RPC overload must be pushed to prod before any app release that sends it.** (An app change is in prod only once it is in a Play Store release.)
 
 Why:
-- supabase-kt 1.0.3 serializes with `ignoreUnknownKeys = true` and `encodeDefaults = false`. Old app builds therefore ignore new columns in responses (adding columns is safe), and null or default fields are **left out** of request bodies (so column defaults and `WHEN (x IS NULL)` triggers still fire).
+- supabase-kt 1.0.3 encodes request bodies with kotlinx's `Json.Default`, so null or default fields are **left out** of them (column defaults and `WHEN (x IS NULL)` triggers still fire).
 - A new app build that sends a **non-null field the server doesn't know yet** fails: PostgREST rejects unknown columns, so the insert errors until the migration is pushed.
 - PostgREST chooses a function overload from the **argument names** in the JSON body. A new build that calls a new signature (for example a two-argument `register_device`) gets "function not found" until that signature exists on prod.
 
 Current examples:
-- The local-port app change (uncommitted on the `client-port-header` branch) sends `tuple_local_port` on every FCC submission. Push `202610130001` (uncommitted on the same branch) to prod before any app release with that change, or FCC submission uploads from that release will fail. The `X-Local-Port` / `X-Transport` headers are harmless without the migration, because unknown headers are ignored.
+- The local-port app change (uncommitted on the `client-port-header` branch) sends `tuple_local_port` on every FCC submission. Push `202610130001` (uncommitted on the same branch) to prod before any app release with that change, or FCC submission uploads from that release will fail. The `X-Local-Port` / `X-Transport` headers are harmless without the migration, because unknown headers are ignored. But the migration adds `fcc_submissions` columns, so read [New columns on the tables the app reads back](#new-columns-on-the-tables-the-app-reads-back) first.
 - Main's app (since #148, merged 2026-10-27) calls a new `register_device(device_id, device_secret)` overload, from `202610220001`. That migration was pushed to prod on 2026-10-31, so a release built from main can register.
+
+## New columns on the tables the app reads back
+
+**Don't add a column to `fcc_submissions` or `measurements` while the released build (versionCode 13) is in use.** The phone reads back each row it uploads, and that build reads it with kotlinx's `Json.Default`, which rejects keys it has no field for. The insert commits, the phone counts it as failed, and it sends the row again on every run, getting a duplicate key error each time. Its duplicate check for measurements also reads back `upload_download_data`, `latency_data`, `locations` and `cells`, so new columns there stop it marking a duplicate as uploaded. Put new data in a table of its own instead (#186).
+
+Main's app reads replies with `serverReplies`, which ignores unknown keys. That protects only phones with a release that has it, not phones on versionCode 13.
 
 ## Read-only prod access
 

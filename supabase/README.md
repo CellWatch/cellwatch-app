@@ -29,8 +29,9 @@ or the dashboard.
 - **Secrets:** never put a secret in a migration (FCC token, dashboard shared secret, keys). Those live in Vault
   or tables that are filled by hand, and the migration says so.
 - **App compatibility:** if a migration adds a column the app will send, apply it before releasing the app
-  build. supabase-kt 1.0.3 leaves unknown columns out of responses but fails inserts with them (see
-  doc/release-checklist.md).
+  build: an insert that names a column the table doesn't have fails. Don't add columns to `fcc_submissions` or
+  `measurements` while the released build (versionCode 13) is in use: it rejects unknown keys in the rows it
+  reads back, so its uploads fail and repeat (#186; see doc/release-checklist.md).
 
 ## Testing
 
