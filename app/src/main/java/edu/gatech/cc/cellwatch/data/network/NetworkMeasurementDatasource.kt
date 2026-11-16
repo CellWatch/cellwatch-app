@@ -19,12 +19,14 @@ import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.PostgrestResult
 import io.github.jan.supabase.postgrest.rpc
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.api.createClientPlugin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -106,7 +108,7 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
     suspend fun insertFccSubmission(fccSubmission: FccSubmission): FccSubmission {
         return withErrorHandling {
             getClient().postgrest["fcc_submissions"].insert(fccSubmission.asNetworkModel())
-                .decodeSingle<NetworkFccSubmission>().asExternalModel()
+                .savedSubmission().asExternalModel()
         }
     }
 
@@ -129,7 +131,7 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
 
         return withErrorHandling {
             getClient().postgrest.rpc("insert_measurement", networkMeasurementData)
-                .decodeAs<NetworkMeasurement>().asExternalModel()
+                .savedMeasurement().asExternalModel()
         }
     }
 
@@ -140,7 +142,7 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
                 columns = Columns.raw("""*,upload_download_data(*),latency_data(*),locations(*),cells(*)""")
             ) {
                 Measurement::id eq measurementId
-            }.decodeSingleOrNull<NetworkMeasurement>()?.asExternalModel() ?: throw NotFoundError()
+            }.decodeSingleOrNull<NetworkMeasurement>(serverReplies)?.asExternalModel() ?: throw NotFoundError()
         }
     }
 
@@ -169,6 +171,23 @@ class NetworkMeasurementDatasource(private val localDataStore: LocalDataStore) {
     class DuplicateKeyError(cause: Exception? = null): Exception(cause)
     class NotFoundError(cause: Exception? = null): Exception(cause)
 }
+
+/**
+ * Reads Supabase's replies. The phone reads back each row it uploads, and fcc_submissions or
+ * measurements can gain a column after a build is installed. supabase-kt 1.0.3 decodes with
+ * kotlinx's Json.Default unless it's given another Json, and Json.Default rejects a key the build
+ * has no field for. So a new column would fail every upload after the server had already saved
+ * the row (#186). Release 13 reads replies that way, and only a build with this one is safe.
+ */
+internal val serverReplies = Json { ignoreUnknownKeys = true }
+
+/** The fcc_submissions row an insert saved. */
+internal fun PostgrestResult.savedSubmission(): NetworkFccSubmission =
+    decodeSingle<NetworkFccSubmission>(serverReplies)
+
+/** The measurements row insert_measurement saved. */
+internal fun PostgrestResult.savedMeasurement(): NetworkMeasurement =
+    decodeAs<NetworkMeasurement>(serverReplies)
 
 /**
  * How long a request made while uploading may take, connecting included: the Supabase requests,
