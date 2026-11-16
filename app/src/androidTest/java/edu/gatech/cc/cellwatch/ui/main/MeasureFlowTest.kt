@@ -7,8 +7,10 @@ import android.view.View
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.scrollTo
+import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.RootMatchers.isDialog
 import androidx.test.espresso.matcher.ViewMatchers.Visibility
@@ -47,7 +49,7 @@ import org.junit.runner.RunWith
  * [assumeOffline]). With none, the server lookup fails at once and each part of the test is saved
  * as failed, which still takes the screen through every step.
  *
- * None of them makes an FCC submission: the one in FCC mode runs with mobile data off, which keeps
+ * None of them makes an FCC submission: the ones in FCC mode run with mobile data off, which keeps
  * a test from the FCC, and the rest are in testing mode. What they save is cleared afterwards.
  */
 @RunWith(AndroidJUnit4::class)
@@ -114,6 +116,29 @@ class MeasureFlowTest {
 
             onView(withId(R.id.backToMapButton)).perform(click())
             eventually { assertTrue(openActivities(MapActivity::class.java).isNotEmpty()) }
+        }
+    }
+
+    @Test
+    fun goAsksAgainAfterTheCellularWarningIsClosedWithBack() {
+        useFccChallengeMode()
+        shell("svc data disable")
+        mobileDataTurnedOff = true
+
+        ActivityScenario.launch(MeasureActivity::class.java).use {
+            eventually { onView(withId(R.id.stationaryOrMoving)).check(matches(withEffectiveVisibility(Visibility.VISIBLE))) }
+
+            // Back closes the warning without either answer.
+            onView(withId(R.id.go)).perform(scrollTo(), click())
+            onView(withText(R.string.not_cellular_warning)).inRoot(isDialog()).check(matches(isDisplayed()))
+            pressBack()
+            onView(withText(R.string.not_cellular_warning)).check(doesNotExist())
+
+            // The next tap on Go asks again instead of doing nothing.
+            onView(withId(R.id.go)).perform(scrollTo(), click())
+            onView(withText(R.string.not_cellular_warning)).inRoot(isDialog()).check(matches(isDisplayed()))
+            onView(withText(R.string.cancel)).inRoot(isDialog()).perform(click())
+            onView(withId(R.id.go)).check(matches(withEffectiveVisibility(Visibility.VISIBLE)))
         }
     }
 
