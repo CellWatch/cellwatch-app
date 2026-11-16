@@ -185,6 +185,9 @@ class PreMeasureFragment: Fragment() {
                 dialog.dismiss()
                 continuation.resume(false)
             }
+            // Back or a tap outside the warning counts as Cancel. With no answer, the tap on Go
+            // would never finish, and Go would ignore every tap after it.
+            .setOnCancelListener { continuation.resume(false) }
             .show()
     }
 }
